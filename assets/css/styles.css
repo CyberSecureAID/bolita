@@ -110,7 +110,26 @@ body {
   background:
     radial-gradient(ellipse 70% 100% at 50% 0%, rgba(63,224,176,.13), transparent 70%),
     linear-gradient(180deg, var(--panel-2), var(--panel));
-  padding: 34px 30px 28px; overflow: hidden; text-align: center;
+  padding: 20px 20px 24px; overflow: hidden; text-align: center;
+}
+
+/* ---- Banner ---- */
+
+.banner { display: block; margin: 0 0 20px; }
+
+.banner img {
+  display: block; width: 100%; height: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(201,151,63,.35);
+  box-shadow:
+    0 0 0 1px rgba(232,192,106,.12),
+    0 14px 44px rgba(0,0,0,.55),
+    0 0 60px rgba(201,151,63,.10);
+}
+
+.tagline {
+  max-width: 56ch; margin: 0 auto 22px;
+  color: var(--ink-2); font-size: 15px;
 }
 
 .hero::after {
@@ -138,7 +157,7 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
-.hero p { max-width: 56ch; margin: 0 auto 22px; color: var(--ink-2); font-size: 15px; }
+.hero > p { max-width: 56ch; margin: 0 auto 22px; color: var(--ink-2); font-size: 15px; }
 
 .stats {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
@@ -489,6 +508,8 @@ body {
   .grid-nums.g10 { grid-template-columns: repeat(5, 1fr); }
   .bola { width: 58px; height: 58px; font-size: 21px; }
   .verso { flex-direction: column; text-align: center; gap: 10px; }
+  .hero { padding: 12px 12px 20px; }
+  .banner img { border-radius: 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
