@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La Bolita — lotería de terminales</title>
+<meta name="description" content="Lotería de terminales sobre USDT. La banca no puede quebrar: el contrato rechaza toda apuesta que no pueda pagar.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bodoni+Moda:ital,wght@0,600;0,700;1,600&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="kicker">Del 00 al 99 · sobre USDT</p>
+    <h1>La <em>Bolita</em></h1>
+    <p>
+      Juegas al terminal, no al número suelto. El terminal 4 cubre el 04, 14,
+      24, 34, 44, 54, 64, 74, 84 y 94: diez números de cien. Aciertas una de
+      cada diez veces y cobras ocho por uno.
+    </p>
+  </header>
+
+  <div class="board">
+    <div class="board-cell">
+      <div class="k">Banca</div>
+      <div class="v" id="b-bank">$100</div>
+    </div>
+    <div class="board-cell">
+      <div class="k">Pago</div>
+      <div class="v" id="b-payout">8×</div>
+    </div>
+    <div class="board-cell">
+      <div class="k">Tope por terminal</div>
+      <div class="v small" id="b-cap">$2.50</div>
+    </div>
+    <div class="board-cell">
+      <div class="k">Ronda</div>
+      <div class="v small plain" id="b-round">#1</div>
+    </div>
+  </div>
+
+  <!-- ================= TERMINALES ================= -->
+  <section class="sec">
+    <div class="sec-title"><h2>Escoge tu terminal</h2></div>
+    <p class="sec-note">
+      La barra de cada ficha es su aforo. Cuando se llena, ese terminal se
+      cierra y hay que jugar otro — así es como la banca nunca acepta más
+      riesgo del que puede cubrir.
+    </p>
+
+    <div class="terminals" id="terminals"></div>
+
+    <div class="slip">
+      <div>
+        <label for="amount">Cuánto juegas</label>
+        <div class="amount-row">
+          <input type="number" id="amount" value="1" min="0.1" step="0.1" inputmode="decimal">
+          <button class="quick" data-amt="0.5" type="button">$0.50</button>
+          <button class="quick" data-amt="1" type="button">$1</button>
+          <button class="quick" data-amt="2" type="button">$2</button>
+        </div>
+      </div>
+      <div class="payout-preview">
+        <div class="k">Cobras si sale</div>
+        <div class="v" id="preview">$8.00</div>
+      </div>
+      <button class="btn" id="play" type="button">Escoge un terminal</button>
+    </div>
+  </section>
+
+  <!-- ================= BOMBO ================= -->
+  <section class="sec">
+    <div class="sec-title"><h2>El bombo</h2></div>
+    <div class="draw">
+      <div class="ball" id="ball">—</div>
+      <p class="symbol" id="symbol">esperando</p>
+      <p class="outcome" id="outcome">Escoge un terminal y dale a jugar.</p>
+    </div>
+  </section>
+
+  <!-- ================= POR QUE NO QUIEBRA ================= -->
+  <section class="sec">
+    <div class="sec-title"><h2>Por qué la banca no puede quebrar</h2></div>
+    <p class="sec-note">
+      No es que sea poco probable. Es que el contrato rechaza cualquier apuesta
+      que no pueda pagar, y lo comprueba antes de tocar el dinero.
+    </p>
+
+    <div class="cols">
+      <div class="card">
+        <h3>El peor caso posible</h3>
+        <p>Se llenan los diez terminales y sale el premiado:</p>
+        <table class="ledger">
+          <tr><td>Entra (10 × $2.50)</td><td>$25.00</td></tr>
+          <tr><td>Se paga (8 × $2.50)</td><td>−$20.00</td></tr>
+          <tr class="total"><td>La banca gana</td><td>+$5.00</td></tr>
+        </table>
+        <p style="margin-top:12px">
+          Aunque se llene todo, la banca <strong>gana</strong>. Solo puede salir
+          un terminal, así que solo se paga uno.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>La peor racha</h3>
+        <p>Solo se llena un terminal y justo ese sale:</p>
+        <table class="ledger">
+          <tr><td>Entra</td><td>$2.50</td></tr>
+          <tr><td>Se paga</td><td>−$20.00</td></tr>
+          <tr class="total" style="color:var(--rojo)"><td>Pérdida</td><td>−$17.50</td></tr>
+        </table>
+        <p style="margin-top:12px">
+          Es el <strong>17,5% de la banca</strong>, el máximo que se puede
+          perder en una ronda. Y como el tope se recalcula sobre el saldo real,
+          la banca se encoge pero <strong>nunca llega a cero</strong>.
+        </p>
+      </div>
+    </div>
+
+    <div class="warn">
+      <strong>Sin panel de administración.</strong> Los ajustes viven en el
+      contrato y solo se tocan desde la wallet del dueño. Si no existe una
+      página de administración, no hay nada que hackear desde la web.
+    </div>
+  </section>
+
+  <!-- ================= NUMEROS ================= -->
+  <section class="sec">
+    <div class="sec-title"><h2>Los números y su charada</h2></div>
+    <p class="sec-note">
+      Pasa por encima de tu terminal para ver los diez números que cubre y el
+      nombre que lleva cada uno.
+    </p>
+    <div class="card" id="charada-box" style="font-family:var(--mono);font-size:13px;line-height:2">
+      Escoge un terminal arriba.
+    </div>
+  </section>
+
+  <!-- ================= HONESTIDAD ================= -->
+  <section class="sec">
+    <div class="sec-title"><h2>Lo que hay que decir<span class="tag">demostración</span></h2></div>
+    <div class="card">
+      <p>
+        Esta página funciona con <strong>una banca simulada</strong> en tu
+        navegador. No hay contrato desplegado todavía, no se conecta ninguna
+        wallet y no se mueve dinero real. Sirve para ver el mecanismo y probar
+        que las cuentas cuadran.
+      </p>
+      <p>
+        Cuando el contrato esté desplegado, esta misma interfaz se conecta a él
+        y las cifras salen de la cadena en lugar de la simulación.
+      </p>
+      <p>
+        Y lo que toca decir de frente: pagando ocho por uno con una
+        probabilidad de uno entre diez, <strong>la banca se queda el 20% de
+        todo lo que se juegue</strong> a largo plazo. Habrá quien gane, pero
+        el conjunto de los jugadores pierde ese 20%. Así funciona la bolita de
+        siempre, y así funciona esta.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    Todo corre en tu navegador · el sorteo real usará Chainlink VRF, verificable en cadena
+  </footer>
+
+</div>
+
+<script type="module" src="assets/js/app.js"></script>
+</body>
+</html>
