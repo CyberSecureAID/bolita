@@ -1,27 +1,7 @@
-# La Bolita — lotería de terminales sobre USDT
+# La Bolita
 
-Bolita cubana en cadena. Juegas al **terminal** (último dígito), no al número
-suelto: aciertas 1 de cada 10 veces y cobras **8×**.
-
----
-
-## Abrir esto
-
-### Ver la demostración (GitHub Pages)
-
-1. Sube la carpeta al repo
-2. **Settings → Pages → Deploy from a branch → main / (root)**
-3. Abre la URL que te dé GitHub
-
-En local necesita servidor porque usa módulos de JavaScript:
-
-```
-python3 -m http.server 8000
-```
-
-> La página funciona con una **banca simulada** en el navegador. No hay
-> contrato desplegado, no se conecta wallet, no se mueve dinero. Sirve para ver
-> el mecanismo y comprobar que las cuentas cuadran.
+La bolita cubana en cadena. Tres formas de jugar: **terminales**, **número
+solo** y **parlé**.
 
 ---
 
@@ -29,92 +9,125 @@ python3 -m http.server 8000
 
 ```
 bolita/
-├── index.html              ← entrada de GitHub Pages
+├── index.html                ← entrada de GitHub Pages
 ├── README.md
 ├── .nojekyll
 ├── assets/
 │   ├── css/
 │   │   └── styles.css
 │   └── js/
-│       ├── app.js          ← interfaz y banca simulada
-│       ├── economics.js    ← matemática (espejo del contrato)
-│       └── charada.js      ← los 100 números y sus nombres
+│       ├── app.js            ← interfaz
+│       ├── economics.js      ← matemática de la banca (espejo del contrato)
+│       ├── charada.js        ← los 100 números y sus nombres
+│       ├── versos.js         ← ⬅ EL VERSO DEL DÍA VA AQUÍ
+│       ├── confetti.js       ← confeti al ganar, sin librerías
+│       └── wallet.js         ← conexión MetaMask / Trust / etc.
 └── contracts/
-    └── Bolita.sol          ← el contrato
+    └── Bolita.sol
 ```
+
+**El archivo de los versos es `assets/js/versos.js`.** Para añadir más, escribe
+dentro del array `VERSOS`. No hace falta tocar nada más.
 
 ---
 
-## Por qué terminales y no números sueltos
+## Las tres formas de jugar
 
-|  | Número suelto | **Terminal** |
-|---|---|---|
-| Probabilidad | 1% | **10%** |
-| Pago | 80× | **8×** |
-| Margen de la banca | 20% | **20%** |
-| Coste de un ganador | 80× la apuesta | **8× la apuesta** |
+Salen **cinco números** del 00 al 99. El primero es el **fijo**.
 
-**Mismo margen, diez veces menos riesgo por jugada.** Con $100 de banca puedes
-operar terminales; con números sueltos un solo acierto te la revienta.
+| Modo | Qué juegas | Aciertas si | Probabilidad | Paga |
+|---|---|---|---|---|
+| **Terminales** | Un dígito (0–9) | El fijo termina en tu dígito | 1 de 10 | **8×** |
+| **Número solo** | Un número (00–99) | Aparece entre los cinco | 5 de 100 | **16×** |
+| **Parlé** | Dos números | Aparecen **los dos** | 10 de 4.950 | **400×** |
+
+Margen de la banca: **20%** en los tres.
+
+> Si las reglas de tu bolita son distintas, se ajustan en un solo sitio:
+> el objeto `MODOS` de `assets/js/economics.js`. Cambiando el multiplicador y
+> la probabilidad, los topes y el margen se recalculan solos.
+
+---
+
+## El verso del día
+
+Tradición cubana: cada día circula un verso, una adivinanza que alude a un
+número. *"Es verde, salta y le gusta la humedad"* → la rana.
+
+### ⚠️ La regla que no se toca
+
+**El verso NO tiene ninguna relación con el número que sale.**
+
+Se elige a partir de la **fecha**, nada más. El sorteo lo decide el contrato
+por otra vía y en otro momento. Son dos cosas separadas y nunca se cruzan.
+
+Si el verso se generara a partir del número ganador, todo el mundo jugaría ese
+número y habría que pagar a todos a la vez. La banca quedaría expuesta.
+
+**Verificado:** `versos.js` no importa nada del sorteo y no contiene ninguna
+referencia a él. Mismo día → mismo verso; días distintos → versos distintos.
+
+Vienen 40 versos escritos. Cada quien decide si guiarse por él o jugar lo que
+le dé la gana.
 
 ---
 
 ## Por qué la banca no puede quebrar
 
-No es que sea improbable. **El contrato rechaza toda apuesta que no pueda
-pagar**, y lo comprueba antes de tocar el dinero:
+El contrato **rechaza toda apuesta que no pueda pagar**. Lo comprueba antes de
+tocar el dinero:
 
 ```solidity
-uint256 liabilityIfWins = (newTerminalStake * payoutX100) / 100;
-if (liabilityIfWins > maxLiability) revert TerminalFullError(...);
+uint256 liabilityIfWins = (newStake * payoutX100) / 100;
+if (liabilityIfWins > maxLiability) revert CupoLleno(...);
 ```
 
-Con banca $100, exposición 20% y pago 8×:
+**La misma fórmula sirve para los tres modos.** Cuanto más paga una jugada,
+menos se puede apostar a ella. Con banca $100 y exposición 20%:
 
-| | |
-|---|---|
-| Deuda máxima por terminal | $20.00 |
-| Apostado máximo por terminal | $2.50 |
+| Modo | Paga | Cupo por jugada |
+|---|---|---|
+| Terminales | 8× | $2.50 |
+| Número solo | 16× | $1.25 |
+| Parlé | 400× | $0.05 |
 
-Cuando un terminal se llena, se cierra. Eso equilibra la banca sola.
-
-### Peor caso: los 10 terminales llenos
-
-```
-Entra    10 × $2.50  =  $25.00
-Se paga   8 × $2.50  = −$20.00
-                        ───────
-La banca GANA           +$5.00
-```
-
-Solo puede salir **un** terminal, así que solo se paga uno.
-
-### Peor pérdida posible
+### Peor caso: todos los cupos de terminales llenos
 
 ```
-Solo se llena 1 terminal  →  entra $2.50
-Y justo ese sale          →  se paga $20.00
-                             ─────────────
-Pérdida                      −$17.50  (17.5% de la banca)
+Entra    10 × $2.50 =  $25.00
+Se paga   8 × $2.50 = −$20.00
+                       ───────
+La banca GANA          +$5.00
 ```
 
-Los topes se recalculan sobre el saldo real, así que la banca se encoge pero
+### Peor pérdida posible en un sorteo
+
+```
+Se llena un solo cupo →  entra   $2.50
+Y justo ese sale      →  se paga $20.00
+                          ─────────────
+Pérdida                   −$17.50  (17.5% de la banca)
+```
+
+Los cupos se recalculan sobre lo que queda, así que la banca se encoge pero
 **nunca llega a cero**.
 
-**Verificado:** 2.000 rondas simuladas con apuestas aleatorias. La banca no
-tocó cero ni una vez. (El crecimiento de la simulación es un artefacto de que
-las apuestas escalan con la banca; no es una promesa de rentabilidad.)
+**Verificado con Node:** 5.000 sorteos simulados con los tres modos a la vez y
+apuestas aleatorias. La banca no bajó del capital inicial en ningún momento.
+(El crecimiento de la simulación es un artefacto de que las apuestas escalan
+con la banca; no es una promesa de rentabilidad.)
 
 ---
 
-## Aleatoriedad
+## Wallet
 
-**Una sola fuente buena: Chainlink VRF.** Mezclar diez sistemas caseros no da
-más seguridad, da más superficie de fallo. Con VRF ni el dueño puede predecir
-ni alterar el resultado, y queda la prueba en cadena para quien quiera mirarla.
+`wallet.js` conecta con **MetaMask, Trust Wallet, Rabby, OKX, Phantom en modo
+EVM** y cualquier otra que use el estándar EIP-1193 o EIP-6963. Sin librerías.
 
-Si Chainlink no respondiera en 2 horas, `refundStuckRound()` anula la ronda y
-devuelve lo apostado. El dinero nunca queda atrapado.
+Detecta si estás en la red equivocada y ofrece cambiar a BNB Smart Chain, o
+añadirla si no la tienes.
+
+De momento solo conecta y muestra la cuenta: aún no hay contrato desplegado.
 
 ---
 
@@ -126,50 +139,46 @@ nada que hackear desde la web.**
 
 | Función | Para qué |
 |---|---|
-| `depositBankroll(amount)` | Aportar capital de respaldo |
+| `depositBankroll(amount)` | Poner capital de respaldo |
 | `withdrawBankroll(amount)` | Sacar beneficios (nunca el dinero de jugadores) |
-| `setPayout(x100)` | Cambiar el pago. Tope: 9.50× |
-| `setExposure(bps)` | Riesgo por terminal. Tope: 30% |
+| `setPayout(x100)` | Cambiar el pago |
+| `setExposure(bps)` | Riesgo por resultado. Tope duro: 30% |
 | `setBetLimits(min, maxPorPersona)` | Límites de apuesta |
 | `pause()` / `unpause()` | Parada de emergencia |
 
-Topes que **ni el dueño** puede saltarse: pago máximo 9.50× (por encima el
-margen se vuelve negativo) y exposición máxima 30%.
-
-`withdrawBankroll` no puede tocar `pendingPayouts` ni la garantía reservada
-para la ronda en curso.
+`withdrawBankroll` no puede tocar lo que se debe a ganadores ni la garantía
+reservada para el sorteo en curso.
 
 ---
 
-## Desplegar
+## Estado
 
-**Falta por hacer, en este orden:**
+**Funciona:** interfaz completa, tres modos, cupos en vivo, bombo de cinco
+bolas con revelado, confeti al ganar, charada de 100 números con filtros,
+verso del día, conexión de wallet, modales de economía, reglas y pagos.
+
+**Falta:** el contrato está escrito pero **no compilado ni desplegado**.
+Y hay que conectar la interfaz al contrato — ahora usa una banca simulada.
+
+### Para desplegar
 
 1. Compilar `Bolita.sol` en Remix — Solidity 0.8.22, optimizador 200 runs
-2. Crear una suscripción de Chainlink VRF en BSC y financiarla con LINK
-3. Desplegar con: dirección de USDT en BSC, 18 decimales, coordinador VRF,
-   subId y keyHash
-4. Añadir el contrato como consumidor de la suscripción VRF
-5. `approve` + `depositBankroll` para poner el capital
-6. `openRound()` para abrir la primera ronda
-7. Conectar la web al contrato (sustituir la banca simulada por llamadas reales)
-
-**Nada de esto se ha compilado ni desplegado todavía.** El contrato es lectura
-revisada, no código probado en cadena.
+2. Crear suscripción de VRF y financiarla
+3. Desplegar con: dirección de USDT en BSC, decimales, coordinador, subId, keyHash
+4. Añadir el contrato como consumidor de la suscripción
+5. `approve` + `depositBankroll`
+6. `openRound()`
+7. Sustituir la banca simulada de `app.js` por llamadas al contrato
 
 ---
 
-## Lo que hay que decir de frente
+## En local
 
-Pagando 8× con probabilidad 1/10, **la banca se queda el 20% de todo lo
-jugado** a largo plazo. Habrá quien gane, pero el conjunto de jugadores pierde
-ese 20%. Así funciona la bolita de siempre y así funciona esta.
+Necesita servidor porque usa módulos de JavaScript:
 
-Tu capital no corre riesgo de quiebra, pero **está inmovilizado**: es la
-garantía. Puedes retirar beneficios, no el respaldo mientras haya rondas
-abiertas.
+```
+python3 -m http.server 8000
+```
 
-Y una nota práctica, no moral: operar apuestas de cara al público tiene
-requisitos de licencia en casi todas partes. Para probarte a ti mismo si eres
-capaz de construirlo, ningún problema — tenlo en cuenta antes de la parte de
-distribución.
+En GitHub Pages funciona directo: **Settings → Pages → Deploy from a branch →
+main / (root)**.
