@@ -66,10 +66,11 @@ body {
 
 .nav-links { display: flex; gap: 4px; margin-left: 8px; }
 .nav-links a {
-  color: var(--ink-2); text-decoration: none; font-size: 13.5px;
-  font-weight: 500; padding: 7px 12px; border-radius: 8px;
+  color: var(--gold); text-decoration: none; font-size: 13.5px;
+  font-weight: 600; padding: 7px 12px; border-radius: 8px;
+  font-family: var(--display); letter-spacing: .02em;
 }
-.nav-links a:hover { color: var(--ink); background: var(--panel); }
+.nav-links a:hover { color: #F7E8B8; background: rgba(232,184,75,.08); }
 
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: 9px; }
 
@@ -159,9 +160,9 @@ body {
 /* ---------------- Banner: el billete con el logo centrado ---------------- */
 
 .hero {
-  position: relative; border: 1px solid var(--line); border-radius: 22px;
-  overflow: hidden; display: grid; place-items: center;
+  position: relative; overflow: hidden; display: grid; place-items: center;
   aspect-ratio: 1600 / 500; min-height: 220px; margin-top: 12px;
+  border-radius: 0;
 }
 
 .hero-bg {
@@ -178,27 +179,6 @@ body {
   width: clamp(210px, 34%, 440px); height: auto;
   filter: drop-shadow(0 4px 20px rgba(0,0,0,.7)) drop-shadow(0 0 34px rgba(232,184,75,.32));
 }
-
-/* ---------------- Última tirada ---------------- */
-
-.lastdraw {
-  display: flex; align-items: center; justify-content: center; gap: 14px;
-  flex-wrap: wrap; margin-top: 12px; padding: 12px 20px;
-  background: var(--panel); border: 1px solid var(--line-soft); border-radius: 14px;
-}
-.ld-k {
-  font-family: var(--mono); font-size: 9.5px; letter-spacing: .18em;
-  text-transform: uppercase; color: var(--ink-3);
-}
-.ld-balls { display: flex; gap: 7px; }
-.ld-ball {
-  width: 36px; height: 36px; border-radius: 50%;
-  display: grid; place-items: center;
-  font-family: var(--display); font-weight: 700; font-size: 14px;
-  background: var(--bg-2); border: 1px solid var(--line); color: var(--ink-2);
-}
-.ld-ball.first { border-color: var(--gold); color: var(--gold); }
-.ld-when { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
 
 /* ---------------- Botón de desconectar ---------------- */
 
@@ -253,6 +233,8 @@ body {
 .sec-head h2 {
   font-family: var(--display); font-weight: 700; font-size: 25px;
   margin: 0; white-space: nowrap; letter-spacing: -0.01em;
+  background: linear-gradient(100deg, #F7E8B8, var(--gold) 55%, #C9973F);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
 }
 .sec-head::after {
   content: ""; flex: 1; height: 1px;
@@ -265,133 +247,89 @@ body {
 .modes {
   display: grid; grid-template-columns: repeat(3, 1fr);
   gap: 14px; margin-bottom: 22px;
+  align-items: stretch;
 }
 
 .mode {
-  display: flex; flex-direction: column; gap: 0;
-  background: var(--panel); border: 1px solid var(--line-soft);
+  position: relative; display: block;
+  background: #050D0A; border: 1px solid var(--line-soft);
   border-radius: 16px; padding: 0; overflow: hidden;
-  cursor: pointer; font-family: inherit; color: var(--ink); text-align: left;
+  cursor: pointer; font-family: inherit; line-height: 0;
   transition: transform .18s, border-color .18s, box-shadow .18s;
+  aspect-ratio: 800 / 410;          /* todas iguales, la de terminales se alinea */
 }
 .mode:hover:not(:disabled) {
   transform: translateY(-4px); border-color: var(--neon-dim);
-  box-shadow: 0 12px 30px rgba(0,0,0,.5);
+  box-shadow: 0 12px 30px rgba(0,0,0,.5), 0 0 24px rgba(63,224,176,.12);
 }
 .mode:focus-visible { outline: 2px solid var(--neon); outline-offset: 3px; }
-.mode:disabled { opacity: .55; cursor: not-allowed; }
-
+.mode:disabled { opacity: .5; cursor: not-allowed; }
 .mode.on {
   border-color: var(--neon);
-  box-shadow: 0 0 0 1px var(--neon), 0 0 32px rgba(63,224,176,.24);
+  box-shadow: 0 0 0 1px var(--neon), 0 0 34px rgba(63,224,176,.3);
 }
 
-.mode-art { position: relative; display: block; line-height: 0; }
-.mode-art img { width: 100%; height: auto; display: block; }
-
-.mode-mult {
-  position: absolute; top: 10px; right: 10px;
-  font-family: var(--display); font-weight: 700; font-size: 17px;
-  color: #04241B; background: linear-gradient(180deg, #F7E8B8, var(--gold));
-  border-radius: 100px; padding: 4px 12px; line-height: 1.15;
-  box-shadow: 0 3px 12px rgba(0,0,0,.45);
+/* La imagen llena la tarjeta sin recortarse (contain) y centrada.
+   Así la de Terminales, más alta por el sombrero, queda en línea con las otras. */
+.mode img {
+  width: 100%; height: 100%;
+  object-fit: contain; object-position: center;
+  display: block;
 }
 
 .mode-check {
-  position: absolute; top: 10px; left: 10px;
-  width: 27px; height: 27px; border-radius: 50%;
+  position: absolute; top: 10px; left: 10px; z-index: 2;
+  width: 28px; height: 28px; border-radius: 50%;
   display: grid; place-items: center;
   background: var(--neon); color: #04241B;
   opacity: 0; transform: scale(.6); transition: all .2s;
+  box-shadow: 0 3px 12px rgba(0,0,0,.4);
 }
 .mode.on .mode-check { opacity: 1; transform: scale(1); }
 
-.mode-foot {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 13px 15px 15px; line-height: 1.35;
-}
-.mf-name { font-family: var(--display); font-weight: 600; font-size: 16px; }
-.mf-cap { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
-.mode.on .mf-cap { color: var(--neon); }
+/* ---------------- Marca tus números ---------------- */
 
-/* ---------------- Rejilla de números ---------------- */
-
-.picker {
-  background: var(--panel); border: 1px solid var(--line-soft);
-  border-radius: var(--r); padding: 18px;
-}
-
-.picker-head {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 14px; gap: 12px; flex-wrap: wrap;
-}
-.picker-head .title { font-family: var(--display); font-weight: 600; font-size: 15px; }
-.picker-head .hint { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
-
-.grid-nums { display: grid; gap: 6px; }
+.grid-nums { display: grid; gap: 8px; }
 .grid-nums.g10 { grid-template-columns: repeat(10, 1fr); }
 .grid-nums.g5  { grid-template-columns: repeat(5, 1fr); }
 
 .num {
-  position: relative; aspect-ratio: 1; overflow: hidden;
-  background: linear-gradient(180deg, #0A2018, #061710);
-  border: 1px solid var(--line-soft); border-radius: 11px;
+  position: relative; overflow: hidden; isolation: isolate;
+  aspect-ratio: 1; border-radius: 13px; padding: 0; cursor: pointer;
+  display: grid; place-items: center;
+  font-family: var(--display); font-weight: 700; font-size: 15px;
   color: var(--ink-2);
-  font-family: var(--display); font-size: 15px; font-weight: 700;
-  cursor: pointer; display: grid; place-items: center; padding: 0;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(63,224,176,.06), transparent 70%),
+    linear-gradient(180deg, #0D2119 0%, #061710 100%);
+  border: 1px solid var(--line-soft);
   transition: transform .13s, border-color .13s, box-shadow .13s, color .13s;
 }
-.num:hover:not(:disabled) { border-color: var(--neon-dim); color: var(--ink); transform: translateY(-1px); }
-.num:focus-visible { outline: 2px solid var(--neon); outline-offset: 1px; }
+.num .num-n { position: relative; z-index: 2; }
+
+.num:hover:not(:disabled) {
+  border-color: var(--neon-dim); color: var(--ink);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.45), 0 0 18px rgba(63,224,176,.14);
+}
+.num:focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+.num:disabled { cursor: not-allowed; }
+
+.num.big { font-size: 26px; }
 
 .num.on {
+  color: #04241B;
   background: linear-gradient(180deg, var(--neon-lit), var(--neon));
-  border-color: var(--neon-lit); color: #04241B; font-weight: 700;
-  box-shadow: 0 0 18px rgba(63,224,176,.45);
+  border-color: var(--neon-lit);
+  box-shadow: 0 0 0 1px var(--neon-lit), 0 0 24px rgba(63,224,176,.55), 0 6px 16px rgba(0,0,0,.45);
+  transform: translateY(-3px) scale(1.03);
 }
 
-.num:disabled { opacity: .26; cursor: not-allowed; }
-
-/* Efecto de agua: el número se va llenando según sube el cupo */
-.num .agua {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  overflow: hidden; border-radius: 0 0 10px 10px;
-  background: linear-gradient(180deg, rgba(63,224,176,.28), rgba(63,224,176,.42));
-  pointer-events: none; transition: height .6s ease;
-  z-index: 0;
+/* Primero del par de un parlé, esperando el segundo */
+.num.pend {
+  border-color: var(--gold); color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold), 0 0 18px rgba(232,184,75,.4);
 }
-.num .agua.alta { background: linear-gradient(180deg, rgba(232,184,75,.32), rgba(232,184,75,.5)); }
-.num .agua.llena { background: linear-gradient(180deg, rgba(255,107,107,.42), rgba(255,107,107,.6)); }
-
-/* Las dos olas que se mecen en la superficie */
-.num .agua i {
-  position: absolute; top: -6px; left: -50%;
-  width: 200%; height: 12px; border-radius: 45%;
-  background: inherit; opacity: .9;
-}
-.num .agua i:nth-child(1) { animation: ola 3.2s linear infinite; }
-.num .agua i:nth-child(2) { animation: ola 2.1s linear infinite reverse; opacity: .5; }
-@keyframes ola {
-  0%   { transform: translateX(0) rotate(0); }
-  100% { transform: translateX(25%) rotate(360deg); }
-}
-
-.num.on .agua { display: none; }
-.num > span { position: relative; z-index: 1; }
-
-/* Número limitado: cerrado por la casa */
-.num.limitado {
-  border-color: rgba(255,107,107,.5); color: var(--rojo);
-  opacity: .9;
-}
-.num.limitado::after {
-  content: ""; position: absolute; inset: 0;
-  background: repeating-linear-gradient(45deg,
-    transparent 0 5px, rgba(255,107,107,.14) 5px 10px);
-  border-radius: 10px; pointer-events: none;
-}
-
-.num.big { font-size: 24px; font-family: var(--display); font-weight: 700; }
 
 /* ---------------- Boleta ---------------- */
 
@@ -513,7 +451,7 @@ body {
   padding: 6px 13px; cursor: pointer;
 }
 .filtro:hover { border-color: var(--neon-dim); color: var(--ink); }
-.filtro.on { background: var(--neon); border-color: var(--neon); color: #04241B; font-weight: 600; }
+.filtro.on { background: linear-gradient(180deg,#F7E8B8,var(--gold)); border-color: var(--gold); color: #2A1E06; font-weight: 600; }
 
 .charada { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 7px; }
 
@@ -527,7 +465,7 @@ body {
 
 .ch-item .n {
   font-family: var(--display); font-weight: 700; font-size: 17px;
-  color: var(--neon); min-width: 26px;
+  color: var(--gold); min-width: 26px;
 }
 .ch-item .nm { font-size: 12.5px; color: var(--ink-2); line-height: 1.25; }
 
@@ -544,7 +482,7 @@ body {
   font-family: var(--sans); font-size: 13px; font-weight: 600;
   padding: 11px 20px; cursor: pointer;
 }
-.foot-btn:hover { border-color: var(--neon); color: var(--neon); }
+.foot-btn:hover { border-color: var(--gold); color: var(--gold); }
 .foot-btn .ic { font-size: 15px; }
 
 .foot-note {
@@ -570,7 +508,9 @@ body {
 
 .modal-box h3 {
   font-family: var(--display); font-weight: 700; font-size: 25px;
-  margin: 0 0 4px; color: var(--neon-lit);
+  margin: 0 0 4px;
+  background: linear-gradient(100deg, #F7E8B8, var(--gold));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
 }
 .modal-box .sub { color: var(--ink-3); font-family: var(--mono); font-size: 11px; margin: 0 0 20px; }
 .modal-box h4 { font-family: var(--display); font-size: 16px; margin: 22px 0 8px; color: var(--gold); }
@@ -612,8 +552,7 @@ body {
 @media (max-width: 860px) {
   .nav-links { display: none; }
   .stats { grid-template-columns: repeat(2, 1fr); }
-  .modes { grid-template-columns: 1fr; }
-  .mode-art img { max-height: 220px; object-fit: cover; object-position: center; }
+  .modes { grid-template-columns: 1fr; gap: 10px; }
   .slip { grid-template-columns: 1fr; }
   .win-box { text-align: left; }
   .btn-play { width: 100%; }
@@ -682,7 +621,10 @@ body {
 }
 .bloque[data-estado="activo"] .b-num { background: var(--neon); color: #04241B; }
 .bloque[data-estado="hecho"] .b-num { background: var(--neon-dim); color: #04241B; }
-.bloque-head h3 { font-family: var(--display); font-size: 18px; margin: 0; }
+.bloque-head h3 {
+  font-family: var(--display); font-size: 18px; margin: 0;
+  color: var(--gold);
+}
 .bloque-head .b-hint {
   margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
 }
@@ -857,17 +799,20 @@ body {
 
 .picker-bar {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+  gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+  padding: 12px 16px; border-radius: 12px;
+  background: linear-gradient(100deg, rgba(63,224,176,.05), transparent 60%), #071711;
+  border: 1px solid var(--line-soft);
 }
 .pb-left { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
-.pb-left b { color: var(--neon); font-weight: 500; }
+.pb-left b { color: var(--gold); font-weight: 600; }
 .pb-right { display: flex; gap: 7px; }
 .pb-btn {
   background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px;
   color: var(--ink-2); font-family: var(--sans); font-size: 12px; font-weight: 600;
   padding: 7px 14px; cursor: pointer;
 }
-.pb-btn:hover { border-color: var(--neon-dim); color: var(--neon); }
+.pb-btn:hover { border-color: var(--gold); color: var(--gold); }
 
 /* ================================================================== */
 /* Rejilla de números — versión cuidada                                */
@@ -984,11 +929,11 @@ body {
   font-family: var(--sans); font-size: 13.5px; font-weight: 600;
   padding: 12px 24px; cursor: pointer; margin: 4px auto 0;
 }
-.charada-toggle:hover { border-color: var(--neon); color: var(--neon); }
+.charada-toggle:hover { border-color: var(--gold); color: var(--gold); }
 .charada-toggle .ct-ic { display: grid; place-items: center; transition: transform .28s; }
 .charada-toggle .ct-ic svg { width: 17px; height: 17px; }
 .charada-toggle[aria-expanded="true"] .ct-ic { transform: rotate(180deg); }
-.charada-toggle[aria-expanded="true"] { border-color: var(--neon-dim); color: var(--neon); }
+.charada-toggle[aria-expanded="true"] { border-color: var(--gold); color: var(--gold); }
 
 .charada-panel {
   max-height: 0; overflow: hidden; opacity: 0;
@@ -1024,7 +969,6 @@ body {
   .balls { gap: 8px; }
   .drum { padding: 22px 14px 26px; }
   .drum-rings i:nth-child(3) { display: none; }
-  .ld-ball { width: 30px; height: 30px; font-size: 12px; }
   .saldo-strip { flex-direction: column; align-items: flex-start; gap: 12px; }
   .ss-right { text-align: left; }
   .verso-card { padding: 26px 20px 22px; }
@@ -1149,30 +1093,29 @@ body {
 
 /* --------- Sección de números limitados --------- */
 
-.limitados {
-  margin-top: 18px; padding: 16px 18px;
-  border: 1px solid rgba(255,107,107,.24); border-radius: 14px;
-  background: linear-gradient(100deg, rgba(255,107,107,.06), transparent 60%), var(--bg-2);
-}
-.lim-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
-.lim-badge {
-  font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase;
-  color: #04241B; background: var(--rojo); border-radius: 100px; padding: 4px 12px; font-weight: 600;
-}
-.lim-txt { font-family: var(--mono); font-size: 11px; color: var(--ink-3); flex: 1; min-width: 180px; }
+#limitados .sec-note { max-width: 70ch; }
 
-.lim-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.limitados-vacio {
+  padding: 22px; text-align: center; border-radius: 14px;
+  border: 1px dashed var(--line); background: var(--panel);
+  font-family: var(--mono); font-size: 12.5px; color: var(--ink-3);
+}
+
+.limitados {
+  display: flex; flex-wrap: wrap; gap: 9px;
+}
+
 .lim-num {
   position: relative; overflow: hidden; isolation: isolate;
-  width: 52px; height: 52px; border-radius: 11px;
+  width: 58px; height: 58px; border-radius: 12px;
   display: grid; place-items: center;
   background: #0B1815; border: 1px solid rgba(255,107,107,.4);
-  font-family: var(--display); font-weight: 700; font-size: 18px; color: var(--ink-2);
+  font-family: var(--display); font-weight: 700; font-size: 20px; color: var(--ink-2);
 }
 .lim-num .num-n { position: relative; z-index: 2; }
 .lim-num .agua {
   position: absolute; inset: 0; z-index: 1; overflow: hidden;
-  background: linear-gradient(180deg, rgba(255,107,107,.4), rgba(255,107,107,.2));
+  background: linear-gradient(180deg, rgba(255,107,107,.42), rgba(255,107,107,.2));
 }
 .lim-num .agua i {
   position: absolute; top: -6px; left: -50%; width: 200%; height: 12px;
@@ -1180,3 +1123,4 @@ body {
   animation: ola 2.8s linear infinite;
 }
 .lim-num .agua i:nth-child(2) { animation-duration: 2s; animation-direction: reverse; }
+
