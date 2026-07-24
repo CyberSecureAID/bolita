@@ -541,22 +541,25 @@ function pintarSaldo() {
 function pintarReloj() {
   const p = proximaTirada();
 
-  ponerIcono($('hero-tag').querySelector('.ht-ic'), p.tirada.id === 'dia' ? 'sol' : 'luna', 15);
-  $('ht-txt').textContent = p.abierta
-    ? `Cierran las apuestas · tirada de ${p.tirada.nombre.toLowerCase()}`
-    : `Sorteando · tirada de ${p.tirada.nombre.toLowerCase()}`;
+  ponerIcono($('db-ic'), p.tirada.id === 'dia' ? 'sol' : 'luna', 17);
+  $('db-label').textContent = p.abierta
+    ? `Cierran apuestas · ${p.tirada.nombre}`
+    : `Sorteando · ${p.tirada.nombre}`;
 
   const t = cuentaAtras(p.abierta ? p.faltaCierreMs : p.faltaMs).split(':');
   $('hc-h').textContent = t[0];
   $('hc-m').textContent = t[1];
   $('hc-s').textContent = t[2];
 
-  $('hero-when').textContent = `${p.tirada.nombre} · ${fechaHora(p.cuando)}`;
+  $('hero-when').textContent = fechaHora(p.cuando);
 
   const badge = $('dt-badge');
-  badge.innerHTML = ICONOS[p.tirada.id === 'dia' ? 'sol' : 'luna'](13) +
-    `<span>${p.tirada.nombre}</span>`;
-  $('draw-when').textContent = fechaHora(p.cuando);
+  if (badge) {
+    badge.innerHTML = ICONOS[p.tirada.id === 'dia' ? 'sol' : 'luna'](13) +
+      `<span>${p.tirada.nombre}</span>`;
+  }
+  const dw = $('draw-when');
+  if (dw) dw.textContent = fechaHora(p.cuando);
 }
 
 /** Los cinco números de la última tirada, en el banner. */
@@ -566,13 +569,13 @@ function pintarUltima() {
 
   if (!S.ultimosNumeros) {
     host.innerHTML = Array.from({ length: 5 },
-      () => '<div class="hl-ball">··</div>').join('');
+      () => '<div class="ld-ball">··</div>').join('');
     $('hl-when').textContent = u ? `${u.tirada.nombre} · ${fechaHora(u.cuando)}` : '—';
     return;
   }
 
   host.innerHTML = S.ultimosNumeros
-    .map((n, i) => `<div class="hl-ball${i === 0 ? ' first' : ''}">${pad2(n)}</div>`)
+    .map((n, i) => `<div class="ld-ball${i === 0 ? ' first' : ''}">${pad2(n)}</div>`)
     .join('');
   $('hl-when').textContent = S.ultimaEtiqueta ?? '—';
 }
