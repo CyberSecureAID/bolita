@@ -133,10 +133,10 @@
       <div class="grid-nums" id="grid"></div>
 
       <div class="leyenda">
-        <span><i class="lg lg-free"></i>con cupo</span>
-        <span><i class="lg lg-warm"></i>más de la mitad</span>
-        <span><i class="lg lg-full"></i>lleno</span>
-        <span class="lg-txt">La barra bajo cada número es el cupo ya ocupado por otros.</span>
+        <span><i class="lg lg-free"></i>con espacio</span>
+        <span><i class="lg lg-warm"></i>llenándose</span>
+        <span><i class="lg lg-full"></i>limitado</span>
+        <span class="lg-txt">El número se llena de agua según recibe apuestas. Cuando se llena, queda limitado.</span>
       </div>
 
       <div class="seleccion" id="seleccion"></div>
@@ -159,6 +159,14 @@
       </div>
 
       <div class="avisos" id="avisos"></div>
+
+      <div class="limitados" id="limitados" hidden>
+        <div class="lim-head">
+          <span class="lim-badge">Limitados</span>
+          <span class="lim-txt">Números con demasiadas apuestas. La casa los cierra para poder pagar a todos.</span>
+        </div>
+        <div class="lim-grid" id="lim-grid"></div>
+      </div>
     </div>
   </section>
 
@@ -167,21 +175,24 @@
     <div class="sec-head"><h2>El bombo</h2></div>
 
     <div class="drum">
-      <div class="drum-glow"></div>
-      <div class="drum-rings"><i></i><i></i><i></i></div>
-
-      <div class="drum-top">
-        <span class="dt-badge" id="dt-badge"></span>
-        <span class="dt-when" id="draw-when">—</span>
-      </div>
-
+      <div class="drum-bg"></div>
       <div class="balls" id="balls"></div>
-
-      <div class="drum-out">
-        <div class="do-name" id="draw-name">esperando la tirada</div>
-        <div class="do-msg" id="draw-msg">Completa los pasos y dale a jugar.</div>
-      </div>
+      <div class="do-name" id="draw-name"></div>
     </div>
+  </section>
+
+  <!-- ══════════ NÚMEROS LIMITADOS ══════════ -->
+  <section class="sec" id="limitados">
+    <div class="sec-head"><h2>Números limitados</h2></div>
+    <p class="sec-note">
+      Cuando un número recibe demasiadas apuestas, la casa lo cierra para poder
+      pagar a todos los que ya jugaron. Mientras no haya ninguno lleno, esta
+      sección está vacía.
+    </p>
+    <div class="limitados-vacio" id="lim-vacio">
+      Ahora mismo no hay números limitados. Se puede jugar a todos.
+    </div>
+    <div class="limitados" id="limitados-grid"></div>
   </section>
 
   <!-- ══════════ VERSO ══════════ -->
