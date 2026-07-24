@@ -39,7 +39,8 @@ const S = {
   ronda: 1,
   precios: {},
   ultimosNumeros: null,
-  charadaAbierta: false
+  charadaAbierta: false,
+  limitados: []
 };
 
 const $  = (id) => document.getElementById(id);
@@ -317,26 +318,38 @@ function pintarRejilla() {
   const marcados = new Set(S.seleccion.flatMap((s) => s.valores));
   const pendiente = S.pendienteParle ?? [];
 
+  // Recalcular qué números están limitados (solo modos de resultado individual)
+  S.limitados = [];
+
   for (let i = 0; i < m.rango; i++) {
     const clave = m.rango === 10 ? String(i) : pad2(i);
     const usado = ocupadoDe(clave);
     const pct = tope > 0 ? Math.min(100, (usado / tope) * 100) : 0;
+    const limitado = m.id !== 'parle' && pct >= 99.5;
+
+    if (limitado) S.limitados.push(i);
 
     const b = document.createElement('button');
     b.type = 'button';
     const esPend = pendiente.includes(i);
     b.className = 'num' + (m.rango === 10 ? ' big' : '')
-      + (marcados.has(i) ? ' on' : '') + (esPend ? ' pend' : '');
-    b.innerHTML = `<span>${m.rango === 10 ? i : pad2(i)}</span>`;
+      + (marcados.has(i) ? ' on' : '') + (esPend ? ' pend' : '')
+      + (limitado ? ' limitado' : '');
 
-    if (m.id !== 'parle') {
-      const cls = pct >= 99.5 ? 'full' : pct >= 50 ? 'warm' : '';
-      const bar = document.createElement('span');
-      bar.className = 'bar';
-      bar.innerHTML = `<i class="${cls}" style="width:${pct}%"></i>`;
-      b.appendChild(bar);
-      if (pct >= 99.5) b.disabled = true;
-      b.title = `${clave} · ${nombreDe(i)} · queda ${fmt(Math.max(0, tope - usado))}`;
+    // Nivel de "agua": el número se va llenando según se acerca al límite.
+    // Es solo un efecto visual del riesgo de que se cierre.
+    if (m.id !== 'parle' && pct > 6 && !marcados.has(i)) {
+      const nivel = limitado ? 'llena' : pct >= 60 ? 'alta' : 'media';
+      b.innerHTML =
+        `<span class="agua ${nivel}" style="height:${Math.min(100, pct)}%"><i></i><i></i></span>` +
+        `<span class="num-n">${m.rango === 10 ? i : pad2(i)}</span>`;
+    } else {
+      b.innerHTML = `<span class="num-n">${m.rango === 10 ? i : pad2(i)}</span>`;
+    }
+
+    if (limitado) {
+      b.disabled = true;
+      b.title = `${clave} · ${nombreDe(i)} · LIMITADO`;
     } else {
       b.title = `${clave} · ${nombreDe(i)}`;
     }
@@ -345,6 +358,28 @@ function pintarRejilla() {
     b.addEventListener('click', () => marcar(i));
     grid.appendChild(b);
   }
+
+  pintarLimitados();
+}
+
+/** Sección de números limitados: vacía hasta que alguno se llena. */
+function pintarLimitados() {
+  const cont = $('limitados');
+  const grid = $('lim-grid');
+
+  if (!S.modo || S.modo.id === 'parle' || S.limitados.length === 0) {
+    cont.hidden = true;
+    return;
+  }
+
+  cont.hidden = false;
+  grid.innerHTML = S.limitados.map((i) => {
+    const et = S.modo.rango === 10 ? String(i) : pad2(i);
+    return `<span class="lim-num" title="${nombreDe(i)}">
+      <span class="agua llena" style="height:100%"><i></i><i></i></span>
+      <span class="num-n">${et}</span>
+    </span>`;
+  }).join('');
 }
 
 function marcar(n) {
@@ -376,6 +411,7 @@ function marcar(n) {
   pintarSeleccion();
   pintarBoleta();
 }
+
 
 function pintarSeleccion() {
   const host = $('seleccion');
@@ -552,14 +588,6 @@ function pintarReloj() {
   $('hc-s').textContent = t[2];
 
   $('hero-when').textContent = fechaHora(p.cuando);
-
-  const badge = $('dt-badge');
-  if (badge) {
-    badge.innerHTML = ICONOS[p.tirada.id === 'dia' ? 'sol' : 'luna'](13) +
-      `<span>${p.tirada.nombre}</span>`;
-  }
-  const dw = $('draw-when');
-  if (dw) dw.textContent = fechaHora(p.cuando);
 }
 
 /** Los cinco números de la última tirada, en el banner. */
@@ -587,12 +615,11 @@ function pintarUltima() {
 function crearBolas() {
   const host = $('balls');
   host.innerHTML = '';
-  const etq = ['fijo', '2°', '3°', '4°', '5°'];
   for (let i = 0; i < 5; i++) {
-    const w = document.createElement('div');
-    w.className = 'bola-wrap';
-    w.innerHTML = `<div class="bola">--</div><div class="bola-label">${etq[i]}</div>`;
-    host.appendChild(w);
+    const b = document.createElement('div');
+    b.className = 'bola' + (i === 0 ? ' es-fijo' : '');
+    b.textContent = '00';
+    host.appendChild(b);
   }
 }
 
@@ -613,9 +640,8 @@ async function jugar() {
   crearBolas();
   const bolas = $$('.bola');
   bolas.forEach((b) => b.classList.add('spin'));
-  $('draw-name').textContent = 'girando el bombo';
-  $('draw-msg').textContent = 'Sacando los cinco números…';
-  $('draw-msg').className = 'msg';
+  $('draw-name').textContent = '';
+  $('draw-name').className = 'do-name';
 
   const spin = setInterval(() => bolas.forEach((b) => { b.textContent = pad2(Math.floor(Math.random() * 100)); }), 70);
   await new Promise((r2) => setTimeout(r2, 1500));
@@ -662,14 +688,14 @@ async function jugar() {
 
   if (cobrado > 0) {
     BANCA[S.moneda.id] -= (cobrado - r.asignado);
-    $('draw-msg').className = 'msg win';
-    $('draw-msg').textContent = `¡Salió! Cobras ${fmt(cobrado)}`;
+    $('draw-name').className = 'do-name win';
+    $('draw-name').textContent = `¡Cobras ${fmt(cobrado)}!`;
     lanzarConfeti();
     aviso(`Ganaste ${fmt(cobrado)}`);
   } else {
     BANCA[S.moneda.id] += r.asignado;
-    $('draw-msg').className = 'msg lose';
-    $('draw-msg').textContent = `El fijo terminó en ${fijo % 10}. Esta vez no.`;
+    $('draw-name').className = 'do-name';
+    $('draw-name').textContent = `${pad2(fijo)} · ${nombreDe(fijo)}`;
   }
 
   S.ronda += 1;
@@ -807,6 +833,7 @@ function pintarTodo() {
   pintarQuick();
   pintarBoleta();
   pintarSaldo();
+  pintarLimitados();
   pintarCharada();
 }
 
