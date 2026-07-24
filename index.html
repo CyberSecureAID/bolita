@@ -17,6 +17,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+<link rel="icon" href="assets/img/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body id="top">
@@ -28,7 +31,7 @@
 
   <!-- ══════════ BARRA ══════════ -->
   <nav class="nav">
-    <a class="brand" href="#top"><img src="assets/img/logo-nav.webp" alt="La Bolita" width="130" height="44"></a>
+    <a class="brand" href="#top"><img src="assets/img/logo-nav.webp" alt="La Bolita Cubana" width="196" height="20"></a>
     <div class="nav-links">
       <a href="#jugar">Jugar</a>
       <a href="#bombo">El bombo</a>
@@ -65,13 +68,6 @@
     </div>
   </header>
 
-  <!-- Última tirada, en su propia tira -->
-  <div class="lastdraw" id="hero-last">
-    <span class="ld-k">Última tirada</span>
-    <div class="ld-balls" id="hl-balls"></div>
-    <span class="ld-when" id="hl-when">—</span>
-  </div>
-
   <!-- ══════════ FLUJO ══════════ -->
   <section class="sec" id="jugar">
     <div class="sec-head"><h2>Para jugar</h2></div>
@@ -79,7 +75,7 @@
     <ol class="pasos">
       <li class="paso" data-paso="1"><span class="p-n">1</span><span class="p-t">Conecta tu wallet</span></li>
       <li class="paso" data-paso="2"><span class="p-n">2</span><span class="p-t">Elige la moneda</span></li>
-      <li class="paso" data-paso="3"><span class="p-n">3</span><span class="p-t">Elige el juego</span></li>
+      <li class="paso" data-paso="3"><span class="p-n">3</span><span class="p-t">Modos de juego</span></li>
       <li class="paso" data-paso="4"><span class="p-n">4</span><span class="p-t">Marca y apuesta</span></li>
     </ol>
 
@@ -109,7 +105,7 @@
     <!-- Paso 3 -->
     <div class="bloque" id="bloque-modo" data-estado="espera">
       <div class="bloque-head">
-        <span class="b-num">3</span><h3>Elige el juego</h3>
+        <span class="b-num">3</span><h3>Modos de juego</h3>
         <span class="b-hint" id="hint-modo">Elige antes una moneda</span>
       </div>
       <div class="modes" id="modes"></div>
@@ -160,13 +156,6 @@
 
       <div class="avisos" id="avisos"></div>
 
-      <div class="limitados" id="limitados" hidden>
-        <div class="lim-head">
-          <span class="lim-badge">Limitados</span>
-          <span class="lim-txt">Números con demasiadas apuestas. La casa los cierra para poder pagar a todos.</span>
-        </div>
-        <div class="lim-grid" id="lim-grid"></div>
-      </div>
     </div>
   </section>
 
