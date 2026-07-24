@@ -43,27 +43,34 @@
     </div>
   </nav>
 
-  <!-- ══════════ BANNER: ESTADO DE LA TIRADA ══════════ -->
+  <!-- ══════════ BARRA DE ESTADO DE LA TIRADA ══════════ -->
+  <div class="drawbar">
+    <div class="db-side">
+      <span class="db-ic" id="db-ic"></span>
+      <span class="db-label" id="db-label">Próxima tirada</span>
+    </div>
+    <div class="db-count">
+      <span class="dbc-v" id="hc-h">00</span><span class="dbc-s">:</span><span class="dbc-v" id="hc-m">00</span><span class="dbc-s">:</span><span class="dbc-v" id="hc-s">00</span>
+    </div>
+    <div class="db-side db-right">
+      <span class="db-when" id="hero-when">—</span>
+    </div>
+  </div>
+
+  <!-- ══════════ BANNER: EL BILLETE CON EL LOGO ══════════ -->
   <header class="hero">
     <div class="hero-bg"></div>
-
     <div class="hero-inner">
       <img class="hero-logo" src="assets/img/logo.webp" alt="La Bolita" width="900" height="302" fetchpriority="high">
-
-      <div class="hero-tag" id="hero-tag"><span class="ht-ic"></span><span id="ht-txt">Próxima tirada</span></div>
-
-      <div class="hero-count">
-        <span class="hc-v" id="hc-h">00</span><span class="hc-s">:</span><span class="hc-v" id="hc-m">00</span><span class="hc-s">:</span><span class="hc-v" id="hc-s">00</span>
-      </div>
-      <div class="hero-when" id="hero-when">—</div>
-
-      <div class="hero-last" id="hero-last">
-        <div class="hl-k">Última tirada</div>
-        <div class="hl-balls" id="hl-balls"></div>
-        <div class="hl-when" id="hl-when">—</div>
-      </div>
     </div>
   </header>
+
+  <!-- Última tirada, en su propia tira -->
+  <div class="lastdraw" id="hero-last">
+    <span class="ld-k">Última tirada</span>
+    <div class="ld-balls" id="hl-balls"></div>
+    <span class="ld-when" id="hl-when">—</span>
+  </div>
 
   <!-- ══════════ FLUJO ══════════ -->
   <section class="sec" id="jugar">
