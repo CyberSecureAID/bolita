@@ -17,9 +17,11 @@ import { MODOS, LISTA_MODOS, topeApuesta, disponible, repartir, margen } from '.
 import { MONEDAS, LISTA_MONEDAS, formatear, partirSaldo, enUnidadPequena } from './tokens.js';
 import { CHARADA, FAMILIAS, pad2, nombreDe } from './charada.js';
 import { versoDelDia } from './versos.js';
-import { proximaTirada, cuentaAtras, fechaHora, soloHora } from './draws.js';
+import { proximaTirada, ultimaTirada, cuentaAtras, fechaHora, soloHora } from './draws.js';
 import { lanzarConfeti } from './confetti.js';
 import * as wallet from './wallet.js';
+import { ICONOS, ponerIcono } from './icons.js';
+import { logoDe, precios, enDolares } from './prices.js';
 
 const EXPOSICION_BPS = 2000;
 
@@ -34,7 +36,10 @@ const S = {
   ocupado: {},          // clave -> ya apostado por otros
   girando: false,
   filtro: null,
-  ronda: 1
+  ronda: 1,
+  precios: {},
+  ultimosNumeros: null,
+  charadaAbierta: false
 };
 
 const $  = (id) => document.getElementById(id);
@@ -46,6 +51,12 @@ const fmt = (n, opts) => (S.moneda ? formatear(n, S.moneda, opts) : '—');
 /* ================================================================== */
 /* Avisos                                                              */
 /* ================================================================== */
+
+let cargando = 0;
+function cargar(activo) {
+  cargando = Math.max(0, cargando + (activo ? 1 : -1));
+  $('loader').classList.toggle('on', cargando > 0);
+}
 
 let tToast = null;
 function aviso(txt, err = false) {
@@ -111,9 +122,25 @@ async function pulsarDesconectar() {
 
 async function cargarSaldos() {
   if (!wallet.cuentaActual()) return;
-  S.saldos = await wallet.saldosTodas();
-  pintarMonedas();
-  pintarBanner();
+  cargar(true);
+  try {
+    S.saldos = await wallet.saldosTodas();
+    pintarMonedas();
+    pintarSaldo();
+  } finally {
+    cargar(false);
+  }
+}
+
+/** Precios de CoinGecko. Si falla, la página sigue igual sin el equivalente. */
+async function cargarPrecios() {
+  cargar(true);
+  try {
+    S.precios = await precios();
+    pintarSaldo();
+  } finally {
+    cargar(false);
+  }
 }
 
 /* ================================================================== */
@@ -142,13 +169,16 @@ function pintarMonedas() {
     b.className = 'moneda'
       + (S.moneda?.id === m.id ? ' on' : '')
       + (tiene ? ' tiene' : '');
+    const logo = logoDe(m.id);
     b.innerHTML = `
-      <span class="mo-ic" style="--c:${m.color}">${m.icono}</span>
+      <span class="mo-ic" style="--c:${m.color}">${
+        logo ? `<img src="${logo}" alt="" width="22" height="22" loading="lazy">` : m.simbolo[0]
+      }</span>
       <span class="mo-txt">
         <b>${m.simbolo}</b>
         <i>${typeof saldo === 'number' ? formatear(saldo, m, { conSimbolo: false }) : '—'}</i>
       </span>
-      ${tiene ? '<span class="mo-tick">✓</span>' : ''}
+      ${tiene ? `<span class="mo-tick">${ICONOS.check(13)}</span>` : ''}
     `;
     b.addEventListener('click', () => elegirMoneda(m));
     host.appendChild(b);
@@ -265,6 +295,11 @@ function pintarRejilla() {
     ? 'De dos en dos · puedes marcar varios pares'
     : 'Puedes marcar varios';
 
+  const tp = topeApuesta(banca(), EXPOSICION_BPS, m, S.moneda);
+  $('pb-info').innerHTML = S.seleccion.length
+    ? `<b>${S.seleccion.length}</b> ${S.seleccion.length === 1 ? 'jugada' : 'jugadas'} · cupo por jugada <b>${fmt(tp.valor)}</b>`
+    : `Cupo por jugada <b>${fmt(tp.valor)}</b> · paga hasta <b>${fmt(tp.valor * m.multiplicador)}</b>`;
+
   const tope = topeApuesta(banca(), EXPOSICION_BPS, m, S.moneda).valor;
   const marcados = new Set(S.seleccion.flatMap((s) => s.valores));
   const pendiente = S.pendienteParle ?? [];
@@ -276,8 +311,9 @@ function pintarRejilla() {
 
     const b = document.createElement('button');
     b.type = 'button';
-    const sel = marcados.has(i) || pendiente.includes(i);
-    b.className = 'num' + (m.rango === 10 ? ' big' : '') + (sel ? ' on' : '');
+    const esPend = pendiente.includes(i);
+    b.className = 'num' + (m.rango === 10 ? ' big' : '')
+      + (marcados.has(i) ? ' on' : '') + (esPend ? ' pend' : '');
     b.innerHTML = `<span>${m.rango === 10 ? i : pad2(i)}</span>`;
 
     if (m.id !== 'parle') {
@@ -349,8 +385,8 @@ function pintarSeleccion() {
       <span class="sel-k">${s.clave}</span>
       <span class="sel-m">${info ? fmt(info.monto, { conSimbolo: false }) : 'sin cupo'}</span>
       ${info ? `<span class="sel-p">→ ${fmt(info.pago, { conSimbolo: false })}</span>` : ''}
-      <button class="sel-fix" title="Fijar importe">✎</button>
-      <button class="sel-x" title="Quitar">×</button>
+      <button class="sel-fix" title="Fijar importe">${ICONOS.lapiz(11)}</button>
+      <button class="sel-x" title="Quitar">${ICONOS.cerrar(11)}</button>
     `;
     chip.querySelector('.sel-x').addEventListener('click', () => {
       S.seleccion = S.seleccion.filter((x) => x.clave !== s.clave);
@@ -456,41 +492,76 @@ function pintarBoleta() {
 /* Banner                                                              */
 /* ================================================================== */
 
-function pintarBanner() {
-  const cuenta = wallet.cuentaActual();
+/**
+ * BARRA DE SALDO
+ * Vive junto a la selección de moneda, no en el banner: así el banner no
+ * depende de que tengas wallet ni de que hayas elegido moneda todavía.
+ */
+function pintarSaldo() {
+  const strip = $('saldo-strip');
+  const conectado = Boolean(wallet.cuentaActual());
 
-  if (!cuenta) {
-    $('bal-k').textContent = 'Conecta tu wallet';
-    $('bal-int').textContent = '—'; $('bal-dec').textContent = ''; $('bal-sym').textContent = '';
-    $('bal-sub').textContent = 'Elige una moneda para ver tu saldo';
-    return;
-  }
-  if (!S.moneda) {
-    $('bal-k').textContent = 'Elige una moneda';
-    $('bal-int').textContent = '—'; $('bal-dec').textContent = ''; $('bal-sym').textContent = '';
-    $('bal-sub').textContent = wallet.abreviar(cuenta);
-    return;
-  }
+  if (!conectado || !S.moneda) { strip.classList.remove('show'); return; }
+  strip.classList.add('show');
 
   const saldo = S.saldos[S.moneda.id];
   const p = partirSaldo(saldo ?? 0, S.moneda);
 
-  $('bal-k').textContent = `Tu saldo en ${S.moneda.simbolo}`;
-  $('bal-int').textContent = p.entero;
-  $('bal-dec').textContent = p.decimal ? '.' + p.decimal : '';
-  $('bal-sym').textContent = p.simbolo;
+  const logo = logoDe(S.moneda.id);
+  const img = $('ss-logo');
+  if (logo) { img.src = logo; img.alt = S.moneda.simbolo; img.style.display = ''; }
+  else img.style.display = 'none';
 
-  const peq = typeof saldo === 'number' ? enUnidadPequena(saldo, S.moneda) : null;
-  $('bal-sub').textContent = peq ? `${peq} · ${wallet.abreviar(cuenta)}` : wallet.abreviar(cuenta);
+  $('ss-int').textContent = p.entero;
+  $('ss-dec').textContent = p.decimal ? '.' + p.decimal : '';
+  $('ss-sym').textContent = p.simbolo;
+
+  $('ss-usd').textContent = enDolares(saldo, S.moneda.id, S.precios);
+  const peq = typeof saldo === 'number' ? enUnidadPequena(saldo, S.moneda) : '';
+  $('ss-min').textContent = peq || `mín. ${fmt(S.moneda.minApuesta)}`;
 }
 
+/**
+ * BANNER — estado de la tirada.
+ * Funciona desde el primer segundo, con wallet o sin ella.
+ */
 function pintarReloj() {
   const p = proximaTirada();
-  $('pill-draw').textContent = `${p.tirada.icono} Próxima tirada · ${soloHora(p.cuando)}`;
-  $('timer').textContent = cuentaAtras(p.abierta ? p.faltaCierreMs : p.faltaMs);
-  $('draw-when').textContent = `${p.tirada.icono} ${p.tirada.nombre} · ${fechaHora(p.cuando)}`;
-  document.querySelector('.hero-timer .t-k').textContent =
-    p.abierta ? 'Cierran las apuestas en' : 'Sorteo en';
+
+  ponerIcono($('hero-tag').querySelector('.ht-ic'), p.tirada.id === 'dia' ? 'sol' : 'luna', 15);
+  $('ht-txt').textContent = p.abierta
+    ? `Cierran las apuestas · tirada de ${p.tirada.nombre.toLowerCase()}`
+    : `Sorteando · tirada de ${p.tirada.nombre.toLowerCase()}`;
+
+  const t = cuentaAtras(p.abierta ? p.faltaCierreMs : p.faltaMs).split(':');
+  $('hc-h').textContent = t[0];
+  $('hc-m').textContent = t[1];
+  $('hc-s').textContent = t[2];
+
+  $('hero-when').textContent = `${p.tirada.nombre} · ${fechaHora(p.cuando)}`;
+
+  const badge = $('dt-badge');
+  badge.innerHTML = ICONOS[p.tirada.id === 'dia' ? 'sol' : 'luna'](13) +
+    `<span>${p.tirada.nombre}</span>`;
+  $('draw-when').textContent = fechaHora(p.cuando);
+}
+
+/** Los cinco números de la última tirada, en el banner. */
+function pintarUltima() {
+  const host = $('hl-balls');
+  const u = ultimaTirada();
+
+  if (!S.ultimosNumeros) {
+    host.innerHTML = Array.from({ length: 5 },
+      () => '<div class="hl-ball">··</div>').join('');
+    $('hl-when').textContent = u ? `${u.tirada.nombre} · ${fechaHora(u.cuando)}` : '—';
+    return;
+  }
+
+  host.innerHTML = S.ultimosNumeros
+    .map((n, i) => `<div class="hl-ball${i === 0 ? ' first' : ''}">${pad2(n)}</div>`)
+    .join('');
+  $('hl-when').textContent = S.ultimaEtiqueta ?? '—';
 }
 
 /* ================================================================== */
@@ -567,6 +638,10 @@ async function jugar() {
     if (acierta) cobrado += j.pago;
   }
 
+  S.ultimosNumeros = salidos;
+  S.ultimaEtiqueta = fechaHora(new Date());
+  pintarUltima();
+
   $('draw-name').textContent = `${pad2(fijo)} · ${nombreDe(fijo)}`;
 
   if (cobrado > 0) {
@@ -592,6 +667,20 @@ async function jugar() {
 /* ================================================================== */
 /* Charada y modales                                                   */
 /* ================================================================== */
+
+function conectarCharada() {
+  const btn = $('charada-toggle');
+  const panel = $('charada-panel');
+  ponerIcono($('ct-ic'), 'chevron', 17);
+
+  btn.addEventListener('click', () => {
+    S.charadaAbierta = !S.charadaAbierta;
+    btn.setAttribute('aria-expanded', String(S.charadaAbierta));
+    panel.classList.toggle('open', S.charadaAbierta);
+    btn.querySelector('span').textContent =
+      S.charadaAbierta ? 'Ocultar los números' : 'Ver los cien números';
+  });
+}
 
 function pintarFiltros() {
   const host = $('filtros');
@@ -641,6 +730,9 @@ function pintarTablas() {
 }
 
 function conectarModales() {
+  $$('[data-modal]').forEach((b) => {
+    if (b.dataset.ic) ponerIcono(b.querySelector('.ic'), b.dataset.ic, 17);
+  });
   $$('[data-modal]').forEach((b) => b.addEventListener('click', () => {
     pintarTablas();
     $('m-' + b.dataset.modal).classList.add('open');
@@ -698,7 +790,7 @@ function pintarTodo() {
   pintarSeleccion();
   pintarQuick();
   pintarBoleta();
-  pintarBanner();
+  pintarSaldo();
   pintarCharada();
 }
 
@@ -712,11 +804,18 @@ function init() {
   $('verso-fecha').textContent = v.fecha;
   $('verso-hora').textContent = 'emitido a las 06:00';
 
+  ponerIcono($('btn-off'), 'power', 17);
+
   crearBolas();
   pintarFiltros();
+  conectarCharada();
   conectarModales();
   pintarReloj();
+  pintarUltima();
   setInterval(pintarReloj, 1000);
+
+  cargarPrecios();
+  setInterval(cargarPrecios, 5 * 60 * 1000);
 
   $('btn-wallet').addEventListener('click', pulsarConectar);
   $('btn-off').addEventListener('click', pulsarDesconectar);
@@ -724,6 +823,41 @@ function init() {
     if (!wallet.esRedCorrecta()) wallet.cambiarARedCorrecta().catch(() => {});
   });
   $('monto').addEventListener('input', () => { pintarSeleccion(); pintarBoleta(); });
+
+  $('pb-limpiar').addEventListener('click', () => {
+    S.seleccion = []; S.pendienteParle = [];
+    pintarRejilla(); pintarSeleccion(); pintarBoleta();
+  });
+
+  $('pb-azar').addEventListener('click', () => {
+    if (!S.modo || S.girando) return;
+    S.seleccion = []; S.pendienteParle = [];
+    const cuantas = S.modo.id === 'parle' ? 2 : 3;
+    const usados = new Set();
+    for (let k = 0; k < cuantas; k++) {
+      if (S.modo.id === 'parle') {
+        const par = [];
+        while (par.length < 2) {
+          const n = Math.floor(Math.random() * 100);
+          if (!par.includes(n)) par.push(n);
+        }
+        const clave = claveDe(par, S.modo);
+        if (!S.seleccion.some((x) => x.clave === clave)) {
+          S.seleccion.push({ clave, valores: par, modo: S.modo });
+        }
+      } else {
+        let n, intentos = 0;
+        do { n = Math.floor(Math.random() * S.modo.rango); intentos++; }
+        while (usados.has(n) && intentos < 40);
+        usados.add(n);
+        const clave = claveDe([n], S.modo);
+        if (!S.seleccion.some((x) => x.clave === clave)) {
+          S.seleccion.push({ clave, valores: [n], modo: S.modo });
+        }
+      }
+    }
+    pintarRejilla(); pintarSeleccion(); pintarBoleta();
+  });
   $('btn-play').addEventListener('click', jugar);
 
   wallet.alCambiar(() => { pintarWallet(); cargarSaldos(); });

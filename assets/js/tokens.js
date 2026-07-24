@@ -29,7 +29,7 @@ export const MONEDAS = {
     nombre: 'BNB',
     address: null,              // nativa
     decimals: 18,
-    icono: '🟡',
+    icono: 'B',   // respaldo si no carga el logo remoto
     color: '#F0B90B',
     // Limites en unidades de la moneda
     minApuesta: 0.0002,         // ~$0.12
@@ -47,7 +47,7 @@ export const MONEDAS = {
     nombre: 'Tether',
     address: '0x55d398326f99059fF775485246999027B3197955',
     decimals: 18,               // USDT en BSC usa 18, no 6
-    icono: '💵',
+    icono: 'T',
     color: '#26A17B',
     minApuesta: 0.10,
     maxPorJugada: 2.00,
@@ -63,7 +63,7 @@ export const MONEDAS = {
     nombre: 'USD Coin',
     address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
     decimals: 18,
-    icono: '🔵',
+    icono: 'C',
     color: '#2775CA',
     minApuesta: 0.10,
     maxPorJugada: 2.00,
@@ -79,7 +79,7 @@ export const MONEDAS = {
     nombre: 'Bitcoin BEP20',
     address: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
     decimals: 18,
-    icono: '₿',
+    icono: 'B',
     color: '#F7931A',
     // En satoshis: minimo 200 sat, maximo 4.000 sat por jugada
     minApuesta: 0.000002,
@@ -96,7 +96,7 @@ export const MONEDAS = {
     nombre: 'Ethereum BEP20',
     address: '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',
     decimals: 18,
-    icono: '💎',
+    icono: 'E',
     color: '#627EEA',
     minApuesta: 0.00005,
     maxPorJugada: 0.001,
