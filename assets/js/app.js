@@ -216,6 +216,13 @@ function pintarModos() {
 
   host.innerHTML = '';
 
+  // Cada modo tiene su tarjeta ilustrada en assets/img/
+  const ARTE = {
+    terminal: 'assets/img/modo-terminales.webp',
+    fijo:     'assets/img/modo-numero.webp',
+    parle:    'assets/img/modo-parle.webp'
+  };
+
   for (const m of LISTA_MODOS) {
     const t = activo ? topeApuesta(banca(), EXPOSICION_BPS, m, S.moneda) : null;
     const b = document.createElement('button');
@@ -223,9 +230,15 @@ function pintarModos() {
     b.className = 'mode' + (S.modo?.id === m.id ? ' on' : '');
     b.disabled = !activo;
     b.innerHTML = `
-      <div class="top-row"><span class="name">${m.nombre}</span><span class="mult">${m.multiplicador}×</span></div>
-      <div class="desc">${m.descripcion}</div>
-      <div class="cap">${t ? `máx ${fmt(t.valor)} · paga hasta ${fmt(t.valor * m.multiplicador)}` : '—'}</div>
+      <span class="mode-art">
+        <img src="${ARTE[m.id]}" alt="${m.nombre}" loading="lazy" width="900" height="470">
+        <span class="mode-mult">${m.multiplicador}×</span>
+        <span class="mode-check">${ICONOS.check(15)}</span>
+      </span>
+      <span class="mode-foot">
+        <span class="mf-name">${m.nombre}</span>
+        <span class="mf-cap">${t ? `máx ${fmt(t.valor)} · paga hasta ${fmt(t.valor * m.multiplicador)}` : 'elige una moneda'}</span>
+      </span>
     `;
     b.addEventListener('click', () => elegirModo(m));
     host.appendChild(b);
