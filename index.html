@@ -4,19 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>La Bolita — terminales, fijo y parlé</title>
-<meta name="description" content="La bolita de siempre, en cadena. Terminales, número solo y parlé.">
+<meta name="description" content="La bolita de siempre, en cadena. Dos tiradas al día.">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
-
 <div class="wrap">
 
-  <!-- ================= BARRA ================= -->
+  <!-- ══════════ BARRA ══════════ -->
   <nav class="nav">
     <div class="brand"><span class="dot">B</span>La <em>Bolita</em></div>
     <div class="nav-links">
@@ -26,264 +24,217 @@
     </div>
     <div class="nav-right">
       <div class="net-pill" id="net"><span class="led"></span><span id="net-txt">BSC</span></div>
-      <button class="btn-wallet" id="btn-wallet" type="button">Conectar wallet</button>
+      <div class="wallet-group" id="wallet-group">
+        <button class="btn-wallet" id="btn-wallet" type="button">Conectar wallet</button>
+        <button class="btn-off" id="btn-off" type="button" title="Desconectar" aria-label="Desconectar wallet">⏻</button>
+      </div>
     </div>
   </nav>
 
-  <!-- ================= PORTADA ================= -->
+  <!-- ══════════ BANNER ══════════ -->
   <header class="hero">
-    <picture class="banner">
-      <source srcset="assets/img/banner.svg" type="image/svg+xml">
-      <img src="assets/img/banner.webp" width="1600" height="500"
-           alt="La Bolita — cien números, cinco bolas. Terminales, fijo y parlé."
-           fetchpriority="high" decoding="async">
-    </picture>
-    <p class="tagline">
-      La de siempre, con sus tres formas de jugar. Escoge terminales, un número
-      solo o un parlé, y espera el bombo.
-    </p>
-    <div class="stats">
-      <div class="stat"><div class="k">Banca</div><div class="v" id="s-banca">$100</div></div>
-      <div class="stat"><div class="k">Sorteo</div><div class="v plain" id="s-ronda">#1</div></div>
-      <div class="stat"><div class="k">Tu jugada</div><div class="v plain" id="s-jugada">—</div></div>
-      <div class="stat"><div class="k">Cobras si sale</div><div class="v gold" id="s-premio">$0</div></div>
+    <div class="hero-bg"></div>
+    <span class="corner tl">00</span>
+    <span class="corner tr">99</span>
+    <span class="corner bl">00</span>
+    <span class="corner br">99</span>
+
+    <div class="hero-inner">
+      <div class="hero-top">
+        <span class="pill-draw" id="pill-draw">☀️ Próxima tirada · 12:00</span>
+      </div>
+
+      <div class="balance" id="balance">
+        <div class="balance-k" id="bal-k">Conecta tu wallet</div>
+        <div class="balance-v">
+          <span class="bal-int" id="bal-int">—</span><span class="bal-dec" id="bal-dec"></span>
+          <span class="bal-sym" id="bal-sym"></span>
+        </div>
+        <div class="balance-sub" id="bal-sub">Elige una moneda para ver tu saldo</div>
+      </div>
+
+      <div class="hero-timer">
+        <span class="t-k">Cierran las apuestas en</span>
+        <span class="t-v" id="timer">--:--:--</span>
+      </div>
     </div>
   </header>
 
-  <!-- ================= VERSO ================= -->
-  <div class="verso">
-    <div class="icon">🎋</div>
-    <div>
-      <div class="k">El verso del día</div>
-      <div class="t" id="verso-txt">…</div>
-      <div class="d" id="verso-fecha"></div>
+  <!-- ══════════ VERSO ══════════ -->
+  <section class="verso-card">
+    <div class="verso-side">
+      <span class="verso-ic">🎋</span>
+      <span class="verso-n" id="verso-n">1/99</span>
     </div>
-  </div>
-
-  <!-- ================= JUGAR ================= -->
-  <section class="sec" id="jugar">
-    <div class="sec-head"><h2>Cómo quieres jugar</h2></div>
-    <p class="sec-note">
-      Cada forma paga distinto porque cada una tiene su dificultad. Cuanto más
-      paga, menos se puede apostar de una vez.
-    </p>
-
-    <div class="modes" id="modes"></div>
-
-    <div class="picker">
-      <div class="picker-head">
-        <div class="title" id="picker-title">Escoge</div>
-        <div class="hint" id="picker-hint"></div>
+    <div class="verso-main">
+      <div class="verso-k">El verso del día</div>
+      <p class="verso-t" id="verso-t">…</p>
+      <div class="verso-meta">
+        <span id="verso-fecha"></span>
+        <span class="verso-dot">·</span>
+        <span id="verso-hora"></span>
       </div>
-      <div class="grid-nums" id="grid"></div>
-    </div>
-
-    <div class="slip">
-      <div>
-        <label for="monto">Cuánto juegas</label>
-        <div class="amt">
-          <input type="number" id="monto" value="1" min="0.05" step="0.05" inputmode="decimal">
-          <button class="chip" data-amt="0.25" type="button">$0.25</button>
-          <button class="chip" data-amt="1" type="button">$1</button>
-          <button class="chip" data-amt="2" type="button">$2</button>
-        </div>
-      </div>
-      <div class="win-box">
-        <div class="k">Cobras si sale</div>
-        <div class="v" id="premio">$8.00</div>
-      </div>
-      <button class="btn-play" id="btn-play" type="button">Escoge tus números</button>
     </div>
   </section>
 
-  <!-- ================= BOMBO ================= -->
+  <!-- ══════════ FLUJO ══════════ -->
+  <section class="sec" id="jugar">
+    <div class="sec-head"><h2>Para jugar</h2></div>
+
+    <ol class="pasos" id="pasos">
+      <li class="paso" data-paso="1"><span class="p-n">1</span><span class="p-t">Conecta tu wallet</span></li>
+      <li class="paso" data-paso="2"><span class="p-n">2</span><span class="p-t">Elige la moneda</span></li>
+      <li class="paso" data-paso="3"><span class="p-n">3</span><span class="p-t">Elige el juego</span></li>
+      <li class="paso" data-paso="4"><span class="p-n">4</span><span class="p-t">Marca y apuesta</span></li>
+    </ol>
+
+    <!-- Paso 2 -->
+    <div class="bloque" id="bloque-moneda" data-estado="bloqueado">
+      <div class="bloque-head">
+        <span class="b-num">2</span>
+        <h3>Elige la moneda</h3>
+        <span class="b-hint" id="hint-moneda">Conecta primero tu wallet</span>
+      </div>
+      <div class="monedas" id="monedas"></div>
+    </div>
+
+    <!-- Paso 3 -->
+    <div class="bloque" id="bloque-modo" data-estado="bloqueado">
+      <div class="bloque-head">
+        <span class="b-num">3</span>
+        <h3>Elige el juego</h3>
+        <span class="b-hint" id="hint-modo">Elige antes una moneda</span>
+      </div>
+      <div class="modes" id="modes"></div>
+    </div>
+
+    <!-- Paso 4 -->
+    <div class="bloque" id="bloque-jugada" data-estado="bloqueado">
+      <div class="bloque-head">
+        <span class="b-num">4</span>
+        <h3 id="picker-title">Marca tus números</h3>
+        <span class="b-hint" id="picker-hint">Elige antes un juego</span>
+      </div>
+
+      <div class="leyenda">
+        <span><i class="lg lg-free"></i> con cupo</span>
+        <span><i class="lg lg-warm"></i> más de la mitad</span>
+        <span><i class="lg lg-full"></i> lleno</span>
+        <span class="lg-txt">La barra bajo cada número es el cupo ya ocupado por otros jugadores.</span>
+      </div>
+
+      <div class="grid-nums" id="grid"></div>
+
+      <div class="seleccion" id="seleccion"></div>
+
+      <div class="slip">
+        <div class="slip-amt">
+          <label for="monto">Importe total</label>
+          <div class="amt">
+            <input type="number" id="monto" step="0.0001" inputmode="decimal">
+            <span class="amt-sym" id="amt-sym"></span>
+          </div>
+          <div class="quick" id="quick"></div>
+        </div>
+        <div class="slip-info">
+          <div class="si-row"><span>Jugadas</span><b id="i-jugadas">0</b></div>
+          <div class="si-row"><span>Se reparte</span><b id="i-reparto">—</b></div>
+          <div class="si-row max"><span>Cobras como máximo</span><b id="i-pago">—</b></div>
+        </div>
+        <button class="btn-play" id="btn-play" type="button" disabled>Conecta tu wallet</button>
+      </div>
+
+      <div class="avisos" id="avisos"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ BOMBO ══════════ -->
   <section class="sec" id="bombo">
     <div class="sec-head"><h2>El bombo</h2></div>
     <div class="draw">
+      <div class="draw-when" id="draw-when">—</div>
       <div class="balls" id="balls"></div>
-      <p class="name" id="draw-name">esperando el sorteo</p>
-      <p class="msg" id="draw-msg">Escoge tus números y dale a jugar.</p>
+      <p class="name" id="draw-name">esperando la tirada</p>
+      <p class="msg" id="draw-msg">Completa los pasos y dale a jugar.</p>
     </div>
   </section>
 
-  <!-- ================= CHARADA ================= -->
+  <!-- ══════════ CHARADA ══════════ -->
   <section class="sec" id="charada">
     <div class="sec-head"><h2>La charada</h2></div>
-    <p class="sec-note">
-      Los cien números con su nombre de siempre. Filtra por familia o pulsa uno
-      para jugarlo directo.
-    </p>
+    <p class="sec-note">Los cien números con su nombre de siempre.</p>
     <div class="charada-tools" id="filtros"></div>
     <div class="charada" id="charada-grid"></div>
   </section>
 
-  <!-- ================= PIE ================= -->
+  <!-- ══════════ PIE ══════════ -->
   <footer class="foot">
+    <div class="foot-marca">
+      <span class="fm-l">TERMINALES</span><span class="fm-d">·</span>
+      <span class="fm-l">FIJO</span><span class="fm-d">·</span>
+      <span class="fm-l">PARLÉ</span>
+      <div class="fm-sub">CIEN NÚMEROS · CINCO BOLAS · DOS TIRADAS</div>
+    </div>
     <div class="foot-grid">
       <button class="foot-btn" data-modal="economia" type="button"><span class="ic">📊</span>Modelo económico</button>
       <button class="foot-btn" data-modal="reglas" type="button"><span class="ic">📜</span>Reglas del juego</button>
       <button class="foot-btn" data-modal="pagos" type="button"><span class="ic">💰</span>Tabla de pagos</button>
     </div>
-    <div class="foot-note">
-      La Bolita · sobre BNB Smart Chain<br>
-      Los sorteos se resuelven en cadena y quedan registrados
-    </div>
+    <div class="foot-note">La Bolita · BNB Smart Chain · tiradas a las 12:00 y a las 22:00</div>
   </footer>
-
 </div>
 
-<!-- ================= MODALES ================= -->
+<!-- ══════════ MODALES ══════════ -->
+<div class="modal" id="m-economia"><div class="modal-box">
+  <h3>Modelo económico</h3><p class="sub">cómo se sostiene la banca</p>
+  <h4>La regla que lo gobierna todo</h4>
+  <p>La banca <strong>nunca acepta una apuesta que no pueda pagar</strong>. Antes de tomar el dinero calcula cuánto tendría que pagar si esa jugada acertara. Si pasa del límite, se rechaza.</p>
+  <h4>Tres candados, manda el más estricto</h4>
+  <table class="tabla">
+    <tr><td>Exposición</td><td>un % de la banca por resultado</td></tr>
+    <tr><td>Pago por jugada</td><td>techo fijo en la propia moneda</td></tr>
+    <tr><td>Límite de moneda</td><td>máximo por jugada y por persona</td></tr>
+  </table>
+  <p>El segundo es el que mantiene los premios pequeños: nadie cobra cifras enormes, sino <strong>fracciones</strong> — satoshis, milésimas de BNB, centavos.</p>
+  <h4>Topes con la banca actual</h4>
+  <table class="tabla" id="tabla-topes"></table>
+  <h4>Los cupos crecen solos</h4>
+  <p>Si la banca crece, los cupos suben en proporción sin que nadie los toque.</p>
+  <h4>De dónde sale el beneficio</h4>
+  <p>De la diferencia entre lo que se paga y lo que costaría un juego perfectamente parejo: la banca se queda un <strong>20%</strong> de lo jugado a largo plazo. Así funciona la bolita de siempre.</p>
+  <button class="modal-close" type="button">Cerrar</button>
+</div></div>
 
-<div class="modal" id="m-economia">
-  <div class="modal-box">
-    <h3>Modelo económico</h3>
-    <p class="sub">cómo se sostiene la banca</p>
+<div class="modal" id="m-reglas"><div class="modal-box">
+  <h3>Reglas del juego</h3><p class="sub">cinco números, dos tiradas al día</p>
+  <h4>Las tiradas</h4>
+  <p>Dos al día: <strong>12:00</strong> y <strong>22:00</strong>. Las apuestas se cierran diez minutos antes de cada una.</p>
+  <h4>El sorteo</h4>
+  <p>Salen <strong>cinco números</strong> del 00 al 99. El primero es el <strong>fijo</strong> y manda para los terminales.</p>
+  <h4>Terminales</h4>
+  <p>Un dígito del 0 al 9. Aciertas si el fijo termina en él. El 4 cubre 04, 14, 24… <strong>Uno de cada diez.</strong></p>
+  <h4>Número solo</h4>
+  <p>Un número del 00 al 99. Aciertas si aparece entre los cinco. <strong>Cinco de cada cien.</strong></p>
+  <h4>Parlé</h4>
+  <p>Dos números. Aciertas si salen <strong>los dos</strong>. Lo más difícil y lo que más paga.</p>
+  <h4>Varias jugadas a la vez</h4>
+  <p>Puedes marcar varias y poner un importe total: se reparte solo entre todas. También puedes fijar el importe de una jugada concreta y el resto se reparte entre las demás.</p>
+  <h4>El verso del día</h4>
+  <p>Cada día sale el suyo, como toda la vida. Cada quien decide si guiarse por él.</p>
+  <button class="modal-close" type="button">Cerrar</button>
+</div></div>
 
-    <h4>La regla que lo gobierna todo</h4>
-    <p>
-      La banca <strong>nunca acepta una apuesta que no pueda pagar</strong>.
-      Antes de tomar el dinero calcula cuánto tendría que pagar si esa jugada
-      acertara. Si esa cifra pasa del límite, la apuesta se rechaza y no entra.
-    </p>
-    <p>
-      Por eso cada número tiene un cupo. Cuando se llena, ese número se cierra
-      y hay que jugar otro. No es una restricción caprichosa: es lo que
-      garantiza que siempre haya con qué pagar a quien acierte.
-    </p>
-
-    <h4>Cuanto más paga, menos se puede apostar</h4>
-    <p>
-      El cupo sale del pago. Un parlé paga mucho más que un terminal, así que
-      su cupo es mucho más pequeño. El sistema se equilibra solo.
-    </p>
-    <table class="tabla">
-      <tr><td>Terminales · paga 8×</td><td id="e-cap-t">$2.50</td></tr>
-      <tr><td>Número solo · paga 16×</td><td id="e-cap-f">$1.25</td></tr>
-      <tr><td>Parlé · paga 400×</td><td id="e-cap-p">$0.05</td></tr>
-    </table>
-
-    <h4>El peor caso que puede pasar</h4>
-    <p>Que se llenen todos los cupos de terminales y salga el premiado:</p>
-    <table class="tabla">
-      <tr><td>Entra en la banca</td><td>$25.00</td></tr>
-      <tr><td>Se paga al ganador</td><td>−$20.00</td></tr>
-      <tr class="res"><td>La banca gana</td><td>+$5.00</td></tr>
-    </table>
-    <p>
-      Solo puede salir un resultado, así que solo se paga uno. Aunque se llene
-      todo, <strong>la banca sale ganando</strong>.
-    </p>
-
-    <h4>La peor racha posible</h4>
-    <p>Que se llene un solo cupo y justo ese sea el premiado:</p>
-    <table class="tabla">
-      <tr><td>Entra</td><td>$2.50</td></tr>
-      <tr><td>Se paga</td><td>−$20.00</td></tr>
-      <tr class="neg"><td>Pérdida</td><td>−$17.50</td></tr>
-    </table>
-    <p>
-      Es el <strong>máximo que se puede perder en un sorteo</strong>. Y como
-      los cupos se recalculan sobre lo que queda, la banca se encoge pero
-      nunca llega a cero.
-    </p>
-
-    <h4>Los cupos crecen solos</h4>
-    <p>
-      Si la banca crece, los cupos suben en proporción sin que nadie los toque.
-      Cuanto más se juega, más grande se puede jugar.
-    </p>
-
-    <h4>De dónde sale el beneficio</h4>
-    <p>
-      De la diferencia entre lo que se paga y lo que costaría un juego
-      perfectamente parejo. Es la misma cuenta de toda la vida: la banca se
-      queda un <strong>20%</strong> de lo jugado a largo plazo. Habrá quien
-      gane y quien pierda, pero en conjunto ese es el margen. Así funciona la
-      bolita de siempre y así funciona esta.
-    </p>
-
-    <button class="modal-close" type="button">Cerrar</button>
-  </div>
-</div>
-
-<div class="modal" id="m-reglas">
-  <div class="modal-box">
-    <h3>Reglas del juego</h3>
-    <p class="sub">cinco números, tres formas de jugar</p>
-
-    <h4>El sorteo</h4>
-    <p>
-      Salen <strong>cinco números</strong> del 00 al 99. El primero es el
-      <strong>fijo</strong> y es el que manda para los terminales.
-    </p>
-
-    <h4>Terminales</h4>
-    <p>
-      Juegas un dígito del 0 al 9. Aciertas si el fijo termina en ese dígito.
-      El terminal 4 cubre el 04, 14, 24, 34, 44, 54, 64, 74, 84 y 94.
-      <strong>Uno de cada diez.</strong>
-    </p>
-
-    <h4>Número solo</h4>
-    <p>
-      Juegas un número del 00 al 99. Aciertas si aparece entre los cinco que
-      salen. <strong>Cinco de cada cien.</strong>
-    </p>
-
-    <h4>Parlé</h4>
-    <p>
-      Juegas dos números. Aciertas si <strong>los dos</strong> aparecen entre
-      los cinco. Es lo más difícil y por eso lo que más paga.
-    </p>
-
-    <h4>El verso del día</h4>
-    <p>
-      Cada día sale su verso, como toda la vida. Es tradición y ambiente:
-      <strong>no tiene relación con el número que sale</strong> ni la puede
-      tener. Cada quien decide si guiarse por él o jugar lo que le dé la gana.
-    </p>
-
-    <h4>Cómo se saca el número</h4>
-    <p>
-      El sorteo se resuelve en cadena y queda registrado. Ni la banca puede
-      saber el resultado antes de tiempo ni cambiarlo después.
-    </p>
-
-    <button class="modal-close" type="button">Cerrar</button>
-  </div>
-</div>
-
-<div class="modal" id="m-pagos">
-  <div class="modal-box">
-    <h3>Tabla de pagos</h3>
-    <p class="sub">lo que cobra cada jugada</p>
-
-    <table class="tabla">
-      <tr><td><strong>Terminales</strong><br><span style="font-size:12px">un dígito, 1 de cada 10</span></td><td style="font-size:20px;color:var(--gold)">8×</td></tr>
-      <tr><td><strong>Número solo</strong><br><span style="font-size:12px">un número, 5 de cada 100</span></td><td style="font-size:20px;color:var(--gold)">16×</td></tr>
-      <tr><td><strong>Parlé</strong><br><span style="font-size:12px">dos números, los dos tienen que salir</span></td><td style="font-size:20px;color:var(--gold)">400×</td></tr>
-    </table>
-
-    <h4>Ejemplos</h4>
-    <table class="tabla">
-      <tr><td>$1 al terminal 7 y sale</td><td>cobras $8</td></tr>
-      <tr><td>$1 al número 38 y sale</td><td>cobras $16</td></tr>
-      <tr><td>$0.05 al parlé 38–97 y salen</td><td>cobras $20</td></tr>
-    </table>
-
-    <h4>Por qué hay cupos</h4>
-    <p>
-      Cada jugada tiene un tope. Cuanto más paga, más pequeño es el tope,
-      porque la banca solo acepta lo que puede pagar. Si un número se llena,
-      juega otro o espera al próximo sorteo.
-    </p>
-
-    <button class="modal-close" type="button">Cerrar</button>
-  </div>
-</div>
+<div class="modal" id="m-pagos"><div class="modal-box">
+  <h3>Tabla de pagos</h3><p class="sub" id="pagos-sub">lo que cobra cada jugada</p>
+  <table class="tabla" id="tabla-pagos"></table>
+  <h4>Por qué hay cupos</h4>
+  <p>Cada jugada tiene un tope. Cuanto más paga, más pequeño es el tope, porque la banca solo acepta lo que puede pagar.</p>
+  <h4>Premios en fracciones</h4>
+  <p>Los pagos se calculan en la unidad de cada moneda. En Bitcoin son <strong>satoshis</strong>; en BNB, milésimas. Así los premios son pequeños y frecuentes en vez de raros y enormes.</p>
+  <button class="modal-close" type="button">Cerrar</button>
+</div></div>
 
 <div class="toast" id="toast"></div>
-
 <script type="module" src="assets/js/app.js"></script>
 </body>
 </html>
