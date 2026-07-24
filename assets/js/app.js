@@ -17,7 +17,7 @@ import { MODOS, LISTA_MODOS, topeApuesta, disponible, repartir, margen } from '.
 import { MONEDAS, LISTA_MONEDAS, formatear, partirSaldo, enUnidadPequena } from './tokens.js';
 import { CHARADA, FAMILIAS, pad2, nombreDe } from './charada.js';
 import { versoDelDia } from './versos.js';
-import { proximaTirada, ultimaTirada, cuentaAtras, fechaHora, soloHora } from './draws.js';
+import { proximaTirada, cuentaAtras, fechaHora } from './draws.js';
 import { lanzarConfeti } from './confetti.js';
 import * as wallet from './wallet.js';
 import { ICONOS, ponerIcono } from './icons.js';
@@ -225,21 +225,13 @@ function pintarModos() {
   };
 
   for (const m of LISTA_MODOS) {
-    const t = activo ? topeApuesta(banca(), EXPOSICION_BPS, m, S.moneda) : null;
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'mode' + (S.modo?.id === m.id ? ' on' : '');
     b.disabled = !activo;
     b.innerHTML = `
-      <span class="mode-art">
-        <img src="${ARTE[m.id]}" alt="${m.nombre}" loading="lazy" width="900" height="470">
-        <span class="mode-mult">${m.multiplicador}×</span>
-        <span class="mode-check">${ICONOS.check(15)}</span>
-      </span>
-      <span class="mode-foot">
-        <span class="mf-name">${m.nombre}</span>
-        <span class="mf-cap">${t ? `máx ${fmt(t.valor)} · paga hasta ${fmt(t.valor * m.multiplicador)}` : 'elige una moneda'}</span>
-      </span>
+      <img src="${ARTE[m.id]}" alt="${m.nombre}" loading="lazy" width="800" height="410">
+      <span class="mode-check">${ICONOS.check(16)}</span>
     `;
     b.addEventListener('click', () => elegirModo(m));
     host.appendChild(b);
@@ -364,21 +356,27 @@ function pintarRejilla() {
 
 /** Sección de números limitados: vacía hasta que alguno se llena. */
 function pintarLimitados() {
-  const cont = $('limitados');
-  const grid = $('lim-grid');
+  const vacio = $('lim-vacio');
+  const grid = $('limitados-grid');
 
-  if (!S.modo || S.modo.id === 'parle' || S.limitados.length === 0) {
-    cont.hidden = true;
+  const hayModo = S.modo && S.modo.id !== 'parle';
+
+  if (!hayModo || S.limitados.length === 0) {
+    vacio.style.display = 'block';
+    vacio.textContent = S.modo?.id === 'parle'
+      ? 'El parlé son combinaciones de dos números: no se limita por número suelto.'
+      : 'Ahora mismo no hay números limitados. Se puede jugar a todos.';
+    grid.innerHTML = '';
     return;
   }
 
-  cont.hidden = false;
+  vacio.style.display = 'none';
   grid.innerHTML = S.limitados.map((i) => {
     const et = S.modo.rango === 10 ? String(i) : pad2(i);
-    return `<span class="lim-num" title="${nombreDe(i)}">
+    return `<div class="lim-num" title="${nombreDe(i)} · cerrado">
       <span class="agua llena" style="height:100%"><i></i><i></i></span>
       <span class="num-n">${et}</span>
-    </span>`;
+    </div>`;
   }).join('');
 }
 
@@ -590,23 +588,8 @@ function pintarReloj() {
   $('hero-when').textContent = fechaHora(p.cuando);
 }
 
-/** Los cinco números de la última tirada, en el banner. */
-function pintarUltima() {
-  const host = $('hl-balls');
-  const u = ultimaTirada();
-
-  if (!S.ultimosNumeros) {
-    host.innerHTML = Array.from({ length: 5 },
-      () => '<div class="ld-ball">··</div>').join('');
-    $('hl-when').textContent = u ? `${u.tirada.nombre} · ${fechaHora(u.cuando)}` : '—';
-    return;
-  }
-
-  host.innerHTML = S.ultimosNumeros
-    .map((n, i) => `<div class="ld-ball${i === 0 ? ' first' : ''}">${pad2(n)}</div>`)
-    .join('');
-  $('hl-when').textContent = S.ultimaEtiqueta ?? '—';
-}
+/** La sección de última tirada se retiró del DOM; se conserva por si vuelve. */
+function pintarUltima() { /* sin elemento en la página actual */ }
 
 /* ================================================================== */
 /* Sorteo                                                              */
