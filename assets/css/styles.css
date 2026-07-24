@@ -618,7 +618,9 @@ body {
   .win-box { text-align: left; }
   .btn-play { width: 100%; }
   .grid-nums.g10 { grid-template-columns: repeat(5, 1fr); }
-  .bola { width: 58px; height: 58px; font-size: 21px; }
+  .bola { width: 52px; height: 52px; font-size: 19px; }
+  .drum { aspect-ratio: 1400 / 520; padding: 6% 5%; }
+  .balls { gap: 8px; }
   .verso { flex-direction: column; text-align: center; gap: 10px; }
   .hero { padding: 12px 12px 20px; }
   .banner img { border-radius: 10px; }
@@ -901,22 +903,17 @@ body {
 /* ================================================================== */
 
 .drum {
-  position: relative; overflow: hidden;
-  border: 1px solid var(--line); border-radius: 22px;
-  min-height: 340px;
+  position: relative;
+  min-height: 300px; aspect-ratio: 1400 / 435;
   display: grid; place-items: center;
-  padding: 48px 24px;
+  padding: 4% 6%;
 }
 
-/* Fondo del bombo. Reemplaza bombo-bg.webp por tu imagen cuando la tengas:
-   mismas dimensiones aproximadas (horizontal) y todo encaja igual. */
+/* La imagen ES el marco: trae su propio borde dorado y esquinas redondeadas.
+   No le añadimos borde ni velo por encima para no taparlo. */
 .drum-bg {
   position: absolute; inset: 0;
-  background: url("../img/bombo-bg.webp") center/cover no-repeat;
-}
-.drum-bg::after {
-  content: ""; position: absolute; inset: 0;
-  background: radial-gradient(ellipse 60% 70% at 50% 50%, transparent 30%, rgba(4,16,12,.5) 100%);
+  background: url("../img/bombo-bg.webp") center/100% 100% no-repeat;
 }
 
 .balls {
@@ -963,11 +960,11 @@ body {
 @keyframes acierto { 0% { transform: scale(1) } 45% { transform: scale(1.18) } 100% { transform: scale(1) } }
 
 .do-name {
-  position: relative; z-index: 1;
+  position: absolute; left: 0; right: 0; bottom: 6%; z-index: 2;
   font-family: var(--display); font-weight: 700;
-  font-size: clamp(18px, 3vw, 26px); color: var(--gold);
-  text-align: center; margin-top: 24px; min-height: 1.2em;
-  text-shadow: 0 2px 16px rgba(0,0,0,.7);
+  font-size: clamp(16px, 2.6vw, 24px); color: var(--gold);
+  text-align: center; min-height: 1.2em;
+  text-shadow: 0 2px 16px rgba(0,0,0,.85);
 }
 .do-name.win { color: var(--neon-lit); }
 
@@ -1021,7 +1018,9 @@ body {
 /* ================================================================== */
 
 @media (max-width: 860px) {
-  .bola { width: 58px; height: 58px; font-size: 21px; }
+  .bola { width: 52px; height: 52px; font-size: 19px; }
+  .drum { aspect-ratio: 1400 / 520; padding: 6% 5%; }
+  .balls { gap: 8px; }
   .balls { gap: 8px; }
   .drum { padding: 22px 14px 26px; }
   .drum-rings i:nth-child(3) { display: none; }
