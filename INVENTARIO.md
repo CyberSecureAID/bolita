@@ -21,6 +21,8 @@ bolita/
 │       ├── economics.js        matemática de la banca
 │       ├── tokens.js           monedas admitidas y sus límites
 │       ├── draws.js            las dos tiradas del día
+│       ├── icons.js            iconos SVG (sustituyen a los emojis)
+│       ├── prices.js           logos reales y precios de CoinGecko
 │       ├── charada.js          los 100 números y sus nombres
 │       ├── versos.js           los 99 versos del día
 │       ├── confetti.js         confeti al ganar
@@ -29,7 +31,7 @@ bolita/
     └── Bolita.sol              el contrato
 ```
 
-**17 archivos en total** (12 dentro de `assets/`).
+**19 archivos en total** (14 dentro de `assets/`).
 
 ## Cómo depende cada cosa
 
@@ -40,6 +42,8 @@ index.html
   └── assets/js/app.js
         ├── economics.js
         ├── tokens.js
+        ├── icons.js
+        ├── prices.js
         ├── charada.js
         ├── versos.js
         ├── draws.js
