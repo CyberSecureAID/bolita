@@ -333,12 +333,13 @@ body {
 .grid-nums.g5  { grid-template-columns: repeat(5, 1fr); }
 
 .num {
-  position: relative; aspect-ratio: 1;
-  background: var(--bg-2); border: 1px solid var(--line-soft);
-  border-radius: 9px; color: var(--ink-2);
-  font-family: var(--mono); font-size: 13px; font-weight: 500;
+  position: relative; aspect-ratio: 1; overflow: hidden;
+  background: linear-gradient(180deg, #0A2018, #061710);
+  border: 1px solid var(--line-soft); border-radius: 11px;
+  color: var(--ink-2);
+  font-family: var(--display); font-size: 15px; font-weight: 700;
   cursor: pointer; display: grid; place-items: center; padding: 0;
-  transition: all .13s;
+  transition: transform .13s, border-color .13s, box-shadow .13s, color .13s;
 }
 .num:hover:not(:disabled) { border-color: var(--neon-dim); color: var(--ink); transform: translateY(-1px); }
 .num:focus-visible { outline: 2px solid var(--neon); outline-offset: 1px; }
@@ -351,14 +352,44 @@ body {
 
 .num:disabled { opacity: .26; cursor: not-allowed; }
 
-.num .bar {
-  position: absolute; left: 5px; right: 5px; bottom: 4px;
-  height: 2px; border-radius: 2px; background: var(--line); overflow: hidden;
+/* Efecto de agua: el número se va llenando según sube el cupo */
+.num .agua {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  overflow: hidden; border-radius: 0 0 10px 10px;
+  background: linear-gradient(180deg, rgba(63,224,176,.28), rgba(63,224,176,.42));
+  pointer-events: none; transition: height .6s ease;
+  z-index: 0;
 }
-.num .bar i { display: block; height: 100%; width: 0; background: var(--neon-dim); }
-.num .bar i.warm { background: var(--gold); }
-.num .bar i.full { background: var(--rojo); }
-.num.on .bar { background: rgba(4,36,27,.35); }
+.num .agua.alta { background: linear-gradient(180deg, rgba(232,184,75,.32), rgba(232,184,75,.5)); }
+.num .agua.llena { background: linear-gradient(180deg, rgba(255,107,107,.42), rgba(255,107,107,.6)); }
+
+/* Las dos olas que se mecen en la superficie */
+.num .agua i {
+  position: absolute; top: -6px; left: -50%;
+  width: 200%; height: 12px; border-radius: 45%;
+  background: inherit; opacity: .9;
+}
+.num .agua i:nth-child(1) { animation: ola 3.2s linear infinite; }
+.num .agua i:nth-child(2) { animation: ola 2.1s linear infinite reverse; opacity: .5; }
+@keyframes ola {
+  0%   { transform: translateX(0) rotate(0); }
+  100% { transform: translateX(25%) rotate(360deg); }
+}
+
+.num.on .agua { display: none; }
+.num > span { position: relative; z-index: 1; }
+
+/* Número limitado: cerrado por la casa */
+.num.limitado {
+  border-color: rgba(255,107,107,.5); color: var(--rojo);
+  opacity: .9;
+}
+.num.limitado::after {
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(45deg,
+    transparent 0 5px, rgba(255,107,107,.14) 5px 10px);
+  border-radius: 10px; pointer-events: none;
+}
 
 .num.big { font-size: 24px; font-family: var(--display); font-weight: 700; }
 
@@ -691,20 +722,6 @@ body {
 }
 .mo-tick { margin-left: auto; color: var(--neon); font-size: 13px; }
 
-/* ---------------- Leyenda del cupo ---------------- */
-
-.leyenda {
-  display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
-  font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
-  margin-bottom: 14px;
-}
-.leyenda span { display: flex; align-items: center; gap: 6px; }
-.leyenda .lg-txt { color: var(--ink-3); opacity: .8; }
-.lg { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
-.lg-free { background: var(--neon-dim); }
-.lg-warm { background: var(--gold); }
-.lg-full { background: var(--rojo); }
-
 /* ---------------- Selección múltiple ---------------- */
 
 .seleccion { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
@@ -798,7 +815,6 @@ body {
                 border-bottom: 1px solid var(--line-soft); padding-bottom: 12px; }
   .slip { grid-template-columns: 1fr; }
   .hero { min-height: 250px; }
-  .leyenda .lg-txt { width: 100%; }
 }
 
 /* ================================================================== */
@@ -858,8 +874,9 @@ body {
 .grid-nums { gap: 7px; }
 
 .num {
-  background: linear-gradient(180deg, var(--bg-2), #05130F);
-  border: 1px solid var(--line-soft); border-radius: 11px;
+  background: linear-gradient(180deg, #0C2118, #061710);
+  border: 1px solid var(--line-soft); border-radius: 12px;
+  font-family: var(--display); font-weight: 700;
   transition: transform .12s, border-color .12s, box-shadow .12s;
 }
 .num:hover:not(:disabled) {
@@ -869,99 +886,90 @@ body {
 }
 .num.on {
   background: linear-gradient(180deg, var(--neon-lit), var(--neon));
-  border-color: var(--neon-lit); color: #04241B; font-weight: 700;
-  box-shadow: 0 0 0 1px var(--neon-lit), 0 0 22px rgba(63,224,176,.5), 0 5px 14px rgba(0,0,0,.4);
-  transform: translateY(-2px);
+  border-color: var(--neon-lit); color: #04241B;
+  box-shadow: 0 0 0 1px var(--neon-lit), 0 0 24px rgba(63,224,176,.55), 0 6px 16px rgba(0,0,0,.45);
+  transform: translateY(-3px) scale(1.02);
 }
-.num .bar { height: 3px; bottom: 5px; }
+
 .num.pend {
   border-color: var(--gold);
   box-shadow: 0 0 0 1px var(--gold), 0 0 16px rgba(232,184,75,.35);
 }
 
 /* ================================================================== */
-/* Bombo                                                               */
+/* Bombo — solo las cinco bolas, sobre imagen de fondo                  */
 /* ================================================================== */
 
 .drum {
   position: relative; overflow: hidden;
   border: 1px solid var(--line); border-radius: 22px;
-  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 60%, #061A14 100%);
-  padding: 30px 24px 32px; text-align: center;
+  min-height: 340px;
+  display: grid; place-items: center;
+  padding: 48px 24px;
 }
 
-.drum-glow {
-  position: absolute; left: 50%; top: -34%; transform: translateX(-50%);
-  width: 130%; aspect-ratio: 2/1; pointer-events: none;
-  background: radial-gradient(ellipse at 50% 50%, rgba(63,224,176,.20) 0%, transparent 66%);
+/* Fondo del bombo. Reemplaza bombo-bg.webp por tu imagen cuando la tengas:
+   mismas dimensiones aproximadas (horizontal) y todo encaja igual. */
+.drum-bg {
+  position: absolute; inset: 0;
+  background: url("../img/bombo-bg.webp") center/cover no-repeat;
+}
+.drum-bg::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 70% at 50% 50%, transparent 30%, rgba(4,16,12,.5) 100%);
 }
 
-.drum-rings { position: absolute; inset: 0; pointer-events: none; display: grid; place-items: center; }
-.drum-rings i {
-  position: absolute; border-radius: 50%; border: 1px solid rgba(63,224,176,.12);
+.balls {
+  position: relative; z-index: 1;
+  display: flex; justify-content: center; align-items: center;
+  gap: 18px; flex-wrap: wrap;
 }
-.drum-rings i:nth-child(1) { width: 300px; height: 300px; }
-.drum-rings i:nth-child(2) { width: 440px; height: 440px; border-color: rgba(232,184,75,.09); }
-.drum-rings i:nth-child(3) { width: 580px; height: 580px; border-color: rgba(63,224,176,.06); }
-
-.drum > *:not(.drum-glow):not(.drum-rings) { position: relative; z-index: 1; }
-
-.drum-top {
-  display: flex; align-items: center; justify-content: center; gap: 11px;
-  margin-bottom: 26px; flex-wrap: wrap;
-}
-.dt-badge {
-  display: inline-flex; align-items: center; gap: 7px;
-  font-family: var(--mono); font-size: 10px; letter-spacing: .15em;
-  text-transform: uppercase; color: var(--gold);
-  background: rgba(232,184,75,.1); border: 1px solid rgba(232,184,75,.3);
-  border-radius: 100px; padding: 5px 13px;
-}
-.dt-badge svg { width: 13px; height: 13px; }
-.dt-when {
-  font-family: var(--mono); font-size: 11px; letter-spacing: .08em; color: var(--ink-3);
-}
-
-.balls { gap: 14px; margin-bottom: 26px; }
 
 .bola {
-  width: 84px; height: 84px;
+  width: 104px; height: 104px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: var(--display); font-weight: 700; font-size: 38px;
+  color: var(--ink);
   background:
-    radial-gradient(circle at 33% 26%, rgba(255,255,255,.14) 0%, transparent 42%),
-    radial-gradient(circle at 50% 60%, #103029 0%, var(--bg-2) 55%, #020A08 100%);
-  border: 1px solid var(--line);
-  box-shadow: inset 0 -8px 20px rgba(0,0,0,.55), 0 8px 20px rgba(0,0,0,.45);
-  font-size: 30px;
+    radial-gradient(circle at 34% 26%, rgba(255,255,255,.22) 0%, transparent 44%),
+    radial-gradient(circle at 50% 62%, #103029 0%, #0A1F19 54%, #020A08 100%);
+  border: 2px solid var(--line);
+  box-shadow: inset 0 -10px 24px rgba(0,0,0,.55), 0 10px 26px rgba(0,0,0,.5);
+  transition: transform .3s, box-shadow .3s, border-color .3s;
 }
+
 .bola.spin { animation: bump .42s cubic-bezier(.4,0,.6,1) infinite; }
+@keyframes bump { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-12px) } }
+
+.bola.es-fijo {
+  border-color: rgba(232,184,75,.5);
+}
 
 .bola.first {
   border-color: var(--gold); color: var(--gold);
-  box-shadow: inset 0 -8px 20px rgba(0,0,0,.5), 0 0 30px rgba(232,184,75,.42), 0 8px 20px rgba(0,0,0,.4);
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255,255,255,.3) 0%, transparent 44%),
+    radial-gradient(circle at 50% 62%, #2A2410 0%, #14100A 60%, #060402 100%);
+  box-shadow: inset 0 -10px 24px rgba(0,0,0,.5), 0 0 34px rgba(232,184,75,.5), 0 10px 26px rgba(0,0,0,.45);
 }
+
 .bola.hit {
   border-color: var(--neon-lit); color: #04241B;
-  background: radial-gradient(circle at 33% 26%, #FFFFFF 0%, var(--neon-lit) 44%, var(--neon) 100%);
-  box-shadow: 0 0 34px rgba(63,224,176,.6), 0 8px 22px rgba(0,0,0,.4);
+  background:
+    radial-gradient(circle at 34% 26%, #FFFFFF 0%, var(--neon-lit) 46%, var(--neon) 100%);
+  box-shadow: 0 0 40px rgba(63,224,176,.65), 0 10px 26px rgba(0,0,0,.4);
   animation: acierto .5s ease;
 }
-@keyframes acierto {
-  0% { transform: scale(1) }
-  45% { transform: scale(1.16) }
-  100% { transform: scale(1) }
-}
+@keyframes acierto { 0% { transform: scale(1) } 45% { transform: scale(1.18) } 100% { transform: scale(1) } }
 
-.bola-label { font-size: 9px; letter-spacing: .15em; margin-top: 9px; }
-
-.drum-out { border-top: 1px solid var(--line-soft); padding-top: 22px; }
 .do-name {
+  position: relative; z-index: 1;
   font-family: var(--display); font-weight: 700;
-  font-size: clamp(20px, 3.4vw, 30px); color: var(--gold);
-  margin-bottom: 8px; min-height: 34px; letter-spacing: -.01em;
+  font-size: clamp(18px, 3vw, 26px); color: var(--gold);
+  text-align: center; margin-top: 24px; min-height: 1.2em;
+  text-shadow: 0 2px 16px rgba(0,0,0,.7);
 }
-.do-msg { font-size: 14.5px; color: var(--ink-2); }
-.do-msg.win { color: var(--neon-lit); font-weight: 700; font-size: 19px; }
-.do-msg.lose { color: var(--ink-3); }
+.do-name.win { color: var(--neon-lit); }
 
 /* ================================================================== */
 /* Charada desplegable y centrada                                      */
@@ -1034,3 +1042,142 @@ body {
   .db-side, .db-right { justify-content: center; }
   .db-when { display: none; }
 }
+
+/* ================================================================== */
+/* Números limitados                                                   */
+/* ================================================================== */
+
+.limitados-vacio {
+  text-align: center; padding: 30px 24px;
+  background:
+    repeating-linear-gradient(45deg, transparent 0 12px, rgba(63,224,176,.02) 12px 24px),
+    var(--panel);
+  border: 1px dashed var(--line); border-radius: var(--r);
+  font-family: var(--mono); font-size: 12.5px; color: var(--ink-3);
+}
+
+.limitados {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.limitados:empty { display: none; }
+
+.lim-chip {
+  display: flex; align-items: center; gap: 13px;
+  background: linear-gradient(100deg, rgba(255,107,107,.08), transparent 60%), var(--panel);
+  border: 1px solid rgba(255,107,107,.3); border-radius: 13px;
+  padding: 12px 14px;
+}
+
+.lim-n {
+  position: relative; width: 46px; height: 46px; flex-shrink: 0;
+  border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center;
+  background: #061710; border: 1.5px solid rgba(255,107,107,.5);
+  font-family: var(--display); font-weight: 700; font-size: 18px;
+  color: #fff;
+}
+.lim-n b { position: relative; z-index: 1; }
+
+/* El agua ya llena, meciéndose */
+.lim-agua {
+  position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(180deg, rgba(255,107,107,.5), rgba(255,107,107,.7));
+}
+.lim-agua i {
+  position: absolute; top: -5px; left: -50%;
+  width: 200%; height: 10px; border-radius: 45%; background: inherit;
+}
+.lim-agua i:nth-child(1) { animation: ola 3s linear infinite; opacity: .85; }
+.lim-agua i:nth-child(2) { animation: ola 2s linear infinite reverse; opacity: .45; }
+
+.lim-txt { display: flex; flex-direction: column; line-height: 1.35; }
+.lim-txt b { font-family: var(--display); font-size: 14px; color: var(--ink); }
+.lim-txt i {
+  font-family: var(--mono); font-style: normal; font-size: 10px;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--rojo);
+}
+
+/* ================================================================== */
+/* Bombo en móvil                                                      */
+/* ================================================================== */
+
+@media (max-width: 620px) {
+  .drum { min-height: 220px; padding: 32px 14px; }
+  .bola { width: 60px; height: 60px; font-size: 23px; }
+  .balls { gap: 9px; }
+}
+
+/* ================================================================== */
+/* Números con efecto de agua + sección de limitados                   */
+/* ================================================================== */
+
+/* El botón necesita recortar el agua a su forma redondeada */
+.num { position: relative; overflow: hidden; isolation: isolate; }
+.num .num-n { position: relative; z-index: 2; }
+
+/* El agua sube desde abajo. Cuanto más llena, más cerca de quedar limitado. */
+.num .agua {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+  overflow: hidden; pointer-events: none;
+  background: linear-gradient(180deg, rgba(63,224,176,.34), rgba(63,224,176,.16));
+  transition: height .5s ease;
+}
+.num .agua.alta { background: linear-gradient(180deg, rgba(232,184,75,.4), rgba(232,184,75,.18)); }
+.num .agua.llena { background: linear-gradient(180deg, rgba(255,107,107,.46), rgba(255,107,107,.22)); }
+
+/* Dos olas que se desplazan para dar sensación de líquido en movimiento */
+.num .agua i {
+  position: absolute; top: -8px; left: -50%;
+  width: 200%; height: 14px; border-radius: 45%;
+  background: rgba(255,255,255,.16);
+  animation: ola 3.2s linear infinite;
+}
+.num .agua i:nth-child(2) {
+  top: -6px; height: 12px; background: rgba(255,255,255,.1);
+  animation-duration: 2.3s; animation-direction: reverse;
+}
+@keyframes ola {
+  0%   { transform: translateX(0) rotate(0deg); }
+  100% { transform: translateX(25%) rotate(360deg); }
+}
+
+.num.limitado {
+  border-color: rgba(255,107,107,.5); color: var(--ink-3);
+  cursor: not-allowed;
+}
+.num.limitado .num-n { opacity: .5; }
+
+/* --------- Sección de números limitados --------- */
+
+.limitados {
+  margin-top: 18px; padding: 16px 18px;
+  border: 1px solid rgba(255,107,107,.24); border-radius: 14px;
+  background: linear-gradient(100deg, rgba(255,107,107,.06), transparent 60%), var(--bg-2);
+}
+.lim-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.lim-badge {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase;
+  color: #04241B; background: var(--rojo); border-radius: 100px; padding: 4px 12px; font-weight: 600;
+}
+.lim-txt { font-family: var(--mono); font-size: 11px; color: var(--ink-3); flex: 1; min-width: 180px; }
+
+.lim-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.lim-num {
+  position: relative; overflow: hidden; isolation: isolate;
+  width: 52px; height: 52px; border-radius: 11px;
+  display: grid; place-items: center;
+  background: #0B1815; border: 1px solid rgba(255,107,107,.4);
+  font-family: var(--display); font-weight: 700; font-size: 18px; color: var(--ink-2);
+}
+.lim-num .num-n { position: relative; z-index: 2; }
+.lim-num .agua {
+  position: absolute; inset: 0; z-index: 1; overflow: hidden;
+  background: linear-gradient(180deg, rgba(255,107,107,.4), rgba(255,107,107,.2));
+}
+.lim-num .agua i {
+  position: absolute; top: -6px; left: -50%; width: 200%; height: 12px;
+  border-radius: 45%; background: rgba(255,255,255,.14);
+  animation: ola 2.8s linear infinite;
+}
+.lim-num .agua i:nth-child(2) { animation-duration: 2s; animation-direction: reverse; }
