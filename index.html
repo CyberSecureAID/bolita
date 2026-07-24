@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/styles.css">
 </head>
-<body>
+<body id="top">
 
 <!-- Barra de carga superior -->
 <div class="loader" id="loader"><i></i></div>
@@ -28,7 +28,7 @@
 
   <!-- ══════════ BARRA ══════════ -->
   <nav class="nav">
-    <div class="brand"><span class="dot">B</span>La <em>Bolita</em></div>
+    <a class="brand" href="#top"><img src="assets/img/logo-nav.webp" alt="La Bolita" width="130" height="44"></a>
     <div class="nav-links">
       <a href="#jugar">Jugar</a>
       <a href="#bombo">El bombo</a>
@@ -46,12 +46,10 @@
   <!-- ══════════ BANNER: ESTADO DE LA TIRADA ══════════ -->
   <header class="hero">
     <div class="hero-bg"></div>
-    <span class="corner tl">00</span>
-    <span class="corner tr">99</span>
-    <span class="corner bl">00</span>
-    <span class="corner br">99</span>
 
     <div class="hero-inner">
+      <img class="hero-logo" src="assets/img/logo.webp" alt="La Bolita" width="900" height="302" fetchpriority="high">
+
       <div class="hero-tag" id="hero-tag"><span class="ht-ic"></span><span id="ht-txt">Próxima tirada</span></div>
 
       <div class="hero-count">
