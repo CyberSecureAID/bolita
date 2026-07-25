@@ -25,7 +25,7 @@ export function pintarCompra() {
       : `<span class="mc-logo mc-logo-txt" style="background:${m.color}22;color:${m.color}">${m.icono}</span>`;
 
     const aviso = m.comisionPct
-      ? `<span class="mc-fee" data-fee="${id}">⚠ ${m.comisionPct}% comisión</span>`
+      ? `<span class="mc-fee">${m.comisionPct}% comisión</span>`
       : '';
 
     return `
@@ -52,6 +52,19 @@ export function pintarCompra() {
       });
     }
   });
+
+  // El enlace "Comprar cripto" del menú abre la ventana emergente.
+  const navBtn = document.getElementById('nav-comprar');
+  const modal = document.getElementById('m-comprar');
+  if (navBtn && modal) {
+    navBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      modal.classList.add('open');
+    });
+    const cerrar = () => modal.classList.remove('open');
+    modal.querySelector('.modal-close')?.addEventListener('click', cerrar);
+    modal.addEventListener('click', (e) => { if (e.target === modal) cerrar(); });
+  }
 }
 
 /**

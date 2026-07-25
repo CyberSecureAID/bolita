@@ -34,7 +34,7 @@ const LOGO_POR_ID = {
   ETH:  `${TRUST}/assets/0x2170Ed0880ac9A755fd29B2688956BD959F933F8/logo.png`,
   USDTZ: `${TRUST}/assets/0x55d398326f99059fF775485246999027B3197955/logo.png`,
   BABYDOGE: `${TRUST}/assets/0xc748673057861a797275CD8A068AbB95A902e8de/logo.png`,
-  EXT: null   // usa el respaldo de letra
+  EXT: 'assets/img/ext-logo.webp'
 };
 
 export function logoDe(monedaId) {
