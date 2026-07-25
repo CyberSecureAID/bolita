@@ -105,10 +105,10 @@ export function enDolares(cantidad, monedaId, tabla) {
   if (typeof p !== 'number' || typeof cantidad !== 'number') return '';
 
   const v = cantidad * p;
-  if (v === 0) return '≈ $0';
-  if (v < 0.01) return '≈ <$0.01';
+  if (v === 0) return '$0.00';
+  if (v < 0.01) return '<$0.01';
 
-  return '≈ $' + v.toLocaleString('es', {
+  return '$' + v.toLocaleString('es', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });

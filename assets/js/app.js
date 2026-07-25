@@ -257,7 +257,8 @@ function pintarModos() {
   for (const m of LISTA_MODOS) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'mode' + (S.modo?.id === m.id ? ' on' : '');
+    b.className = 'mode' + (S.modo?.id === m.id ? ' on' : '')
+      + (m.id === 'terminal' ? ' es-terminales' : '');
     b.disabled = !activo;
     b.innerHTML = `
       <img src="${ARTE[m.id]}" alt="${m.nombre}" loading="lazy" width="800" height="410">
@@ -593,11 +594,7 @@ function pintarSaldo() {
   $('ss-sym').textContent = p.simbolo;
 
   $('ss-usd').textContent = enDolares(saldo, S.moneda.id, S.precios);
-  // Debajo, el precio de la moneda (1 BNB ≈ $X), no el gwei que se veía cutre.
-  const precio = S.precios?.[S.moneda.id]?.usd;
-  $('ss-min').textContent = precio
-    ? `1 ${S.moneda.simbolo} ≈ $${precio.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
-    : '';
+  $('ss-min').textContent = '';   // sin el precio de la moneda, sobraba
 }
 
 /**
