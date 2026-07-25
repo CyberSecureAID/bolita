@@ -60,8 +60,8 @@ body {
 }
 
 .brand img {
-  height: 38px; width: auto; display: block;
-  filter: drop-shadow(0 0 12px rgba(232,184,75,.28));
+  height: 28px; width: auto; display: block;
+  filter: drop-shadow(0 0 10px rgba(232,184,75,.28));
 }
 .brand { text-decoration: none; }
 
@@ -759,7 +759,7 @@ body {
 
 /* ---------------- Monedas ---------------- */
 
-.monedas { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 9px; }
+.monedas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
 
 .moneda {
   position: relative; display: flex; align-items: center; gap: 11px;
@@ -1686,95 +1686,137 @@ body {
 }
 
 /* ================================================================== */
-/* Ventana emergente: Comprar cripto                                   */
+/* Ventana de compra — interfaz tipo exchange                          */
 /* ================================================================== */
 
-.comprar-box {
-  max-width: 620px; text-align: center;
+.ex-box {
+  max-width: 560px; padding: 0; overflow: hidden;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(46,232,106,.06), transparent 60%),
+    var(--bg-2);
 }
-.comprar-intro {
-  text-align: left; margin-bottom: 20px;
-}
-.comprar-bloque { margin-top: 20px; text-align: center; }
-.comprar-bloque:first-of-type { margin-top: 14px; }
 
-.cb-titulo {
-  font-family: var(--display); font-weight: 700; font-size: 15px;
-  color: var(--gold); margin: 0 0 5px; text-align: center;
+/* Cabecera */
+.ex-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--line-soft);
 }
-.cb-sub {
+.ex-head-l { display: flex; align-items: center; gap: 13px; }
+.ex-logo {
+  width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+  display: grid; place-items: center; font-size: 22px; color: #14210A;
+  background: linear-gradient(180deg, #F7E8B8, var(--gold));
+  box-shadow: 0 4px 14px rgba(232,184,75,.35);
+}
+.ex-titulo { font-family: var(--display); font-weight: 700; font-size: 19px; color: var(--gold); margin: 0; }
+.ex-sub { font-family: var(--mono); font-size: 10.5px; color: var(--gold-soft); margin: 2px 0 0; }
+.ex-x {
+  width: 32px; height: 32px; flex-shrink: 0; margin: 0; padding: 0;
+  border-radius: 9px; border: 1px solid var(--line-soft);
+  background: rgba(4,16,12,.5); color: var(--gold-soft);
+  font-size: 13px; cursor: pointer; transition: all .15s;
+}
+.ex-x:hover { border-color: var(--gold); color: var(--gold); }
+
+.ex-intro {
   font-family: var(--sans); font-size: 12.5px; line-height: 1.55;
-  color: var(--gold-soft); margin: 0 0 13px; text-align: center;
+  color: var(--gold-soft); margin: 0; padding: 14px 22px 0; text-align: left;
 }
 
-/* On-ramps (tarjeta / Cuba) */
-.onramp-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+/* Pestañas */
+.ex-tabs {
+  display: flex; gap: 6px; padding: 16px 22px 0;
 }
-.onramp-cuba { grid-template-columns: repeat(2, 1fr); }
-.onramp {
-  display: flex; flex-direction: column; gap: 4px; text-align: left;
-  padding: 14px 16px; border-radius: 13px; text-decoration: none;
-  background: linear-gradient(135deg, rgba(232,184,75,.1), rgba(4,16,12,.5));
-  border: 1px solid rgba(232,184,75,.3);
-  box-shadow: inset 0 1px 0 rgba(247,232,184,.18);
-  transition: all .18s;
+.ex-tab {
+  flex: 1; font-family: var(--display); font-weight: 600; font-size: 13px;
+  color: var(--gold-soft); cursor: pointer;
+  background: transparent; border: none;
+  padding: 10px 8px; border-radius: 10px 10px 0 0;
+  border-bottom: 2px solid transparent; transition: all .15s;
 }
-.onramp:hover {
-  border-color: var(--gold); transform: translateY(-3px);
-  box-shadow: inset 0 1px 0 rgba(247,232,184,.3), 0 8px 22px rgba(232,184,75,.18);
+.ex-tab:hover { color: var(--gold); }
+.ex-tab.on {
+  color: var(--gold);
+  background: linear-gradient(180deg, rgba(232,184,75,.08), transparent);
+  border-bottom-color: var(--gold);
 }
-.or-nombre { font-family: var(--display); font-weight: 700; font-size: 15px; color: #F7E8B8; }
-.or-desc { font-family: var(--mono); font-size: 10px; color: var(--gold-soft); }
 
-/* Rejilla de monedas: 4 por fila en escritorio, ordenada */
-.monedas-compra {
+/* Paneles */
+.ex-panel { display: none; padding: 18px 22px 24px; }
+.ex-panel.on { display: block; animation: exFade .25s ease; }
+@keyframes exFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.ex-panel-txt {
+  font-family: var(--sans); font-size: 12.5px; line-height: 1.55;
+  color: var(--gold-soft); margin: 0 0 15px; text-align: left;
+}
+
+/* Proveedores (tarjeta / Cuba) */
+.ex-provs { display: flex; flex-direction: column; gap: 10px; }
+.ex-prov {
+  position: relative;
+  display: flex; flex-direction: column; gap: 3px; text-decoration: none;
+  padding: 15px 17px; border-radius: 13px;
+  background: linear-gradient(135deg, rgba(232,184,75,.09), rgba(4,16,12,.4));
+  border: 1px solid rgba(232,184,75,.28);
+  box-shadow: inset 0 1px 0 rgba(247,232,184,.16);
+  transition: all .17s;
+}
+.ex-prov:hover {
+  border-color: var(--gold); transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 rgba(247,232,184,.28), 0 8px 20px rgba(232,184,75,.16);
+}
+.ex-prov-n { font-family: var(--display); font-weight: 700; font-size: 16px; color: #F7E8B8; }
+.ex-prov-d { font-family: var(--mono); font-size: 10.5px; color: var(--gold-soft); }
+.ex-prov-go {
+  position: absolute; top: 50%; right: 17px; transform: translateY(-50%);
+  font-family: var(--display); font-weight: 600; font-size: 12.5px; color: var(--gold);
+}
+
+.ex-nota-cuba {
+  font-family: var(--sans); font-size: 11.5px; line-height: 1.5;
+  color: var(--gold-soft); opacity: .8; margin: 13px 0 0; text-align: left;
+}
+
+/* Grid de monedas (pestaña Cambiar) — 4 por fila, ordenado */
+.ex-monedas {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px;
 }
-.mc-card {
+.exm-card {
   position: relative;
-  display: flex; flex-direction: column; align-items: center; gap: 7px;
-  padding: 14px 10px 12px; border-radius: 13px; text-decoration: none;
-  background: var(--bg-2); border: 1px solid var(--line-soft);
-  transition: all .16s; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 15px 8px 13px; border-radius: 13px; text-decoration: none;
+  background: var(--panel); border: 1px solid var(--line-soft);
+  transition: all .16s;
 }
-.mc-card:hover {
-  border-color: rgba(232,184,75,.4); transform: translateY(-2px);
-  background: linear-gradient(135deg, rgba(232,184,75,.06), var(--bg-2));
+.exm-card:hover {
+  border-color: var(--gold); transform: translateY(-2px);
+  background: linear-gradient(160deg, rgba(232,184,75,.08), var(--panel));
 }
-.mc-logo {
-  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
-  object-fit: cover; background: var(--panel);
+.exm-logo {
+  width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+  background: var(--bg-2); margin-bottom: 2px;
 }
-.mc-logo-txt {
-  display: grid; place-items: center;
-  font-family: var(--display); font-weight: 700; font-size: 17px;
+.exm-logo-txt { display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 18px; }
+.exm-nombre { font-family: var(--display); font-weight: 700; font-size: 13px; color: var(--gold); }
+.exm-sub { font-family: var(--mono); font-size: 8.5px; color: var(--gold-soft); }
+.exm-fee {
+  position: absolute; top: 7px; right: 7px;
+  font-family: var(--mono); font-size: 8px; font-weight: 600; color: #E8B84B;
+  background: rgba(232,184,75,.14); border: 1px solid rgba(232,184,75,.35);
+  border-radius: 100px; padding: 1px 6px;
 }
-.mc-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; align-items: center; }
-.mc-nombre { font-family: var(--display); font-weight: 700; font-size: 13.5px; color: var(--gold); }
-.mc-sub {
-  font-family: var(--mono); font-size: 9px; color: var(--gold-soft);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+.exm-go {
+  margin-top: 4px; font-family: var(--display); font-weight: 600; font-size: 11px;
+  color: #14210A; background: linear-gradient(180deg, #F7E8B8, var(--gold));
+  padding: 4px 14px; border-radius: 100px; opacity: 0; transform: translateY(4px);
+  transition: all .16s;
 }
-.mc-fee {
-  position: absolute; top: 6px; right: 6px;
-  font-family: var(--mono); font-size: 7.5px; font-weight: 600;
-  color: #E8B84B; background: rgba(232,184,75,.12);
-  border: 1px solid rgba(232,184,75,.3); border-radius: 100px;
-  padding: 2px 6px;
-}
-.mc-flecha {
-  position: absolute; top: 8px; left: 9px;
-  font-family: var(--mono); font-size: 12px; color: var(--gold-soft);
-}
-.mc-card:hover .mc-flecha { color: var(--gold); }
+.exm-card:hover .exm-go { opacity: 1; transform: translateY(0); }
 
-/* Modal de aviso de comisión (elegante, no rojo) */
+/* Aviso de comisión (elegante) */
 .comision-box { text-align: center; max-width: 460px; }
-.comision-ic {
-  font-size: 40px; margin-bottom: 6px;
-  filter: drop-shadow(0 4px 12px rgba(232,184,75,.4));
-}
+.comision-ic { font-size: 40px; margin-bottom: 6px; filter: drop-shadow(0 4px 12px rgba(232,184,75,.4)); }
 .comision-box h3 { margin: 0 0 4px; }
 .comision-box p {
   font-family: var(--sans); font-size: 13px; line-height: 1.6;
@@ -1782,9 +1824,8 @@ body {
 }
 .comision-box strong { color: var(--neon-lit); font-weight: 600; }
 .comision-clave {
-  background: rgba(46,232,106,.07);
-  border-left: 3px solid var(--neon); border-radius: 8px;
-  padding: 11px 13px !important; color: #C9F5D8 !important;
+  background: rgba(46,232,106,.07); border-left: 3px solid var(--neon);
+  border-radius: 8px; padding: 11px 13px !important; color: #C9F5D8 !important;
 }
 .comision-btns { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
 .comision-btns .modal-close { flex: 1; margin: 0; }
@@ -1797,121 +1838,9 @@ body {
 }
 
 @media (max-width: 620px) {
-  .onramp-grid { grid-template-columns: 1fr; gap: 9px; }
-  .onramp-cuba { grid-template-columns: 1fr; }
-  .monedas-compra { grid-template-columns: repeat(2, 1fr); }
+  .ex-monedas { grid-template-columns: repeat(2, 1fr); }
   .comision-btns { flex-direction: column; }
-}
-
-/* ================================================================== */
-
-.comprar-sec { margin-top: 8px; }
-.comprar-bloque { margin-top: 22px; }
-
-.cb-titulo {
-  font-family: var(--display); font-weight: 700; font-size: 16px;
-  color: var(--gold); margin: 0 0 6px;
-  display: flex; align-items: center; gap: 9px;
-}
-.cb-ic { font-size: 18px; }
-.cb-sub {
-  font-family: var(--sans); font-size: 13px; line-height: 1.55;
-  color: var(--gold-soft); margin: 0 0 14px; max-width: 640px;
-}
-
-/* Tarjeta o transferencia (on-ramps) */
-.onramp-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-}
-.onramp {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 16px 18px; border-radius: 14px; text-decoration: none;
-  background: linear-gradient(135deg, rgba(232,184,75,.1), rgba(4,16,12,.5));
-  border: 1px solid rgba(232,184,75,.3);
-  box-shadow: inset 0 1px 0 rgba(247,232,184,.18);
-  transition: all .18s;
-}
-.onramp:hover {
-  border-color: var(--gold); transform: translateY(-3px);
-  box-shadow: inset 0 1px 0 rgba(247,232,184,.3), 0 8px 22px rgba(232,184,75,.18);
-}
-.or-nombre { font-family: var(--display); font-weight: 700; font-size: 16px; color: #F7E8B8; }
-.or-desc { font-family: var(--mono); font-size: 10.5px; color: var(--gold-soft); }
-
-/* Rejilla de monedas para comprar */
-.monedas-compra {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
-}
-.mc-card {
-  position: relative;
-  display: flex; align-items: center; gap: 11px;
-  padding: 13px 14px; border-radius: 13px; text-decoration: none;
-  background: var(--bg-2); border: 1px solid var(--line-soft);
-  transition: all .16s;
-}
-.mc-card:hover {
-  border-color: rgba(232,184,75,.4); transform: translateY(-2px);
-  background: linear-gradient(135deg, rgba(232,184,75,.06), var(--bg-2));
-}
-.mc-logo {
-  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
-  object-fit: cover; background: var(--panel);
-}
-.mc-logo-txt {
-  display: grid; place-items: center;
-  font-family: var(--display); font-weight: 700; font-size: 16px;
-}
-.mc-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.mc-nombre { font-family: var(--display); font-weight: 700; font-size: 14px; color: var(--gold); }
-.mc-sub {
-  font-family: var(--mono); font-size: 9.5px; color: var(--gold-soft);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mc-fee {
-  position: absolute; top: 7px; right: 9px;
-  font-family: var(--mono); font-size: 8.5px; font-weight: 600;
-  color: #E8B84B; background: rgba(232,184,75,.12);
-  border: 1px solid rgba(232,184,75,.3); border-radius: 100px;
-  padding: 2px 7px;
-}
-.mc-flecha {
-  font-family: var(--mono); font-size: 14px; color: var(--gold-soft); flex-shrink: 0;
-}
-.mc-card:hover .mc-flecha { color: var(--gold); }
-
-/* Modal de aviso de comisión (elegante, no rojo) */
-.comision-box { text-align: center; max-width: 460px; }
-.comision-ic {
-  font-size: 44px; margin-bottom: 8px;
-  filter: drop-shadow(0 4px 12px rgba(232,184,75,.4));
-}
-.comision-box h3 { margin: 0 0 4px; }
-.comision-box p {
-  font-family: var(--sans); font-size: 13.5px; line-height: 1.6;
-  color: var(--gold-soft); text-align: left; margin: 12px 0;
-}
-.comision-box strong { color: var(--neon-lit); font-weight: 600; }
-.comision-clave {
-  background: rgba(46,232,106,.07);
-  border-left: 3px solid var(--neon); border-radius: 8px;
-  padding: 12px 14px !important; color: #C9F5D8 !important;
-}
-.comision-btns { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
-.comision-btns .modal-close { flex: 1; }
-.comision-ir {
-  flex: 1; text-align: center; text-decoration: none;
-  font-family: var(--display); font-weight: 600; font-size: 13px;
-  color: #2A1E06; padding: 11px 16px; border-radius: 100px;
-  background: linear-gradient(180deg, #F7E8B8, var(--gold));
-  display: flex; align-items: center; justify-content: center;
-  white-space: nowrap;
-}
-
-@media (max-width: 620px) {
-  .onramp-grid { grid-template-columns: 1fr; gap: 10px; }
-  .monedas-compra { grid-template-columns: repeat(2, 1fr); }
-  .comision-btns { flex-direction: column; }
-}
-@media (max-width: 380px) {
-  .monedas-compra { grid-template-columns: 1fr; }
+  .ex-tab { font-size: 12px; padding: 9px 4px; }
+  .ex-intro, .ex-panel { padding-left: 16px; padding-right: 16px; }
+  .ex-head { padding: 16px 16px 14px; }
 }
