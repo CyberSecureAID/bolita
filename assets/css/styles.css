@@ -318,16 +318,23 @@ body {
   display: block;
 }
 
-/* Terminales es más alta que las otras por el sombrero. Ocupa el mismo ancho
-   que las demás (misma distancia entre tarjetas) y se sube lo justo para que
-   su borde INFERIOR alinee con las otras dos, sin cortar nada: el sombrero
-   asoma un poco por arriba. Imagen intacta. Este valor ya estaba afinado. */
+/* Terminales es más alta por el sombrero. Combinamos las dos soluciones que
+   ya funcionaban por separado:
+   - scale(0.985): el tamaño/altura que quedó PERFECTO (borde inferior alineado)
+   - width 101.5%: compensa lo que el scale encoge, para que tras escalar la
+     imagen siga llenando la columna completa y la DISTANCIA entre tarjetas sea
+     idéntica a las otras dos.
+   Anclado arriba: el borde superior no se mueve. Imagen intacta. */
 .mode.es-terminales {
   aspect-ratio: 900 / 461;
   overflow: visible;
 }
 .mode.es-terminales img {
+  width: 101.523%;               /* = 100 / 0.985, para llenar tras escalar */
+  margin-left: -0.7615%;         /* recentra ese ancho extra */
   margin-top: -4%;
+  transform: scale(0.985);
+  transform-origin: top center;
 }
 
 
