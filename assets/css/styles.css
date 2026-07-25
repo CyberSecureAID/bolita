@@ -1758,6 +1758,7 @@ body {
 
 /* Par + precio */
 .ex-par { position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+.ex-par-wrap { position: relative; }
 .ex-par-sel {
   display: flex; align-items: center; gap: 9px; cursor: pointer;
   background: var(--bg-2); border: 1px solid var(--line-soft);
@@ -1784,23 +1785,27 @@ body {
 .ex-mmv b { font-family: var(--mono); font-size: 11px; }
 .ex-mmv #ex-vol { color: #F7E8B8; }
 
-/* Selector desplegable de monedas */
+/* Lista desplegable: OCULTA hasta tocar el par, se abre HACIA ABAJO justo
+   debajo del selector. Nada de desbordarse a la izquierda. */
 .ex-monedas-pop {
-  position: absolute; top: 52px; left: 0; z-index: 10;
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20;
   background: #0A1712; border: 1px solid var(--gold); border-radius: 14px;
   padding: 7px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px;
-  box-shadow: 0 16px 40px rgba(0,0,0,.6); width: min(360px, 90%);
+  box-shadow: 0 16px 40px rgba(0,0,0,.6); width: 420px; max-width: 84vw;
+  animation: exPop .18s ease;
 }
+.ex-monedas-pop[hidden] { display: none; }
+@keyframes exPop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 .exp-item {
   display: flex; align-items: center; gap: 8px; cursor: pointer; text-align: left;
   background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: 10px;
-  padding: 8px 10px; transition: all .13s;
+  padding: 9px 11px; transition: all .13s;
 }
 .exp-item:hover { border-color: var(--gold); background: rgba(232,184,75,.06); }
-.exp-item img, .exp-txt { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; }
-.exp-txt { display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 12px; }
-.exp-item b { font-family: var(--display); font-size: 12px; color: var(--gold); }
-.exp-item small { font-family: var(--mono); font-size: 8px; color: var(--gold-soft); display: block; }
+.exp-item img, .exp-txt { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; }
+.exp-txt { display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 13px; }
+.exp-item b { font-family: var(--display); font-size: 13px; color: var(--gold); }
+.exp-item small { font-family: var(--mono); font-size: 8.5px; color: var(--gold-soft); }
 
 /* Gráfico */
 .ex-chart { margin-top: 16px; }
