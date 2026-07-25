@@ -1804,8 +1804,9 @@ body {
 .exp-item:hover { border-color: var(--gold); background: rgba(232,184,75,.06); }
 .exp-item img, .exp-txt { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; }
 .exp-txt { display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 13px; }
-.exp-item b { font-family: var(--display); font-size: 13px; color: var(--gold); }
-.exp-item small { font-family: var(--mono); font-size: 8.5px; color: var(--gold-soft); }
+.exp-info { display: flex; flex-direction: column; min-width: 0; }
+.exp-info b { font-family: var(--display); font-size: 13px; color: var(--gold); }
+.exp-info small { font-family: var(--mono); font-size: 8.5px; color: var(--gold-soft); }
 
 /* Gráfico */
 .ex-chart { margin-top: 16px; }
@@ -1830,63 +1831,53 @@ body {
 .ex-libro-col.venta .px { color: #FF5C5C; }
 .ex-libro-fila .qt { color: var(--gold-soft); }
 
-/* Acción comprar/cobrar */
-.ex-accion { margin-top: 16px; }
-.ex-cv { display: flex; gap: 8px; margin-bottom: 14px; }
-.ex-cv-btn {
-  flex: 1; font-family: var(--display); font-weight: 700; font-size: 14px;
-  padding: 12px; border-radius: 11px; cursor: pointer; border: 1px solid transparent;
-  background: var(--bg-2); transition: all .15s;
+/* Acción: botón grande arriba con degradado verde->rojo */
+.ex-accion { margin-top: 18px; }
+.ex-comprar-final {
+  width: 100%; font-family: var(--display); font-weight: 700; font-size: 16px;
+  color: #14210A; padding: 16px; border: none; border-radius: 14px; cursor: pointer;
+  background: linear-gradient(90deg, #2EE86A 0%, #5FD86A 45%, #E8A85C 55%, #FF5C5C 100%);
+  box-shadow: 0 8px 26px rgba(46,232,106,.25); transition: transform .15s, box-shadow .15s;
 }
-.ex-cv-btn.comprar { color: var(--neon-lit); border-color: rgba(46,232,106,.3); }
-.ex-cv-btn.comprar.on { background: rgba(46,232,106,.15); border-color: var(--neon); }
-.ex-cv-btn.vender { color: #FF5C5C; border-color: rgba(255,92,92,.3); }
-.ex-cv-btn.vender:hover { background: rgba(255,92,92,.1); }
+.ex-comprar-final:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(46,232,106,.3); }
 
-.ex-campo {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: 12px; padding: 12px 14px;
+.ex-fav-txt {
+  font-family: var(--sans); font-size: 12px; color: var(--gold-soft);
+  text-align: center; margin: 18px 0 0;
 }
-.ex-campo-sel { display: flex; align-items: center; gap: 8px; cursor: pointer; background: none; border: none; }
-.ex-campo-logo { width: 26px; height: 26px; border-radius: 50%; }
-.ex-campo-sel b { font-family: var(--display); font-weight: 700; font-size: 15px; color: var(--gold); }
-.ex-caret { color: var(--gold-soft); font-size: 11px; }
-.ex-campo-val { text-align: right; }
-.ex-campo-val span { font-family: var(--mono); font-size: 9px; color: var(--gold-soft); display: block; }
-.ex-campo-val b { font-family: var(--mono); font-size: 12px; color: #F7E8B8; }
-
-.ex-swap { display: flex; justify-content: center; margin: 8px 0; }
-.ex-swap span {
-  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+.ex-swap-abajo { display: flex; justify-content: center; margin: 8px 0; }
+.ex-swap-abajo span {
+  width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
   background: var(--bg-2); border: 1px solid var(--line); color: var(--gold); font-size: 15px;
 }
 
-.ex-populares { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.ex-populares { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .ex-pop {
-  display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer;
-  background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: 11px; padding: 10px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer;
+  background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: 12px; padding: 12px 6px;
   transition: all .14s;
 }
-.ex-pop:hover { border-color: var(--gold); }
-.ex-pop img { width: 24px; height: 24px; border-radius: 50%; }
-.ex-pop b { font-family: var(--display); font-size: 11px; color: var(--gold); }
+.ex-pop:hover { border-color: var(--gold); transform: translateY(-2px); }
+.ex-pop img { width: 26px; height: 26px; border-radius: 50%; }
+.ex-pop b { font-family: var(--display); font-size: 12px; color: var(--gold); }
 
-.ex-barra { margin: 16px 0; }
-.ex-barra-linea { position: relative; height: 4px; background: var(--line); border-radius: 4px; }
-.ex-barra-punto {
-  position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%;
-  background: var(--neon); transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(46,232,106,.5);
+/* Barra de retirar (fuera, en la cabecera) */
+.ex-retirar-barra { padding: 12px 18px 0; }
+.ex-retirar {
+  width: 100%; font-family: var(--display); font-weight: 600; font-size: 13.5px;
+  color: var(--gold); cursor: pointer;
+  background: linear-gradient(180deg, rgba(232,184,75,.12), rgba(232,184,75,.04));
+  border: 1px solid rgba(232,184,75,.4); border-radius: 12px; padding: 12px;
+  transition: all .15s;
 }
-.ex-barra-nums { display: flex; justify-content: space-between; margin-top: 8px; }
-.ex-barra-nums span { font-family: var(--mono); font-size: 9.5px; color: var(--gold-soft); }
+.ex-retirar:hover { border-color: var(--gold); background: rgba(232,184,75,.16); }
 
-.ex-comprar-final {
-  width: 100%; font-family: var(--display); font-weight: 700; font-size: 16px;
-  color: #14210A; padding: 15px; border: none; border-radius: 13px; cursor: pointer;
-  background: linear-gradient(180deg, #4DFF7A, var(--neon));
-  box-shadow: 0 8px 26px rgba(46,232,106,.35); transition: transform .15s;
+/* Transición al cambiar de pestaña */
+.ex-flash { animation: exFlash .32s ease; }
+@keyframes exFlash {
+  0% { opacity: .35; transform: translateY(5px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
-.ex-comprar-final:hover { transform: translateY(-2px); }
 
 /* Modal de opciones al comprar */
 .op-box { max-width: 460px; }
@@ -1919,5 +1910,9 @@ body {
   .ex-tabs { order: 3; width: 100%; justify-content: space-between; }
   .ex-tab { flex: 1; padding: 8px 6px; }
   .ex-libro { grid-template-columns: 1fr; gap: 10px; }
-  .ex-monedas-pop { width: 100%; }
+  .ex-monedas-pop {
+    width: calc(100vw - 60px); max-width: none; left: 0;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ex-populares { grid-template-columns: repeat(2, 1fr); }
 }
