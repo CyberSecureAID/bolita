@@ -492,51 +492,70 @@
 </div></div>
 
 <!-- ══════════ VENTANA EMERGENTE: COMPRAR CRIPTO ══════════ -->
-<div class="modal" id="m-comprar"><div class="modal-box comprar-box">
-  <h3>Comprar cripto para jugar</h3>
-  <p class="sub comprar-intro">¿No tienes con qué jugar? Consigue aquí cualquiera de las monedas que aceptamos. Compras directamente en plataformas seguras — nosotros no tocamos tu dinero ni cobramos por esto.</p>
+<div class="modal" id="m-comprar"><div class="modal-box ex-box">
 
-  <div class="comprar-bloque">
-    <h4 class="cb-titulo">Con tarjeta o transferencia</h4>
-    <p class="cb-sub">Si es tu primera vez en cripto, estas plataformas te dejan comprar con tarjeta de crédito, débito, Apple&nbsp;Pay o Google&nbsp;Pay, y te lo envían a tu wallet. Son de las más reconocidas del mundo.</p>
-    <div class="onramp-grid">
-      <a class="onramp" href="https://www.moonpay.com/buy/bnb" target="_blank" rel="noopener noreferrer">
-        <span class="or-nombre">MoonPay</span>
-        <span class="or-desc">Tarjeta · Apple/Google Pay · PayPal</span>
+  <!-- Cabecera del exchange -->
+  <div class="ex-head">
+    <div class="ex-head-l">
+      <span class="ex-logo">⇄</span>
+      <div>
+        <h3 class="ex-titulo">Comprar cripto</h3>
+        <p class="ex-sub">consigue tu moneda para jugar</p>
+      </div>
+    </div>
+    <button class="ex-x modal-close" type="button" aria-label="Cerrar">✕</button>
+  </div>
+
+  <p class="ex-intro">¿No tienes con qué jugar? Consigue aquí cualquiera de las monedas que aceptamos. Compras en plataformas seguras y reconocidas — nosotros no tocamos tu dinero ni cobramos por esto.</p>
+
+  <!-- Pestañas -->
+  <div class="ex-tabs" id="ex-tabs">
+    <button class="ex-tab on" data-tab="tarjeta" type="button">Con tarjeta</button>
+    <button class="ex-tab" data-tab="cambiar" type="button">Cambiar cripto</button>
+    <button class="ex-tab" data-tab="cuba" type="button">Desde Cuba</button>
+  </div>
+
+  <!-- Panel: Con tarjeta -->
+  <div class="ex-panel on" data-panel="tarjeta">
+    <p class="ex-panel-txt">Compra con tarjeta de crédito, débito, Apple&nbsp;Pay o Google&nbsp;Pay. Te llega directo a tu wallet en minutos.</p>
+    <div class="ex-provs">
+      <a class="ex-prov" href="https://www.moonpay.com/buy/bnb" target="_blank" rel="noopener noreferrer">
+        <span class="ex-prov-n">MoonPay</span>
+        <span class="ex-prov-d">Tarjeta · Apple/Google Pay · PayPal</span>
+        <span class="ex-prov-go">Comprar →</span>
       </a>
-      <a class="onramp" href="https://transak.com/buy/bnb" target="_blank" rel="noopener noreferrer">
-        <span class="or-nombre">Transak</span>
-        <span class="or-desc">Tarjeta · transferencia bancaria</span>
+      <a class="ex-prov" href="https://transak.com/buy/bnb" target="_blank" rel="noopener noreferrer">
+        <span class="ex-prov-n">Transak</span>
+        <span class="ex-prov-d">Tarjeta · transferencia bancaria</span>
+        <span class="ex-prov-go">Comprar →</span>
       </a>
-      <a class="onramp" href="https://rampnetwork.com/buy-crypto/bnb" target="_blank" rel="noopener noreferrer">
-        <span class="or-nombre">Ramp</span>
-        <span class="or-desc">Tarjeta · Apple/Google Pay</span>
+      <a class="ex-prov" href="https://rampnetwork.com/buy-crypto/bnb" target="_blank" rel="noopener noreferrer">
+        <span class="ex-prov-n">Ramp</span>
+        <span class="ex-prov-d">Tarjeta · Apple/Google Pay</span>
+        <span class="ex-prov-go">Comprar →</span>
       </a>
     </div>
   </div>
 
-  <div class="comprar-bloque">
-    <h4 class="cb-titulo">¿Estás en Cuba?</h4>
-    <p class="cb-sub">Consigue USDT con tu tarjeta cubana (CUP o MLC) por Transfermóvil o EnZona en estas plataformas, y luego juegas con ese USDT.</p>
-    <div class="onramp-grid onramp-cuba">
-      <a class="onramp" href="https://qvapay.com" target="_blank" rel="noopener noreferrer">
-        <span class="or-nombre">QvaPay</span>
-        <span class="or-desc">USDT con CUP/MLC · Transfermóvil</span>
-      </a>
-      <a class="onramp" href="https://www.coinex.com/es/p2p" target="_blank" rel="noopener noreferrer">
-        <span class="or-nombre">CoinEx P2P</span>
-        <span class="or-desc">USDT con CUP · tarjetas cubanas</span>
+  <!-- Panel: Cambiar cripto (grid de monedas) -->
+  <div class="ex-panel" data-panel="cambiar">
+    <p class="ex-panel-txt">¿Ya tienes BNB u otra cripto? Cámbiala por la moneda que quieras jugar. Todas están en BNB&nbsp;Smart&nbsp;Chain. Elige una:</p>
+    <div class="ex-monedas" id="monedas-compra"></div>
+  </div>
+
+  <!-- Panel: Desde Cuba -->
+  <div class="ex-panel" data-panel="cuba">
+    <p class="ex-panel-txt">Consigue USDT con tu tarjeta cubana (CUP o MLC) por Transfermóvil o EnZona, y luego juegas con ese USDT.</p>
+    <div class="ex-provs">
+      <a class="ex-prov" href="https://qvapay.com" target="_blank" rel="noopener noreferrer">
+        <span class="ex-prov-n">QvaPay</span>
+        <span class="ex-prov-d">USDT con CUP/MLC · Transfermóvil · EnZona</span>
+        <span class="ex-prov-go">Comprar →</span>
       </a>
     </div>
+    <p class="ex-nota-cuba">QvaPay es la pasarela cubana más establecida. Compras USDT con tu tarjeta, lo mandas a tu wallet, y ya puedes jugar.</p>
   </div>
 
-  <div class="comprar-bloque">
-    <h4 class="cb-titulo">Comprar cada moneda</h4>
-    <p class="cb-sub">Si ya tienes BNB u otra cripto, aquí cambias por la moneda que quieras jugar. Todas están en BNB&nbsp;Smart&nbsp;Chain.</p>
-    <div class="monedas-compra" id="monedas-compra"></div>
-  </div>
-
-  <button class="modal-close" type="button">Cerrar</button>
 </div></div>
 
 <div class="toast" id="toast"></div>
