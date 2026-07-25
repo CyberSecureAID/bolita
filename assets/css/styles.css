@@ -1686,161 +1686,233 @@ body {
 }
 
 /* ================================================================== */
-/* Ventana de compra — interfaz tipo exchange                          */
+/* Menú hamburguesa (móvil)                                            */
+/* ================================================================== */
+
+.btn-menu {
+  display: none; width: 40px; height: 40px; flex-shrink: 0;
+  border-radius: 11px; border: 1px solid var(--line);
+  background: var(--bg-2); cursor: pointer;
+  flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+}
+.btn-menu span {
+  display: block; width: 18px; height: 2px; border-radius: 2px;
+  background: var(--gold); transition: all .22s;
+}
+.btn-menu.on span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.btn-menu.on span:nth-child(2) { opacity: 0; }
+.btn-menu.on span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+.menu-movil {
+  display: none; flex-direction: column; gap: 2px;
+  max-height: 0; overflow: hidden; opacity: 0;
+  transition: max-height .3s ease, opacity .25s ease, margin .25s;
+  background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: 14px; margin: 0 0 0;
+}
+.menu-movil.open { max-height: 320px; opacity: 1; margin: 6px 0 4px; padding: 8px; }
+.menu-movil a {
+  font-family: var(--display); font-weight: 600; font-size: 15px;
+  color: var(--gold); text-decoration: none; padding: 12px 14px;
+  border-radius: 10px; transition: background .15s;
+}
+.menu-movil a:hover { background: rgba(232,184,75,.08); }
+
+/* ================================================================== */
+/* Exchange de compra                                                  */
 /* ================================================================== */
 
 .ex-box {
-  max-width: 560px; padding: 0; overflow: hidden;
-  background:
-    radial-gradient(120% 80% at 50% 0%, rgba(46,232,106,.06), transparent 60%),
-    var(--bg-2);
+  max-width: 620px; padding: 0; overflow: hidden;
+  max-height: 90vh; display: flex; flex-direction: column;
+  background: radial-gradient(120% 60% at 50% 0%, rgba(46,232,106,.05), transparent 55%), #060F0B;
 }
 
-/* Cabecera */
-.ex-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 20px 22px 16px;
-  border-bottom: 1px solid var(--line-soft);
+/* Cabecera fija */
+.ex-top {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; border-bottom: 1px solid var(--line-soft);
+  flex-shrink: 0;
 }
-.ex-head-l { display: flex; align-items: center; gap: 13px; }
-.ex-logo {
-  width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
-  display: grid; place-items: center; font-size: 22px; color: #14210A;
-  background: linear-gradient(180deg, #F7E8B8, var(--gold));
-  box-shadow: 0 4px 14px rgba(232,184,75,.35);
-}
-.ex-titulo { font-family: var(--display); font-weight: 700; font-size: 19px; color: var(--gold); margin: 0; }
-.ex-sub { font-family: var(--mono); font-size: 10.5px; color: var(--gold-soft); margin: 2px 0 0; }
-.ex-x {
-  width: 32px; height: 32px; flex-shrink: 0; margin: 0; padding: 0;
-  border-radius: 9px; border: 1px solid var(--line-soft);
-  background: rgba(4,16,12,.5); color: var(--gold-soft);
-  font-size: 13px; cursor: pointer; transition: all .15s;
-}
-.ex-x:hover { border-color: var(--gold); color: var(--gold); }
-
-.ex-intro {
-  font-family: var(--sans); font-size: 12.5px; line-height: 1.55;
-  color: var(--gold-soft); margin: 0; padding: 14px 22px 0; text-align: left;
-}
-
-/* Pestañas */
-.ex-tabs {
-  display: flex; gap: 6px; padding: 16px 22px 0;
-}
+.ex-brand { height: 22px; width: auto; }
+.ex-tabs { display: flex; gap: 5px; flex: 1; justify-content: center; }
 .ex-tab {
-  flex: 1; font-family: var(--display); font-weight: 600; font-size: 13px;
+  font-family: var(--display); font-weight: 600; font-size: 12.5px;
   color: var(--gold-soft); cursor: pointer;
-  background: transparent; border: none;
-  padding: 10px 8px; border-radius: 10px 10px 0 0;
-  border-bottom: 2px solid transparent; transition: all .15s;
+  background: transparent; border: 1px solid transparent; border-radius: 100px;
+  padding: 7px 14px; transition: all .15s; white-space: nowrap;
 }
 .ex-tab:hover { color: var(--gold); }
 .ex-tab.on {
-  color: var(--gold);
-  background: linear-gradient(180deg, rgba(232,184,75,.08), transparent);
-  border-bottom-color: var(--gold);
-}
-
-/* Paneles */
-.ex-panel { display: none; padding: 18px 22px 24px; }
-.ex-panel.on { display: block; animation: exFade .25s ease; }
-@keyframes exFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-.ex-panel-txt {
-  font-family: var(--sans); font-size: 12.5px; line-height: 1.55;
-  color: var(--gold-soft); margin: 0 0 15px; text-align: left;
-}
-
-/* Proveedores (tarjeta / Cuba) */
-.ex-provs { display: flex; flex-direction: column; gap: 10px; }
-.ex-prov {
-  position: relative;
-  display: flex; flex-direction: column; gap: 3px; text-decoration: none;
-  padding: 15px 17px; border-radius: 13px;
-  background: linear-gradient(135deg, rgba(232,184,75,.09), rgba(4,16,12,.4));
-  border: 1px solid rgba(232,184,75,.28);
-  box-shadow: inset 0 1px 0 rgba(247,232,184,.16);
-  transition: all .17s;
-}
-.ex-prov:hover {
-  border-color: var(--gold); transform: translateY(-2px);
-  box-shadow: inset 0 1px 0 rgba(247,232,184,.28), 0 8px 20px rgba(232,184,75,.16);
-}
-.ex-prov-n { font-family: var(--display); font-weight: 700; font-size: 16px; color: #F7E8B8; }
-.ex-prov-d { font-family: var(--mono); font-size: 10.5px; color: var(--gold-soft); }
-.ex-prov-go {
-  position: absolute; top: 50%; right: 17px; transform: translateY(-50%);
-  font-family: var(--display); font-weight: 600; font-size: 12.5px; color: var(--gold);
-}
-
-.ex-nota-cuba {
-  font-family: var(--sans); font-size: 11.5px; line-height: 1.5;
-  color: var(--gold-soft); opacity: .8; margin: 13px 0 0; text-align: left;
-}
-
-/* Grid de monedas (pestaña Cambiar) — 4 por fila, ordenado */
-.ex-monedas {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px;
-}
-.exm-card {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
-  padding: 15px 8px 13px; border-radius: 13px; text-decoration: none;
-  background: var(--panel); border: 1px solid var(--line-soft);
-  transition: all .16s;
-}
-.exm-card:hover {
-  border-color: var(--gold); transform: translateY(-2px);
-  background: linear-gradient(160deg, rgba(232,184,75,.08), var(--panel));
-}
-.exm-logo {
-  width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
-  background: var(--bg-2); margin-bottom: 2px;
-}
-.exm-logo-txt { display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 18px; }
-.exm-nombre { font-family: var(--display); font-weight: 700; font-size: 13px; color: var(--gold); }
-.exm-sub { font-family: var(--mono); font-size: 8.5px; color: var(--gold-soft); }
-.exm-fee {
-  position: absolute; top: 7px; right: 7px;
-  font-family: var(--mono); font-size: 8px; font-weight: 600; color: #E8B84B;
-  background: rgba(232,184,75,.14); border: 1px solid rgba(232,184,75,.35);
-  border-radius: 100px; padding: 1px 6px;
-}
-.exm-go {
-  margin-top: 4px; font-family: var(--display); font-weight: 600; font-size: 11px;
   color: #14210A; background: linear-gradient(180deg, #F7E8B8, var(--gold));
-  padding: 4px 14px; border-radius: 100px; opacity: 0; transform: translateY(4px);
+}
+.ex-x {
+  width: 30px; height: 30px; flex-shrink: 0; padding: 0; margin: 0;
+  border-radius: 9px; border: 1px solid var(--line-soft);
+  background: rgba(4,16,12,.5); color: var(--gold-soft); font-size: 12px; cursor: pointer;
+}
+.ex-x:hover { color: var(--gold); border-color: var(--gold); }
+
+/* Zona con scroll */
+.ex-scroll { overflow-y: auto; padding: 16px 18px 20px; }
+
+/* Par + precio */
+.ex-par { position: relative; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+.ex-par-sel {
+  display: flex; align-items: center; gap: 9px; cursor: pointer;
+  background: var(--bg-2); border: 1px solid var(--line-soft);
+  border-radius: 12px; padding: 8px 12px;
+}
+.ex-par-sel:hover { border-color: var(--gold); }
+.ex-par-logo { width: 32px; height: 32px; border-radius: 50%; }
+.ex-par-txt { display: flex; flex-direction: column; text-align: left; }
+.ex-par-txt b { font-family: var(--display); font-weight: 700; font-size: 16px; color: var(--gold); }
+.ex-par-txt small { font-family: var(--mono); font-size: 9px; color: var(--gold-soft); }
+.ex-par-caret { color: var(--gold-soft); font-size: 11px; }
+
+.ex-precio-box { flex: 1; min-width: 120px; }
+.ex-precio { font-family: var(--display); font-weight: 700; font-size: 30px; color: var(--neon-lit); line-height: 1; }
+.ex-precio-sub { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.ex-precio-usd { font-family: var(--mono); font-size: 12px; color: var(--gold-soft); }
+.ex-precio-chg { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+.ex-precio-chg.up, .up { color: var(--neon-lit); }
+.ex-precio-chg.down, .down { color: #FF5C5C; }
+
+.ex-mmv { display: flex; flex-direction: column; gap: 3px; }
+.ex-mmv div { display: flex; justify-content: space-between; gap: 14px; }
+.ex-mmv span { font-family: var(--mono); font-size: 10.5px; color: var(--gold-soft); }
+.ex-mmv b { font-family: var(--mono); font-size: 11px; }
+.ex-mmv #ex-vol { color: #F7E8B8; }
+
+/* Selector desplegable de monedas */
+.ex-monedas-pop {
+  position: absolute; top: 52px; left: 0; z-index: 10;
+  background: #0A1712; border: 1px solid var(--gold); border-radius: 14px;
+  padding: 7px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.6); width: min(360px, 90%);
+}
+.exp-item {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; text-align: left;
+  background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: 10px;
+  padding: 8px 10px; transition: all .13s;
+}
+.exp-item:hover { border-color: var(--gold); background: rgba(232,184,75,.06); }
+.exp-item img, .exp-txt { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; }
+.exp-txt { display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 12px; }
+.exp-item b { font-family: var(--display); font-size: 12px; color: var(--gold); }
+.exp-item small { font-family: var(--mono); font-size: 8px; color: var(--gold-soft); display: block; }
+
+/* Gráfico */
+.ex-chart { margin-top: 16px; }
+.ex-chart svg { width: 100%; height: 160px; display: block; }
+.ex-chart-rangos { display: flex; gap: 4px; justify-content: center; margin-top: 8px; }
+.ex-rango {
+  font-family: var(--mono); font-size: 10.5px; color: var(--gold-soft);
+  background: transparent; border: none; border-radius: 7px; padding: 5px 11px; cursor: pointer;
+}
+.ex-rango.on { background: var(--bg-2); color: var(--gold); }
+
+/* Libro de órdenes */
+.ex-libro {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px;
+  background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: 13px; padding: 12px;
+}
+.ex-libro-h { font-family: var(--display); font-weight: 600; font-size: 12px; margin-bottom: 7px; }
+.ex-libro-col.compra .ex-libro-h { color: var(--neon-lit); }
+.ex-libro-col.venta .ex-libro-h { color: #FF5C5C; }
+.ex-libro-fila { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; padding: 3px 0; }
+.ex-libro-col.compra .px { color: var(--neon-lit); }
+.ex-libro-col.venta .px { color: #FF5C5C; }
+.ex-libro-fila .qt { color: var(--gold-soft); }
+
+/* Acción comprar/cobrar */
+.ex-accion { margin-top: 16px; }
+.ex-cv { display: flex; gap: 8px; margin-bottom: 14px; }
+.ex-cv-btn {
+  flex: 1; font-family: var(--display); font-weight: 700; font-size: 14px;
+  padding: 12px; border-radius: 11px; cursor: pointer; border: 1px solid transparent;
+  background: var(--bg-2); transition: all .15s;
+}
+.ex-cv-btn.comprar { color: var(--neon-lit); border-color: rgba(46,232,106,.3); }
+.ex-cv-btn.comprar.on { background: rgba(46,232,106,.15); border-color: var(--neon); }
+.ex-cv-btn.vender { color: #FF5C5C; border-color: rgba(255,92,92,.3); }
+.ex-cv-btn.vender:hover { background: rgba(255,92,92,.1); }
+
+.ex-campo {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: 12px; padding: 12px 14px;
+}
+.ex-campo-sel { display: flex; align-items: center; gap: 8px; cursor: pointer; background: none; border: none; }
+.ex-campo-logo { width: 26px; height: 26px; border-radius: 50%; }
+.ex-campo-sel b { font-family: var(--display); font-weight: 700; font-size: 15px; color: var(--gold); }
+.ex-caret { color: var(--gold-soft); font-size: 11px; }
+.ex-campo-val { text-align: right; }
+.ex-campo-val span { font-family: var(--mono); font-size: 9px; color: var(--gold-soft); display: block; }
+.ex-campo-val b { font-family: var(--mono); font-size: 12px; color: #F7E8B8; }
+
+.ex-swap { display: flex; justify-content: center; margin: 8px 0; }
+.ex-swap span {
+  width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--bg-2); border: 1px solid var(--line); color: var(--gold); font-size: 15px;
+}
+
+.ex-populares { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.ex-pop {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer;
+  background: var(--bg-2); border: 1px solid var(--line-soft); border-radius: 11px; padding: 10px 6px;
+  transition: all .14s;
+}
+.ex-pop:hover { border-color: var(--gold); }
+.ex-pop img { width: 24px; height: 24px; border-radius: 50%; }
+.ex-pop b { font-family: var(--display); font-size: 11px; color: var(--gold); }
+
+.ex-barra { margin: 16px 0; }
+.ex-barra-linea { position: relative; height: 4px; background: var(--line); border-radius: 4px; }
+.ex-barra-punto {
+  position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--neon); transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(46,232,106,.5);
+}
+.ex-barra-nums { display: flex; justify-content: space-between; margin-top: 8px; }
+.ex-barra-nums span { font-family: var(--mono); font-size: 9.5px; color: var(--gold-soft); }
+
+.ex-comprar-final {
+  width: 100%; font-family: var(--display); font-weight: 700; font-size: 16px;
+  color: #14210A; padding: 15px; border: none; border-radius: 13px; cursor: pointer;
+  background: linear-gradient(180deg, #4DFF7A, var(--neon));
+  box-shadow: 0 8px 26px rgba(46,232,106,.35); transition: transform .15s;
+}
+.ex-comprar-final:hover { transform: translateY(-2px); }
+
+/* Modal de opciones al comprar */
+.op-box { max-width: 460px; }
+.op-lista { display: flex; flex-direction: column; gap: 9px; margin: 8px 0 16px; }
+.op-grupo { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
+.op-cat {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--gold); margin: 8px 0 2px;
+}
+.op-item {
+  display: flex; flex-direction: column; gap: 3px; text-decoration: none;
+  background: linear-gradient(135deg, rgba(232,184,75,.08), rgba(4,16,12,.4));
+  border: 1px solid rgba(232,184,75,.28); border-radius: 12px; padding: 13px 15px;
   transition: all .16s;
 }
-.exm-card:hover .exm-go { opacity: 1; transform: translateY(0); }
-
-/* Aviso de comisión (elegante) */
-.comision-box { text-align: center; max-width: 460px; }
-.comision-ic { font-size: 40px; margin-bottom: 6px; filter: drop-shadow(0 4px 12px rgba(232,184,75,.4)); }
-.comision-box h3 { margin: 0 0 4px; }
-.comision-box p {
-  font-family: var(--sans); font-size: 13px; line-height: 1.6;
-  color: var(--gold-soft); text-align: left; margin: 11px 0;
-}
-.comision-box strong { color: var(--neon-lit); font-weight: 600; }
-.comision-clave {
-  background: rgba(46,232,106,.07); border-left: 3px solid var(--neon);
-  border-radius: 8px; padding: 11px 13px !important; color: #C9F5D8 !important;
-}
-.comision-btns { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
-.comision-btns .modal-close { flex: 1; margin: 0; }
-.comision-ir {
-  flex: 1; text-align: center; text-decoration: none;
-  font-family: var(--display); font-weight: 600; font-size: 13px;
-  color: #2A1E06; padding: 11px 16px; border-radius: 100px;
-  background: linear-gradient(180deg, #F7E8B8, var(--gold));
-  display: flex; align-items: center; justify-content: center; white-space: nowrap;
+.op-item:hover { border-color: var(--gold); transform: translateY(-2px); }
+.op-item b { font-family: var(--display); font-weight: 700; font-size: 14px; color: #F7E8B8; }
+.op-item small { font-family: var(--mono); font-size: 10px; color: var(--gold-soft); }
+.op-fee {
+  font-family: var(--sans); font-size: 11.5px; line-height: 1.5; color: #E8B84B;
+  background: rgba(232,184,75,.08); border-left: 3px solid var(--gold);
+  border-radius: 8px; padding: 9px 12px; margin: 4px 0 0;
 }
 
 @media (max-width: 620px) {
-  .ex-monedas { grid-template-columns: repeat(2, 1fr); }
-  .comision-btns { flex-direction: column; }
-  .ex-tab { font-size: 12px; padding: 9px 4px; }
-  .ex-intro, .ex-panel { padding-left: 16px; padding-right: 16px; }
-  .ex-head { padding: 16px 16px 14px; }
+  .btn-menu { display: flex; }
+  .nav-links { display: none; }
+  .menu-movil { display: flex; }
+  .ex-top { flex-wrap: wrap; }
+  .ex-tabs { order: 3; width: 100%; justify-content: space-between; }
+  .ex-tab { flex: 1; padding: 8px 6px; }
+  .ex-libro { grid-template-columns: 1fr; gap: 10px; }
+  .ex-monedas-pop { width: 100%; }
 }
