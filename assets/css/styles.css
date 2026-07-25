@@ -352,8 +352,9 @@ body {
    La caja mantiene la misma proporción que las otras para no empujar la fila. */
 .mode.es-terminales { aspect-ratio: 900 / 461; overflow: visible; }
 .mode.es-terminales img {
-  width: 106.952%;              /* 100 / 0.935: tras el scale queda en 100% */
-  margin-left: -3.476%;        /* recentra el ancho extra */
+  width: 106.952%;
+  margin-left: -3.476%;
+  margin-top: -6.5%;
   transform-origin: top center;
   transform: scale(0.935);
 }
