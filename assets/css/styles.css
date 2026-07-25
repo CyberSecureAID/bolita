@@ -339,7 +339,7 @@ body {
 
 
 .mode-check {
-  position: absolute; top: 20%; left: 6.2%; z-index: 2;
+  position: absolute; top: 26%; left: 8.5%; z-index: 2;
   transform: translate(-50%, -50%) scale(.6);
   width: 26px; height: 26px; border-radius: 50%;
   display: grid; place-items: center;
@@ -351,7 +351,7 @@ body {
 
 /* Terminales tiene su imagen subida un -4%, así que su círculo verde queda un
    poco más arriba; el check se ajusta para caer igual sobre él. */
-.mode.es-terminales .mode-check { top: 17%; }
+.mode.es-terminales .mode-check { top: 23%; }
 
 /* ---------------- Marca tus números: cada uno es una bola ---------------- */
 
