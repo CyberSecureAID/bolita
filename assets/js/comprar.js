@@ -25,6 +25,12 @@ const PRECIO_FIJO = {
   USDTZ: 0.002,        // 1 millón ≈ $2,000
   EXT: 0.0003172       // ExactTrader
 };
+// Precios de referencia de respaldo (si CoinGecko falla, no queda vacío)
+const PRECIO_REF = {
+  BNB: 600, USDT: 1, USDC: 1, BTCB: 95000, ETH: 3000, BABYDOGE: 0.0000000003
+};
+// Caché en memoria del último precio bueno visto, por moneda
+const cachePrecio = {};
 const SUBTITULO = {
   BNB: 'BNB · BSC', USDT: 'USDT · BSC', USDC: 'USDC · BSC',
   BTCB: 'BTCB · BSC', ETH: 'ETH · BSC', USDTZ: 'USDT.z · BSC',
@@ -155,22 +161,25 @@ async function cargarMoneda(id) {
   actualizarBotonFinal();
 
   // Precio: CoinGecko para las conocidas, precio fijo para las del proyecto.
-  let precio = PRECIO_FIJO[id] ?? m.precioUSD ?? null;
+  // Respaldo en cadena: caché -> referencia -> nunca vacío.
+  let precio = PRECIO_FIJO[id] ?? cachePrecio[id] ?? PRECIO_REF[id] ?? m.precioUSD ?? null;
   let cambio = 0, alto = null, bajo = null, vol = null;
   const cg = CG_ID[id];
   if (cg) {
     try {
       const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${cg}`);
-      const d = await r.json();
-      if (d && d[0]) {
-        precio = d[0].current_price;
-        cambio = d[0].price_change_percentage_24h ?? 0;
-        alto = d[0].high_24h; bajo = d[0].low_24h;
-        vol = d[0].total_volume;
+      if (r.ok) {
+        const d = await r.json();
+        if (d && d[0] && d[0].current_price != null) {
+          precio = d[0].current_price;
+          cambio = d[0].price_change_percentage_24h ?? 0;
+          alto = d[0].high_24h; bajo = d[0].low_24h;
+          vol = d[0].total_volume;
+          cachePrecio[id] = precio;   // guardar el bueno
+        }
       }
-    } catch (e) { /* usa referencia */ }
+    } catch (e) { /* usa caché/referencia, ya asignado arriba */ }
   } else if (id === 'USDTZ') {
-    // estable, sin oscilación real
     alto = precio; bajo = precio;
   }
 
@@ -200,7 +209,6 @@ function fmtPrecio(p) {
 
 function pintarPrecio(precio, cambio, alto, bajo, vol) {
   setTxt('ex-precio', fmtPrecio(precio));
-  setTxt('ex-precio-usd', precio != null ? `≈ $${fmtPrecio(precio)}` : '≈ $—');
   const chg = document.getElementById('ex-precio-chg');
   if (chg) {
     const signo = cambio >= 0 ? '+' : '';
