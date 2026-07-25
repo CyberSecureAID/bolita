@@ -262,7 +262,6 @@ function pintarModos() {
     b.disabled = !activo;
     b.innerHTML = `
       <img src="${ARTE[m.id]}" alt="${m.nombre}" loading="lazy" width="800" height="410">
-      <span class="mode-check">${ICONOS.check(16)}</span>
     `;
     b.addEventListener('click', () => elegirModo(m));
     host.appendChild(b);
