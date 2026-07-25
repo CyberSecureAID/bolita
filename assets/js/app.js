@@ -284,7 +284,7 @@ function pintarRejilla() {
   grid.innerHTML = '';
 
   if (!activo) {
-    $('picker-title').textContent = 'Marca tus números';
+    $('picker-title').textContent = 'Selecciona tus números';
     $('picker-hint').textContent = 'Elige antes un juego';
     return;
   }
@@ -293,9 +293,9 @@ function pintarRejilla() {
   grid.className = 'grid-nums ' + (m.rango === 10 ? 'g5' : 'g10');
 
   $('picker-title').textContent =
-    m.id === 'terminal' ? 'Marca tus terminales'
-    : m.id === 'fijo'   ? 'Marca tus números'
-    : 'Marca pares de números';
+    m.id === 'terminal' ? 'Selecciona tus terminales'
+    : m.id === 'fijo'   ? 'Selecciona tus números'
+    : 'Selecciona tus parlés';
 
   $('picker-hint').textContent = m.id === 'parle'
     ? 'De dos en dos · puedes marcar varios pares'
@@ -376,17 +376,26 @@ function marcar(n) {
 
   if (m.id === 'parle') {
     S.pendienteParle = S.pendienteParle ?? [];
-    const i = S.pendienteParle.indexOf(n);
-    if (i >= 0) S.pendienteParle.splice(i, 1);
-    else S.pendienteParle.push(n);
 
-    if (S.pendienteParle.length === 2) {
-      const valores = [...S.pendienteParle];
-      const clave = claveDe(valores, m);
-      if (!S.seleccion.some((s) => s.clave === clave)) {
-        S.seleccion.push({ clave, valores, modo: m });
+    // Si el número ya forma parte de un parlé confirmado, al tocarlo se
+    // elimina ese parlé (deseleccionar). El doble toque para formar pares
+    // se mantiene intacto.
+    const enParle = S.seleccion.find((x) => x.valores.includes(n));
+    if (enParle && S.pendienteParle.length === 0) {
+      S.seleccion = S.seleccion.filter((x) => x.clave !== enParle.clave);
+    } else {
+      const i = S.pendienteParle.indexOf(n);
+      if (i >= 0) S.pendienteParle.splice(i, 1);
+      else S.pendienteParle.push(n);
+
+      if (S.pendienteParle.length === 2) {
+        const valores = [...S.pendienteParle];
+        const clave = claveDe(valores, m);
+        if (!S.seleccion.some((s) => s.clave === clave)) {
+          S.seleccion.push({ clave, valores, modo: m });
+        }
+        S.pendienteParle = [];
       }
-      S.pendienteParle = [];
     }
   } else {
     const clave = claveDe([n], m);
@@ -585,13 +594,15 @@ function pintarUltima() { /* sin elemento en la página actual */ }
 /* Sorteo                                                              */
 /* ================================================================== */
 
-function crearBolas() {
+function crearBolas(numeros = null) {
   const host = $('balls');
   host.innerHTML = '';
+  // Números de muestra para ver cómo quedan hasta que haya sorteo real
+  const demo = numeros ?? [7, 28, 54, 3, 91];
   for (let i = 0; i < 5; i++) {
     const b = document.createElement('div');
     b.className = 'bola' + (i === 0 ? ' es-fijo' : '');
-    b.textContent = '00';
+    b.innerHTML = `<span class="bola-n">${pad2(demo[i])}</span>`;
     host.appendChild(b);
   }
 }
@@ -616,7 +627,10 @@ async function jugar() {
   $('draw-name').textContent = '';
   $('draw-name').className = 'do-name';
 
-  const spin = setInterval(() => bolas.forEach((b) => { b.textContent = pad2(Math.floor(Math.random() * 100)); }), 70);
+  const spin = setInterval(() => bolas.forEach((b) => {
+    const sp = b.querySelector('.bola-n') || b;
+    sp.textContent = pad2(Math.floor(Math.random() * 100));
+  }), 70);
   await new Promise((r2) => setTimeout(r2, 1500));
   clearInterval(spin);
 
@@ -629,7 +643,7 @@ async function jugar() {
   for (let i = 0; i < 5; i++) {
     await new Promise((r2) => setTimeout(r2, 360));
     bolas[i].classList.remove('spin');
-    bolas[i].textContent = pad2(salidos[i]);
+    (bolas[i].querySelector('.bola-n') || bolas[i]).textContent = pad2(salidos[i]);
     if (i === 0) bolas[i].classList.add('first');
   }
 

@@ -120,7 +120,9 @@ export function formatear(cantidad, moneda, { conSimbolo = true } = {}) {
   if (cantidad === 0) {
     txt = '0';
   } else if (cantidad < 1 / Math.pow(10, moneda.decimalesVista)) {
-    txt = '<' + (1 / Math.pow(10, moneda.decimalesVista)).toFixed(moneda.decimalesVista);
+    // Saldo muy pequeño: mostrar el valor real con los decimales que hagan
+    // falta (hasta 8), sin el feo "<0.01".
+    txt = cantidad.toFixed(8).replace(/\.?0+$/, '');
   } else {
     txt = cantidad.toFixed(moneda.decimalesVista).replace(/\.?0+$/, '');
   }
@@ -136,7 +138,11 @@ export function partirSaldo(cantidad, moneda) {
   if (cantidad === null || cantidad === undefined || isNaN(cantidad)) {
     return { entero: '0', decimal: '', simbolo: moneda.simbolo };
   }
-  const txt = cantidad.toFixed(moneda.decimalesVista).replace(/\.?0+$/, '');
+  // Si el saldo es menor que el paso de vista, ampliar decimales para no
+  // mostrar "0" en seco ni "<0.01".
+  const dec = cantidad > 0 && cantidad < 1 / Math.pow(10, moneda.decimalesVista)
+    ? 8 : moneda.decimalesVista;
+  const txt = cantidad.toFixed(dec).replace(/\.?0+$/, '');
   const [entero, decimal = ''] = txt.split('.');
   return { entero, decimal, simbolo: moneda.simbolo };
 }
