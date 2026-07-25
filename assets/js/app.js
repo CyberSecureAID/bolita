@@ -17,7 +17,7 @@ import { MODOS, LISTA_MODOS, topeApuesta, disponible, repartir, margen } from '.
 import { MONEDAS, LISTA_MONEDAS, formatear, partirSaldo, enUnidadPequena } from './tokens.js';
 import { CHARADA, FAMILIAS, pad2, nombreDe } from './charada.js';
 import { versoDelDia } from './versos.js';
-import { proximaTirada, cuentaAtras, fechaHora, soloHora } from './draws.js';
+import { proximaTirada, cuentaAtras, fechaHora, soloHora, hora12, fechaHora12 } from './draws.js';
 import { resultadoOficial, leerPick3 } from './florida.js';
 import { lanzarConfeti } from './confetti.js';
 import { avisarTirada, activarNotif, notifActivas, notifConSonido } from './notificaciones.js';
@@ -81,7 +81,17 @@ function pintarWallet() {
   const pill = $('net');
 
   if (cuenta) {
-    btn.textContent = wallet.abreviar(cuenta);
+    const info = wallet.walletInfo?.();
+    const icono = logoDeWallet(info);
+    // En móvil, solo el logo de la wallet (más compacto). En escritorio,
+    // el logo + un trozo de la dirección.
+    if (icono) {
+      btn.innerHTML =
+        `<img class="bw-logo" src="${icono}" alt="${info?.name || 'wallet'}">` +
+        `<span class="bw-addr">${wallet.abreviar(cuenta)}</span>`;
+    } else {
+      btn.textContent = wallet.abreviar(cuenta);
+    }
     btn.classList.add('connected');
     off.classList.add('show');
     pill.classList.add('show');
@@ -96,6 +106,24 @@ function pintarWallet() {
   }
 
   pintarTodo();
+}
+
+/**
+ * Logo de la wallet conectada. Si vino por EIP-6963 trae su propio icono
+ * (data-URI). Si no, usamos un logo conocido según la clave adivinada.
+ */
+function logoDeWallet(info) {
+  if (!info) return null;
+  if (info.icon) return info.icon;   // EIP-6963 trae el icono embebido
+
+  const L = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/';
+  const LOGOS = {
+    metamask: 'https://raw.githubusercontent.com/MetaMask/brand-resources/master/SVG/SVG_MetaMask_Icon_Color.svg',
+    trust: 'https://trustwallet.com/assets/images/media/assets/TWT.png',
+    phantom: 'https://raw.githubusercontent.com/phantom/phantom-brand/main/phantom-icon-purple.svg',
+    coinbase: L + 'ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png'
+  };
+  return LOGOS[info.clave] || null;
 }
 
 async function pulsarConectar() {
@@ -565,8 +593,11 @@ function pintarSaldo() {
   $('ss-sym').textContent = p.simbolo;
 
   $('ss-usd').textContent = enDolares(saldo, S.moneda.id, S.precios);
-  const peq = typeof saldo === 'number' ? enUnidadPequena(saldo, S.moneda) : '';
-  $('ss-min').textContent = peq || `mín. ${fmt(S.moneda.minApuesta)}`;
+  // Debajo, el precio de la moneda (1 BNB ≈ $X), no el gwei que se veía cutre.
+  const precio = S.precios?.[S.moneda.id]?.usd;
+  $('ss-min').textContent = precio
+    ? `1 ${S.moneda.simbolo} ≈ $${precio.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+    : '';
 }
 
 /**
@@ -577,16 +608,20 @@ function pintarReloj() {
   const p = proximaTirada();
 
   ponerIcono($('db-ic'), p.tirada.id === 'dia' ? 'sol' : 'luna', 17);
-  $('db-label').textContent = p.abierta
-    ? `Cierran apuestas · ${p.tirada.nombre}`
-    : `Sorteando · ${p.tirada.nombre}`;
 
+  // Etiqueta clara: qué pasa y a qué HORA REAL (formato 12h con a.m./p.m.)
+  $('db-label').textContent = p.abierta
+    ? `Cierran ${hora12(p.cierre)} · ${p.tirada.nombre}`
+    : `Sorteo ${hora12(p.sorteo)} · ${p.tirada.nombre}`;
+
+  // La cuenta atrás es el TIEMPO QUE FALTA (no una hora)
   const t = cuentaAtras(p.abierta ? p.faltaCierreMs : p.faltaMs).split(':');
   $('hc-h').textContent = t[0];
   $('hc-m').textContent = t[1];
   $('hc-s').textContent = t[2];
 
-  $('hero-when').textContent = `${soloHora(p.sorteo)} · ${fechaHora(p.sorteo)}`;
+  // A la derecha, la fecha y hora del sorteo en 12h
+  $('hero-when').textContent = fechaHora12(p.sorteo);
 }
 
 /** La sección de última tirada se retiró del DOM; se conserva por si vuelve. */

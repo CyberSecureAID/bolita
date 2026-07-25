@@ -163,3 +163,18 @@ export function soloHora(fecha) {
     timeZone: ZONA, hour: '2-digit', minute: '2-digit', hour12: false
   });
 }
+
+/** Hora en formato 12h con a.m./p.m., como se dice de viva voz: "1:00 p. m." */
+export function hora12(fecha) {
+  return fecha.toLocaleTimeString('es', {
+    timeZone: ZONA, hour: 'numeric', minute: '2-digit', hour12: true
+  });
+}
+
+/** Fecha corta + hora 12h: "25 jul · 1:30 p. m." */
+export function fechaHora12(fecha) {
+  const f = fecha.toLocaleDateString('es', {
+    timeZone: ZONA, day: '2-digit', month: 'short'
+  });
+  return `${f} · ${hora12(fecha)}`;
+}

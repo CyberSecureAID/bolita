@@ -124,7 +124,7 @@ function mostrarCapa({ titulo, texto, fijo }) {
   const card = document.createElement('div');
   card.className = 'notif';
   card.innerHTML = `
-    ${fijo ? `<div class="notif-fijo">${fijo}</div>` : ''}
+    ${fijo ? `<div class="notif-fijo"><span>${fijo}</span></div>` : ''}
     <div class="notif-txt">
       <div class="notif-t">${titulo}</div>
       <div class="notif-b">${texto}</div>

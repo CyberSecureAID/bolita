@@ -68,6 +68,26 @@ export const cuentaActual = () => est.cuenta;
 export const chainActual = () => est.chainId;
 export const esRedCorrecta = () => est.chainId === RED.chainIdHex;
 
+/** Nombre e icono de la wallet conectada (para mostrar su logo). */
+export function walletInfo() {
+  return est.info ?? null;
+}
+
+/**
+ * Si la wallet no llegó por EIP-6963, adivinar cuál es por las banderas que
+ * inyecta en el proveedor (isMetaMask, isTrust, isPhantom, etc.).
+ */
+function adivinarInfo(prov) {
+  if (!prov) return null;
+  if (prov.isTrust || prov.isTrustWallet) return { name: 'Trust Wallet', clave: 'trust' };
+  if (prov.isPhantom) return { name: 'Phantom', clave: 'phantom' };
+  if (prov.isCoinbaseWallet) return { name: 'Coinbase Wallet', clave: 'coinbase' };
+  if (prov.isBinance) return { name: 'Binance Wallet', clave: 'binance' };
+  if (prov.isRabby) return { name: 'Rabby', clave: 'rabby' };
+  if (prov.isMetaMask) return { name: 'MetaMask', clave: 'metamask' };
+  return { name: 'Wallet', clave: 'generica' };
+}
+
 export function abreviar(dir) {
   return dir ? dir.slice(0, 6) + '…' + dir.slice(-4) : '';
 }
@@ -115,6 +135,10 @@ export async function conectar() {
   if (!prov) throw new Error('NO_WALLET');
 
   est.proveedor = prov;
+
+  // Guardar la info del proveedor (nombre e icono) si vino por EIP-6963
+  const encontrado = proveedores6963.find((p) => p.provider === prov);
+  est.info = encontrado?.info ?? adivinarInfo(prov);
 
   const cuentas = await prov.request({ method: 'eth_requestAccounts' });
   if (!cuentas?.length) throw new Error('SIN_CUENTAS');
