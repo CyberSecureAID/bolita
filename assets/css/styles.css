@@ -1597,7 +1597,57 @@ body {
 .ult-corr { font-family: var(--mono); font-size: 13px; color: var(--neon-lit); }
 
 /* ================================================================== */
-/* Sección de información (SEO)                                         */
+/* Sección de información (SEO) — acordeón desplegable */
+
+.info-sec { margin-top: 8px; }
+
+.acordeon {
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: 760px; margin: 6px auto 0;
+}
+
+.acc-item {
+  background: linear-gradient(135deg, rgba(11,36,25,.45), rgba(4,16,12,.45));
+  border: 1px solid var(--line-soft); border-radius: 13px;
+  overflow: hidden; transition: border-color .2s;
+}
+.acc-item[open] { border-color: rgba(232,184,75,.35); }
+.acc-item summary {
+  cursor: pointer; list-style: none;
+  padding: 16px 18px;
+  font-family: var(--display); font-weight: 600; font-size: 14.5px;
+  color: var(--gold);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  transition: color .15s;
+}
+.acc-item summary::-webkit-details-marker { display: none; }
+.acc-item summary::after {
+  content: "+"; flex-shrink: 0;
+  font-family: var(--mono); font-size: 20px; font-weight: 400;
+  color: var(--gold-soft); transition: transform .25s, color .2s;
+  line-height: 1;
+}
+.acc-item[open] summary::after { transform: rotate(45deg); color: var(--gold); }
+.acc-item summary:hover { color: #F7E8B8; }
+
+.acc-cuerpo {
+  padding: 0 18px 16px;
+  animation: accAbre .25s ease;
+}
+.acc-cuerpo p {
+  font-family: var(--sans); font-size: 13.5px; line-height: 1.65;
+  color: var(--gold-soft); margin: 0 0 10px;
+}
+.acc-cuerpo p:last-child { margin-bottom: 0; }
+.acc-cuerpo strong { color: var(--neon-lit); font-weight: 600; }
+.acc-cuerpo a { color: var(--gold); text-decoration: none; border-bottom: 1px solid rgba(232,184,75,.35); }
+.acc-cuerpo a:hover { color: #F7E8B8; }
+
+@keyframes accAbre {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* ================================================================== */
 
 .info-sec { margin-top: 8px; }
@@ -1633,4 +1683,119 @@ body {
 @media (max-width: 620px) {
   .info-grid { grid-template-columns: 1fr; gap: 12px; }
   .info-card { padding: 18px 16px; }
+}
+
+/* ================================================================== */
+/* Comprar cripto para jugar                                           */
+/* ================================================================== */
+
+.comprar-sec { margin-top: 8px; }
+.comprar-bloque { margin-top: 22px; }
+
+.cb-titulo {
+  font-family: var(--display); font-weight: 700; font-size: 16px;
+  color: var(--gold); margin: 0 0 6px;
+  display: flex; align-items: center; gap: 9px;
+}
+.cb-ic { font-size: 18px; }
+.cb-sub {
+  font-family: var(--sans); font-size: 13px; line-height: 1.55;
+  color: var(--gold-soft); margin: 0 0 14px; max-width: 640px;
+}
+
+/* Tarjeta o transferencia (on-ramps) */
+.onramp-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.onramp {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 16px 18px; border-radius: 14px; text-decoration: none;
+  background: linear-gradient(135deg, rgba(232,184,75,.1), rgba(4,16,12,.5));
+  border: 1px solid rgba(232,184,75,.3);
+  box-shadow: inset 0 1px 0 rgba(247,232,184,.18);
+  transition: all .18s;
+}
+.onramp:hover {
+  border-color: var(--gold); transform: translateY(-3px);
+  box-shadow: inset 0 1px 0 rgba(247,232,184,.3), 0 8px 22px rgba(232,184,75,.18);
+}
+.or-nombre { font-family: var(--display); font-weight: 700; font-size: 16px; color: #F7E8B8; }
+.or-desc { font-family: var(--mono); font-size: 10.5px; color: var(--gold-soft); }
+
+/* Rejilla de monedas para comprar */
+.monedas-compra {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+}
+.mc-card {
+  position: relative;
+  display: flex; align-items: center; gap: 11px;
+  padding: 13px 14px; border-radius: 13px; text-decoration: none;
+  background: var(--bg-2); border: 1px solid var(--line-soft);
+  transition: all .16s;
+}
+.mc-card:hover {
+  border-color: rgba(232,184,75,.4); transform: translateY(-2px);
+  background: linear-gradient(135deg, rgba(232,184,75,.06), var(--bg-2));
+}
+.mc-logo {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  object-fit: cover; background: var(--panel);
+}
+.mc-logo-txt {
+  display: grid; place-items: center;
+  font-family: var(--display); font-weight: 700; font-size: 16px;
+}
+.mc-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.mc-nombre { font-family: var(--display); font-weight: 700; font-size: 14px; color: var(--gold); }
+.mc-sub {
+  font-family: var(--mono); font-size: 9.5px; color: var(--gold-soft);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mc-fee {
+  position: absolute; top: 7px; right: 9px;
+  font-family: var(--mono); font-size: 8.5px; font-weight: 600;
+  color: #E8B84B; background: rgba(232,184,75,.12);
+  border: 1px solid rgba(232,184,75,.3); border-radius: 100px;
+  padding: 2px 7px;
+}
+.mc-flecha {
+  font-family: var(--mono); font-size: 14px; color: var(--gold-soft); flex-shrink: 0;
+}
+.mc-card:hover .mc-flecha { color: var(--gold); }
+
+/* Modal de aviso de comisión (elegante, no rojo) */
+.comision-box { text-align: center; max-width: 460px; }
+.comision-ic {
+  font-size: 44px; margin-bottom: 8px;
+  filter: drop-shadow(0 4px 12px rgba(232,184,75,.4));
+}
+.comision-box h3 { margin: 0 0 4px; }
+.comision-box p {
+  font-family: var(--sans); font-size: 13.5px; line-height: 1.6;
+  color: var(--gold-soft); text-align: left; margin: 12px 0;
+}
+.comision-box strong { color: var(--neon-lit); font-weight: 600; }
+.comision-clave {
+  background: rgba(46,232,106,.07);
+  border-left: 3px solid var(--neon); border-radius: 8px;
+  padding: 12px 14px !important; color: #C9F5D8 !important;
+}
+.comision-btns { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.comision-btns .modal-close { flex: 1; }
+.comision-ir {
+  flex: 1; text-align: center; text-decoration: none;
+  font-family: var(--display); font-weight: 600; font-size: 13px;
+  color: #2A1E06; padding: 11px 16px; border-radius: 100px;
+  background: linear-gradient(180deg, #F7E8B8, var(--gold));
+  display: flex; align-items: center; justify-content: center;
+  white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  .onramp-grid { grid-template-columns: 1fr; gap: 10px; }
+  .monedas-compra { grid-template-columns: repeat(2, 1fr); }
+  .comision-btns { flex-direction: column; }
+}
+@media (max-width: 380px) {
+  .monedas-compra { grid-template-columns: 1fr; }
 }
