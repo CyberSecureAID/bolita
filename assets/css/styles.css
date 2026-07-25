@@ -321,7 +321,15 @@ body {
 /* Terminales es ~7% más alta por el sombrero. Con align-items:start su cuerpo
    quedaría más abajo. La subimos con margen negativo (imagen INTACTA, el
    sombrero solo asoma un poco por arriba). Ajustable si hace falta. */
-.mode.es-terminales img { margin-top: -4%; }
+/* Terminales es un poco más alta que las otras (por el sombrero en la imagen).
+   Se encoge muy ligeramente, anclando desde ARRIBA, para que su borde inferior
+   quede a la altura de las demás sin desalinear el borde superior. */
+.mode.es-terminales img {
+  margin-top: -4%;
+  transform: scale(0.955);
+  transform-origin: top center;
+}
+
 
 .mode-check {
   position: absolute; top: 10px; left: 10px; z-index: 2;
