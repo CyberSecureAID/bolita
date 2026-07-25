@@ -1595,3 +1595,42 @@ body {
   box-shadow: 0 0 12px rgba(232,184,75,.4);
 }
 .ult-corr { font-family: var(--mono); font-size: 13px; color: var(--neon-lit); }
+
+/* ================================================================== */
+/* Sección de información (SEO)                                         */
+/* ================================================================== */
+
+.info-sec { margin-top: 8px; }
+
+.info-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+  margin-top: 6px;
+}
+
+.info-card {
+  background: linear-gradient(135deg, rgba(11,36,25,.5), rgba(4,16,12,.5));
+  border: 1px solid var(--line-soft); border-radius: 16px;
+  padding: 22px 22px 20px;
+  transition: border-color .2s, transform .2s;
+}
+.info-card:hover { border-color: rgba(232,184,75,.3); transform: translateY(-2px); }
+
+.info-card h3 {
+  font-family: var(--display); font-weight: 700; font-size: 16px;
+  color: var(--gold); margin: 0 0 10px;
+  background: linear-gradient(180deg, #F7E8B8, var(--gold));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.info-card p {
+  font-family: var(--sans); font-size: 13.5px; line-height: 1.6;
+  color: var(--gold-soft); margin: 0;
+}
+.info-card strong { color: var(--neon-lit); font-weight: 600; }
+.info-card a { color: var(--gold); text-decoration: none; border-bottom: 1px solid rgba(232,184,75,.35); }
+.info-card a:hover { color: #F7E8B8; }
+
+@media (max-width: 620px) {
+  .info-grid { grid-template-columns: 1fr; gap: 12px; }
+  .info-card { padding: 18px 16px; }
+}
