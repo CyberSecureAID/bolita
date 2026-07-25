@@ -299,7 +299,7 @@ body {
   background: transparent; border: none;
   border-radius: 16px; padding: 0; overflow: visible;
   cursor: pointer; font-family: inherit; line-height: 0;
-  transition: transform .18s, filter .18s;
+  transition: transform .22s cubic-bezier(.2,.8,.3,1.1), filter .22s, opacity .22s;
 }
 .mode:hover:not(:disabled) {
   transform: translateY(-4px);
@@ -307,51 +307,49 @@ body {
 }
 .mode:focus-visible { outline: 2px solid var(--neon); outline-offset: 4px; border-radius: 16px; }
 .mode:disabled { opacity: .5; cursor: not-allowed; }
-.mode.on {
-  filter: drop-shadow(0 0 22px rgba(46,232,106,.4));
-}
 
-/* La imagen ES la tarjeta (ya trae su propio bisel verde). Sin envoltorio. */
+/* SELECCIÓN: la tarjeta elegida se eleva y se ilumina con halo dorado-verde.
+   Aparece además una insignia "ELEGIDO" y una marca de intensidad. */
+.mode.on {
+  transform: translateY(-6px) scale(1.015);
+  filter:
+    drop-shadow(0 14px 34px rgba(0,0,0,.55))
+    drop-shadow(0 0 26px rgba(46,232,106,.5))
+    drop-shadow(0 0 40px rgba(232,184,75,.25));
+  z-index: 3;
+}
+/* Cuando hay una elegida, las demás se atenúan para que resalte la elegida */
+.modes:has(.mode.on) .mode:not(.on) { opacity: .55; filter: saturate(.85); }
+
+/* Insignia "ELEGIDO" que baja desde arriba al seleccionar */
+.mode::after {
+  content: "✓ ELEGIDO";
+  position: absolute; top: 8px; right: 8px; z-index: 4;
+  font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em;
+  color: #14210A;
+  background: linear-gradient(180deg, #F7E8B8, var(--gold) 60%, #C9982F);
+  border-radius: 100px; padding: 5px 11px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.5);
+  opacity: 0; transform: translateY(-8px) scale(.85);
+  transition: opacity .25s, transform .25s cubic-bezier(.2,.9,.3,1.3);
+  pointer-events: none;
+}
+.mode.on::after { opacity: 1; transform: translateY(0) scale(1); }
+
+/* La imagen ES la tarjeta (ya trae su propio bisel verde). Sin envoltorio.
+   Las tres imágenes tienen ahora la MISMA proporción (900×461), así que
+   encajan iguales por sí solas: mismo tamaño, misma distancia. Terminales
+   lleva un poco de aire transparente a los lados (muñeco intacto) para
+   igualar la proporción, y así no necesita ningún ajuste especial. */
 .mode img {
   width: 100%; height: auto;
   object-fit: contain; object-position: center top;
   display: block;
 }
 
-/* Terminales es más alta por el sombrero. Combinamos las dos soluciones que
-   ya funcionaban por separado:
-   - scale(0.985): el tamaño/altura que quedó PERFECTO (borde inferior alineado)
-   - width 101.5%: compensa lo que el scale encoge, para que tras escalar la
-     imagen siga llenando la columna completa y la DISTANCIA entre tarjetas sea
-     idéntica a las otras dos.
-   Anclado arriba: el borde superior no se mueve. Imagen intacta. */
-.mode.es-terminales {
-  aspect-ratio: 900 / 461;
-  overflow: visible;
-}
-.mode.es-terminales img {
-  width: 101.523%;               /* = 100 / 0.985, para llenar tras escalar */
-  margin-left: -0.7615%;         /* recentra ese ancho extra */
-  margin-top: -4%;
-  transform: scale(0.985);
-  transform-origin: top center;
-}
 
-
-.mode-check {
-  position: absolute; top: 26%; left: 8.5%; z-index: 2;
-  transform: translate(-50%, -50%) scale(.6);
-  width: 26px; height: 26px; border-radius: 50%;
-  display: grid; place-items: center;
-  background: linear-gradient(180deg, #F7E8B8, var(--gold)); color: #2A1E06;
-  opacity: 0; transition: all .2s;
-  box-shadow: 0 3px 12px rgba(0,0,0,.5);
-}
-.mode.on .mode-check { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-
-/* Terminales tiene su imagen subida un -4%, así que su círculo verde queda un
-   poco más arriba; el check se ajusta para caer igual sobre él. */
-.mode.es-terminales .mode-check { top: 23%; }
+/* Efecto de selección: marco dorado luminoso alrededor de la tarjeta.
+   Bonito, notorio, e igual en las tres (no depende de la imagen). */
 
 /* ---------------- Marca tus números: cada uno es una bola ---------------- */
 
