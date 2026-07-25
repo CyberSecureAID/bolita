@@ -339,14 +339,19 @@ body {
 
 
 .mode-check {
-  position: absolute; top: 10px; left: 10px; z-index: 2;
-  width: 28px; height: 28px; border-radius: 50%;
+  position: absolute; top: 20%; left: 6.2%; z-index: 2;
+  transform: translate(-50%, -50%) scale(.6);
+  width: 26px; height: 26px; border-radius: 50%;
   display: grid; place-items: center;
   background: linear-gradient(180deg, #F7E8B8, var(--gold)); color: #2A1E06;
-  opacity: 0; transform: scale(.6); transition: all .2s;
-  box-shadow: 0 3px 12px rgba(0,0,0,.4);
+  opacity: 0; transition: all .2s;
+  box-shadow: 0 3px 12px rgba(0,0,0,.5);
 }
-.mode.on .mode-check { opacity: 1; transform: scale(1); }
+.mode.on .mode-check { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+/* Terminales tiene su imagen subida un -4%, así que su círculo verde queda un
+   poco más arriba; el check se ajusta para caer igual sobre él. */
+.mode.es-terminales .mode-check { top: 17%; }
 
 /* ---------------- Marca tus números: cada uno es una bola ---------------- */
 
