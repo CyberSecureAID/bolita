@@ -160,15 +160,45 @@
     </div>
   </section>
 
-  <!-- ══════════ BOMBO ══════════ -->
+  <!-- ══════════ BOMBO / RESULTADOS OFICIALES ══════════ -->
   <section class="sec" id="bombo">
     <div class="sec-head"><h2>El bombo</h2></div>
 
+    <!-- Selector de turno: mediodía / noche -->
+    <div class="turnos" id="turnos" hidden>
+      <button class="turno-btn" data-turno="dia" type="button">Mediodía</button>
+      <button class="turno-btn on" data-turno="noche" type="button">Noche</button>
+    </div>
+
+    <!-- Bombo principal: el FIJO -->
     <div class="drum">
       <div class="drum-bg"></div>
+      <div class="drum-tag" id="drum-tag">Fijo</div>
       <div class="balls" id="balls"></div>
       <div class="do-name" id="draw-name"></div>
     </div>
+
+    <!-- Bombos de las demás lecturas (corridos, parlés, candado).
+         Solo aparecen cuando hay resultado oficial de Florida. -->
+    <div class="drum-extra" id="drum-corridos" hidden>
+      <div class="drum-bg"></div>
+      <div class="drum-tag">Corridos</div>
+      <div class="balls balls-sm" id="balls-corridos"></div>
+    </div>
+
+    <div class="drum-extra" id="drum-parles" hidden>
+      <div class="drum-bg"></div>
+      <div class="drum-tag">Parlés</div>
+      <div class="parles-grid" id="parles-grid"></div>
+    </div>
+
+    <div class="drum-extra" id="drum-candado" hidden>
+      <div class="drum-bg"></div>
+      <div class="drum-tag">Candado</div>
+      <div class="balls balls-sm" id="balls-candado"></div>
+    </div>
+
+    <div class="oficial-nota" id="oficial-nota" hidden></div>
   </section>
 
   <!-- ══════════ NÚMEROS LIMITADOS ══════════ -->
