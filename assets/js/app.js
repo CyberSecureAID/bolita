@@ -17,7 +17,7 @@ import { MODOS, LISTA_MODOS, topeApuesta, disponible, repartir, margen } from '.
 import { MONEDAS, LISTA_MONEDAS, formatear, partirSaldo, enUnidadPequena } from './tokens.js';
 import { CHARADA, FAMILIAS, pad2, nombreDe } from './charada.js';
 import { versoDelDia } from './versos.js';
-import { proximaTirada, cuentaAtras, fechaHora } from './draws.js';
+import { proximaTirada, cuentaAtras, fechaHora, soloHora } from './draws.js';
 import { resultadoOficial, leerPick3 } from './florida.js';
 import { lanzarConfeti } from './confetti.js';
 import * as wallet from './wallet.js';
@@ -585,7 +585,7 @@ function pintarReloj() {
   $('hc-m').textContent = t[1];
   $('hc-s').textContent = t[2];
 
-  $('hero-when').textContent = fechaHora(p.cuando);
+  $('hero-when').textContent = `${soloHora(p.sorteo)} · ${fechaHora(p.sorteo)}`;
 }
 
 /** La sección de última tirada se retiró del DOM; se conserva por si vuelve. */
