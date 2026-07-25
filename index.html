@@ -117,8 +117,19 @@
         <button class="btn-wallet" id="btn-wallet" type="button">Conectar wallet</button>
         <button class="btn-off" id="btn-off" type="button" title="Desconectar wallet" aria-label="Desconectar wallet"></button>
       </div>
+      <button class="btn-menu" id="btn-menu" type="button" aria-label="Menú">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </nav>
+
+  <!-- Menú desplegable en móvil -->
+  <div class="menu-movil" id="menu-movil">
+    <a href="#jugar" data-cierra>Jugar</a>
+    <a href="#bombo" data-cierra>El bombo</a>
+    <a href="#" id="menu-comprar" data-cierra>Comprar cripto</a>
+    <a href="#charada" data-cierra>Charada</a>
+  </div>
 
   <!-- ══════════ BARRA DE ESTADO DE LA TIRADA ══════════ -->
   <div class="drawbar">
@@ -494,68 +505,93 @@
 <!-- ══════════ VENTANA EMERGENTE: COMPRAR CRIPTO ══════════ -->
 <div class="modal" id="m-comprar"><div class="modal-box ex-box">
 
-  <!-- Cabecera del exchange -->
-  <div class="ex-head">
-    <div class="ex-head-l">
-      <span class="ex-logo">⇄</span>
-      <div>
-        <h3 class="ex-titulo">Comprar cripto</h3>
-        <p class="ex-sub">consigue tu moneda para jugar</p>
-      </div>
+  <!-- Cabecera: logo + 3 pestañas -->
+  <div class="ex-top">
+    <img class="ex-brand" src="assets/img/logo-nav.webp" alt="La Bolita">
+    <div class="ex-tabs" id="ex-tabs">
+      <button class="ex-tab on" data-tab="tarjeta" type="button">Con tarjeta</button>
+      <button class="ex-tab" data-tab="cambiar" type="button">Cambiar cripto</button>
+      <button class="ex-tab" data-tab="cuba" type="button">Desde Cuba</button>
     </div>
     <button class="ex-x modal-close" type="button" aria-label="Cerrar">✕</button>
   </div>
 
-  <p class="ex-intro">¿No tienes con qué jugar? Consigue aquí cualquiera de las monedas que aceptamos. Compras en plataformas seguras y reconocidas — nosotros no tocamos tu dinero ni cobramos por esto.</p>
+  <div class="ex-scroll">
 
-  <!-- Pestañas -->
-  <div class="ex-tabs" id="ex-tabs">
-    <button class="ex-tab on" data-tab="tarjeta" type="button">Con tarjeta</button>
-    <button class="ex-tab" data-tab="cambiar" type="button">Cambiar cripto</button>
-    <button class="ex-tab" data-tab="cuba" type="button">Desde Cuba</button>
-  </div>
-
-  <!-- Panel: Con tarjeta -->
-  <div class="ex-panel on" data-panel="tarjeta">
-    <p class="ex-panel-txt">Compra con tarjeta de crédito, débito, Apple&nbsp;Pay o Google&nbsp;Pay. Te llega directo a tu wallet en minutos.</p>
-    <div class="ex-provs">
-      <a class="ex-prov" href="https://www.moonpay.com/buy/bnb" target="_blank" rel="noopener noreferrer">
-        <span class="ex-prov-n">MoonPay</span>
-        <span class="ex-prov-d">Tarjeta · Apple/Google Pay · PayPal</span>
-        <span class="ex-prov-go">Comprar →</span>
-      </a>
-      <a class="ex-prov" href="https://transak.com/buy/bnb" target="_blank" rel="noopener noreferrer">
-        <span class="ex-prov-n">Transak</span>
-        <span class="ex-prov-d">Tarjeta · transferencia bancaria</span>
-        <span class="ex-prov-go">Comprar →</span>
-      </a>
-      <a class="ex-prov" href="https://rampnetwork.com/buy-crypto/bnb" target="_blank" rel="noopener noreferrer">
-        <span class="ex-prov-n">Ramp</span>
-        <span class="ex-prov-d">Tarjeta · Apple/Google Pay</span>
-        <span class="ex-prov-go">Comprar →</span>
-      </a>
+    <!-- Par + precio -->
+    <div class="ex-par">
+      <button class="ex-par-sel" id="ex-par-sel" type="button">
+        <img class="ex-par-logo" id="ex-par-logo" src="" alt="">
+        <span class="ex-par-txt"><b id="ex-par-nombre">USDT</b><small id="ex-par-red">Tether · BSC</small></span>
+        <span class="ex-par-caret">▾</span>
+      </button>
+      <div class="ex-precio-box">
+        <div class="ex-precio" id="ex-precio">—</div>
+        <div class="ex-precio-sub"><span id="ex-precio-usd">≈ $—</span> <span class="ex-precio-chg" id="ex-precio-chg">+0.00%</span></div>
+      </div>
+      <div class="ex-mmv">
+        <div><span>Máximo</span><b id="ex-max" class="up">—</b></div>
+        <div><span>Mínimo</span><b id="ex-min" class="down">—</b></div>
+        <div><span>Volumen</span><b id="ex-vol">—</b></div>
+      </div>
     </div>
-  </div>
 
-  <!-- Panel: Cambiar cripto (grid de monedas) -->
-  <div class="ex-panel" data-panel="cambiar">
-    <p class="ex-panel-txt">¿Ya tienes BNB u otra cripto? Cámbiala por la moneda que quieras jugar. Todas están en BNB&nbsp;Smart&nbsp;Chain. Elige una:</p>
-    <div class="ex-monedas" id="monedas-compra"></div>
-  </div>
+    <!-- Selector de moneda desplegable -->
+    <div class="ex-monedas-pop" id="ex-monedas-pop" hidden></div>
 
-  <!-- Panel: Desde Cuba -->
-  <div class="ex-panel" data-panel="cuba">
-    <p class="ex-panel-txt">Consigue USDT con tu tarjeta cubana (CUP o MLC) por Transfermóvil o EnZona, y luego juegas con ese USDT.</p>
-    <div class="ex-provs">
-      <a class="ex-prov" href="https://qvapay.com" target="_blank" rel="noopener noreferrer">
-        <span class="ex-prov-n">QvaPay</span>
-        <span class="ex-prov-d">USDT con CUP/MLC · Transfermóvil · EnZona</span>
-        <span class="ex-prov-go">Comprar →</span>
-      </a>
+    <!-- Gráfico -->
+    <div class="ex-chart">
+      <svg id="ex-chart-svg" viewBox="0 0 600 180" preserveAspectRatio="none"></svg>
+      <div class="ex-chart-rangos">
+        <button class="ex-rango" type="button">1m</button>
+        <button class="ex-rango" type="button">5m</button>
+        <button class="ex-rango on" type="button">15m</button>
+        <button class="ex-rango" type="button">1H</button>
+        <button class="ex-rango" type="button">4H</button>
+        <button class="ex-rango" type="button">1D</button>
+      </div>
     </div>
-    <p class="ex-nota-cuba">QvaPay es la pasarela cubana más establecida. Compras USDT con tu tarjeta, lo mandas a tu wallet, y ya puedes jugar.</p>
-  </div>
 
+    <!-- Libro de órdenes -->
+    <div class="ex-libro">
+      <div class="ex-libro-col compra">
+        <div class="ex-libro-h">Compra</div>
+        <div id="ex-libro-compra"></div>
+      </div>
+      <div class="ex-libro-col venta">
+        <div class="ex-libro-h">Venta</div>
+        <div id="ex-libro-venta"></div>
+      </div>
+    </div>
+
+    <!-- Comprar / (rojo) -->
+    <div class="ex-accion">
+      <div class="ex-cv">
+        <button class="ex-cv-btn comprar on" id="ex-btn-comprar" type="button">Comprar</button>
+        <button class="ex-cv-btn vender" id="ex-btn-cobrar" type="button">Cobrar premio</button>
+      </div>
+
+      <div class="ex-campo">
+        <button class="ex-campo-sel" id="ex-campo-sel" type="button">
+          <img class="ex-campo-logo" id="ex-campo-logo" src="" alt="">
+          <b id="ex-campo-nombre">USDT</b><span class="ex-caret">▾</span>
+        </button>
+        <div class="ex-campo-val"><span>Disponible</span><b id="ex-disp">—</b></div>
+      </div>
+
+      <div class="ex-swap"><span>⇅</span></div>
+
+      <div class="ex-populares" id="ex-populares"></div>
+
+      <div class="ex-barra">
+        <div class="ex-barra-linea"><span class="ex-barra-punto" style="left:0"></span></div>
+        <div class="ex-barra-nums"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+      </div>
+
+      <button class="ex-comprar-final" id="ex-comprar-final" type="button">Comprar &nbsp;→</button>
+    </div>
+
+  </div>
 </div></div>
 
 <div class="toast" id="toast"></div>
