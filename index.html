@@ -108,6 +108,7 @@
     <div class="nav-links">
       <a href="#jugar">Jugar</a>
       <a href="#bombo">El bombo</a>
+      <a href="#comprar">Comprar cripto</a>
       <a href="#charada">Charada</a>
     </div>
     <div class="nav-right">
@@ -132,6 +133,39 @@
       <span class="db-when" id="hero-when">—</span>
     </div>
   </div>
+
+  <!-- ══════════ COMPRAR CRIPTO PARA JUGAR ══════════ -->
+  <section class="sec comprar-sec" id="comprar">
+    <div class="sec-head"><h2>Comprar cripto para jugar</h2></div>
+    <p class="sec-note">¿No tienes con qué jugar? Consigue aquí cualquiera de las monedas que aceptamos. Compras directamente en plataformas seguras — nosotros no tocamos tu dinero ni cobramos por esto.</p>
+
+    <!-- Comprar con tarjeta -->
+    <div class="comprar-bloque">
+      <h3 class="cb-titulo"><span class="cb-ic">💳</span> Con tarjeta o transferencia</h3>
+      <p class="cb-sub">Si es tu primera vez en cripto, estas plataformas te dejan comprar con tarjeta de crédito, débito, Apple&nbsp;Pay o Google&nbsp;Pay, y te lo envían a tu wallet. Son de las más reconocidas del mundo.</p>
+      <div class="onramp-grid">
+        <a class="onramp" href="https://www.moonpay.com/buy/bnb" target="_blank" rel="noopener noreferrer">
+          <span class="or-nombre">MoonPay</span>
+          <span class="or-desc">Tarjeta · Apple/Google Pay · PayPal</span>
+        </a>
+        <a class="onramp" href="https://transak.com/buy/bnb" target="_blank" rel="noopener noreferrer">
+          <span class="or-nombre">Transak</span>
+          <span class="or-desc">Tarjeta · transferencia bancaria</span>
+        </a>
+        <a class="onramp" href="https://rampnetwork.com/buy-crypto/bnb" target="_blank" rel="noopener noreferrer">
+          <span class="or-nombre">Ramp</span>
+          <span class="or-desc">Tarjeta · Apple/Google Pay</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Comprar cada moneda -->
+    <div class="comprar-bloque">
+      <h3 class="cb-titulo"><span class="cb-ic">🪙</span> Comprar cada moneda</h3>
+      <p class="cb-sub">Si ya tienes BNB u otra cripto, aquí cambias por la moneda que quieras jugar. Todas están en BNB&nbsp;Smart&nbsp;Chain.</p>
+      <div class="monedas-compra" id="monedas-compra"></div>
+    </div>
+  </section>
 
   <!-- ══════════ BANNER: EL BILLETE CON EL LOGO ══════════ -->
   <header class="hero">
@@ -312,38 +346,96 @@
 
   <!-- ══════════ CONTENIDO SEO ══════════ -->
   <section class="sec info-sec" id="info">
-    <div class="sec-head"><h2>La bolita cubana, explicada</h2></div>
+    <div class="sec-head center"><h2>La bolita cubana explicada</h2></div>
+    <p class="sec-note center">Toca cualquier pregunta para ver la respuesta.</p>
 
-    <div class="info-grid">
-      <article class="info-card">
-        <h3>¿Qué número salió hoy en la bolita cubana?</h3>
-        <p>Los resultados de la bolita cubana de hoy —del mediodía y de la noche— aparecen arriba, en la sección <a href="#bombo">El bombo</a>, con el <strong>fijo</strong>, los <strong>corridos</strong>, los <strong>parlés</strong> y el <strong>candado</strong>. Cada tirada muestra qué número salió en cuanto la Lotería de la Florida lo hace oficial.</p>
-      </article>
+    <div class="acordeon" id="acordeon">
 
-      <article class="info-card">
-        <h3>¿De dónde salen los resultados?</h3>
-        <p>La bolita cubana no tiene lotería propia: se guía por la <strong>Lotería de la Florida</strong>. El <strong>fijo</strong> son los dos últimos dígitos del <strong>Pick 3</strong>, y los <strong>corridos</strong> salen del <strong>Pick 4</strong>. Son los mismos números que juega la bolita de toda la vida.</p>
-      </article>
+      <details class="acc-item">
+        <summary>¿Qué número salió hoy en la bolita cubana?</summary>
+        <div class="acc-cuerpo">
+          <p>Los resultados de hoy —del mediodía y de la noche— aparecen arriba, en la sección <a href="#bombo">El bombo</a>, con el <strong>fijo</strong>, los <strong>corridos</strong>, los <strong>parlés</strong> y el <strong>candado</strong>. Cada tirada muestra qué número salió en cuanto la Lotería de la Florida lo hace oficial.</p>
+        </div>
+      </details>
 
-      <article class="info-card">
-        <h3>¿A qué hora salen los números?</h3>
-        <p>Hay <strong>dos tiradas al día</strong>: el <strong>mediodía</strong>, a la 1:30 p. m. hora de Florida, y la <strong>noche</strong>, a las 9:45 p. m. hora de Florida. Los números aparecen a los pocos minutos de cada sorteo oficial.</p>
-      </article>
+      <details class="acc-item">
+        <summary>¿De dónde salen los resultados?</summary>
+        <div class="acc-cuerpo">
+          <p>La bolita cubana no tiene lotería propia: se guía por la <strong>Lotería de la Florida</strong>. El <strong>fijo</strong> son los dos últimos dígitos del <strong>Pick 3</strong>, y los <strong>corridos</strong> salen del <strong>Pick 4</strong>. Son los mismos números que juega la bolita de toda la vida, desde hace más de veinte años.</p>
+        </div>
+      </details>
 
-      <article class="info-card">
-        <h3>Fijo, corrido, parlé y candado</h3>
-        <p>El <strong>fijo</strong> son los dos últimos dígitos del Pick 3. Los <strong>corridos</strong> son los dos pares del Pick 4. Los <strong>parlés</strong> son las parejas que se forman entre los números principales. El <strong>candado</strong> agrupa el fijo y los corridos en los tres números del día.</p>
-      </article>
+      <details class="acc-item">
+        <summary>¿A qué hora salen los números?</summary>
+        <div class="acc-cuerpo">
+          <p>Hay <strong>dos tiradas al día</strong>: el <strong>mediodía</strong>, a la 1:30 p. m. hora de Florida, y la <strong>noche</strong>, a las 9:45 p. m. hora de Florida. Los números aparecen a los pocos minutos de cada sorteo oficial. Las apuestas se cierran <strong>30 minutos antes</strong> de cada tiro.</p>
+        </div>
+      </details>
 
-      <article class="info-card">
-        <h3>La charada cubana</h3>
-        <p>Cada número del 1 al 100 tiene su nombre en la <a href="#charada">charada cubana</a>, una tradición de más de 150 años traída por los inmigrantes chinos. Muchos eligen su número por un sueño, una señal del día o la costumbre familiar.</p>
-      </article>
+      <details class="acc-item">
+        <summary>El fijo — qué es y cómo se juega</summary>
+        <div class="acc-cuerpo">
+          <p>El <strong>fijo</strong> son los <strong>dos últimos dígitos</strong> del Pick 3 de Florida. Si el Pick 3 fue 4·4·6, el fijo es <strong>46</strong>. Jugar al fijo es apostar a que salga ese número exacto de dos cifras. Es el más difícil de acertar (1 entre 100), por eso es el que más paga.</p>
+        </div>
+      </details>
 
-      <article class="info-card">
-        <h3>Cómo se juega aquí</h3>
-        <p>Eliges tu número —<a href="#jugar">terminales, número solo o parlé</a>—, pones tu apuesta y esperas la tirada. Todo funciona <strong>en cadena</strong>, con pagos automáticos y sin intermediarios. Las apuestas cierran 30 minutos antes de cada sorteo de la Florida.</p>
-      </article>
+      <details class="acc-item">
+        <summary>El terminal — la jugada más sencilla</summary>
+        <div class="acc-cuerpo">
+          <p>El <strong>terminal</strong> es el <strong>último dígito</strong> del fijo. Si el fijo es 46, el terminal es <strong>6</strong>. Jugar un terminal es apostar a ese último número: aciertas 1 de cada 10 veces, así que paga menos que el fijo pero es mucho más fácil de pegar. Ideal para empezar.</p>
+        </div>
+      </details>
+
+      <details class="acc-item">
+        <summary>Los corridos — los acompañantes</summary>
+        <div class="acc-cuerpo">
+          <p>Los <strong>corridos</strong> son dos números de dos cifras que salen del <strong>Pick 4</strong> de Florida. Acompañan al fijo en cada tirada. Si el Pick 4 fue 3·1·5·9, los corridos son <strong>31</strong> y <strong>59</strong>. Muchos jugadores los usan como números extra de la jugada del día.</p>
+        </div>
+      </details>
+
+      <details class="acc-item">
+        <summary>El parlé — combinar para multiplicar</summary>
+        <div class="acc-cuerpo">
+          <p>El <strong>parlé</strong> es apostar a <strong>dos números a la vez</strong> esperando que ambos salgan entre los principales del día (fijo y corridos). Es el que más multiplica tu apuesta, porque es el más difícil de acertar. Un parlé pegado paga mucho más que un fijo o un terminal.</p>
+        </div>
+      </details>
+
+      <details class="acc-item">
+        <summary>El candado — los tres del día</summary>
+        <div class="acc-cuerpo">
+          <p>El <strong>candado</strong> agrupa los <strong>tres números principales</strong> del día: el fijo y los dos corridos. Si el fijo es 46 y los corridos 31 y 59, el candado es <strong>46 · 31 · 59</strong>. Es la foto completa de la tirada.</p>
+        </div>
+      </details>
+
+      <details class="acc-item">
+        <summary>Cómo se juega aquí, paso a paso</summary>
+        <div class="acc-cuerpo">
+          <p>Primero eliges la <strong>moneda</strong> con la que quieres jugar (BNB, USDT, USDC, Bitcoin y más). Después el <strong>modo</strong>: <a href="#jugar">terminal, número solo o parlé</a>. Marcas tu número, pones el importe y confirmas con tu wallet. Si tu número sale, tu premio queda listo para que lo cobres cuando quieras.</p>
+          <p>Todo funciona <strong>en cadena</strong>, con pagos automáticos y sin intermediarios. Nadie guarda tu dinero: vive en tu wallet hasta que apuestas, y el premio vuelve a ti al cobrar.</p>
+        </div>
+      </details>
+
+      <details class="acc-item">
+        <summary>¿Cuánto se paga por acertar?</summary>
+        <div class="acc-cuerpo">
+          <p>El pago depende del modo (el fijo y el parlé pagan más que el terminal) y de la <strong>liquidez disponible</strong> en la moneda que elijas. Antes de apostar verás <strong>exactamente</strong> cuánto cobrarías si aciertas, y ese número queda fijo para tu jugada. Cuanta más liquidez tenga una moneda, mayores premios permite.</p>
+        </div>
+      </details>
+
+      <details class="acc-item">
+        <summary>¿Con qué monedas puedo jugar?</summary>
+        <div class="acc-cuerpo">
+          <p>Con BNB, USDT, USDC, BTCB (Bitcoin), ETH, USDT.z y algunas más. <strong>Juegas y cobras siempre en la misma moneda</strong>: si apuestas en USDT, cobras en USDT; si apuestas en Bitcoin, cobras en Bitcoin. Nunca se mezclan. ¿No tienes ninguna? Mira la sección <a href="#comprar">Comprar cripto para jugar</a>.</p>
+        </div>
+      </details>
+
+      <details class="acc-item">
+        <summary>La charada cubana</summary>
+        <div class="acc-cuerpo">
+          <p>Cada número del 1 al 100 tiene su nombre en la <a href="#charada">charada cubana</a>, una tradición de más de 150 años traída por los inmigrantes chinos. Muchos eligen su número por un sueño, una señal del día o la costumbre familiar. El caballo, la mariposa, el muerto... cada número cuenta algo.</p>
+        </div>
+      </details>
+
     </div>
   </section>
 
