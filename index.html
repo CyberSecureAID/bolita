@@ -520,11 +520,15 @@
 
     <!-- Par + precio -->
     <div class="ex-par">
-      <button class="ex-par-sel" id="ex-par-sel" type="button">
-        <img class="ex-par-logo" id="ex-par-logo" src="" alt="">
-        <span class="ex-par-txt"><b id="ex-par-nombre">USDT</b><small id="ex-par-red">Tether · BSC</small></span>
-        <span class="ex-par-caret">▾</span>
-      </button>
+      <div class="ex-par-wrap">
+        <button class="ex-par-sel" id="ex-par-sel" type="button">
+          <img class="ex-par-logo" id="ex-par-logo" src="" alt="">
+          <span class="ex-par-txt"><b id="ex-par-nombre">USDT</b><small id="ex-par-red">USDT · BSC</small></span>
+          <span class="ex-par-caret">▾</span>
+        </button>
+        <!-- Lista desplegable, oculta hasta tocar el selector -->
+        <div class="ex-monedas-pop" id="ex-monedas-pop" hidden></div>
+      </div>
       <div class="ex-precio-box">
         <div class="ex-precio" id="ex-precio">—</div>
         <div class="ex-precio-sub"><span id="ex-precio-usd">≈ $—</span> <span class="ex-precio-chg" id="ex-precio-chg">+0.00%</span></div>
@@ -535,9 +539,6 @@
         <div><span>Volumen</span><b id="ex-vol">—</b></div>
       </div>
     </div>
-
-    <!-- Selector de moneda desplegable -->
-    <div class="ex-monedas-pop" id="ex-monedas-pop" hidden></div>
 
     <!-- Gráfico -->
     <div class="ex-chart">
