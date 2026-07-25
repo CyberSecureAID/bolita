@@ -290,7 +290,7 @@ body {
 
 .modes {
   display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 18px; margin-bottom: 22px;
+  gap: 18px; margin-bottom: 34px;
   align-items: start;
 }
 
@@ -321,30 +321,41 @@ body {
 /* Cuando hay una elegida, las demás se atenúan para que resalte la elegida */
 .modes:has(.mode.on) .mode:not(.on) { opacity: .55; filter: saturate(.85); }
 
-/* Insignia "ELEGIDO" que baja desde arriba al seleccionar */
+/* Insignia "ELEGIDO" al seleccionar: una barrita dorada DEBAJO de la tarjeta,
+   fuera de la imagen, así no choca con el título ni con los muñecos. */
 .mode::after {
   content: "✓ ELEGIDO";
-  position: absolute; top: 8px; right: 8px; z-index: 4;
-  font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .12em;
-  color: #14210A;
+  position: absolute; left: 50%; bottom: -13px; z-index: 4;
+  transform: translateX(-50%) translateY(6px) scale(.85);
+  font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .14em;
+  color: #14210A; white-space: nowrap;
   background: linear-gradient(180deg, #F7E8B8, var(--gold) 60%, #C9982F);
-  border-radius: 100px; padding: 5px 11px;
+  border-radius: 100px; padding: 5px 14px;
   box-shadow: 0 4px 14px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.5);
-  opacity: 0; transform: translateY(-8px) scale(.85);
+  opacity: 0;
   transition: opacity .25s, transform .25s cubic-bezier(.2,.9,.3,1.3);
   pointer-events: none;
 }
-.mode.on::after { opacity: 1; transform: translateY(0) scale(1); }
+.mode.on::after { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 
-/* La imagen ES la tarjeta (ya trae su propio bisel verde). Sin envoltorio.
-   Las tres imágenes tienen ahora la MISMA proporción (900×461), así que
-   encajan iguales por sí solas: mismo tamaño, misma distancia. Terminales
-   lleva un poco de aire transparente a los lados (muñeco intacto) para
-   igualar la proporción, y así no necesita ningún ajuste especial. */
+/* La imagen ES la tarjeta (trae su propio bisel). A ancho completo, alineada
+   arriba: las tres ocupan el mismo ancho -> misma distancia entre ellas. */
 .mode img {
   width: 100%; height: auto;
   object-fit: contain; object-position: center top;
   display: block;
+}
+
+/* Terminales es más alta (sombrero). La bajamos a la altura de las otras con
+   un scale confirmado (0.985) anclado ARRIBA, y le damos un ancho un pelín
+   mayor para que, tras el scale, siga llenando la columna (misma distancia).
+   La caja mantiene la misma proporción que las otras para no empujar la fila. */
+.mode.es-terminales { aspect-ratio: 900 / 461; overflow: visible; }
+.mode.es-terminales img {
+  width: 106.952%;              /* 100 / 0.935: tras el scale queda en 100% */
+  margin-left: -3.476%;        /* recentra el ancho extra */
+  transform-origin: top center;
+  transform: scale(0.935);
 }
 
 
