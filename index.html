@@ -246,9 +246,21 @@
       <div class="fm-sub">CIEN NÚMEROS · CINCO BOLAS · DOS TIRADAS</div>
     </div>
     <div class="foot-grid">
+      <button class="foot-btn" data-modal="ultimas" data-ic="reloj" type="button"><span class="ic"></span>Últimas tiradas</button>
       <button class="foot-btn" data-modal="economia" data-ic="grafico" type="button"><span class="ic"></span>Modelo económico</button>
       <button class="foot-btn" data-modal="reglas" data-ic="reglas" type="button"><span class="ic"></span>Reglas del juego</button>
       <button class="foot-btn" data-modal="pagos" data-ic="pagos" type="button"><span class="ic"></span>Tabla de pagos</button>
+    </div>
+
+    <!-- Interruptor de notificaciones -->
+    <div class="notif-toggle">
+      <div class="nt-txt">
+        <span class="nt-t">Avisarme cuando salga la tirada</span>
+        <span class="nt-b">Un aviso suave al salir cada número oficial</span>
+      </div>
+      <button class="nt-switch" id="nt-switch" type="button" role="switch" aria-checked="false">
+        <span class="nt-dot"></span>
+      </button>
     </div>
     <div class="foot-note">La Bolita · BNB Smart Chain · tiradas del Pick 3 de Florida · 13:30 y 21:45 (hora de Florida)</div>
   </footer>
@@ -289,6 +301,14 @@
   <p>Marca varias y pon un importe total: se reparte solo. También puedes fijar el importe de una jugada concreta.</p>
   <h4>Números limitados</h4>
   <p>Cuando un número recibe demasiadas apuestas, se cierra para poder pagar a todos los que ya jugaron. Aparece en la sección <strong>Números limitados</strong> y no se puede jugar hasta la próxima tirada.</p>
+  <button class="modal-close" type="button">Cerrar</button>
+</div></div>
+
+<div class="modal" id="m-ultimas"><div class="modal-box">
+  <h3>Últimas tiradas</h3><p class="sub">resultados oficiales de la Florida</p>
+  <div class="ult-lista" id="ult-lista">
+    <p class="ult-vacio">Todavía no hay resultados oficiales.</p>
+  </div>
   <button class="modal-close" type="button">Cerrar</button>
 </div></div>
 
