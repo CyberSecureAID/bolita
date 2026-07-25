@@ -76,7 +76,7 @@
       <li class="paso" data-paso="1"><span class="p-n">1</span><span class="p-t">Conecta tu wallet</span></li>
       <li class="paso" data-paso="2"><span class="p-n">2</span><span class="p-t">Elige la moneda</span></li>
       <li class="paso" data-paso="3"><span class="p-n">3</span><span class="p-t">Modos de juego</span></li>
-      <li class="paso" data-paso="4"><span class="p-n">4</span><span class="p-t">Marca y apuesta</span></li>
+      <li class="paso" data-paso="4"><span class="p-n">4</span><span class="p-t">Selecciona y apuesta</span></li>
     </ol>
 
     <!-- Paso 2 -->
@@ -114,7 +114,7 @@
     <!-- Paso 4 -->
     <div class="bloque" id="bloque-jugada" data-estado="espera">
       <div class="bloque-head">
-        <span class="b-num">4</span><h3 id="picker-title">Marca tus números</h3>
+        <span class="b-num">4</span><h3 id="picker-title">Selecciona tus números</h3>
         <span class="b-hint" id="picker-hint">Elige antes un juego</span>
       </div>
 
@@ -131,20 +131,28 @@
       <div class="seleccion" id="seleccion"></div>
 
       <div class="slip">
-        <div class="slip-amt">
-          <label for="monto">Importe total</label>
-          <div class="amt">
-            <input type="number" id="monto" step="0.0001" inputmode="decimal">
-            <span class="amt-sym" id="amt-sym"></span>
+        <div class="slip-bg"></div>
+
+        <div class="slip-inner">
+          <div class="slip-top">
+            <div class="slip-amt">
+              <label for="monto">Importe total</label>
+              <div class="amt">
+                <input type="number" id="monto" step="0.0001" inputmode="decimal" placeholder="0">
+                <span class="amt-sym" id="amt-sym"></span>
+              </div>
+              <div class="quick" id="quick"></div>
+            </div>
+
+            <div class="slip-info">
+              <div class="si-row"><span>Jugadas</span><b id="i-jugadas">0</b></div>
+              <div class="si-row"><span>Se reparte</span><b id="i-reparto">—</b></div>
+              <div class="si-row max"><span>Cobras hasta</span><b id="i-pago">—</b></div>
+            </div>
           </div>
-          <div class="quick" id="quick"></div>
+
+          <button class="btn-play" id="btn-play" type="button" disabled>Elige una moneda</button>
         </div>
-        <div class="slip-info">
-          <div class="si-row"><span>Jugadas</span><b id="i-jugadas">0</b></div>
-          <div class="si-row"><span>Se reparte</span><b id="i-reparto">—</b></div>
-          <div class="si-row max"><span>Cobras como máximo</span><b id="i-pago">—</b></div>
-        </div>
-        <button class="btn-play" id="btn-play" type="button" disabled>Elige una moneda</button>
       </div>
 
       <div class="avisos" id="avisos"></div>
