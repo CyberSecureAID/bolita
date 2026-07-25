@@ -1214,7 +1214,6 @@ body {
   .nav-links { display: none; }
 
   .modes { grid-template-columns: 1fr; gap: 12px; }
-  .mode { aspect-ratio: 800 / 320; }
 
   .slip { grid-template-columns: 1fr; gap: 16px; }
   .slip-info { order: 2; }
@@ -1237,12 +1236,12 @@ body {
   .btn-wallet.connected .bw-addr { display: none; }
   .btn-wallet.connected .bw-logo { width: 20px; height: 20px; }
 
-  /* Logo de la esquina: centrado en móvil */
-  .nav { position: relative; justify-content: space-between; }
-  .brand {
-    position: absolute; left: 50%; top: 50%;
-    transform: translate(-50%, -50%); z-index: 0;
-  }
+  /* Barra superior: logo a la izquierda (más pequeño), wallet a la derecha,
+     sin solaparse. El logo ya no va absoluto para que no lo tape el botón. */
+  .nav { position: relative; justify-content: space-between; align-items: center; }
+  .brand { position: static; transform: none; flex-shrink: 1; min-width: 0; }
+  .brand img { height: 22px; width: auto; max-width: 46vw; object-fit: contain; }
+  .btn-wallet { flex-shrink: 0; }
 
   /* Barra de tirada: apilada y centrada */
   .drawbar {
@@ -1304,6 +1303,40 @@ body {
   .bola { width: clamp(40px, 15vw, 58px); height: clamp(40px, 15vw, 58px); }
   .bola .bola-n { font-size: clamp(15px, 5.5vw, 22px); }
   .balls { gap: clamp(4px, 1.6vw, 10px); }
+
+  /* Bombos extra (corridos, parlés, candado): mismo comportamiento que el
+     fijo para que NO se corten. Altura flexible y bolas responsive. */
+  .drum-extra {
+    aspect-ratio: auto; min-height: 0;
+    padding: 12% 5% 9%;
+  }
+  .drum-extra .drum-bg { background-size: 100% 100%; }
+  .balls-sm { gap: clamp(6px, 2.5vw, 14px); flex-wrap: wrap; }
+  .balls-sm .bola {
+    width: clamp(46px, 16vw, 78px); height: clamp(46px, 16vw, 78px);
+  }
+  .balls-sm .bola .bola-n { font-size: clamp(17px, 6vw, 26px); }
+
+  /* Parlés en móvil: que quepan sin cortarse por abajo */
+  .parles-grid { gap: clamp(6px, 2vw, 12px); padding-bottom: 4%; }
+  .parle-par .bola { width: clamp(38px, 12vw, 56px); height: clamp(38px, 12vw, 56px); }
+  .parle-par .bola .bola-n { font-size: clamp(13px, 4.5vw, 19px); }
+
+  /* Área de importe: responsive, el número NO se corta */
+  .slip-inner { padding: 18px 16px; }
+  .slip-top {
+    grid-template-columns: 1fr; gap: 18px; align-items: stretch;
+  }
+  .slip-amt { min-width: 0; }
+  .amt { display: flex; width: 100%; }
+  .amt input {
+    width: 100%; min-width: 0; font-size: clamp(24px, 7vw, 30px);
+  }
+  .slip-info {
+    padding-left: 0; border-left: none;
+    padding-top: 16px; border-top: 1px solid rgba(232,184,75,.18);
+  }
+  .quick { flex-wrap: wrap; }
 
   /* Verso */
   .verso-card { padding: 24px 18px 20px; }
