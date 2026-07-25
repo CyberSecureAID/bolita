@@ -291,7 +291,7 @@ body {
 .modes {
   display: grid; grid-template-columns: repeat(3, 1fr);
   gap: 10px; margin-bottom: 22px;
-  align-items: center;
+  align-items: start;
 }
 
 .mode {
@@ -311,11 +311,10 @@ body {
   filter: drop-shadow(0 0 22px rgba(46,232,106,.4));
 }
 
-/* La imagen ES la tarjeta (ya trae su propio bisel verde). Sin envoltorio.
-   object-fit contain para no recortar; la de Terminales se ve completa. */
+/* La imagen ES la tarjeta (ya trae su propio bisel verde). Sin envoltorio. */
 .mode img {
   width: 100%; height: auto;
-  object-fit: contain; object-position: center bottom;
+  object-fit: contain; object-position: center top;
   display: block;
 }
 
@@ -875,19 +874,17 @@ body {
 .ss-dec { font-size: 17px; opacity: .78; }
 .ss-sym { font-family: var(--mono); font-size: 12px; color: var(--gold); font-weight: 600; margin-left: 2px; }
 
-/* Parte derecha: valor en dólares grande y limpio, precio de la moneda debajo */
+/* Parte derecha: solo el valor en dólares, grande y limpio */
 .ss-right {
   text-align: right; flex-shrink: 0;
-  display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
-  padding-left: 16px; border-left: 1px solid rgba(232,184,75,.15);
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
+  padding-left: 20px; border-left: 1px solid rgba(232,184,75,.15);
 }
 .ss-usd {
-  font-family: var(--display); font-weight: 600; font-size: 16px; color: var(--gold);
+  font-family: var(--display); font-weight: 700; font-size: 24px; color: var(--gold);
+  line-height: 1; letter-spacing: -.01em;
 }
-.ss-usd::before { content: "≈ "; opacity: .6; font-weight: 400; }
-.ss-min {
-  font-family: var(--mono); font-size: 10px; color: var(--gold-soft); opacity: .75;
-}
+.ss-min { display: none; }
 
 /* ================================================================== */
 /* Barra de herramientas del selector                                  */
@@ -1243,11 +1240,12 @@ body {
   /* Saldo: apilado pero elegante */
   .saldo-strip { flex-direction: column; align-items: stretch; gap: 12px; }
   .ss-right {
-    text-align: left; align-items: flex-start;
+    text-align: left; align-items: flex-start; justify-content: flex-start;
     padding-left: 0; padding-top: 12px;
     border-left: none; border-top: 1px solid rgba(232,184,75,.15);
-    flex-direction: row; justify-content: space-between; width: 100%;
+    width: 100%;
   }
+  .ss-usd { font-size: 20px; }
 
   /* Modos: una tarjeta por fila, más alta */
   .mode { aspect-ratio: 800 / 360; }
