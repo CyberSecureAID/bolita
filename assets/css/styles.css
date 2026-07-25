@@ -326,6 +326,8 @@ body {
    quede a la altura de las demás sin desalinear el borde superior. */
 .mode.es-terminales img {
   margin-top: -4%;
+  margin-left: -0.75%;
+  margin-right: -0.75%;
   transform: scale(0.985);
   transform-origin: top center;
 }
