@@ -131,10 +131,11 @@ export const MONEDAS = {
     icono: '🐶',
     color: '#F4B733',
     comisionPct: 10,            // Baby Doge cobra ~10% por transferencia
-    minApuesta: 1000000,
-    maxPorJugada: 100000000,
-    maxPorPersona: 250000000,
-    maxPago: 800000000,
+    precioUSD: 0.0000000003,    // ~0.3 mil-millonésimas de dólar (referencia)
+    minApuesta: 30000000,       // ~$0.01
+    maxPorJugada: 3000000000,
+    maxPorPersona: 7000000000,
+    maxPago: 24000000000,
     decimalesVista: 0,
     unidadPequena: { nombre: '', factor: 1 }
   },
@@ -175,15 +176,37 @@ export const LISTA_MONEDAS = Object.values(MONEDAS);
  * Formatea una cantidad en la unidad de la moneda.
  * Recorta ceros a la derecha para que no se vea "0.00200000".
  */
+/**
+ * Formatea cifras GRANDES de forma compacta para que no se desborden:
+ *   1 234        -> "1,234"
+ *   45 300       -> "45.3 K"
+ *   1 500 000    -> "1.5 M"
+ *   33 200 000000 -> "33.2 B"  (miles de millones)
+ *   2 500 000000000 -> "2.5 T" (billones)
+ * Ideal para Baby Doge y tokens de precio ínfimo donde con pocos dólares se
+ * compran miles de millones de unidades.
+ */
+export function compacto(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return (n / 1e12).toFixed(2).replace(/\.?0+$/, '') + ' T';
+  if (abs >= 1e9)  return (n / 1e9).toFixed(2).replace(/\.?0+$/, '') + ' B';
+  if (abs >= 1e6)  return (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + ' M';
+  if (abs >= 1e4)  return (n / 1e3).toFixed(1).replace(/\.?0+$/, '') + ' K';
+  // Por debajo de 10.000, con separador de miles
+  return Math.round(n).toLocaleString('en-US');
+}
+
 export function formatear(cantidad, moneda, { conSimbolo = true } = {}) {
   if (cantidad === null || cantidad === undefined || isNaN(cantidad)) return '—';
 
   let txt;
   if (cantidad === 0) {
     txt = '0';
+  } else if (cantidad >= 10000) {
+    // Cifras grandes: forma compacta (Baby Doge, EXT...) para no desbordar.
+    txt = compacto(cantidad);
   } else if (cantidad < 1 / Math.pow(10, moneda.decimalesVista)) {
-    // Saldo muy pequeño: mostrar el valor real con los decimales que hagan
-    // falta (hasta 8), sin el feo "<0.01".
     txt = cantidad.toFixed(8).replace(/\.?0+$/, '');
   } else {
     txt = cantidad.toFixed(moneda.decimalesVista).replace(/\.?0+$/, '');
@@ -200,8 +223,11 @@ export function partirSaldo(cantidad, moneda) {
   if (cantidad === null || cantidad === undefined || isNaN(cantidad)) {
     return { entero: '0', decimal: '', simbolo: moneda.simbolo };
   }
-  // Si el saldo es menor que el paso de vista, ampliar decimales para no
-  // mostrar "0" en seco ni "<0.01".
+  // Cifras grandes: forma compacta, todo en la parte "entera" (sin decimales
+  // sueltos que descuadren), para que no se desborde el saldo.
+  if (cantidad >= 10000) {
+    return { entero: compacto(cantidad), decimal: '', simbolo: moneda.simbolo };
+  }
   const dec = cantidad > 0 && cantidad < 1 / Math.pow(10, moneda.decimalesVista)
     ? 8 : moneda.decimalesVista;
   const txt = cantidad.toFixed(dec).replace(/\.?0+$/, '');

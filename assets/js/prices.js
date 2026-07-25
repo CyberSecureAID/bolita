@@ -51,7 +51,8 @@ const COINGECKO_ID = {
   USDT: 'tether',
   USDC: 'usd-coin',
   BTCB: 'binance-bitcoin',
-  ETH:  'ethereum'
+  ETH:  'ethereum',
+  BABYDOGE: 'baby-doge-coin'
 };
 
 const CACHE_MS = 5 * 60 * 1000;
