@@ -318,18 +318,17 @@ body {
   display: block;
 }
 
-/* Terminales es ~7% más alta por el sombrero. Con align-items:start su cuerpo
-   quedaría más abajo. La subimos con margen negativo (imagen INTACTA, el
-   sombrero solo asoma un poco por arriba). Ajustable si hace falta. */
-/* Terminales es un poco más alta que las otras (por el sombrero en la imagen).
-   Se encoge muy ligeramente, anclando desde ARRIBA, para que su borde inferior
-   quede a la altura de las demás sin desalinear el borde superior. */
+/* Terminales es más alta que las otras por el sombrero. Para que ocupe el
+   MISMO ancho (misma distancia entre tarjetas) y su borde inferior alinee con
+   las demás, su caja toma la misma proporción que las otras y la imagen, a
+   ancho completo, se sube: el CUERPO del billete alinea abajo y el sombrero
+   asoma por arriba (overflow visible). Imagen intacta, sin recortes. */
+.mode.es-terminales {
+  aspect-ratio: 900 / 461;
+  overflow: visible;
+}
 .mode.es-terminales img {
-  margin-top: -4%;
-  margin-left: -0.75%;
-  margin-right: -0.75%;
-  transform: scale(0.985);
-  transform-origin: top center;
+  margin-top: -7%;   /* sube para alinear el cuerpo; el sombrero asoma arriba */
 }
 
 
