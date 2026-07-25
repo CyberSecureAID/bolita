@@ -37,7 +37,7 @@
  *   https://bolita-florida.TUUSUARIO.workers.dev
  * Déjala vacía para que la página funcione sin resultado oficial todavía.
  */
-export const PUENTE_URL = '';
+export const PUENTE_URL = 'https://bolita-florida.yamicelanvivesqui.workers.dev';
 
 const CACHE_MS = 60 * 1000;   // no repreguntar más de una vez por minuto
 let cache = { at: 0, datos: null, enVuelo: null };
