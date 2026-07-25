@@ -1229,7 +1229,7 @@ body {
   /* Barra superior */
   .nav { gap: 10px; padding: 12px 0 4px; }
   .brand img { height: 26px; }
-  .btn-wallet { padding: 9px 15px; font-size: 12.5px; }
+  .btn-wallet { padding: 8px 11px; font-size: 11.5px; }
   .net-pill { display: none !important; }
   /* Wallet conectada en móvil: SOLO el logo, sin el trozo de dirección */
   .btn-wallet.connected { padding: 9px 12px; }
@@ -1240,7 +1240,7 @@ body {
      sin solaparse. El logo ya no va absoluto para que no lo tape el botón. */
   .nav { position: relative; justify-content: space-between; align-items: center; }
   .brand { position: static; transform: none; flex-shrink: 1; min-width: 0; }
-  .brand img { height: 22px; width: auto; max-width: 46vw; object-fit: contain; }
+  .brand img { height: 18px; width: auto; max-width: 36vw; object-fit: contain; }
   .btn-wallet { flex-shrink: 0; }
 
   /* Barra de tirada: apilada y centrada */
@@ -1298,7 +1298,8 @@ body {
   .pb-btn { flex: 1; }
 
   /* Bombo */
-  .drum { aspect-ratio: 1400 / 435; padding: 7% 4%; min-height: 0; }
+  .drum { aspect-ratio: 1400 / 435; padding: 15% 4% 8%; min-height: 0; }
+  .drum-tag { top: 9px; font-size: 10px; }
   .balls { gap: 8px; }
   .bola { width: clamp(40px, 15vw, 58px); height: clamp(40px, 15vw, 58px); }
   .bola .bola-n { font-size: clamp(15px, 5.5vw, 22px); }
@@ -1915,7 +1916,7 @@ body {
   .ex-libro { grid-template-columns: 1fr; gap: 10px; }
   /* Lista de monedas en móvil: VERTICAL, una debajo de otra, con scroll */
   .ex-monedas-pop {
-    width: calc(100vw - 60px); max-width: none; left: 0;
+    width: 240px; max-width: 78vw; left: 0;
     grid-template-columns: 1fr;
     max-height: 260px; overflow-y: auto;
   }
