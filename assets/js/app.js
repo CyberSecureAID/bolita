@@ -20,6 +20,7 @@ import { versoDelDia } from './versos.js';
 import { proximaTirada, cuentaAtras, fechaHora, soloHora } from './draws.js';
 import { resultadoOficial, leerPick3 } from './florida.js';
 import { lanzarConfeti } from './confetti.js';
+import { avisarTirada, activarNotif, notifActivas, notifConSonido } from './notificaciones.js';
 import * as wallet from './wallet.js';
 import { ICONOS, ponerIcono } from './icons.js';
 import { logoDe, precios, enDolares } from './prices.js';
@@ -909,7 +910,7 @@ init();
 /* ================================================================== */
 
 // Guarda las lecturas de mediodía y noche del día
-const oficial = { dia: null, noche: null, turnoVista: 'noche' };
+const oficial = { dia: null, noche: null, turnoVista: 'noche', historial: [], ultimaFirma: null };
 
 /**
  * Pinta un bombo de "fijo": tres dígitos del Pick 3, el primero transparente.
@@ -987,8 +988,11 @@ function verTurno(turno) {
 /**
  * Pide el resultado oficial al puente y actualiza los bombos. Si no hay
  * puente configurado o falla, deja los bombos de muestra sin romper nada.
+ *
+ * Cuando detecta una tirada NUEVA (que no habíamos mostrado antes), lanza
+ * el confeti y la notificación.
  */
-async function cargarOficial() {
+async function cargarOficial(esArranque = false) {
   let datos = null;
   try { datos = await resultadoOficial(); } catch { datos = null; }
 
@@ -1000,6 +1004,21 @@ async function cargarOficial() {
   // Tomar la última de cada turno
   oficial.dia = datos.historial.find((r) => r.turno === 'dia') ?? null;
   oficial.noche = datos.historial.find((r) => r.turno === 'noche') ?? null;
+  oficial.historial = datos.historial;
+
+  // ¿Hay una tirada nueva desde la última vez que miramos?
+  const reciente = datos.historial[0];
+  const firma = reciente ? `${reciente.fecha}|${reciente.turno}|${reciente.fijo}` : '';
+  if (reciente && firma !== oficial.ultimaFirma) {
+    const eraConocida = oficial.ultimaFirma !== null;
+    oficial.ultimaFirma = firma;
+
+    // Solo celebrar si NO es el primer vistazo (para no lanzar confeti
+    // cada vez que entras a la página con un resultado ya viejo).
+    if (eraConocida && !esArranque) {
+      celebrarTirada(reciente);
+    }
+  }
 
   // Mostrar el selector solo si hay al menos un turno
   const hayDia = Boolean(oficial.dia);
@@ -1014,13 +1033,84 @@ async function cargarOficial() {
   // Ver por defecto el turno más reciente disponible
   const inicial = hayNoche ? 'noche' : 'dia';
   verTurno(inicial);
+
+  pintarUltimasTiradas();
 }
 
-// Botones de turno
+/** Confeti + notificación cuando sale una tirada nueva. */
+function celebrarTirada(r) {
+  lanzarConfeti();
+
+  const turno = r.turno === 'dia' ? 'Mediodía' : 'Noche';
+  avisarTirada({
+    titulo: `¡Salió la tirada de la ${turno}!`,
+    texto: `Fijo ${r.fijo} · Corridos ${r.corridos.join(' · ')}`,
+    fijo: r.fijo
+  });
+}
+
+/** Rellena el modal de últimas tiradas, si el puente dio historial. */
+function pintarUltimasTiradas() {
+  const cont = $('ult-lista');
+  if (!cont) return;
+
+  const hist = oficial.historial ?? [];
+  if (hist.length === 0) {
+    cont.innerHTML = '<p class="ult-vacio">Todavía no hay resultados oficiales.</p>';
+    return;
+  }
+
+  cont.innerHTML = hist.slice(0, 6).map((r) => {
+    const turno = r.turno === 'dia' ? 'Mediodía' : 'Noche';
+    return `
+      <div class="ult-fila">
+        <div class="ult-cab">
+          <span class="ult-turno">${turno}</span>
+          <span class="ult-fecha">${r.fecha}</span>
+        </div>
+        <div class="ult-nums">
+          <span class="ult-fijo">${r.fijo}</span>
+          <span class="ult-corr">${r.corridos.join(' · ')}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ================================================================== */
+/* Arranque de resultados oficiales + notificaciones                   */
+/* ================================================================== */
+
+// Botones de turno (mediodía / noche)
 $$('.turno-btn').forEach((b) =>
   b.addEventListener('click', () => { if (!b.disabled) verTurno(b.dataset.turno); })
 );
 
+// Interruptor de notificaciones
+function pintarSwitch() {
+  const sw = $('nt-switch');
+  if (!sw) return;
+  const on = notifActivas();
+  sw.classList.toggle('on', on);
+  sw.setAttribute('aria-checked', on ? 'true' : 'false');
+}
+(() => {
+  const sw = $('nt-switch');
+  if (!sw) return;
+  pintarSwitch();
+  sw.addEventListener('click', async () => {
+    const nuevo = !notifActivas();
+    await activarNotif(nuevo, { sonido: nuevo ? true : null });
+    pintarSwitch();
+    if (nuevo) {
+      avisarTirada({
+        titulo: 'Avisos activados',
+        texto: 'Te avisaré en cuanto salga cada tirada.',
+        fijo: '★'
+      });
+    }
+  });
+})();
+
 // Cargar al arrancar y refrescar cada minuto por si sale una tirada nueva
-cargarOficial();
-setInterval(cargarOficial, 60000);
+cargarOficial(true);
+setInterval(() => cargarOficial(false), 60000);
