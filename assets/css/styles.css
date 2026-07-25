@@ -123,11 +123,25 @@ body {
 /* ---------------- Barra de estado de la tirada ---------------- */
 
 .drawbar {
+  position: relative; overflow: hidden;
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
-  margin-top: 4px; padding: 11px 20px;
-  background: linear-gradient(100deg, rgba(46,232,106,.06), transparent 55%, rgba(232,184,75,.05)), var(--panel);
-  border: 1px solid var(--line); border-radius: 100px;
+  margin-top: 4px; padding: 13px 22px;
+  border: 1px solid rgba(46,232,106,.28); border-radius: 100px;
 }
+/* Textura verde de fondo, con desenfoque tipo cristal */
+.drawbar::before {
+  content: ""; position: absolute; inset: 0; z-index: 0;
+  background: url("../img/drawbar-bg.webp") center/cover no-repeat;
+  filter: blur(3px) saturate(1.1);
+  transform: scale(1.08);
+}
+/* Velo oscuro para que el texto siga legible (el "cristal") */
+.drawbar::after {
+  content: ""; position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(100deg, rgba(4,14,10,.82), rgba(4,14,10,.62) 50%, rgba(4,14,10,.82));
+  backdrop-filter: blur(2px);
+}
+.drawbar > * { position: relative; z-index: 1; }
 
 .db-side { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .db-ic { display: grid; place-items: center; color: var(--gold); flex-shrink: 0; }
@@ -1054,7 +1068,9 @@ body {
   .dbc-v { font-size: 26px; }
 
   /* Banner */
-  .hero { aspect-ratio: 1600 / 620; min-height: 0; }
+  /* El billete NO se recorta: se ve entero y su propia proporción manda */
+  .hero { aspect-ratio: 1600 / 500; min-height: 0; }
+  .hero-bg { background-size: contain; background-color: #05100C; }
   .hero-logo { width: 66%; }
 
   /* Pasos: 2x2 */
@@ -1091,9 +1107,11 @@ body {
   .pb-btn { flex: 1; }
 
   /* Bombo */
-  .drum { aspect-ratio: 1400 / 620; padding: 8% 5%; }
+  .drum { aspect-ratio: 1400 / 435; padding: 7% 4%; min-height: 0; }
   .balls { gap: 8px; }
-  .bola { width: 54px; height: 54px; font-size: 20px; border-width: 1.5px; }
+  .bola { width: clamp(40px, 15vw, 58px); height: clamp(40px, 15vw, 58px); }
+  .bola .bola-n { font-size: clamp(15px, 5.5vw, 22px); }
+  .balls { gap: clamp(4px, 1.6vw, 10px); }
 
   /* Verso */
   .verso-card { padding: 24px 18px 20px; }
