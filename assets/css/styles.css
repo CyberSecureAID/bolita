@@ -290,7 +290,7 @@ body {
 
 .modes {
   display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 10px; margin-bottom: 22px;
+  gap: 18px; margin-bottom: 22px;
   align-items: start;
 }
 
@@ -318,17 +318,16 @@ body {
   display: block;
 }
 
-/* Terminales es más alta que las otras por el sombrero. Para que ocupe el
-   MISMO ancho (misma distancia entre tarjetas) y su borde inferior alinee con
-   las demás, su caja toma la misma proporción que las otras y la imagen, a
-   ancho completo, se sube: el CUERPO del billete alinea abajo y el sombrero
-   asoma por arriba (overflow visible). Imagen intacta, sin recortes. */
+/* Terminales es más alta que las otras por el sombrero. Ocupa el mismo ancho
+   que las demás (misma distancia entre tarjetas) y se sube lo justo para que
+   su borde INFERIOR alinee con las otras dos, sin cortar nada: el sombrero
+   asoma un poco por arriba. Imagen intacta. Este valor ya estaba afinado. */
 .mode.es-terminales {
   aspect-ratio: 900 / 461;
   overflow: visible;
 }
 .mode.es-terminales img {
-  margin-top: -7%;   /* sube para alinear el cuerpo; el sombrero asoma arriba */
+  margin-top: -4%;
 }
 
 
