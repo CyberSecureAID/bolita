@@ -6,7 +6,7 @@
  * detiene solo. Respeta prefers-reduced-motion.
  */
 
-const COLORES = ['#3FE0B0', '#2EE6A8', '#E8B84B', '#7BA7F0', '#F0A34B', '#FFFFFF'];
+const COLORES = ['#2EE86A', '#4DFF7A', '#E8B84B', '#F7E8B8', '#17A544', '#FFFFFF'];
 
 export function lanzarConfeti({ duracion = 2600, cantidad = 140 } = {}) {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;

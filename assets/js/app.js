@@ -328,16 +328,7 @@ function pintarRejilla() {
       + (marcados.has(i) ? ' on' : '') + (esPend ? ' pend' : '')
       + (limitado ? ' limitado' : '');
 
-    // Nivel de "agua": el número se va llenando según se acerca al límite.
-    // Es solo un efecto visual del riesgo de que se cierre.
-    if (m.id !== 'parle' && pct > 6 && !marcados.has(i)) {
-      const nivel = limitado ? 'llena' : pct >= 60 ? 'alta' : 'media';
-      b.innerHTML =
-        `<span class="agua ${nivel}" style="height:${Math.min(100, pct)}%"><i></i><i></i></span>` +
-        `<span class="num-n">${m.rango === 10 ? i : pad2(i)}</span>`;
-    } else {
-      b.innerHTML = `<span class="num-n">${m.rango === 10 ? i : pad2(i)}</span>`;
-    }
+    b.innerHTML = `<span class="num-n">${m.rango === 10 ? i : pad2(i)}</span>`;
 
     if (limitado) {
       b.disabled = true;
@@ -374,7 +365,6 @@ function pintarLimitados() {
   grid.innerHTML = S.limitados.map((i) => {
     const et = S.modo.rango === 10 ? String(i) : pad2(i);
     return `<div class="lim-num" title="${nombreDe(i)} · cerrado">
-      <span class="agua llena" style="height:100%"><i></i><i></i></span>
       <span class="num-n">${et}</span>
     </div>`;
   }).join('');
