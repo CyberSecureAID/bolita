@@ -15,9 +15,15 @@ import { MONEDAS, COMPRAR_URL } from './tokens.js';
 import { logoDe } from './prices.js';
 
 const ORDEN = ['BNB', 'USDT', 'USDC', 'BTCB', 'ETH', 'USDTZ', 'BABYDOGE', 'EXT'];
+// IDs de CoinGecko (funciona desde el navegador; Binance bloquea por CORS/región)
 const CG_ID = {
   BNB: 'binancecoin', USDT: 'tether', USDC: 'usd-coin',
-  BTCB: 'binance-bitcoin', ETH: 'ethereum', BABYDOGE: 'baby-doge-coin'
+  BTCB: 'bitcoin', ETH: 'ethereum', BABYDOGE: 'baby-doge-coin'
+};
+// Precios FIJOS de las monedas que no están en CoinGecko (las del proyecto)
+const PRECIO_FIJO = {
+  USDTZ: 0.002,        // 1 millón ≈ $2,000
+  EXT: 0.0003172       // ExactTrader
 };
 const SUBTITULO = {
   BNB: 'BNB · BSC', USDT: 'USDT · BSC', USDC: 'USDC · BSC',
@@ -25,7 +31,6 @@ const SUBTITULO = {
   BABYDOGE: 'BabyDoge · BSC', EXT: 'EXT · BSC'
 };
 // Par en Binance para libro de órdenes y datos REALES (las que cotizan)
-const BINANCE = { BNB: 'BNBUSDT', BTCB: 'BTCUSDT', ETH: 'ETHUSDT', USDC: 'USDCUSDT', BABYDOGE: '1000000BABYDOGEUSDT' };
 
 let sel = 'USDT';   // moneda seleccionada en el exchange
 
@@ -79,8 +84,14 @@ function conectarPestanas() {
     tab.addEventListener('click', () => {
       tabs.querySelectorAll('.ex-tab').forEach((t) => t.classList.toggle('on', t === tab));
       modoCompra = tab.dataset.tab;
-      // Solo cambia el texto del botón final; NO abre ningún modal.
       actualizarBotonFinal();
+      // Transición visible: un breve fundido de la zona de scroll
+      const scroll = document.querySelector('.ex-scroll');
+      if (scroll) {
+        scroll.classList.remove('ex-flash');
+        void scroll.offsetWidth;   // reinicia la animación
+        scroll.classList.add('ex-flash');
+      }
     });
   });
 }
@@ -107,8 +118,9 @@ function conectarSelector() {
     const logoHtml = logo
       ? `<img src="${logo}" alt="${m.simbolo}">`
       : `<span class="exp-txt" style="background:${m.color}22;color:${m.color}">${m.icono}</span>`;
+    // Solo logo + símbolo + red (sin repetir el nombre)
     return `<button class="exp-item" data-id="${id}" type="button">
-      ${logoHtml}<b>${m.simbolo}</b><small>${SUBTITULO[id]}</small></button>`;
+      ${logoHtml}<span class="exp-info"><b>${m.simbolo}</b><small>BSC</small></span></button>`;
   }).join('');
 
   pop.querySelectorAll('.exp-item').forEach((b) => {
@@ -118,9 +130,17 @@ function conectarSelector() {
     });
   });
 
-  const toggle = () => { pop.hidden = !pop.hidden; };
-  document.getElementById('ex-par-sel')?.addEventListener('click', toggle);
-  document.getElementById('ex-campo-sel')?.addEventListener('click', toggle);
+  // Abrir/cerrar SOLO al tocar el selector del par
+  document.getElementById('ex-par-sel')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    pop.hidden = !pop.hidden;
+  });
+  // Cerrar si se toca fuera
+  document.addEventListener('click', (e) => {
+    if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('#ex-par-sel')) {
+      pop.hidden = true;
+    }
+  });
 }
 
 /* ---------- Cargar una moneda: precio, gráfico, libro ---------- */
@@ -130,29 +150,28 @@ async function cargarMoneda(id) {
 
   const logo = logoDe(id) || '';
   setSrc('ex-par-logo', logo);
-  setSrc('ex-campo-logo', logo);
   setTxt('ex-par-nombre', m.simbolo);
   setTxt('ex-par-red', SUBTITULO[id]);
-  setTxt('ex-campo-nombre', m.simbolo);
-  setTxt('ex-disp', '0 ' + m.simbolo);
   actualizarBotonFinal();
 
-  // Datos REALES de Binance (24h): precio, cambio, máx, mín, volumen.
-  let precio = m.precioUSD ?? null, cambio = 0, alto = null, bajo = null, vol = null;
-  const par = BINANCE[id];
-  if (par) {
+  // Precio: CoinGecko para las conocidas, precio fijo para las del proyecto.
+  let precio = PRECIO_FIJO[id] ?? m.precioUSD ?? null;
+  let cambio = 0, alto = null, bajo = null, vol = null;
+  const cg = CG_ID[id];
+  if (cg) {
     try {
-      const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${par}`);
+      const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${cg}`);
       const d = await r.json();
-      const factor = id === 'BABYDOGE' ? 1e6 : 1;
-      precio = parseFloat(d.lastPrice) / factor;
-      cambio = parseFloat(d.priceChangePercent);
-      alto = parseFloat(d.highPrice) / factor;
-      bajo = parseFloat(d.lowPrice) / factor;
-      vol = parseFloat(d.quoteVolume);
+      if (d && d[0]) {
+        precio = d[0].current_price;
+        cambio = d[0].price_change_percentage_24h ?? 0;
+        alto = d[0].high_24h; bajo = d[0].low_24h;
+        vol = d[0].total_volume;
+      }
     } catch (e) { /* usa referencia */ }
-  } else if (id === 'USDT' || id === 'USDTZ') {
-    precio = 1; cambio = 0; alto = 1.001; bajo = 0.999;
+  } else if (id === 'USDTZ') {
+    // estable, sin oscilación real
+    alto = precio; bajo = precio;
   }
 
   pintarPrecio(precio, cambio, alto, bajo, vol);
@@ -161,37 +180,49 @@ async function cargarMoneda(id) {
   pintarPopulares();
 }
 
+/** Precio legible: nunca notación científica. Para valores ínfimos usa una
+ *  forma corta con "0.0₉3" o simplemente los decimales necesarios. */
+function fmtPrecio(p) {
+  if (p == null) return '—';
+  if (p >= 1) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (p >= 0.01) return p.toFixed(4);
+  if (p >= 0.0001) return p.toFixed(6);
+  // Valores ínfimos (Baby Doge): contar ceros y mostrar legible
+  const s = p.toFixed(20).replace(/0+$/, '');
+  const m = s.match(/^0\.(0*)(\d+)/);
+  if (m) {
+    const ceros = m[1].length;
+    const signif = m[2].slice(0, 3);
+    return `0.0…0${signif} (${ceros} ceros)`;
+  }
+  return String(p);
+}
+
 function pintarPrecio(precio, cambio, alto, bajo, vol) {
-  const fmt = (p) => {
-    if (p == null) return '—';
-    if (p >= 1) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-    if (p >= 0.0001) return p.toFixed(6);
-    return p.toExponential(2);
-  };
-  setTxt('ex-precio', fmt(precio));
-  setTxt('ex-precio-usd', precio != null ? `≈ $${fmt(precio)}` : '≈ $—');
+  setTxt('ex-precio', fmtPrecio(precio));
+  setTxt('ex-precio-usd', precio != null ? `≈ $${fmtPrecio(precio)}` : '≈ $—');
   const chg = document.getElementById('ex-precio-chg');
   if (chg) {
     const signo = cambio >= 0 ? '+' : '';
     chg.textContent = `${signo}${(cambio || 0).toFixed(2)}%`;
     chg.className = 'ex-precio-chg ' + (cambio >= 0 ? 'up' : 'down');
   }
-  setTxt('ex-max', fmt(alto != null ? alto : (precio ? precio * 1.01 : null)));
-  setTxt('ex-min', fmt(bajo != null ? bajo : (precio ? precio * 0.99 : null)));
-  setTxt('ex-vol', vol != null ? (vol / 1e6).toFixed(2) + 'M' : '—');
+  setTxt('ex-max', fmtPrecio(alto != null ? alto : (precio ? precio * 1.01 : null)));
+  setTxt('ex-min', fmtPrecio(bajo != null ? bajo : (precio ? precio * 0.99 : null)));
+  setTxt('ex-vol', vol != null ? '$' + (vol / 1e6).toFixed(1) + 'M' : '—');
 }
 
-/* Gráfico de línea REAL desde Binance (klines). Ambiente solo si no cotiza. */
+/* Gráfico de línea REAL desde CoinGecko (market_chart). Ambiente si no cotiza. */
 async function pintarGrafico(id, cambio) {
   const svg = document.getElementById('ex-chart-svg');
   if (!svg) return;
   let puntos = [];
-  const par = BINANCE[id];
-  if (par) {
+  const cg = CG_ID[id];
+  if (cg) {
     try {
-      const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${par}&interval=15m&limit=48`);
+      const r = await fetch(`https://api.coingecko.com/api/v3/coins/${cg}/market_chart?vs_currency=usd&days=1`);
       const d = await r.json();
-      puntos = d.map((k) => parseFloat(k[4]));   // precio de cierre
+      if (d.prices) puntos = d.prices.map((p) => p[1]);
     } catch (e) { /* ambiente */ }
   }
   if (puntos.length < 2) puntos = generarSerie(cambio);
@@ -222,38 +253,13 @@ function generarSerie(cambio) {
   return out;
 }
 
-/* Libro de órdenes REAL desde Binance (público, sin API key). Para monedas que
-   no cotizan en Binance (USDT.z, EXT), se oculta el libro. */
+/* Libro de órdenes: las APIs con profundidad real (Binance) están bloqueadas
+   desde el navegador por CORS/región, y CoinGecko no da libro en su tier
+   gratuito. Para no inventar datos, se OCULTA. Se reactivará si más adelante
+   se conecta una fuente real (p. ej. un pequeño proxy propio). */
 async function pintarLibro(precio) {
-  const compra = document.getElementById('ex-libro-compra');
-  const venta = document.getElementById('ex-libro-venta');
   const libro = document.querySelector('.ex-libro');
-  if (!compra || !venta) return;
-
-  const par = BINANCE[sel];
-  if (!par) {
-    // Sin mercado real: ocultar el libro en vez de inventarlo.
-    if (libro) libro.style.display = 'none';
-    return;
-  }
-  if (libro) libro.style.display = '';
-
-  try {
-    const r = await fetch(`https://api.binance.com/api/v3/depth?symbol=${par}&limit=6`);
-    const d = await r.json();
-    const factor = sel === 'BABYDOGE' ? 1e6 : 1;   // el par es por millón
-    const fila = (nivel) => {
-      const px = parseFloat(nivel[0]) / factor;
-      const qt = parseFloat(nivel[1]) * factor;
-      const pxTxt = px >= 1 ? px.toFixed(4) : px.toExponential(2);
-      const qtTxt = qt.toLocaleString('en-US', { maximumFractionDigits: 2 });
-      return `<div class="ex-libro-fila"><span class="px">${pxTxt}</span><span class="qt">${qtTxt}</span></div>`;
-    };
-    compra.innerHTML = (d.bids || []).slice(0, 5).map(fila).join('');
-    venta.innerHTML = (d.asks || []).slice(0, 5).map(fila).join('');
-  } catch (e) {
-    if (libro) libro.style.display = 'none';
-  }
+  if (libro) libro.style.display = 'none';
 }
 
 /* Cuatro monedas populares abajo. */
@@ -273,46 +279,17 @@ function pintarPopulares() {
   });
 }
 
-/* ---------- Comprar y barra interactiva ---------- */
+/* ---------- Comprar y retirar ---------- */
 function conectarComprar() {
-  // Botón verde grande: usa el modo de la pestaña activa
+  // Botón grande: usa el modo de la pestaña activa
   document.getElementById('ex-comprar-final')?.addEventListener('click', () => {
     abrirOpcionesCompra(modoCompra);
   });
-  // Botones comprar/cobrar del centro
-  document.getElementById('ex-btn-comprar')?.addEventListener('click', () => {
-    document.getElementById('ex-btn-comprar').classList.add('on');
-    document.getElementById('ex-btn-cobrar').classList.remove('on');
-  });
-  document.getElementById('ex-btn-cobrar')?.addEventListener('click', () => {
-    toast('Podrás cobrar tus premios aquí cuando el contrato esté activo.');
-  });
 
-  // Barra deslizable: al moverla selecciona una de las 4 monedas populares.
-  const linea = document.querySelector('.ex-barra-linea');
-  const punto = document.querySelector('.ex-barra-punto');
-  if (linea && punto) {
-    let arrastrando = false;
-    const pops = ['BNB', 'USDT', 'BTCB', 'ETH'];
-    const mover = (clientX) => {
-      const rect = linea.getBoundingClientRect();
-      let pct = (clientX - rect.left) / rect.width;
-      pct = Math.max(0, Math.min(1, pct));
-      punto.style.left = (pct * 100) + '%';
-      // Selección por tramo
-      const idx = Math.min(pops.length - 1, Math.round(pct * (pops.length - 1)));
-      if (pops[idx] !== sel) cargarMoneda(pops[idx]);
-    };
-    const iniciar = (e) => { arrastrando = true; mover((e.touches ? e.touches[0] : e).clientX); };
-    const seguir = (e) => { if (arrastrando) mover((e.touches ? e.touches[0] : e).clientX); };
-    const soltar = () => { arrastrando = false; };
-    linea.addEventListener('mousedown', iniciar);
-    document.addEventListener('mousemove', seguir);
-    document.addEventListener('mouseup', soltar);
-    linea.addEventListener('touchstart', iniciar, { passive: true });
-    document.addEventListener('touchmove', seguir, { passive: true });
-    document.addEventListener('touchend', soltar);
-  }
+  // Retirar ganancia (placeholder hasta desplegar el contrato)
+  document.getElementById('ex-retirar')?.addEventListener('click', () => {
+    toast('Podrás retirar tus ganancias aquí cuando el contrato esté activo. Te pagará en la misma moneda que apostaste.');
+  });
 }
 
 function abrirOpcionesCompra(cual) {
