@@ -2,45 +2,68 @@
  * CALENDARIO DE SORTEOS
  * =====================
  *
- * Dos tiradas al día:
+ * La bolita se rige por el Pick 3 de la LOTERÍA DE LA FLORIDA. Por eso TODO
+ * se calcula en hora de Florida (America/New_York), NO en la del dispositivo
+ * ni en la de Cuba.
  *
- *     MEDIODÍA .... 12:00
- *     NOCHE ....... 22:00
+ *   ¿Por qué Florida y no Cuba? Florida y Cuba casi siempre van a la misma
+ *   hora, pero cambian el horario de verano en fechas distintas y hay semanas
+ *   con una hora de diferencia. El número sale en Florida, así que la hora
+ *   buena es la de Florida. Así el reloj nunca se descuadra, mire quien mire
+ *   y desde donde mire.
  *
- * Las apuestas de una tirada se cierran unos minutos antes de la hora, para
- * que nadie pueda apostar con el resultado ya encaminado. Ese margen es el
- * `CIERRE_MINUTOS`.
+ * Dos tiradas al día (hora de Florida):
  *
- * TODO se calcula en HORA DE CUBA (America/Havana), no en la del dispositivo.
- * Así el jugador ve el horario cubano esté donde esté. Cuando el contrato esté
- * desplegado, la hora buena será la de la cadena (block.timestamp, en UTC) y
- * esto solo sirve para mostrar la cuenta atrás.
+ *     MEDIODÍA .... sorteo 13:30  ·  cierre 13:00
+ *     NOCHE ....... sorteo 21:45  ·  cierre 21:15
+ *
+ * ┌──────────────────────────────────────────────────────────────────────┐
+ * │  SEGURIDAD — LEER CON ATENCIÓN                                       │
+ * │                                                                      │
+ * │  Este archivo solo MUESTRA la cuenta atrás. NO impone el cierre.     │
+ * │  El cierre de verdad lo tiene que imponer el CONTRATO con el reloj   │
+ * │  de la cadena (block.timestamp), porque cualquier cosa que viva en   │
+ * │  el navegador se puede saltar abriendo las herramientas del F12.     │
+ * │                                                                      │
+ * │  El contrato debe rechazar toda apuesta que llegue después del       │
+ * │  cierre (30 min antes del sorteo de Florida). Aunque alguien hackee  │
+ * │  la web entera y mande la apuesta directa al contrato, la cadena la  │
+ * │  rechaza. La seguridad NO está en mostrar rápido, está en cerrar     │
+ * │  temprano — y ese cierre vive en el contrato, no aquí.               │
+ * └──────────────────────────────────────────────────────────────────────┘
  */
 
-/** Zona horaria oficial del juego. */
-export const ZONA = 'America/Havana';
+/** Zona horaria oficial del juego: la de la Florida Lottery. */
+export const ZONA = 'America/New_York';
 
 /**
- * "Ahora" pero visto desde La Habana: devuelve un Date cuyos getHours/getDate
- * corresponden a la hora cubana, para poder operar con setHours cómodamente.
+ * Cada tirada declara la hora de su SORTEO en Florida. El cierre se calcula
+ * restando CIERRE_MINUTOS.
  */
-function ahoraEnCuba(base = new Date()) {
-  const str = base.toLocaleString('en-US', { timeZone: ZONA });
-  return new Date(str);
-}
-
-/** Diferencia en ms entre la hora local del navegador y la de Cuba. */
-function desfaseCuba(base = new Date()) {
-  return base.getTime() - ahoraEnCuba(base).getTime();
-}
-
 export const TIRADAS = [
-  { id: 'dia',   nombre: 'Mediodía', hora: 12, minuto: 0, icono: '☀️' },
-  { id: 'noche', nombre: 'Noche',    hora: 22, minuto: 0, icono: '🌙' }
+  { id: 'dia',   nombre: 'Mediodía', sorteoH: 13, sorteoM: 30 },
+  { id: 'noche', nombre: 'Noche',    sorteoH: 21, sorteoM: 45 }
 ];
 
-/** Minutos antes de la hora en que se cierran las apuestas. */
-export const CIERRE_MINUTOS = 10;
+/** Las apuestas se cierran 30 minutos antes del sorteo de Florida. */
+export const CIERRE_MINUTOS = 30;
+
+/* ================================================================== */
+/* Utilidades de hora de Florida                                       */
+/* ================================================================== */
+
+/**
+ * "Ahora" visto desde Florida: un Date cuyos getHours/getDate corresponden
+ * a la hora de Florida, para poder operar cómodamente con setHours.
+ */
+function ahoraEnFlorida(base = new Date()) {
+  return new Date(base.toLocaleString('en-US', { timeZone: ZONA }));
+}
+
+/** Desfase en ms entre la hora local del navegador y la de Florida. */
+function desfaseFlorida(base = new Date()) {
+  return base.getTime() - ahoraEnFlorida(base).getTime();
+}
 
 function conHora(base, hora, minuto) {
   const d = new Date(base);
@@ -48,68 +71,73 @@ function conHora(base, hora, minuto) {
   return d;
 }
 
+/* ================================================================== */
+/* Próxima y última tirada                                             */
+/* ================================================================== */
+
 /**
- * Devuelve la próxima tirada y sus tiempos.
+ * Próxima tirada y sus tiempos, ya convertidos a instantes reales.
  *
  * @returns {{
- *   tirada: object, cuando: Date, cierre: Date,
- *   abierta: boolean, faltaMs: number, faltaCierreMs: number
+ *   tirada:object, sorteo:Date, cierre:Date,
+ *   abierta:boolean, faltaMs:number, faltaCierreMs:number
  * }}
  */
 export function proximaTirada(ahora = new Date()) {
-  const cuba = ahoraEnCuba(ahora);      // "ahora" en hora cubana
-  const desfase = desfaseCuba(ahora);   // para volver a tiempo real
+  const fl = ahoraEnFlorida(ahora);
+  const desfase = desfaseFlorida(ahora);
   const candidatas = [];
 
-  for (const offset of [0, 1]) {          // hoy y mañana
-    const base = new Date(cuba);
+  for (const offset of [0, 1]) {
+    const base = new Date(fl);
     base.setDate(base.getDate() + offset);
 
     for (const t of TIRADAS) {
-      const cuandoCuba = conHora(base, t.hora, t.minuto);
-      // Convertir de "hora cubana" a instante real para la cuenta atrás
-      const cuando = new Date(cuandoCuba.getTime() + desfase);
-      if (cuando > ahora) candidatas.push({ tirada: t, cuando });
+      const sorteoFl = conHora(base, t.sorteoH, t.sorteoM);
+      const sorteo = new Date(sorteoFl.getTime() + desfase);   // instante real
+      if (sorteo > ahora) candidatas.push({ tirada: t, sorteo });
     }
   }
 
-  candidatas.sort((a, b) => a.cuando - b.cuando);
-  const siguiente = candidatas[0];
+  candidatas.sort((a, b) => a.sorteo - b.sorteo);
+  const sig = candidatas[0];
 
-  const cierre = new Date(siguiente.cuando.getTime() - CIERRE_MINUTOS * 60000);
-  const faltaMs = siguiente.cuando - ahora;
-  const faltaCierreMs = cierre - ahora;
+  const cierre = new Date(sig.sorteo.getTime() - CIERRE_MINUTOS * 60000);
 
   return {
-    tirada: siguiente.tirada,
-    cuando: siguiente.cuando,
+    tirada: sig.tirada,
+    sorteo: sig.sorteo,
     cierre,
-    abierta: faltaCierreMs > 0,
-    faltaMs,
-    faltaCierreMs
+    abierta: cierre > ahora,
+    faltaMs: sig.sorteo - ahora,
+    faltaCierreMs: cierre - ahora
   };
 }
 
-/** La tirada que acaba de celebrarse, para mostrar el último resultado. */
+/** La última tirada ya celebrada, para pedir su resultado. */
 export function ultimaTirada(ahora = new Date()) {
-  const cuba = ahoraEnCuba(ahora);
-  const desfase = desfaseCuba(ahora);
+  const fl = ahoraEnFlorida(ahora);
+  const desfase = desfaseFlorida(ahora);
   const pasadas = [];
 
   for (const offset of [0, -1]) {
-    const base = new Date(cuba);
+    const base = new Date(fl);
     base.setDate(base.getDate() + offset);
 
     for (const t of TIRADAS) {
-      const cuandoCuba = conHora(base, t.hora, t.minuto);
-      const cuando = new Date(cuandoCuba.getTime() + desfase);
-      if (cuando <= ahora) pasadas.push({ tirada: t, cuando });
+      const sorteoFl = conHora(base, t.sorteoH, t.sorteoM);
+      const sorteo = new Date(sorteoFl.getTime() + desfase);
+      if (sorteo <= ahora) pasadas.push({ tirada: t, sorteo });
     }
   }
 
-  pasadas.sort((a, b) => b.cuando - a.cuando);
+  pasadas.sort((a, b) => b.sorteo - a.sorteo);
   return pasadas[0] ?? null;
 }
+
+/* ================================================================== */
+/* Formato                                                             */
+/* ================================================================== */
 
 /** "01:24:07" a partir de milisegundos. */
 export function cuentaAtras(ms) {
@@ -121,7 +149,7 @@ export function cuentaAtras(ms) {
   return [h, m, seg].map((n) => String(n).padStart(2, '0')).join(':');
 }
 
-/** "23/07/2026 · 22:00" */
+/** Fecha y hora de un instante, EXPRESADAS en hora de Florida. */
 export function fechaHora(fecha) {
   return fecha.toLocaleString('es', {
     timeZone: ZONA, day: '2-digit', month: '2-digit', year: 'numeric',
@@ -129,7 +157,7 @@ export function fechaHora(fecha) {
   }).replace(',', ' ·');
 }
 
-/** Solo la hora: "22:00" */
+/** Solo la hora del sorteo, en hora de Florida: "13:30" */
 export function soloHora(fecha) {
   return fecha.toLocaleTimeString('es', {
     timeZone: ZONA, hour: '2-digit', minute: '2-digit', hour12: false
