@@ -294,9 +294,10 @@ function conectarComprar() {
     abrirOpcionesCompra(modoCompra);
   });
 
-  // Retirar ganancia (placeholder hasta desplegar el contrato)
+  // Retirar ganancia: placeholder mudo por ahora (no muestra nada).
+  // Cuando el contrato esté desplegado, aquí se llamará a retirar(token).
   document.getElementById('ex-retirar')?.addEventListener('click', () => {
-    toast('Podrás retirar tus ganancias aquí cuando el contrato esté activo. Te pagará en la misma moneda que apostaste.');
+    /* placeholder: sin acción visible hasta que el contrato esté activo */
   });
 }
 
