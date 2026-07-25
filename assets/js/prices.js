@@ -31,7 +31,10 @@ const LOGO_POR_ID = {
   USDT: `${TRUST}/assets/0x55d398326f99059fF775485246999027B3197955/logo.png`,
   USDC: `${TRUST}/assets/0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d/logo.png`,
   BTCB: `${TRUST}/assets/0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c/logo.png`,
-  ETH:  `${TRUST}/assets/0x2170Ed0880ac9A755fd29B2688956BD959F933F8/logo.png`
+  ETH:  `${TRUST}/assets/0x2170Ed0880ac9A755fd29B2688956BD959F933F8/logo.png`,
+  USDTZ: `${TRUST}/assets/0x55d398326f99059fF775485246999027B3197955/logo.png`,
+  BABYDOGE: `${TRUST}/assets/0xc748673057861a797275CD8A068AbB95A902e8de/logo.png`,
+  EXT: null   // usa el respaldo de letra
 };
 
 export function logoDe(monedaId) {

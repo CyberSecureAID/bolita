@@ -104,7 +104,69 @@ export const MONEDAS = {
     maxPago: 0.006,
     decimalesVista: 6,
     unidadPequena: { nombre: 'gwei', factor: 1e9 }
+  },
+
+  USDTZ: {
+    id: 'USDTZ',
+    simbolo: 'USDT.z',
+    nombre: 'USDT.z',
+    address: '0x4BE35Ec329343d7d9F548d42B0F8c17FFfe07db4',
+    decimals: 18,
+    icono: 'Z',
+    color: '#26A17B',
+    minApuesta: 0.10,
+    maxPorJugada: 2.00,
+    maxPorPersona: 5.00,
+    maxPago: 15.00,
+    decimalesVista: 2,
+    unidadPequena: { nombre: 'centavos', factor: 100 }
+  },
+
+  BABYDOGE: {
+    id: 'BABYDOGE',
+    simbolo: 'BabyDoge',
+    nombre: 'Baby Doge Coin',
+    address: '0xc748673057861a797275CD8A068AbB95A902e8de',
+    decimals: 9,
+    icono: '🐶',
+    color: '#F4B733',
+    comisionPct: 10,            // Baby Doge cobra ~10% por transferencia
+    minApuesta: 1000000,
+    maxPorJugada: 100000000,
+    maxPorPersona: 250000000,
+    maxPago: 800000000,
+    decimalesVista: 0,
+    unidadPequena: { nombre: '', factor: 1 }
+  },
+
+  EXT: {
+    id: 'EXT',
+    simbolo: 'EXT',
+    nombre: 'ExactTrader',
+    address: '0xd86b5cd7cFC28a1e4Fd6b39F133bF64EF24c5246',
+    decimals: 18,
+    icono: 'X',
+    color: '#8B5CF6',
+    precioUSD: 0.000031664,     // precio de referencia
+    minApuesta: 100000,
+    maxPorJugada: 2000000,
+    maxPorPersona: 5000000,
+    maxPago: 16000000,
+    decimalesVista: 0,
+    unidadPequena: { nombre: '', factor: 1 }
   }
+};
+
+// Enlaces para comprar cada moneda (plataformas seguras y reconocidas).
+export const COMPRAR_URL = {
+  BNB:      'https://www.moonpay.com/buy/bnb',
+  USDT:     'https://pancakeswap.finance/swap?outputCurrency=0x55d398326f99059fF775485246999027B3197955',
+  USDC:     'https://pancakeswap.finance/swap?outputCurrency=0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+  BTCB:     'https://pancakeswap.finance/swap?outputCurrency=0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
+  ETH:      'https://pancakeswap.finance/swap?outputCurrency=0x2170Ed0880ac9A755fd29B2688956BD959F933F8',
+  USDTZ:    'https://pancakeswap.finance/swap?outputCurrency=0x4BE35Ec329343d7d9F548d42B0F8c17FFfe07db4',
+  BABYDOGE: 'https://pancakeswap.finance/swap?outputCurrency=0xc748673057861a797275CD8A068AbB95A902e8de',
+  EXT:      'https://smartdefi.com/token/bsc/0xd86b5cd7cFC28a1e4Fd6b39F133bF64EF24c5246/(chart//secondary:swap)'
 };
 
 export const LISTA_MONEDAS = Object.values(MONEDAS);

@@ -21,6 +21,7 @@ import { proximaTirada, cuentaAtras, fechaHora, soloHora, hora12, fechaHora12 } 
 import { resultadoOficial, leerPick3 } from './florida.js';
 import { lanzarConfeti } from './confetti.js';
 import { avisarTirada, activarNotif, notifActivas, notifConSonido } from './notificaciones.js';
+import { pintarCompra } from './comprar.js';
 import * as wallet from './wallet.js';
 import { ICONOS, ponerIcono } from './icons.js';
 import { logoDe, precios, enDolares } from './prices.js';
@@ -877,6 +878,7 @@ function init() {
   crearBolas();
   pintarFiltros();
   conectarCharada();
+  pintarCompra();
   conectarModales();
   pintarReloj();
   pintarUltima();
