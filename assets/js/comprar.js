@@ -20,10 +20,12 @@ const CG_ID = {
   BTCB: 'binance-bitcoin', ETH: 'ethereum', BABYDOGE: 'baby-doge-coin'
 };
 const SUBTITULO = {
-  BNB: 'BNB · BSC', USDT: 'Tether · BSC', USDC: 'USD Coin · BSC',
-  BTCB: 'Bitcoin · BSC', ETH: 'Ethereum · BSC', USDTZ: 'USDT.z · BSC',
-  BABYDOGE: 'Baby Doge · BSC', EXT: 'ExactTrader · BSC'
+  BNB: 'BNB · BSC', USDT: 'USDT · BSC', USDC: 'USDC · BSC',
+  BTCB: 'BTCB · BSC', ETH: 'ETH · BSC', USDTZ: 'USDT.z · BSC',
+  BABYDOGE: 'BabyDoge · BSC', EXT: 'EXT · BSC'
 };
+// Par en Binance para libro de órdenes y datos REALES (las que cotizan)
+const BINANCE = { BNB: 'BNBUSDT', BTCB: 'BTCUSDT', ETH: 'ETHUSDT', USDC: 'USDCUSDT', BABYDOGE: '1000000BABYDOGEUSDT' };
 
 let sel = 'USDT';   // moneda seleccionada en el exchange
 
@@ -69,15 +71,29 @@ function cerrarMenuMovil() {
 }
 
 /* ---------- Pestañas (tarjeta / cambiar / cuba) ---------- */
+let modoCompra = 'tarjeta';   // cómo se comprará al pulsar el botón final
 function conectarPestanas() {
   const tabs = document.getElementById('ex-tabs');
   if (!tabs) return;
   tabs.querySelectorAll('.ex-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
       tabs.querySelectorAll('.ex-tab').forEach((t) => t.classList.toggle('on', t === tab));
-      abrirOpcionesCompra(tab.dataset.tab);
+      modoCompra = tab.dataset.tab;
+      // Solo cambia el texto del botón final; NO abre ningún modal.
+      actualizarBotonFinal();
     });
   });
+}
+function actualizarBotonFinal() {
+  const b = document.getElementById('ex-comprar-final');
+  if (!b) return;
+  const m = MONEDAS[sel];
+  const txt = {
+    tarjeta: `Comprar ${m.simbolo} con tarjeta`,
+    cambiar: `Intercambiar por ${m.simbolo}`,
+    cuba: `Comprar ${m.simbolo} desde Cuba`
+  };
+  b.innerHTML = (txt[modoCompra] || 'Comprar') + ' &nbsp;→';
 }
 
 /* ---------- Selector de moneda (par y campo) ---------- */
@@ -112,7 +128,6 @@ async function cargarMoneda(id) {
   sel = id;
   const m = MONEDAS[id];
 
-  // Logos y nombres
   const logo = logoDe(id) || '';
   setSrc('ex-par-logo', logo);
   setSrc('ex-campo-logo', logo);
@@ -120,26 +135,33 @@ async function cargarMoneda(id) {
   setTxt('ex-par-red', SUBTITULO[id]);
   setTxt('ex-campo-nombre', m.simbolo);
   setTxt('ex-disp', '0 ' + m.simbolo);
+  actualizarBotonFinal();
 
-  // Precio real (CoinGecko), con respaldo al precio de referencia
-  let precio = m.precioUSD ?? null;
-  let cambio = 0;
-  try {
-    const cg = CG_ID[id];
-    if (cg) {
-      const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${cg}&vs_currencies=usd&include_24hr_change=true`);
+  // Datos REALES de Binance (24h): precio, cambio, máx, mín, volumen.
+  let precio = m.precioUSD ?? null, cambio = 0, alto = null, bajo = null, vol = null;
+  const par = BINANCE[id];
+  if (par) {
+    try {
+      const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${par}`);
       const d = await r.json();
-      if (d[cg]) { precio = d[cg].usd; cambio = d[cg].usd_24h_change ?? 0; }
-    }
-  } catch (e) { /* usa el de referencia */ }
+      const factor = id === 'BABYDOGE' ? 1e6 : 1;
+      precio = parseFloat(d.lastPrice) / factor;
+      cambio = parseFloat(d.priceChangePercent);
+      alto = parseFloat(d.highPrice) / factor;
+      bajo = parseFloat(d.lowPrice) / factor;
+      vol = parseFloat(d.quoteVolume);
+    } catch (e) { /* usa referencia */ }
+  } else if (id === 'USDT' || id === 'USDTZ') {
+    precio = 1; cambio = 0; alto = 1.001; bajo = 0.999;
+  }
 
-  pintarPrecio(precio, cambio);
+  pintarPrecio(precio, cambio, alto, bajo, vol);
   pintarGrafico(id, cambio);
   pintarLibro(precio);
   pintarPopulares();
 }
 
-function pintarPrecio(precio, cambio) {
+function pintarPrecio(precio, cambio, alto, bajo, vol) {
   const fmt = (p) => {
     if (p == null) return '—';
     if (p >= 1) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
@@ -151,36 +173,27 @@ function pintarPrecio(precio, cambio) {
   const chg = document.getElementById('ex-precio-chg');
   if (chg) {
     const signo = cambio >= 0 ? '+' : '';
-    chg.textContent = `${signo}${cambio.toFixed(2)}%`;
+    chg.textContent = `${signo}${(cambio || 0).toFixed(2)}%`;
     chg.className = 'ex-precio-chg ' + (cambio >= 0 ? 'up' : 'down');
   }
-  // Máx/mín/volumen de ambiente coherente con el precio
-  if (precio != null) {
-    setTxt('ex-max', fmt(precio * 1.012));
-    setTxt('ex-min', fmt(precio * 0.987));
-    setTxt('ex-vol', volAmbiente());
-  }
+  setTxt('ex-max', fmt(alto != null ? alto : (precio ? precio * 1.01 : null)));
+  setTxt('ex-min', fmt(bajo != null ? bajo : (precio ? precio * 0.99 : null)));
+  setTxt('ex-vol', vol != null ? (vol / 1e6).toFixed(2) + 'M' : '—');
 }
 
-function volAmbiente() {
-  const v = 10 + Math.random() * 80;
-  return v.toFixed(2) + 'M';
-}
-
-/* Gráfico de línea: si hay datos reales, se dibujan; si no, uno de ambiente. */
+/* Gráfico de línea REAL desde Binance (klines). Ambiente solo si no cotiza. */
 async function pintarGrafico(id, cambio) {
   const svg = document.getElementById('ex-chart-svg');
   if (!svg) return;
   let puntos = [];
-  try {
-    const cg = CG_ID[id];
-    if (cg) {
-      const r = await fetch(`https://api.coingecko.com/api/v3/coins/${cg}/market_chart?vs_currency=usd&days=1`);
+  const par = BINANCE[id];
+  if (par) {
+    try {
+      const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${par}&interval=15m&limit=48`);
       const d = await r.json();
-      if (d.prices) puntos = d.prices.map((p) => p[1]);
-    }
-  } catch (e) { /* ambiente */ }
-
+      puntos = d.map((k) => parseFloat(k[4]));   // precio de cierre
+    } catch (e) { /* ambiente */ }
+  }
   if (puntos.length < 2) puntos = generarSerie(cambio);
 
   const W = 600, H = 180;
@@ -209,20 +222,38 @@ function generarSerie(cambio) {
   return out;
 }
 
-/* Libro de órdenes de ambiente, coherente con el precio real. */
-function pintarLibro(precio) {
-  const base = precio || 1;
-  const paso = base * 0.0001;
-  const fila = (p, signo) => {
-    const cant = (10000 + Math.random() * 40000).toLocaleString('en-US', { maximumFractionDigits: 2 });
-    const px = (base + signo * paso * (Math.random() * 3 + 1));
-    const pxTxt = px >= 1 ? px.toFixed(4) : px.toExponential(2);
-    return `<div class="ex-libro-fila"><span class="px">${pxTxt}</span><span class="qt">${cant}</span></div>`;
-  };
+/* Libro de órdenes REAL desde Binance (público, sin API key). Para monedas que
+   no cotizan en Binance (USDT.z, EXT), se oculta el libro. */
+async function pintarLibro(precio) {
   const compra = document.getElementById('ex-libro-compra');
   const venta = document.getElementById('ex-libro-venta');
-  if (compra) compra.innerHTML = Array.from({ length: 5 }, () => fila(base, -1)).join('');
-  if (venta) venta.innerHTML = Array.from({ length: 5 }, () => fila(base, +1)).join('');
+  const libro = document.querySelector('.ex-libro');
+  if (!compra || !venta) return;
+
+  const par = BINANCE[sel];
+  if (!par) {
+    // Sin mercado real: ocultar el libro en vez de inventarlo.
+    if (libro) libro.style.display = 'none';
+    return;
+  }
+  if (libro) libro.style.display = '';
+
+  try {
+    const r = await fetch(`https://api.binance.com/api/v3/depth?symbol=${par}&limit=6`);
+    const d = await r.json();
+    const factor = sel === 'BABYDOGE' ? 1e6 : 1;   // el par es por millón
+    const fila = (nivel) => {
+      const px = parseFloat(nivel[0]) / factor;
+      const qt = parseFloat(nivel[1]) * factor;
+      const pxTxt = px >= 1 ? px.toFixed(4) : px.toExponential(2);
+      const qtTxt = qt.toLocaleString('en-US', { maximumFractionDigits: 2 });
+      return `<div class="ex-libro-fila"><span class="px">${pxTxt}</span><span class="qt">${qtTxt}</span></div>`;
+    };
+    compra.innerHTML = (d.bids || []).slice(0, 5).map(fila).join('');
+    venta.innerHTML = (d.asks || []).slice(0, 5).map(fila).join('');
+  } catch (e) {
+    if (libro) libro.style.display = 'none';
+  }
 }
 
 /* Cuatro monedas populares abajo. */
@@ -242,13 +273,46 @@ function pintarPopulares() {
   });
 }
 
-/* ---------- Comprar: abre las 3 opciones ---------- */
+/* ---------- Comprar y barra interactiva ---------- */
 function conectarComprar() {
-  document.getElementById('ex-btn-comprar')?.addEventListener('click', () => abrirOpcionesCompra('todas'));
-  document.getElementById('ex-comprar-final')?.addEventListener('click', () => abrirOpcionesCompra('todas'));
+  // Botón verde grande: usa el modo de la pestaña activa
+  document.getElementById('ex-comprar-final')?.addEventListener('click', () => {
+    abrirOpcionesCompra(modoCompra);
+  });
+  // Botones comprar/cobrar del centro
+  document.getElementById('ex-btn-comprar')?.addEventListener('click', () => {
+    document.getElementById('ex-btn-comprar').classList.add('on');
+    document.getElementById('ex-btn-cobrar').classList.remove('on');
+  });
   document.getElementById('ex-btn-cobrar')?.addEventListener('click', () => {
     toast('Podrás cobrar tus premios aquí cuando el contrato esté activo.');
   });
+
+  // Barra deslizable: al moverla selecciona una de las 4 monedas populares.
+  const linea = document.querySelector('.ex-barra-linea');
+  const punto = document.querySelector('.ex-barra-punto');
+  if (linea && punto) {
+    let arrastrando = false;
+    const pops = ['BNB', 'USDT', 'BTCB', 'ETH'];
+    const mover = (clientX) => {
+      const rect = linea.getBoundingClientRect();
+      let pct = (clientX - rect.left) / rect.width;
+      pct = Math.max(0, Math.min(1, pct));
+      punto.style.left = (pct * 100) + '%';
+      // Selección por tramo
+      const idx = Math.min(pops.length - 1, Math.round(pct * (pops.length - 1)));
+      if (pops[idx] !== sel) cargarMoneda(pops[idx]);
+    };
+    const iniciar = (e) => { arrastrando = true; mover((e.touches ? e.touches[0] : e).clientX); };
+    const seguir = (e) => { if (arrastrando) mover((e.touches ? e.touches[0] : e).clientX); };
+    const soltar = () => { arrastrando = false; };
+    linea.addEventListener('mousedown', iniciar);
+    document.addEventListener('mousemove', seguir);
+    document.addEventListener('mouseup', soltar);
+    linea.addEventListener('touchstart', iniciar, { passive: true });
+    document.addEventListener('touchmove', seguir, { passive: true });
+    document.addEventListener('touchend', soltar);
+  }
 }
 
 function abrirOpcionesCompra(cual) {
