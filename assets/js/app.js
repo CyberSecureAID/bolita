@@ -18,6 +18,7 @@ import { MONEDAS, LISTA_MONEDAS, formatear, partirSaldo, enUnidadPequena } from 
 import { CHARADA, FAMILIAS, pad2, nombreDe } from './charada.js';
 import { versoDelDia } from './versos.js';
 import { proximaTirada, cuentaAtras, fechaHora } from './draws.js';
+import { resultadoOficial, leerPick3 } from './florida.js';
 import { lanzarConfeti } from './confetti.js';
 import * as wallet from './wallet.js';
 import { ICONOS, ponerIcono } from './icons.js';
@@ -597,14 +598,15 @@ function pintarUltima() { /* sin elemento en la página actual */ }
 function crearBolas(numeros = null) {
   const host = $('balls');
   host.innerHTML = '';
-  // Números de muestra para ver cómo quedan hasta que haya sorteo real
-  const demo = numeros ?? [7, 28, 54, 3, 91];
-  for (let i = 0; i < 5; i++) {
-    const b = document.createElement('div');
-    b.className = 'bola' + (i === 0 ? ' es-fijo' : '');
-    b.innerHTML = `<span class="bola-n">${pad2(demo[i])}</span>`;
-    host.appendChild(b);
-  }
+  // Muestra tipo fijo (3 dígitos, el primero tenue) hasta que haya
+  // resultado oficial. Ej: 4 · 46
+  const demo = numeros ?? [4, 4, 6];
+  const tag = $('drum-tag');
+  if (tag) tag.textContent = 'Fijo';
+  host.innerHTML = `
+    <div class="bola tenue"><span class="bola-n">${demo[0]}</span></div>
+    <div class="bola es-fijo"><span class="bola-n">${demo[1]}</span></div>
+    <div class="bola es-fijo"><span class="bola-n">${demo[2]}</span></div>`;
 }
 
 async function jugar() {
@@ -621,8 +623,12 @@ async function jugar() {
   S.girando = true;
   pintarRejilla(); pintarBoleta();
 
-  crearBolas();
-  const bolas = $$('.bola');
+  // Sorteo simulado: 5 bolas girando
+  const host = $('balls');
+  host.innerHTML = Array.from({ length: 5 },
+    (_, i) => `<div class="bola${i === 0 ? ' es-fijo' : ''}"><span class="bola-n">00</span></div>`
+  ).join('');
+  const bolas = $$('#balls .bola');
   bolas.forEach((b) => b.classList.add('spin'));
   $('draw-name').textContent = '';
   $('draw-name').className = 'do-name';
@@ -897,3 +903,124 @@ function init() {
 }
 
 init();
+
+/* ================================================================== */
+/* Resultados oficiales de Florida en los bombos apilados             */
+/* ================================================================== */
+
+// Guarda las lecturas de mediodía y noche del día
+const oficial = { dia: null, noche: null, turnoVista: 'noche' };
+
+/**
+ * Pinta un bombo de "fijo": tres dígitos del Pick 3, el primero transparente.
+ * Ej: Pick3 446 -> muestra 4(tenue)46
+ */
+function pintarFijo(r) {
+  const host = $('balls');
+  const tag = $('drum-tag');
+  if (tag) tag.textContent = 'Fijo';
+
+  if (!r) { crearBolas(); return; }
+
+  const [d0, d1, d2] = r.pick3;
+  // Tres bolas: la primera (primer dígito del Pick 3) va tenue; las dos
+  // siguientes forman el fijo y van a plena luz.
+  host.innerHTML = `
+    <div class="bola tenue"><span class="bola-n">${d0}</span></div>
+    <div class="bola es-fijo"><span class="bola-n">${d1}</span></div>
+    <div class="bola es-fijo"><span class="bola-n">${d2}</span></div>`;
+  $('draw-name').textContent = '';
+}
+
+/** Bolas pequeñas con una lista de pares ("31","59"...). */
+function pintarBolasPeq(hostId, pares) {
+  const host = $(hostId);
+  if (!host) return;
+  host.innerHTML = pares.map((p) =>
+    `<div class="bola"><span class="bola-n">${p}</span></div>`
+  ).join('');
+}
+
+/** Rellena todos los bombos con la lectura de un turno. */
+function pintarResultado(r) {
+  pintarFijo(r);
+
+  const corr = $('drum-corridos');
+  const parl = $('drum-parles');
+  const cand = $('drum-candado');
+  const nota = $('oficial-nota');
+
+  if (!r) {
+    [corr, parl, cand, nota].forEach((e) => e && (e.hidden = true));
+    return;
+  }
+
+  pintarBolasPeq('balls-corridos', r.corridos);
+  corr.hidden = false;
+
+  $('parles-grid').innerHTML = r.parles.map((p) => {
+    const [a, b] = p.split('·');
+    return `<span class="parle-par">
+      <span class="bola"><span class="bola-n">${a}</span></span>
+      <span class="parle-sep">·</span>
+      <span class="bola"><span class="bola-n">${b}</span></span>
+    </span>`;
+  }).join('');
+  parl.hidden = false;
+
+  pintarBolasPeq('balls-candado', r.candado);
+  cand.hidden = false;
+
+  if (r.fecha) {
+    nota.textContent = `Tirada oficial · ${r.turno === 'dia' ? 'Mediodía' : 'Noche'} · ${r.fecha}`;
+    nota.hidden = false;
+  }
+}
+
+/** Cambia entre mediodía y noche. */
+function verTurno(turno) {
+  oficial.turnoVista = turno;
+  $$('.turno-btn').forEach((b) => b.classList.toggle('on', b.dataset.turno === turno));
+  pintarResultado(oficial[turno]);
+}
+
+/**
+ * Pide el resultado oficial al puente y actualiza los bombos. Si no hay
+ * puente configurado o falla, deja los bombos de muestra sin romper nada.
+ */
+async function cargarOficial() {
+  let datos = null;
+  try { datos = await resultadoOficial(); } catch { datos = null; }
+
+  if (!datos || !datos.historial?.length) {
+    $('turnos').hidden = true;
+    return;
+  }
+
+  // Tomar la última de cada turno
+  oficial.dia = datos.historial.find((r) => r.turno === 'dia') ?? null;
+  oficial.noche = datos.historial.find((r) => r.turno === 'noche') ?? null;
+
+  // Mostrar el selector solo si hay al menos un turno
+  const hayDia = Boolean(oficial.dia);
+  const hayNoche = Boolean(oficial.noche);
+  $('turnos').hidden = !(hayDia && hayNoche);
+
+  $$('.turno-btn').forEach((b) => {
+    const t = b.dataset.turno;
+    b.disabled = t === 'dia' ? !hayDia : !hayNoche;
+  });
+
+  // Ver por defecto el turno más reciente disponible
+  const inicial = hayNoche ? 'noche' : 'dia';
+  verTurno(inicial);
+}
+
+// Botones de turno
+$$('.turno-btn').forEach((b) =>
+  b.addEventListener('click', () => { if (!b.disabled) verTurno(b.dataset.turno); })
+);
+
+// Cargar al arrancar y refrescar cada minuto por si sale una tirada nueva
+cargarOficial();
+setInterval(cargarOficial, 60000);
