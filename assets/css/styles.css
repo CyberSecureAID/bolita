@@ -1832,7 +1832,7 @@ body {
 .ex-libro-fila .qt { color: var(--gold-soft); }
 
 /* Acción: botón grande arriba con degradado verde->rojo */
-.ex-accion { margin-top: 18px; }
+.ex-accion { margin-top: 18px; text-align: center; }
 .ex-comprar-final {
   width: 100%; font-family: var(--display); font-weight: 700; font-size: 16px;
   color: #14210A; padding: 16px; border: none; border-radius: 14px; cursor: pointer;
@@ -1841,14 +1841,17 @@ body {
 }
 .ex-comprar-final:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(46,232,106,.3); }
 
-.ex-fav-txt {
-  font-family: var(--sans); font-size: 12px; color: var(--gold-soft);
-  text-align: center; margin: 18px 0 0;
+.ex-fav-cap {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--display); font-weight: 600; font-size: 12.5px;
+  color: var(--gold);
+  background: linear-gradient(180deg, rgba(232,184,75,.12), rgba(232,184,75,.04));
+  border: 1px solid rgba(232,184,75,.4); border-radius: 100px;
+  padding: 8px 16px; margin: 20px auto 12px; width: fit-content;
 }
-.ex-swap-abajo { display: flex; justify-content: center; margin: 8px 0; }
-.ex-swap-abajo span {
-  width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
-  background: var(--bg-2); border: 1px solid var(--line); color: var(--gold); font-size: 15px;
+.ex-fav-cap span {
+  display: grid; place-items: center; width: 18px; height: 18px;
+  border-radius: 50%; background: rgba(232,184,75,.2); font-size: 11px;
 }
 
 .ex-populares { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -1910,9 +1913,16 @@ body {
   .ex-tabs { order: 3; width: 100%; justify-content: space-between; }
   .ex-tab { flex: 1; padding: 8px 6px; }
   .ex-libro { grid-template-columns: 1fr; gap: 10px; }
+  /* Lista de monedas en móvil: VERTICAL, una debajo de otra, con scroll */
   .ex-monedas-pop {
     width: calc(100vw - 60px); max-width: none; left: 0;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+    max-height: 260px; overflow-y: auto;
   }
   .ex-populares { grid-template-columns: repeat(2, 1fr); }
+  .ex-accion { text-align: center; }
 }
+
+/* Textos del exchange más dorados (no grises) */
+.ex-par-txt small, .exp-info small, .ex-mmv span { color: #E8C56A; }
+.ex-precio-usd-lbl { font-family: var(--mono); font-size: 11px; color: #E8C56A; }
