@@ -25,6 +25,7 @@ import { pintarCompra } from './comprar.js';
 import * as wallet from './wallet.js';
 import { ICONOS, ponerIcono } from './icons.js';
 import { logoDe, precios, enDolares } from './prices.js';
+import * as contrato from './contrato.js';
 
 const EXPOSICION_BPS = 2000;
 
@@ -170,6 +171,123 @@ async function cargarPrecios() {
   try {
     S.precios = await precios();
     pintarSaldo();
+  } finally {
+    cargar(false);
+  }
+}
+
+/* ================================================================== */
+/* Ganancias — panel de retirar (lee el contrato real)                 */
+/* ================================================================== */
+
+// Saldos ganados por moneda (lo que el contrato debe al jugador), en decimal.
+S.ganancias = {};
+
+/**
+ * Lee del contrato cuánto tiene ganado el jugador en cada moneda y repinta
+ * el panel. Silencioso: si la wallet no está o la red es otra, oculta el panel
+ * sin molestar.
+ */
+async function refrescarGanancias() {
+  const cuenta = wallet.cuentaActual();
+  const wrap = $('win-wrap');
+  if (!wrap) return;
+
+  if (!cuenta || !wallet.esRedCorrecta()) {
+    S.ganancias = {};
+    wrap.hidden = true;
+    return;
+  }
+
+  try {
+    S.ganancias = await contrato.saldosRetirables(cuenta);
+  } catch {
+    S.ganancias = {};
+  }
+  pintarGanancias();
+}
+
+/** Pinta las filas del panel. Oculta todo el panel si no hay nada que cobrar. */
+function pintarGanancias() {
+  const wrap = $('win-wrap');
+  const lista = $('win-list');
+  if (!wrap || !lista) return;
+
+  // Monedas con saldo ganado > 0, de mayor a menor.
+  const conSaldo = LISTA_MONEDAS
+    .map((m) => ({ m, monto: S.ganancias[m.id] ?? 0 }))
+    .filter((x) => x.monto > 0)
+    .sort((a, b) => b.monto - a.monto);
+
+  if (conSaldo.length === 0) {
+    wrap.hidden = true;
+    lista.innerHTML = '';
+    return;
+  }
+
+  wrap.hidden = false;
+  lista.innerHTML = '';
+
+  for (const { m, monto } of conSaldo) {
+    const logo = logoDe(m.id);
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'win-row';
+    row.dataset.moneda = m.id;
+
+    const montoTxt = formatear(monto, m, { conSimbolo: true });
+
+    row.innerHTML =
+      (logo
+        ? `<img class="wr-logo" src="${logo}" alt="${m.simbolo}" onerror="this.style.display='none'">`
+        : `<span class="wr-logo" style="display:grid;place-items:center;color:${m.color}">${m.icono}</span>`) +
+      `<span class="wr-mid">
+         <span class="wr-sim">${m.simbolo}</span>
+         <span class="wr-sub">Ganado · listo para cobrar</span>
+       </span>
+       <span class="wr-monto">${montoTxt}</span>
+       <span class="wr-cta">Cobrar</span>`;
+
+    row.addEventListener('click', () => cobrarGanancia(m, row));
+    lista.appendChild(row);
+  }
+}
+
+/** Cobra (retira) el saldo ganado de una moneda tocando su fila. */
+async function cobrarGanancia(moneda, row) {
+  const cuenta = wallet.cuentaActual();
+  if (!cuenta) { pulsarConectar(); return; }
+
+  if (!wallet.esRedCorrecta()) {
+    try { await wallet.cambiarARedCorrecta(); }
+    catch { aviso('Cambia a BNB Chain para cobrar', true); return; }
+  }
+
+  if (row.classList.contains('cobrando')) return;   // evitar doble toque
+  row.classList.add('cobrando');
+  row.disabled = true;
+  const cta = row.querySelector('.wr-cta');
+  const ctaPrev = cta ? cta.textContent : '';
+  if (cta) cta.textContent = 'Cobrando…';
+
+  cargar(true);
+  try {
+    const hash = await contrato.retirar(cuenta, moneda);
+    aviso('Cobro enviado, esperando confirmación…');
+    await contrato.esperarRecibo(hash);
+    aviso(`¡Cobrado! ${formatear(S.ganancias[moneda.id] ?? 0, moneda)}`);
+    lanzarConfeti();
+    await refrescarGanancias();   // el saldo de esa moneda ya debe ser 0
+  } catch (e) {
+    const msg = e?.message === 'TX_FALLIDA'
+      ? 'La transacción fue rechazada por el contrato'
+      : e?.code === 4001 || /reject/i.test(e?.message || '')
+      ? 'Cancelaste el cobro'
+      : 'No se pudo completar el cobro. Intenta de nuevo.';
+    aviso(msg, true);
+    row.classList.remove('cobrando');
+    row.disabled = false;
+    if (cta) cta.textContent = ctaPrev;
   } finally {
     cargar(false);
   }
@@ -948,8 +1066,8 @@ function init() {
   });
   $('btn-play').addEventListener('click', jugar);
 
-  wallet.alCambiar(() => { pintarWallet(); cargarSaldos(); });
-  wallet.reconectarSiProcede().then(() => { pintarWallet(); cargarSaldos(); });
+  wallet.alCambiar(() => { pintarWallet(); cargarSaldos(); refrescarGanancias(); });
+  wallet.reconectarSiProcede().then(() => { pintarWallet(); cargarSaldos(); refrescarGanancias(); });
 
   pintarTodo();
 }
