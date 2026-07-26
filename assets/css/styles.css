@@ -1865,17 +1865,6 @@ body {
 .ex-pop img { width: 26px; height: 26px; border-radius: 50%; }
 .ex-pop b { font-family: var(--display); font-size: 12px; color: var(--gold); }
 
-/* Barra de retirar (fuera, en la cabecera) */
-.ex-retirar-barra { padding: 12px 18px 0; }
-.ex-retirar {
-  width: 100%; font-family: var(--display); font-weight: 600; font-size: 13.5px;
-  color: var(--gold); cursor: pointer;
-  background: linear-gradient(180deg, rgba(232,184,75,.12), rgba(232,184,75,.04));
-  border: 1px solid rgba(232,184,75,.4); border-radius: 12px; padding: 12px;
-  transition: all .15s;
-}
-.ex-retirar:hover { border-color: var(--gold); background: rgba(232,184,75,.16); }
-
 /* Transición al cambiar de pestaña */
 .ex-flash { animation: exFlash .32s ease; }
 @keyframes exFlash {
@@ -1943,4 +1932,145 @@ body {
   flex: 1; font-family: var(--display); font-weight: 700; font-size: 14px;
   color: #14210A; background: linear-gradient(180deg, #F7E8B8, var(--gold));
   border: none; border-radius: 100px; padding: 12px; cursor: pointer;
+}
+
+/* ================================================================== */
+/* PANEL DE GANANCIAS / RETIRAR  (cristal dorado)                      */
+/* Aparece entre el banner y "Para jugar" solo cuando hay saldo ganado */
+/* ================================================================== */
+
+.win-wrap {
+  max-width: 900px;
+  margin: 18px auto 4px;
+  padding: 0 16px;
+}
+
+.win-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 18px 18px 16px;
+  /* Cristal: fondo translúcido + desenfoque de lo que hay detrás */
+  background:
+    linear-gradient(135deg, rgba(232,184,75,.14), rgba(232,184,75,.04) 42%, rgba(11,36,25,.55)),
+    rgba(8,28,21,.55);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid rgba(232,184,75,.38);
+  box-shadow:
+    0 8px 30px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.10),
+    inset 0 0 22px rgba(232,184,75,.06);
+}
+
+/* Halo dorado que respira, para que "se vea vivo" cuando hay premio */
+.win-glow {
+  position: absolute;
+  inset: -40% -20% auto -20%;
+  height: 180px;
+  background: radial-gradient(60% 100% at 50% 0%,
+    rgba(232,184,75,.28), transparent 70%);
+  filter: blur(8px);
+  pointer-events: none;
+  animation: winRespira 3.2s ease-in-out infinite;
+}
+@keyframes winRespira {
+  0%, 100% { opacity: .55; transform: translateY(0); }
+  50%      { opacity: 1;   transform: translateY(6px); }
+}
+
+.win-head {
+  position: relative;
+  display: flex; align-items: center; gap: 9px;
+  margin-bottom: 12px;
+}
+.win-ic {
+  color: var(--gold);
+  font-size: 16px;
+  text-shadow: 0 0 12px rgba(232,184,75,.7);
+}
+.win-title {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  font-size: 13.5px;
+  color: #F7E8B8;
+}
+
+.win-list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Cada fila = una moneda con saldo ganado (es un botón: cobra al tocar) */
+.win-row {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 13px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0));
+  border: 1px solid rgba(232,184,75,.28);
+  transition: transform .12s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.win-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(232,184,75,.6);
+  box-shadow: 0 6px 18px rgba(0,0,0,.35), 0 0 16px rgba(232,184,75,.12);
+}
+.win-row:active { transform: translateY(0); }
+.win-row:disabled { opacity: .55; cursor: default; transform: none; box-shadow: none; }
+
+.win-row .wr-logo {
+  width: 30px; height: 30px; border-radius: 50%;
+  object-fit: cover; flex-shrink: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+.win-row .wr-mid { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.win-row .wr-sim {
+  font-family: var(--display); font-weight: 700; font-size: 14px;
+  color: #F7E8B8;
+}
+.win-row .wr-sub { font-size: 11px; color: var(--ink-3); }
+
+/* El monto ganado, en grande y dorado, en la MONEDA en que se ganó */
+.win-row .wr-monto {
+  margin-left: auto;
+  font-family: var(--display); font-weight: 700; font-size: 17px;
+  color: transparent;
+  background: linear-gradient(180deg, #F7E8B8, var(--gold) 55%, #B8912F);
+  -webkit-background-clip: text; background-clip: text;
+  white-space: nowrap;
+}
+
+/* Etiqueta "Cobrar" que aparece a la derecha en hover */
+.win-row .wr-cta {
+  margin-left: 12px;
+  font-family: var(--display); font-weight: 700; font-size: 11px;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--bg);
+  background: linear-gradient(180deg, #F7E8B8, var(--gold) 55%, #B8912F);
+  padding: 5px 10px; border-radius: 8px;
+  flex-shrink: 0;
+}
+.win-row.cobrando .wr-cta { opacity: .6; }
+
+.win-note {
+  position: relative;
+  margin: 12px 2px 2px;
+  font-size: 11.5px; color: var(--gold-soft);
+  text-align: center;
+}
+
+@media (max-width: 620px) {
+  .win-card { padding: 15px 14px 13px; border-radius: 16px; }
+  .win-row .wr-monto { font-size: 15px; }
+  .win-row .wr-cta { display: none; }  /* en móvil el toque ya cobra */
 }
