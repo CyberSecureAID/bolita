@@ -714,12 +714,14 @@ function pintarBoleta() {
   // el contrato devuelve menos y aquí se refleja. Es asíncrono: primero se ve
   // el estimado de arriba y en un instante se ajusta al valor real.
   if (r.reparto.length > 0 && wallet.cuentaActual() && wallet.esRedCorrecta()) {
-    const jug = r.reparto[0];                 // representa el pago por número
+    const jug = r.reparto[0];
     const modoCod = contrato.codigoModo(jug.modo.id);
-    const montoUnit = jug.apuestaUnit;        // lo que va a cada número real
+    // El contrato divide internamente (terminal /10, parlé /2). Por eso se le
+    // pasa el MONTO de la casilla completo, no la unidad ya dividida.
+    const montoCasilla = jug.monto;
     const moneda = S.moneda;
     const seq = (S._pagoSeq = (S._pagoSeq || 0) + 1);
-    contrato.calcularPremio(moneda, modoCod, montoUnit)
+    contrato.calcularPremio(moneda, modoCod, montoCasilla)
       .then((premioReal) => {
         if (seq !== S._pagoSeq) return;
         if (premioReal > 0 && S.moneda === moneda) {
