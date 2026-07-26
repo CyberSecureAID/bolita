@@ -153,6 +153,24 @@
     </div>
   </header>
 
+  <!-- ══════════ PANEL DE GANANCIAS / RETIRAR ══════════ -->
+  <!-- Oculto por defecto: aparece solo cuando el jugador tiene saldo ganado
+       en el contrato. Estilo cristal dorado. -->
+  <section class="win-wrap" id="win-wrap" hidden>
+    <div class="win-card" id="win-card">
+      <div class="win-glow" aria-hidden="true"></div>
+      <div class="win-head">
+        <span class="win-ic" aria-hidden="true">✦</span>
+        <span class="win-title">Tus ganancias</span>
+      </div>
+
+      <!-- Lista de saldos ganados, una línea por moneda -->
+      <div class="win-list" id="win-list"></div>
+
+      <p class="win-note" id="win-note">Toca una moneda para cobrar tu premio.</p>
+    </div>
+  </section>
+
   <!-- ══════════ FLUJO ══════════ -->
   <section class="sec" id="jugar">
     <div class="sec-head"><h2>Para jugar</h2></div>
@@ -514,10 +532,6 @@
       <button class="ex-tab" data-tab="cuba" type="button">Desde Cuba</button>
     </div>
     <button class="ex-x modal-close" type="button" aria-label="Cerrar">✕</button>
-  </div>
-
-  <div class="ex-retirar-barra">
-    <button class="ex-retirar" id="ex-retirar" type="button">💰 Retirar ganancia</button>
   </div>
 
   <div class="ex-scroll">
