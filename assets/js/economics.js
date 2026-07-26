@@ -37,20 +37,20 @@ export const MODOS = {
     id: 'terminal',
     nombre: 'Terminales',
     corto: 'Terminal',
-    descripcion: 'Un dígito. Sale si el fijo termina en él.',
-    multiplicador: 8,
+    descripcion: 'Un dígito. Ganas si el fijo termina en él.',
+    multiplicador: 1.5,        // apuestas 10, recoges 15
     probabilidad: 1 / 10,
     seleccion: 1,
     rango: 10,
     resultados: 10,
-    factorPago: 1        // multiplica el tope de pago de la moneda
+    factorPago: 1
   },
   fijo: {
     id: 'fijo',
     nombre: 'Número solo',
     corto: 'Número',
-    descripcion: 'Un número del 00 al 99. Sale si aparece entre los cinco.',
-    multiplicador: 16,
+    descripcion: 'Un número del 00 al 99. Ganas si sale como fijo.',
+    multiplicador: 2,          // duplica: apuestas 10, recoges 20
     probabilidad: 5 / 100,
     seleccion: 1,
     rango: 100,
@@ -61,14 +61,12 @@ export const MODOS = {
     id: 'parle',
     nombre: 'Parlé',
     corto: 'Parlé',
-    descripcion: 'Dos números. Tienen que salir los dos.',
-    multiplicador: 400,
+    descripcion: 'Dos números. Ganas si ambos salen ese día.',
+    multiplicador: 3,          // apuestas 10, recoges 30
     probabilidad: 10 / 4950,
     seleccion: 2,
     rango: 100,
     resultados: 4950,
-    // El parlé existe para pagar más: se le deja un techo mayor, o su cupo
-    // quedaría por debajo del mínimo de apuesta y nunca se podría jugar.
     factorPago: 4
   }
 };
@@ -162,81 +160,37 @@ export function repartir(jugadas, total, moneda, banca, exposureBps) {
     return { reparto: [], asignado: 0, sobrante: total, pagoMaximo: 0, avisos };
   }
 
-  // 1. Separar las que llevan importe fijado a mano
+  // Reparto LIBRE, sin topes ni cupos. La persona apuesta lo que quiera; el
+  // contrato es quien luego paga la ganancia según la liquidez que haya (y si
+  // no alcanza, paga lo que pueda; el capital del jugador nunca se le quita si
+  // gana). Aquí solo repartimos el importe entre las jugadas.
+
+  // 1. Las jugadas con importe fijado a mano se respetan tal cual.
   const fijadas = jugadas.filter((j) => typeof j.fijado === 'number' && j.fijado > 0);
   const libres  = jugadas.filter((j) => !(typeof j.fijado === 'number' && j.fijado > 0));
 
   const reparto = [];
   let asignado = 0;
 
-  // 2. Las fijadas se respetan, recortadas a su cupo
   for (const j of fijadas) {
-    const tope = topeApuesta(banca, exposureBps, j.modo, moneda).valor;
-    const libre = Math.max(0, tope - (j.yaApostado ?? 0));
-    const monto = Math.min(j.fijado, libre);
-    const recortada = monto < j.fijado - 1e-12;
-    if (recortada) avisos.push(`${j.clave}: recortada al cupo`);
-    if (monto >= moneda.minApuesta) {
-      reparto.push({ ...j, monto, pago: pagoDe(monto, j.modo), recortada });
-      asignado += monto;
-    } else if (monto > 0) {
-      avisos.push(`${j.clave}: por debajo del mínimo, se descarta`);
-    }
+    const monto = j.fijado;
+    reparto.push({ clave: j.clave, modo: j.modo, yaApostado: j.yaApostado, monto, pago: pagoDe(monto, j.modo), recortada: false });
+    asignado += monto;
   }
 
-  // 3. El resto se reparte entre las libres
-  let bolsa = Math.max(0, total - asignado);
-
+  // 2. El resto se reparte EQUITATIVAMENTE entre las libres.
+  //    (10 dólares a 5 números = 2 cada uno.)
+  const bolsa = Math.max(0, total - asignado);
   if (libres.length > 0 && bolsa > 0) {
-    // Reparto iterativo: lo que sobra de una jugada tope se reparte otra vez
-    let pendientes = libres.map((j) => ({
-      ...j,
-      tope: Math.max(0, topeApuesta(banca, exposureBps, j.modo, moneda).valor - (j.yaApostado ?? 0)),
-      monto: 0
-    }));
-
-    let vueltas = 0;
-    while (bolsa > 1e-12 && pendientes.some((j) => j.monto < j.tope) && vueltas < 12) {
-      const activas = pendientes.filter((j) => j.monto < j.tope - 1e-12);
-      if (activas.length === 0) break;
-
-      const cuota = bolsa / activas.length;
-      let repartidoEnVuelta = 0;
-
-      for (const j of activas) {
-        const cabe = Math.min(cuota, j.tope - j.monto);
-        j.monto += cabe;
-        repartidoEnVuelta += cabe;
-      }
-
-      bolsa -= repartidoEnVuelta;
-      if (repartidoEnVuelta < 1e-12) break;
-      vueltas++;
-    }
-
-    for (const j of pendientes) {
-      if (j.monto >= moneda.minApuesta) {
-        reparto.push({
-          clave: j.clave, modo: j.modo, yaApostado: j.yaApostado,
-          monto: j.monto, pago: pagoDe(j.monto, j.modo),
-          recortada: j.monto >= j.tope - 1e-12
-        });
-        asignado += j.monto;
-      } else if (j.monto > 0) {
-        bolsa += j.monto;
-        avisos.push(`${j.clave}: por debajo del mínimo`);
-      }
+    const cuota = bolsa / libres.length;
+    for (const j of libres) {
+      reparto.push({ clave: j.clave, modo: j.modo, yaApostado: j.yaApostado, monto: cuota, pago: pagoDe(cuota, j.modo), recortada: false });
+      asignado += cuota;
     }
   }
 
   const pagoMaximo = reparto.reduce((mx, r) => Math.max(mx, r.pago), 0);
-  const sobrante = Math.max(0, total - asignado);
-
-  if (sobrante > 1e-9) {
-    avisos.push('Sobra importe: los cupos no admiten más en este sorteo.');
-  }
-
-  return { reparto, asignado, sobrante, pagoMaximo, avisos };
+  return { reparto, asignado, sobrante: 0, pagoMaximo, avisos };
 }
 
 /* ================================================================== */

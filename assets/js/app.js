@@ -332,25 +332,21 @@ function pintarRejilla() {
     ? 'De dos en dos · puedes marcar varios pares'
     : 'Puedes marcar varios';
 
-  const tp = topeApuesta(banca(), EXPOSICION_BPS, m, S.moneda);
   $('pb-info').innerHTML = S.seleccion.length
-    ? `<b>${S.seleccion.length}</b> ${S.seleccion.length === 1 ? 'jugada' : 'jugadas'} · cupo por jugada <b>${fmt(tp.valor)}</b>`
-    : `Cupo por jugada <b>${fmt(tp.valor)}</b> · paga hasta <b>${fmt(tp.valor * m.multiplicador)}</b>`;
+    ? `<b>${S.seleccion.length}</b> ${S.seleccion.length === 1 ? 'jugada seleccionada' : 'jugadas seleccionadas'}`
+    : `Marca los números que quieras jugar`;
 
-  const tope = topeApuesta(banca(), EXPOSICION_BPS, m, S.moneda).valor;
   const marcados = new Set(S.seleccion.flatMap((s) => s.valores));
   const pendiente = S.pendienteParle ?? [];
 
-  // Recalcular qué números están limitados (solo modos de resultado individual)
+  // Los números limitados reales vendrán del contrato (numeroLimitado por
+  // moneda) cuando esté desplegado. Por ahora no marcamos ninguno como lleno:
+  // se apuesta libremente.
   S.limitados = [];
 
   for (let i = 0; i < m.rango; i++) {
     const clave = m.rango === 10 ? String(i) : pad2(i);
-    const usado = ocupadoDe(clave);
-    const pct = tope > 0 ? Math.min(100, (usado / tope) * 100) : 0;
-    const limitado = m.id !== 'parle' && pct >= 99.5;
-
-    if (limitado) S.limitados.push(i);
+    const limitado = false;
 
     const b = document.createElement('button');
     b.type = 'button';
@@ -460,7 +456,7 @@ function pintarSeleccion() {
     chip.className = 'sel' + (s.fijado ? ' fijada' : '') + (info ? '' : ' fuera');
     chip.innerHTML = `
       <span class="sel-k">${s.clave}</span>
-      <span class="sel-m">${info ? fmt(info.monto, { conSimbolo: false }) : 'sin cupo'}</span>
+      <span class="sel-m">${info ? fmt(info.monto, { conSimbolo: false }) : '—'}</span>
       ${info ? `<span class="sel-p">→ ${fmt(info.pago, { conSimbolo: false })}</span>` : ''}
       <button class="sel-fix" title="Fijar importe">${ICONOS.lapiz(11)}</button>
       <button class="sel-x" title="Quitar">${ICONOS.cerrar(11)}</button>
@@ -487,20 +483,43 @@ function pintarSeleccion() {
 
 function fijarImporte(s) {
   const actual = s.fijado ?? '';
-  const txt = prompt(
-    `Importe fijo para ${s.clave} en ${S.moneda.simbolo}\n` +
-    `(vacío para que vuelva al reparto automático)\n` +
-    `Mínimo ${fmt(S.moneda.minApuesta)}`,
-    actual
-  );
-  if (txt === null) return;
+  let modal = document.getElementById('m-importe');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'm-importe';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div class="modal-box importe-box">
+      <h3>Importe para ${s.clave}</h3>
+      <p class="sub">en ${S.moneda.simbolo} · déjalo vacío para volver al reparto automático</p>
+      <input type="number" inputmode="decimal" step="any" min="0" class="importe-input" id="importe-input" placeholder="0.00" value="${actual}">
+      <div class="importe-btns">
+        <button class="modal-close" type="button">Cancelar</button>
+        <button class="importe-ok" id="importe-ok" type="button">Aplicar</button>
+      </div>
+    </div>`;
+  modal.classList.add('open');
 
-  const v = parseFloat(txt);
-  if (!txt.trim() || isNaN(v) || v <= 0) delete s.fijado;
-  else s.fijado = v;
+  const input = modal.querySelector('#importe-input');
+  input.focus();
 
-  pintarSeleccion();
-  pintarBoleta();
+  const aplicar = () => {
+    const txt = input.value;
+    const v = parseFloat(txt);
+    if (!String(txt).trim() || isNaN(v) || v <= 0) delete s.fijado;
+    else s.fijado = v;
+    modal.classList.remove('open');
+    pintarSeleccion();
+    pintarBoleta();
+  };
+  const cerrar = () => modal.classList.remove('open');
+
+  modal.querySelector('#importe-ok').addEventListener('click', aplicar);
+  modal.querySelector('.modal-close').addEventListener('click', cerrar);
+  modal.addEventListener('click', (e) => { if (e.target === modal) cerrar(); });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') aplicar(); });
 }
 
 function pintarBoleta() {
@@ -787,8 +806,7 @@ function pintarTablas() {
   if (!S.moneda) return;
   const t1 = $('tabla-topes'), t2 = $('tabla-pagos');
   const filas = LISTA_MODOS.map((m) => {
-    const t = topeApuesta(banca(), EXPOSICION_BPS, m, S.moneda);
-    return `<tr><td>${m.nombre} · ${m.multiplicador}×</td><td>${fmt(t.valor)} → ${fmt(t.valor * m.multiplicador)}</td></tr>`;
+    return `<tr><td>${m.nombre}</td><td>${m.multiplicador}× lo apostado</td></tr>`;
   }).join('');
   t1.innerHTML = filas;
   t2.innerHTML = LISTA_MODOS.map((m) =>
