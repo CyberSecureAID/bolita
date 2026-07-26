@@ -781,6 +781,14 @@ function crearBolas(numeros = null) {
 
 async function jugar() {
   if (!wallet.cuentaActual()) { pulsarConectar(); return; }
+  if (S.girando) return;
+
+  const cuenta = wallet.cuentaActual();
+
+  if (!wallet.esRedCorrecta()) {
+    try { await wallet.cambiarARedCorrecta(); }
+    catch { aviso('Cambia a BNB Chain para apostar', true); return; }
+  }
 
   const total = parseFloat($('monto').value) || 0;
   const r = repartir(
@@ -789,84 +797,115 @@ async function jugar() {
   );
   if (r.reparto.length === 0) return;
 
-  const mias = r.reparto.map((x) => ({ ...x, valores: S.seleccion.find((s) => s.clave === x.clave).valores }));
+  // Cada entrada del reparto lleva su monto ya calculado; le añadimos los
+  // números reales de la jugada para mandarlos al contrato.
+  const jugadas = r.reparto
+    .map((x) => ({ ...x, valores: S.seleccion.find((s) => s.clave === x.clave)?.valores }))
+    .filter((x) => x.valores && x.monto > 0);
+
+  if (jugadas.length === 0) return;
+
+  // ---- idTirada automático: fecha + turno del próximo sorteo de Florida ----
+  const prox = proximaTirada(new Date());
+  const idTirada = contrato.idTiradaDe(prox.sorteo, prox.tirada.id);
+
+  // La tirada tiene que estar ABIERTA en el contrato. Si no lo está, avisamos
+  // con claridad en vez de mandar una apuesta que el contrato rechazaría.
+  let abierta = false;
+  cargar(true);
+  try { abierta = await contrato.sePuedeApostar(idTirada); }
+  catch { abierta = false; }
+  finally { cargar(false); }
+
+  if (!abierta) {
+    aviso('La tirada de este sorteo aún no está abierta. Prueba en unos minutos.', true);
+    return;
+  }
+
   S.girando = true;
   pintarRejilla(); pintarBoleta();
 
-  // Sorteo simulado: 5 bolas girando
-  const host = $('balls');
-  host.innerHTML = Array.from({ length: 5 },
-    (_, i) => `<div class="bola${i === 0 ? ' es-fijo' : ''}"><span class="bola-n">00</span></div>`
-  ).join('');
-  const bolas = $$('#balls .bola');
-  bolas.forEach((b) => b.classList.add('spin'));
-  $('draw-name').textContent = '';
-  $('draw-name').className = 'do-name';
+  // ---- approve (solo una vez, si la moneda es token y no basta el permiso) --
+  const esToken = S.moneda.address !== null;
+  let enviadas = 0;
+  let fallidas = 0;
 
-  const spin = setInterval(() => bolas.forEach((b) => {
-    const sp = b.querySelector('.bola-n') || b;
-    sp.textContent = pad2(Math.floor(Math.random() * 100));
-  }), 70);
-  await new Promise((r2) => setTimeout(r2, 1500));
-  clearInterval(spin);
-
-  const salidos = [];
-  while (salidos.length < 5) {
-    const n = Math.floor(Math.random() * 100);
-    if (!salidos.includes(n)) salidos.push(n);
-  }
-
-  for (let i = 0; i < 5; i++) {
-    await new Promise((r2) => setTimeout(r2, 360));
-    bolas[i].classList.remove('spin');
-    (bolas[i].querySelector('.bola-n') || bolas[i]).textContent = pad2(salidos[i]);
-    if (i === 0) bolas[i].classList.add('first');
-  }
-
-  const fijo = salidos[0];
-  let cobrado = 0;
-
-  for (const j of mias) {
-    let acierta = false;
-    if (j.modo.id === 'terminal') {
-      acierta = (fijo % 10) === j.valores[0];
-      if (acierta) bolas[0].classList.add('hit');
-    } else if (j.modo.id === 'fijo') {
-      const p = salidos.indexOf(j.valores[0]);
-      acierta = p >= 0;
-      if (acierta) bolas[p].classList.add('hit');
-    } else {
-      const ps = j.valores.map((v) => salidos.indexOf(v));
-      acierta = ps.every((p) => p >= 0);
-      if (acierta) ps.forEach((p) => bolas[p].classList.add('hit'));
+  try {
+    if (esToken) {
+      // Autoriza el total de esta ronda de una sola vez.
+      const totalBase = contrato.aBase(
+        jugadas.reduce((a, j) => a + j.monto, 0).toFixed(S.moneda.decimals),
+        S.moneda.decimals
+      );
+      aviso('Autoriza el gasto en tu wallet…');
+      cargar(true);
+      try {
+        const hAppr = await contrato.approve(cuenta, S.moneda, totalBase);
+        await contrato.esperarRecibo(hAppr);
+      } finally { cargar(false); }
     }
-    if (acierta) cobrado += j.pago;
+
+    // ---- una transacción de apuesta por jugada ----
+    for (const j of jugadas) {
+      const modo = j.modo.id;
+      const cod = contrato.codigoModo(modo);
+
+      // numeroA / numeroB según el modo:
+      //   terminal -> un dígito 0-9 en A, B=0
+      //   fijo     -> un número 0-99 en A, B=0
+      //   parlé    -> dos números 0-99 en A y B
+      let numeroA, numeroB;
+      if (modo === 'parle') {
+        const [a, b] = j.valores;
+        numeroA = a; numeroB = b;
+      } else {
+        numeroA = j.valores[0]; numeroB = 0;
+      }
+
+      const cantidadBase = contrato.aBase(
+        Number(j.monto).toFixed(S.moneda.decimals), S.moneda.decimals
+      );
+
+      aviso(`Confirma la apuesta ${enviadas + fallidas + 1} de ${jugadas.length}…`);
+      cargar(true);
+      try {
+        const hash = await contrato.apostar(cuenta, {
+          idTirada, moneda: S.moneda, modo: cod, numeroA, numeroB, cantidadBase
+        });
+        await contrato.esperarRecibo(hash);
+        enviadas++;
+      } catch (e) {
+        fallidas++;
+        if (e?.code === 4001 || /reject|denied/i.test(e?.message || '')) {
+          aviso('Cancelaste la apuesta', true);
+          break;   // si canceló una firma, no seguimos pidiéndole las demás
+        }
+      } finally { cargar(false); }
+    }
+
+    if (enviadas > 0) {
+      lanzarConfeti();
+      aviso(
+        enviadas === 1
+          ? '¡Apuesta registrada! Espera el sorteo de Florida.'
+          : `¡${enviadas} apuestas registradas! Espera el sorteo de Florida.`
+      );
+    } else if (fallidas > 0) {
+      aviso('No se registró ninguna apuesta.', true);
+    }
+  } catch (e) {
+    const msg = e?.message === 'TX_FALLIDA'
+      ? 'El contrato rechazó la operación'
+      : 'No se pudo completar la apuesta. Intenta de nuevo.';
+    aviso(msg, true);
+  } finally {
+    S.girando = false;
+    S.seleccion = [];
+    S.pendienteParle = [];
+    pintarTodo();
+    // Por si alguna apuesta ya generó saldo pendiente (p. ej. reembolsos):
+    refrescarGanancias();
   }
-
-  S.ultimosNumeros = salidos;
-  S.ultimaEtiqueta = fechaHora(new Date());
-  pintarUltima();
-
-  $('draw-name').textContent = `${pad2(fijo)} · ${nombreDe(fijo)}`;
-
-  if (cobrado > 0) {
-    BANCA[S.moneda.id] -= (cobrado - r.asignado);
-    $('draw-name').className = 'do-name win';
-    $('draw-name').textContent = `¡Cobras ${fmt(cobrado)}!`;
-    lanzarConfeti();
-    aviso(`Ganaste ${fmt(cobrado)}`);
-  } else {
-    BANCA[S.moneda.id] += r.asignado;
-    $('draw-name').className = 'do-name';
-    $('draw-name').textContent = `${pad2(fijo)} · ${nombreDe(fijo)}`;
-  }
-
-  S.ronda += 1;
-  S.seleccion = [];
-  S.pendienteParle = [];
-  S.girando = false;
-  simularOcupado();
-  pintarTodo();
 }
 
 /* ================================================================== */

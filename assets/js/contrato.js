@@ -38,6 +38,8 @@ const SEL = {
   apostar:      '0xfaf38dce',
   // monedas(address) -> struct (leemos activa desde el primer word)
   monedas:      '0x72359d87',
+  // tiradas(uint256) -> struct de la tirada
+  tiradas:      '0xad1aab5f',
   // approve(address,uint256)  [estándar ERC-20, en el contrato del token]
   approve:      '0x095ea7b3'
 };
@@ -226,6 +228,84 @@ export async function apostar(jugador, {
     data,
     value: esNativa ? cantidadBase : undefined
   });
+}
+
+/* ================================================================== */
+/* Identidad de la tirada y mapeo de modos                             */
+/* ================================================================== */
+
+/**
+ * Deriva el idTirada numérico a partir del sorteo (Date en instante real) y
+ * el turno ('dia' | 'noche'). Regla FIJA y automática:
+ *
+ *   id = AAAAMMDD * 10 + (dia:1 | noche:2)   en hora de Florida.
+ *
+ * Ejemplo: sorteo del 26/07/2026 mediodía -> 202607261
+ *          sorteo del 26/07/2026 noche    -> 202607262
+ *
+ * La web y el owner usan ESTA MISMA regla, así nunca se descuadran: el owner
+ * abre `abrirTirada(id, cierre)` con el id que esta función produce, y la web
+ * apuesta contra ese mismo id sin intervención manual.
+ */
+export function idTiradaDe(sorteo, turno) {
+  // Fecha en hora de Florida (el sorteo es de la Florida Lottery).
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric', month: '2-digit', day: '2-digit'
+  });
+  const partes = fmt.formatToParts(sorteo);
+  const y = partes.find((p) => p.type === 'year').value;
+  const m = partes.find((p) => p.type === 'month').value;
+  const d = partes.find((p) => p.type === 'day').value;
+  const base = Number(`${y}${m}${d}`);
+  const sufijo = turno === 'noche' ? 2 : 1;
+  return base * 10 + sufijo;
+}
+
+/** Modo de la web -> código del contrato (0=Terminal, 1=Número/fijo, 2=Parlé). */
+export function codigoModo(modoId) {
+  if (modoId === 'terminal') return 0;
+  if (modoId === 'fijo') return 1;
+  if (modoId === 'parle') return 2;
+  throw new Error('MODO_DESCONOCIDO: ' + modoId);
+}
+
+/**
+ * Lee del contrato el estado de una tirada. Devuelve un objeto con lo que
+ * necesita la web para decidir si se puede apostar.
+ *   tiradas(uint256) -> (existe, resuelta, cierre, fijo, terminal, corrido1,
+ *                        corrido2, cancelada)
+ */
+export async function estadoTirada(id) {
+  const data = SEL.tiradas + encUint(id);
+  const hex = await leer(DIRECCION_CONTRATO, data);
+  if (!hex || hex === '0x') return null;
+
+  const words = hex.replace(/^0x/, '').match(/.{64}/g) || [];
+  const bool = (w) => BigInt('0x' + w) !== 0n;
+  const num = (w) => Number(BigInt('0x' + w));
+
+  return {
+    existe: bool(words[0]),
+    resuelta: bool(words[1]),
+    cierre: num(words[2]),      // timestamp unix
+    fijo: num(words[3]),
+    terminal: num(words[4]),
+    corrido1: num(words[5]),
+    corrido2: num(words[6]),
+    cancelada: bool(words[7])
+  };
+}
+
+/**
+ * ¿Se puede apostar YA en esta tirada? True solo si existe, no está resuelta
+ * ni cancelada, y aún no llegó su hora de cierre.
+ */
+export async function sePuedeApostar(id) {
+  const t = await estadoTirada(id);
+  if (!t || !t.existe || t.resuelta || t.cancelada) return false;
+  const ahora = Math.floor(Date.now() / 1000);
+  return t.cierre === 0 || ahora < t.cierre;
 }
 
 /* ================================================================== */
