@@ -40,6 +40,12 @@ const SEL = {
   monedas:      '0x72359d87',
   // tiradas(uint256) -> struct de la tirada
   tiradas:      '0xad1aab5f',
+  // calcularPremio(address,uint8,uint256) -> premio real topado por banca
+  calcularPremio: '0xe180ff41',
+  // apuestasDe(uint256,uint256) -> una apuesta por índice
+  apuestasDe:   '0x5949591f',
+  // totalApuestas(uint256) -> cuántas apuestas hay en la tirada
+  totalApuestas: '0x459e0618',
   // approve(address,uint256)  [estándar ERC-20, en el contrato del token]
   approve:      '0x095ea7b3'
 };
@@ -228,6 +234,81 @@ export async function apostar(jugador, {
     data,
     value: esNativa ? cantidadBase : undefined
   });
+}
+
+/**
+ * Premio REAL que pagaría el contrato por una apuesta, ya topado por la banca
+ * disponible de esa moneda. Es lo que la web muestra para ser transparente: si
+ * hay poca banca, el premio (y el multiplicador efectivo) baja solo. Nunca
+ * limita la apuesta, solo informa.
+ * @returns {Promise<number>} premio en unidades decimales de la moneda
+ */
+export async function calcularPremio(moneda, modoCod, importeDecimal) {
+  const importeBase = aBase(
+    Number(importeDecimal).toFixed(moneda.decimals), moneda.decimals
+  );
+  if (importeBase <= 0n) return 0;
+  const data = SEL.calcularPremio + encAddr(dirToken(moneda)) + encUint(modoCod) + encUint(importeBase);
+  const hex = await leer(DIRECCION_CONTRATO, data);
+  if (!hex || hex === '0x') return 0;
+  return desdeBase(hex, moneda.decimals);
+}
+
+/**
+ * Lee las apuestas que un jugador hizo en una tirada. Recorre la lista de la
+ * tirada y se queda con las de esa wallet. Devuelve datos ya legibles para
+ * mostrar: modo, números, importe y premio potencial (todo en decimal).
+ *
+ * @returns {Promise<Array<{modo,numeroA,numeroB,importe,premio,token,tokenId}>>}
+ */
+export async function misApuestas(jugador, idTirada) {
+  // 1) cuántas apuestas hay en la tirada
+  const totHex = await leer(DIRECCION_CONTRATO, SEL.totalApuestas + encUint(idTirada));
+  const total = (!totHex || totHex === '0x') ? 0 : Number(BigInt(totHex));
+  if (total === 0) return [];
+
+  const jugadorLc = jugador.toLowerCase();
+  const mias = [];
+
+  // 2) recorrer y filtrar por jugador
+  for (let i = 0; i < total; i++) {
+    const data = SEL.apuestasDe + encUint(idTirada) + encUint(i);
+    let hex;
+    try { hex = await leer(DIRECCION_CONTRATO, data); } catch { continue; }
+    if (!hex || hex === '0x') continue;
+
+    const w = hex.replace(/^0x/, '').match(/.{64}/g) || [];
+    // Orden del struct Apuesta:
+    // 0 jugador, 1 token, 2 importe, 3 premio, 4 reserva, 5 modo, 6 numeroA,
+    // 7 numeroB, 8 liquidada
+    const dirJugador = '0x' + w[0].slice(24);
+    if (dirJugador.toLowerCase() !== jugadorLc) continue;
+
+    const tokenDir = '0x' + w[1].slice(24);
+    const mon = monedaPorDireccion(tokenDir);
+    const dec = mon ? mon.decimals : 18;
+
+    mias.push({
+      tokenId: mon ? mon.id : null,
+      token: tokenDir,
+      importe: desdeBase('0x' + w[2], dec),
+      premio:  desdeBase('0x' + w[3], dec),
+      modo:    Number(BigInt('0x' + w[5])),   // 0 term, 1 número, 2 parlé
+      numeroA: Number(BigInt('0x' + w[6])),
+      numeroB: Number(BigInt('0x' + w[7])),
+      liquidada: BigInt('0x' + w[8]) !== 0n
+    });
+  }
+  return mias;
+}
+
+/** Busca una moneda de tokens.js por su dirección (address(0) = BNB). */
+function monedaPorDireccion(dir) {
+  const d = dir.toLowerCase();
+  if (d === CERO) return MONEDAS.BNB;
+  return Object.values(MONEDAS).find(
+    (m) => m.address && m.address.toLowerCase() === d
+  ) || null;
 }
 
 /* ================================================================== */

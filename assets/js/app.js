@@ -177,7 +177,67 @@ async function cargarPrecios() {
 }
 
 /* ================================================================== */
-/* Ganancias — panel de retirar (lee el contrato real)                 */
+/* Mis apuestas de la tirada actual (leídas del contrato)              */
+/* ================================================================== */
+
+const NOMBRE_MODO = { 0: 'Terminal', 1: 'Número', 2: 'Parlé' };
+
+/** Lee del contrato las apuestas del jugador en la tirada actual y las pinta. */
+async function refrescarMisApuestas() {
+  const sec = $('mis-apuestas');
+  if (!sec) return;
+
+  const cuenta = wallet.cuentaActual();
+  if (!cuenta || !wallet.esRedCorrecta()) { sec.hidden = true; return; }
+
+  const prox = proximaTirada(new Date());
+  const idTirada = contrato.idTiradaDe(prox.sorteo, prox.tirada.id);
+
+  let apuestas = [];
+  try { apuestas = await contrato.misApuestas(cuenta, idTirada); }
+  catch { apuestas = []; }
+
+  pintarMisApuestas(apuestas, prox);
+}
+
+function pintarMisApuestas(apuestas, prox) {
+  const sec = $('mis-apuestas');
+  const lista = $('ma-lista');
+  const vacio = $('ma-vacio');
+  const sub = $('ma-sub');
+  if (!sec || !lista) return;
+
+  sec.hidden = false;
+
+  const turno = prox?.tirada?.nombre ? `Tirada de ${prox.tirada.nombre}` : 'Tirada actual';
+  if (sub) sub.textContent = `${turno} · esperando el sorteo`;
+
+  if (!apuestas.length) {
+    lista.innerHTML = '';
+    if (vacio) vacio.hidden = false;
+    return;
+  }
+  if (vacio) vacio.hidden = true;
+
+  lista.innerHTML = apuestas.map((a) => {
+    const mon = a.tokenId ? MONEDAS[a.tokenId] : null;
+    const nums = a.modo === 2
+      ? `<span class="ma-n">${pad2(a.numeroA)}</span><span class="ma-n">${pad2(a.numeroB)}</span>`
+      : `<span class="ma-n">${a.modo === 0 ? a.numeroA : pad2(a.numeroA)}</span>`;
+    const imp = mon ? formatear(a.importe, mon) : a.importe;
+    const prem = mon ? formatear(a.premio, mon) : a.premio;
+    return `
+      <div class="ma-row">
+        <span class="ma-modo">${NOMBRE_MODO[a.modo] ?? '—'}</span>
+        <div class="ma-mid">
+          <div class="ma-nums">${nums}</div>
+          <span class="ma-imp">Apostaste ${imp}</span>
+        </div>
+        <span class="ma-premio">${prem}<small>SI ACIERTAS</small></span>
+      </div>`;
+  }).join('');
+}
+
 /* ================================================================== */
 
 // Saldos ganados por moneda (lo que el contrato debe al jugador), en decimal.
@@ -480,29 +540,12 @@ function pintarRejilla() {
   pintarLimitados();
 }
 
-/** Sección de números limitados: vacía hasta que alguno se llena. */
+/** La sección de números limitados se retiró (ya no hay límites). No-op. */
 function pintarLimitados() {
   const vacio = $('lim-vacio');
   const grid = $('limitados-grid');
-
-  const hayModo = S.modo && S.modo.id !== 'parle';
-
-  if (!hayModo || S.limitados.length === 0) {
-    vacio.style.display = 'block';
-    vacio.textContent = S.modo?.id === 'parle'
-      ? 'El parlé son combinaciones de dos números: no se limita por número suelto.'
-      : 'Ahora mismo no hay números limitados. Se puede jugar a todos.';
-    grid.innerHTML = '';
-    return;
-  }
-
-  vacio.style.display = 'none';
-  grid.innerHTML = S.limitados.map((i) => {
-    const et = S.modo.rango === 10 ? String(i) : pad2(i);
-    return `<div class="lim-num" title="${nombreDe(i)} · cerrado">
-      <span class="num-n">${et}</span>
-    </div>`;
-  }).join('');
+  if (vacio) vacio.style.display = 'none';
+  if (grid) grid.innerHTML = '';
 }
 
 function marcar(n) {
@@ -664,6 +707,29 @@ function pintarBoleta() {
   $('i-pago').textContent = r.pagoMaximo > 0
     ? fmt(r.pagoMaximo) + (enUnidadPequena(r.pagoMaximo, S.moneda) ? ` · ${enUnidadPequena(r.pagoMaximo, S.moneda)}` : '')
     : '—';
+
+  // PAGO EN VIVO: pregunta al contrato el premio REAL (topado por la banca de
+  // esa moneda) por el monto de UNA jugada. No limita nada: solo muestra la
+  // cifra transparente. Si la banca no alcanza para el multiplicador pleno,
+  // el contrato devuelve menos y aquí se refleja. Es asíncrono: primero se ve
+  // el estimado de arriba y en un instante se ajusta al valor real.
+  if (r.reparto.length > 0 && wallet.cuentaActual() && wallet.esRedCorrecta()) {
+    const jug = r.reparto[0];                 // todas apuestan el mismo monto
+    const modoCod = contrato.codigoModo(jug.modo.id);
+    const montoUno = jug.monto;
+    const moneda = S.moneda;
+    const seq = (S._pagoSeq = (S._pagoSeq || 0) + 1);
+    contrato.calcularPremio(moneda, modoCod, montoUno)
+      .then((premioReal) => {
+        // Ignora respuestas viejas (si el usuario ya cambió algo).
+        if (seq !== S._pagoSeq) return;
+        if (premioReal > 0 && S.moneda === moneda) {
+          $('i-pago').textContent = formatear(premioReal, moneda) +
+            (enUnidadPequena(premioReal, moneda) ? ` · ${enUnidadPequena(premioReal, moneda)}` : '');
+        }
+      })
+      .catch(() => { /* si falla, se queda el estimado; nunca bloquea */ });
+  }
 
   $('avisos').innerHTML = r.avisos.length
     ? r.avisos.map((a) => `<div class="av">${a}</div>`).join('')
@@ -891,6 +957,7 @@ async function jugar() {
     pintarTodo();
     // Por si alguna apuesta ya generó saldo pendiente (p. ej. reembolsos):
     refrescarGanancias();
+    refrescarMisApuestas();   // mostrar de inmediato lo que acaba de apostar
   }
 }
 
@@ -1090,8 +1157,8 @@ function init() {
   });
   $('btn-play').addEventListener('click', jugar);
 
-  wallet.alCambiar(() => { pintarWallet(); cargarSaldos(); refrescarGanancias(); });
-  wallet.reconectarSiProcede().then(() => { pintarWallet(); cargarSaldos(); refrescarGanancias(); });
+  wallet.alCambiar(() => { pintarWallet(); cargarSaldos(); refrescarGanancias(); refrescarMisApuestas(); });
+  wallet.reconectarSiProcede().then(() => { pintarWallet(); cargarSaldos(); refrescarGanancias(); refrescarMisApuestas(); });
 
   pintarTodo();
 }
