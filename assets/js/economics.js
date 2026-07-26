@@ -41,6 +41,7 @@ export const MODOS = {
     multiplicador: 90,         // apuestas 1, recoges 90 (incluye tu apuesta)
     probabilidad: 1 / 10,
     seleccion: 1,
+    numerosPorSeleccion: 10,   // un terminal abarca 10 números reales (8,18,28...)
     rango: 10,
     resultados: 10,
     factorPago: 1
@@ -53,6 +54,7 @@ export const MODOS = {
     multiplicador: 100,        // apuestas 1, recoges 100 (incluye tu apuesta)
     probabilidad: 5 / 100,
     seleccion: 1,
+    numerosPorSeleccion: 1,    // un número es 1 solo
     rango: 100,
     resultados: 100,
     factorPago: 1.5
@@ -65,6 +67,7 @@ export const MODOS = {
     multiplicador: 1000,       // apuestas 1, recoges 1000 (incluye tu apuesta)
     probabilidad: 10 / 4950,
     seleccion: 2,
+    numerosPorSeleccion: 1,    // un parlé es 1 combinación
     rango: 100,
     resultados: 4950,
     factorPago: 4
@@ -134,26 +137,25 @@ export function margen(modo) {
 /* ================================================================== */
 
 /**
- * APUESTA POR NÚMERO (monto completo, no dividido)
+ * REPARTO ALINEADO CON EL CONTRATO
  *
- * El usuario marca varias jugadas y pone un importe. Ese importe es lo que se
- * apuesta EN CADA número, no el total repartido. Marcar 5 terminales y poner
- * 100 = apostar 100 a cada uno (500 en total). Así se juega en Cuba: cada
- * número lleva su propia apuesta completa.
+ * El importe puesto se reparte a partes iguales entre las CASILLAS marcadas.
+ * Lo que la web manda al contrato por cada casilla es ese trozo; el CONTRATO
+ * hace el resto de la división internamente:
+ *   - Terminal: el contrato divide el trozo entre los 10 números del terminal.
+ *   - Número:   va completo a ese número.
+ *   - Parlé:    el contrato lo divide entre los 2 números del par.
  *
- * Sin topes ni cupos: la persona apuesta lo que quiera. El contrato es quien
- * paga la ganancia según la liquidez que haya; si no alcanza, paga lo que
- * pueda, y el capital del jugador nunca se pierde si gana.
+ * Ej. marco 2 terminales y pongo 10 → 5 a cada terminal → el contrato reparte
+ *     cada 5 entre 10 = 0.5 por número. Si sale uno, cobro 0.5 * 90 = 45.
+ * Ej. marco el número 46 y pongo 10 → 10 al 46 → cobro 10 * 100 = 1000.
+ * Ej. marco un parlé y pongo 10 → el contrato usa 10/2 = 5 por número → cobro
+ *     5 * 1000 = 5000.
  *
- * Si una jugada tiene importe fijado a mano (fijado), se respeta ese en vez
- * del importe general.
+ * Sin topes ni cupos. `monto` es lo que se ENVÍA al contrato por esa casilla.
+ * `pago` es lo que cobraría si sale (ya considerando la división interna).
  *
- * @returns {{
- *   reparto: Array<{clave, modo, monto, pago, recortada:boolean}>,
- *   asignado: number,        // suma total apostada (importe * nº de jugadas)
- *   sobrante: number,
- *   pagoMaximo: number, avisos: string[]
- * }}
+ * @returns {{ reparto, asignado, sobrante, pagoMaximo, avisos }}
  */
 export function repartir(jugadas, total, moneda, banca, exposureBps) {
   const avisos = [];
@@ -161,16 +163,32 @@ export function repartir(jugadas, total, moneda, banca, exposureBps) {
     return { reparto: [], asignado: 0, sobrante: 0, pagoMaximo: 0, avisos };
   }
 
+  // Las casillas con importe fijado a mano se respetan; el resto se reparte.
+  const fijadas = jugadas.filter((j) => typeof j.fijado === 'number' && j.fijado > 0);
+  const libres  = jugadas.filter((j) => !(typeof j.fijado === 'number' && j.fijado > 0));
+
+  let usadoFijo = 0;
+  for (const j of fijadas) usadoFijo += j.fijado;
+  const bolsa = Math.max(0, total - usadoFijo);
+  const trozo = libres.length > 0 ? bolsa / libres.length : 0;
+
   const reparto = [];
   let asignado = 0;
 
   for (const j of jugadas) {
-    // Cada número apuesta el monto COMPLETO (o su importe fijado a mano).
-    const monto = (typeof j.fijado === 'number' && j.fijado > 0) ? j.fijado : total;
+    const esFija = typeof j.fijado === 'number' && j.fijado > 0;
+    const monto = esFija ? j.fijado : trozo;   // lo que se envía al contrato
     if (monto <= 0) continue;
+
+    // Divisor interno del contrato: terminal /10, parlé /2, número /1.
+    const div = j.modo.id === 'terminal' ? 10 : (j.modo.id === 'parle' ? 2 : 1);
+    const unit = monto / div;                  // lo que queda por número
     reparto.push({
       clave: j.clave, modo: j.modo, yaApostado: j.yaApostado,
-      monto, pago: pagoDe(monto, j.modo), recortada: false
+      monto,                        // se ENVÍA al contrato (calldata)
+      apuestaUnit: unit,            // por número real
+      pago: pagoDe(unit, j.modo),   // cobra si sale UN número
+      recortada: false
     });
     asignado += monto;
   }
