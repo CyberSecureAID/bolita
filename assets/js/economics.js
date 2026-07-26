@@ -38,7 +38,7 @@ export const MODOS = {
     nombre: 'Terminales',
     corto: 'Terminal',
     descripcion: 'Un dígito. Ganas si el fijo termina en él.',
-    multiplicador: 1.5,        // apuestas 10, recoges 15
+    multiplicador: 90,         // apuestas 1, recoges 90 (incluye tu apuesta)
     probabilidad: 1 / 10,
     seleccion: 1,
     rango: 10,
@@ -50,7 +50,7 @@ export const MODOS = {
     nombre: 'Número solo',
     corto: 'Número',
     descripcion: 'Un número del 00 al 99. Ganas si sale como fijo.',
-    multiplicador: 2,          // duplica: apuestas 10, recoges 20
+    multiplicador: 100,        // apuestas 1, recoges 100 (incluye tu apuesta)
     probabilidad: 5 / 100,
     seleccion: 1,
     rango: 100,
@@ -62,7 +62,7 @@ export const MODOS = {
     nombre: 'Parlé',
     corto: 'Parlé',
     descripcion: 'Dos números. Ganas si ambos salen ese día.',
-    multiplicador: 3,          // apuestas 10, recoges 30
+    multiplicador: 1000,       // apuestas 1, recoges 1000 (incluye tu apuesta)
     probabilidad: 10 / 4950,
     seleccion: 2,
     rango: 100,
@@ -134,59 +134,45 @@ export function margen(modo) {
 /* ================================================================== */
 
 /**
- * REPARTO AUTOMÁTICO
+ * APUESTA POR NÚMERO (monto completo, no dividido)
  *
- * El usuario marca varias jugadas y pone un importe total. Se reparte a
- * partes iguales, respetando el mínimo de la moneda y el cupo de cada una.
+ * El usuario marca varias jugadas y pone un importe. Ese importe es lo que se
+ * apuesta EN CADA número, no el total repartido. Marcar 5 terminales y poner
+ * 100 = apostar 100 a cada uno (500 en total). Así se juega en Cuba: cada
+ * número lleva su propia apuesta completa.
  *
- * Si alguna jugada tiene un importe fijado a mano, ese se respeta y el resto
- * se reparte entre las demás.
+ * Sin topes ni cupos: la persona apuesta lo que quiera. El contrato es quien
+ * paga la ganancia según la liquidez que haya; si no alcanza, paga lo que
+ * pueda, y el capital del jugador nunca se pierde si gana.
  *
- * @param {Array<{clave:string, modo:object, yaApostado:number, fijado?:number}>} jugadas
- * @param {number} total       importe total que quiere jugar
- * @param {object} moneda
- * @param {number} banca
- * @param {number} exposureBps
+ * Si una jugada tiene importe fijado a mano (fijado), se respeta ese en vez
+ * del importe general.
  *
  * @returns {{
  *   reparto: Array<{clave, modo, monto, pago, recortada:boolean}>,
- *   asignado: number, sobrante: number,
+ *   asignado: number,        // suma total apostada (importe * nº de jugadas)
+ *   sobrante: number,
  *   pagoMaximo: number, avisos: string[]
  * }}
  */
 export function repartir(jugadas, total, moneda, banca, exposureBps) {
   const avisos = [];
   if (jugadas.length === 0) {
-    return { reparto: [], asignado: 0, sobrante: total, pagoMaximo: 0, avisos };
+    return { reparto: [], asignado: 0, sobrante: 0, pagoMaximo: 0, avisos };
   }
-
-  // Reparto LIBRE, sin topes ni cupos. La persona apuesta lo que quiera; el
-  // contrato es quien luego paga la ganancia según la liquidez que haya (y si
-  // no alcanza, paga lo que pueda; el capital del jugador nunca se le quita si
-  // gana). Aquí solo repartimos el importe entre las jugadas.
-
-  // 1. Las jugadas con importe fijado a mano se respetan tal cual.
-  const fijadas = jugadas.filter((j) => typeof j.fijado === 'number' && j.fijado > 0);
-  const libres  = jugadas.filter((j) => !(typeof j.fijado === 'number' && j.fijado > 0));
 
   const reparto = [];
   let asignado = 0;
 
-  for (const j of fijadas) {
-    const monto = j.fijado;
-    reparto.push({ clave: j.clave, modo: j.modo, yaApostado: j.yaApostado, monto, pago: pagoDe(monto, j.modo), recortada: false });
+  for (const j of jugadas) {
+    // Cada número apuesta el monto COMPLETO (o su importe fijado a mano).
+    const monto = (typeof j.fijado === 'number' && j.fijado > 0) ? j.fijado : total;
+    if (monto <= 0) continue;
+    reparto.push({
+      clave: j.clave, modo: j.modo, yaApostado: j.yaApostado,
+      monto, pago: pagoDe(monto, j.modo), recortada: false
+    });
     asignado += monto;
-  }
-
-  // 2. El resto se reparte EQUITATIVAMENTE entre las libres.
-  //    (10 dólares a 5 números = 2 cada uno.)
-  const bolsa = Math.max(0, total - asignado);
-  if (libres.length > 0 && bolsa > 0) {
-    const cuota = bolsa / libres.length;
-    for (const j of libres) {
-      reparto.push({ clave: j.clave, modo: j.modo, yaApostado: j.yaApostado, monto: cuota, pago: pagoDe(cuota, j.modo), recortada: false });
-      asignado += cuota;
-    }
   }
 
   const pagoMaximo = reparto.reduce((mx, r) => Math.max(mx, r.pago), 0);

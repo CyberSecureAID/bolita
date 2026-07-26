@@ -410,18 +410,8 @@ function claveDe(valores, modo) {
 function ocupadoDe(clave) { return S.ocupado[clave] ?? 0; }
 
 function simularOcupado() {
-  if (!S.modo || !S.moneda) return;
+  // Con apuestas reales no hay "ocupado" simulado: nadie se limita.
   S.ocupado = {};
-  const tope = topeApuesta(banca(), EXPOSICION_BPS, S.modo, S.moneda).valor;
-
-  if (S.modo.id === 'parle') return;   // demasiadas combinaciones
-
-  for (let i = 0; i < S.modo.rango; i++) {
-    if (Math.random() < 0.45) {
-      const clave = S.modo.rango === 10 ? String(i) : pad2(i);
-      S.ocupado[clave] = Math.random() * tope * 0.7;
-    }
-  }
 }
 
 function pintarRejilla() {
@@ -692,10 +682,6 @@ function pintarBoleta() {
   }
   if (r.reparto.length === 0) {
     btn.disabled = true; btn.textContent = 'Sube el importe o quita jugadas'; return;
-  }
-  if (total > S.moneda.maxPorPersona) {
-    btn.disabled = true;
-    btn.textContent = `Máximo por persona: ${fmt(S.moneda.maxPorPersona)}`; return;
   }
 
   btn.disabled = S.girando;
@@ -1012,7 +998,6 @@ function pintarQuick() {
   const min = S.moneda.minApuesta;
   for (const k of [5, 10, 25]) {
     const v = min * k;
-    if (v > S.moneda.maxPorPersona) continue;
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'q';
