@@ -1927,3 +1927,20 @@ body {
 /* Textos del exchange más dorados (no grises) */
 .ex-par-txt small, .exp-info small, .ex-mmv span { color: #E8C56A; }
 .ex-precio-usd-lbl { font-family: var(--mono); font-size: 11px; color: #E8C56A; }
+
+/* Modal de editar importe (reemplaza el prompt del navegador) */
+.importe-box { max-width: 360px; text-align: center; }
+.importe-input {
+  width: 100%; box-sizing: border-box; margin: 14px 0;
+  font-family: var(--mono); font-size: 20px; text-align: center;
+  color: var(--gold); background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: 12px; padding: 14px;
+}
+.importe-input:focus { outline: none; border-color: var(--gold); }
+.importe-btns { display: flex; gap: 10px; }
+.importe-btns .modal-close { flex: 1; margin: 0; }
+.importe-ok {
+  flex: 1; font-family: var(--display); font-weight: 700; font-size: 14px;
+  color: #14210A; background: linear-gradient(180deg, #F7E8B8, var(--gold));
+  border: none; border-radius: 100px; padding: 12px; cursor: pointer;
+}
