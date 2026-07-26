@@ -2074,3 +2074,59 @@ body {
   .win-row .wr-monto { font-size: 15px; }
   .win-row .wr-cta { display: none; }  /* en móvil el toque ya cobra */
 }
+
+/* ================================================================== */
+/* MIS APUESTAS (de la tirada actual)                                  */
+/* ================================================================== */
+
+.ma-sub {
+  font-family: var(--mono); font-size: 12px; color: var(--gold-soft);
+  margin: -4px 2px 12px;
+}
+.ma-lista { display: flex; flex-direction: column; gap: 9px; }
+
+.ma-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: 13px;
+  background: linear-gradient(180deg, rgba(46,232,106,.05), rgba(255,255,255,0));
+  border: 1px solid var(--line);
+}
+.ma-row .ma-modo {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-3);
+  border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px;
+  flex-shrink: 0;
+}
+.ma-row .ma-nums { display: flex; gap: 6px; flex-wrap: wrap; }
+.ma-row .ma-n {
+  font-family: var(--display); font-weight: 700; font-size: 16px;
+  color: var(--neon-lit);
+  min-width: 30px; height: 30px; padding: 0 6px;
+  display: grid; place-items: center;
+  background: var(--panel-2); border: 1px solid var(--line-soft);
+  border-radius: 8px;
+}
+.ma-row .ma-mid { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ma-row .ma-imp { font-size: 11px; color: var(--ink-2); }
+.ma-row .ma-premio {
+  margin-left: auto; text-align: right; white-space: nowrap;
+  font-family: var(--display); font-weight: 700; font-size: 15px;
+  color: transparent;
+  background: linear-gradient(180deg, #F7E8B8, var(--gold) 55%, #B8912F);
+  -webkit-background-clip: text; background-clip: text;
+}
+.ma-row .ma-premio small {
+  display: block; font-family: var(--mono); font-weight: 400;
+  font-size: 9.5px; letter-spacing: .06em; color: var(--gold-soft);
+  -webkit-text-fill-color: var(--gold-soft);
+}
+.ma-vacio {
+  font-size: 13px; color: var(--ink-3);
+  padding: 14px; text-align: center;
+  border: 1px dashed var(--line); border-radius: 12px;
+}
+
+@media (max-width: 620px) {
+  .ma-row { flex-wrap: wrap; }
+  .ma-row .ma-premio { margin-left: 0; width: 100%; text-align: left; }
+}
