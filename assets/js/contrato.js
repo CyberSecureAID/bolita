@@ -22,7 +22,7 @@
 import { RED, MONEDAS, desdeBase } from './tokens.js';
 
 /** Contrato de La Bolita en BNB Smart Chain (mainnet). */
-export const DIRECCION_CONTRATO = '0x663517598011A6a00fA1e2ab7276BFfDEED92706';
+export const DIRECCION_CONTRATO = '0x964a68D3A2dB18c723581410C49aa8789048E1B9';
 
 /* ================================================================== */
 /* Selectores de función (primeros 4 bytes de keccak256 de la firma).  */
