@@ -66,7 +66,12 @@ function minPorNumeroCripto() {
   return S.moneda.minApuesta ?? 0;
 }
 
-
+/**
+ * Lee el importe del input y lo devuelve SIEMPRE en cripto (unidades de la
+ * moneda), sin importar si el usuario lo escribió en CUP o en cripto.
+ * Todo el resto del código trabaja en cripto; esta es la única traducción.
+ */
+function totalEnCripto() {
   const escrito = parseFloat($('monto').value) || 0;
   if (escrito <= 0 || !S.moneda) return 0;
   if (CUP.verEnCUP()) {
@@ -453,14 +458,17 @@ function elegirMoneda(m) {
 function actualizarVistaImporte() {
   const m = S.moneda;
   if (!m) return;
+  const amt = document.querySelector('.amt');
   if (CUP.verEnCUP()) {
-    $('amt-sym').textContent = CUP.CUP_SIGLA + ' ' + CUP.CUP_ICONO;
+    if (amt) amt.classList.remove('cripto');   // muestra la moneda CUP
+    $('amt-sym').textContent = CUP.CUP_SIGLA;
     $('monto').step = 1;
     $('monto').min = CUP.MIN_CUP;
     // valor inicial sugerido: 700 CUP (~1 USD), si el campo está vacío o en 0
     const actual = parseFloat($('monto').value) || 0;
     if (actual <= 0) $('monto').value = 700;
   } else {
+    if (amt) amt.classList.add('cripto');      // oculta la moneda CUP
     $('amt-sym').textContent = m.simbolo;
     $('monto').step = m.minApuesta;
     $('monto').min = m.minApuesta;
@@ -816,7 +824,7 @@ function pintarBoleta() {
   // reales deja menos del mínimo por número, no se deja apostar y se explica.
   if (r.bajoMinimo) {
     const minTxt = CUP.verEnCUP()
-      ? `${CUP.MIN_CUP} ${CUP.CUP_SIGLA} ${CUP.CUP_ICONO}`
+      ? `${CUP.MIN_CUP} ${CUP.CUP_SIGLA}`
       : formatear(minPorNumeroCripto(), S.moneda);
     // Cuánto tendría que apostar en total para cumplir el mínimo por número.
     const totalMinCripto = minPorNumeroCripto() * r.numerosReales;
@@ -1155,7 +1163,7 @@ function pintarQuick() {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'q';
-      b.textContent = CUP.fmtCUP(v, { conIcono: false });
+      b.textContent = CUP.fmtCUP(v, { conSigla: false });
       b.addEventListener('click', () => {
         $('monto').value = v;
         pintarSeleccion(); pintarBoleta();

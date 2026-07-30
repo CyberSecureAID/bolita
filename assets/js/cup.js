@@ -22,8 +22,10 @@
 
 export const CUP_POR_USD = 700;
 
-/** Icono para representar el CUP en la interfaz. */
-export const CUP_ICONO = '💰';
+/** Ruta del logo de la moneda (peso cubano) y su versión inline pequeña. */
+export const CUP_LOGO = 'assets/img/cup-coin.webp';
+/** Etiqueta HTML del icono pequeño (para poner junto a textos). */
+export const CUP_ICONO = `<img src="${CUP_LOGO}" alt="CUP" class="cup-ic">`;
 export const CUP_SIGLA = 'CUP';
 
 /* ================================================================== */
@@ -66,15 +68,15 @@ export function cupAcripto(cantidadCUP, monedaId, tablaPrecios) {
 /* Formato                                                             */
 /* ================================================================== */
 
-/** Formatea una cantidad de CUP: "1,400 💰" (redondeo limpio). */
-export function fmtCUP(cantidadCUP, { conIcono = true } = {}) {
+/** Formatea una cantidad de CUP: "1,400 CUP" (redondeo limpio, texto plano). */
+export function fmtCUP(cantidadCUP, { conSigla = true } = {}) {
   if (typeof cantidadCUP !== 'number' || isNaN(cantidadCUP)) return '—';
   let txt;
   if (cantidadCUP === 0) txt = '0';
   else if (cantidadCUP < 1) txt = cantidadCUP.toLocaleString('es', { maximumFractionDigits: 2 });
   else if (cantidadCUP < 1000) txt = cantidadCUP.toLocaleString('es', { maximumFractionDigits: 1 });
   else txt = Math.round(cantidadCUP).toLocaleString('es');
-  return conIcono ? `${txt} ${CUP_ICONO}` : txt;
+  return conSigla ? `${txt} ${CUP_SIGLA}` : txt;
 }
 
 /**
