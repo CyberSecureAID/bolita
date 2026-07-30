@@ -2130,3 +2130,24 @@ body {
   .ma-row { flex-wrap: wrap; }
   .ma-row .ma-premio { margin-left: 0; width: 100%; text-align: left; }
 }
+
+/* ================================================================== */
+/* TOGGLE CUP / CRIPTO (vista del importe)                             */
+/* ================================================================== */
+.vista-toggle {
+  display: inline-flex; gap: 4px; margin-bottom: 10px;
+  background: rgba(0,0,0,.28); border: 1px solid var(--line-soft, rgba(255,255,255,.08));
+  border-radius: 10px; padding: 3px;
+}
+.vt-btn {
+  font-family: var(--mono, monospace); font-size: 11.5px; font-weight: 500;
+  color: var(--ink-3, #6C8579); background: transparent; border: none;
+  border-radius: 7px; padding: 6px 12px; cursor: pointer; transition: all .15s;
+  white-space: nowrap;
+}
+.vt-btn:hover { color: var(--ink, #EAF3EE); }
+.vt-btn.activo {
+  color: #06120C;
+  background: linear-gradient(180deg, #F7E8B8, #E8B84B 55%, #B8912F);
+  font-weight: 600;
+}
