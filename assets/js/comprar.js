@@ -196,13 +196,15 @@ function fmtPrecio(p) {
   if (p >= 1) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (p >= 0.01) return p.toFixed(4);
   if (p >= 0.0001) return p.toFixed(6);
-  // Valores ínfimos (Baby Doge): contar ceros y mostrar legible
+  // Valores ínfimos (Baby Doge): forma compacta con subíndice de ceros
+  // (ej. 0.0₉299). Corto, cabe en una línea y no rompe la estética en móvil.
   const s = p.toFixed(20).replace(/0+$/, '');
   const m = s.match(/^0\.(0*)(\d+)/);
   if (m) {
     const ceros = m[1].length;
     const signif = m[2].slice(0, 3);
-    return `0.0…0${signif} (${ceros} ceros)`;
+    const sub = String(ceros).replace(/[0-9]/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[+d]);
+    return `0.0${sub}${signif}`;
   }
   return String(p);
 }

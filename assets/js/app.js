@@ -700,7 +700,20 @@ function pintarSeleccion() {
 }
 
 function fijarImporte(s) {
-  const actual = s.fijado ?? '';
+  // s.fijado se guarda SIEMPRE en cripto (es la unidad que usa repartir()).
+  // Pero el usuario, en vista CUP, escribe y lee en pesos. Aquí se traduce en
+  // los dos sentidos para que el importe fijado a mano se respete tal cual.
+  const enCUP = CUP.verEnCUP();
+  const unidad = enCUP ? CUP.CUP_SIGLA : S.moneda.simbolo;
+  let actual = '';
+  if (typeof s.fijado === 'number' && s.fijado > 0) {
+    if (enCUP) {
+      const enCup = CUP.criptoAcup(s.fijado, S.moneda.id, S.precios);
+      actual = enCup === null ? s.fijado : Math.round(enCup * 100) / 100;
+    } else {
+      actual = s.fijado;
+    }
+  }
   let modal = document.getElementById('m-importe');
   if (!modal) {
     modal = document.createElement('div');
@@ -711,7 +724,7 @@ function fijarImporte(s) {
   modal.innerHTML = `
     <div class="modal-box importe-box">
       <h3>Importe para ${s.clave}</h3>
-      <p class="sub">en ${S.moneda.simbolo} · déjalo vacío para volver al reparto automático</p>
+      <p class="sub">en ${unidad} · déjalo vacío para volver al reparto automático</p>
       <input type="number" inputmode="decimal" step="any" min="0" class="importe-input" id="importe-input" placeholder="0.00" value="${actual}">
       <div class="importe-btns">
         <button class="modal-close" type="button">Cancelar</button>
@@ -726,8 +739,16 @@ function fijarImporte(s) {
   const aplicar = () => {
     const txt = input.value;
     const v = parseFloat(txt);
-    if (!String(txt).trim() || isNaN(v) || v <= 0) delete s.fijado;
-    else s.fijado = v;
+    if (!String(txt).trim() || isNaN(v) || v <= 0) {
+      delete s.fijado;
+    } else if (enCUP) {
+      // El usuario escribió en CUP: pasar a cripto antes de fijar, para que
+      // repartir() lo compare en la misma unidad que el total.
+      const cripto = CUP.cupAcripto(v, S.moneda.id, S.precios);
+      s.fijado = (cripto === null || !(cripto > 0)) ? v : cripto;
+    } else {
+      s.fijado = v;
+    }
     modal.classList.remove('open');
     pintarSeleccion();
     pintarBoleta();
