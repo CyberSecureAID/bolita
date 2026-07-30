@@ -32,6 +32,8 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+/* Guarda anti-desborde: ningún elemento ancho provoca scroll lateral en móvil. */
+html, body { overflow-x: hidden; max-width: 100%; }
 
 body {
   margin: 0;
@@ -1298,7 +1300,7 @@ body {
   .pb-btn { flex: 1; }
 
   /* Bombo */
-  .drum { aspect-ratio: 1400 / 435; padding: 15% 4% 8%; min-height: 0; }
+  .drum { aspect-ratio: 1400 / 435; padding: 10% 4% 14%; min-height: 0; }
   .drum-tag { top: 9px; font-size: 10px; }
   .balls { gap: 8px; }
   .bola { width: clamp(40px, 15vw, 58px); height: clamp(40px, 15vw, 58px); }
@@ -1911,6 +1913,15 @@ body {
   }
   .ex-populares { grid-template-columns: repeat(2, 1fr); }
   .ex-accion { text-align: center; }
+  /* Precio: que se ajuste al ancho y nunca desborde ni se parta en 3 líneas,
+     aunque sea un número con muchos ceros (BabyDoge, EXT...). */
+  .ex-par { flex-wrap: nowrap; }
+  .ex-precio-box { min-width: 0; flex: 1; overflow: hidden; }
+  .ex-precio {
+    font-size: clamp(19px, 6vw, 30px);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ex-mmv b, #ex-max, #ex-min, #ex-vol { word-break: break-word; }
 }
 
 /* Textos del exchange más dorados (no grises) */
