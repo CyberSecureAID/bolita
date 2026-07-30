@@ -157,10 +157,11 @@ export function margen(modo) {
  *
  * @returns {{ reparto, asignado, sobrante, pagoMaximo, avisos }}
  */
-export function repartir(jugadas, total, moneda, banca, exposureBps) {
+export function repartir(jugadas, total, moneda, banca, exposureBps, minPorNumero = 0) {
   const avisos = [];
   if (jugadas.length === 0) {
-    return { reparto: [], asignado: 0, sobrante: 0, pagoMaximo: 0, avisos };
+    return { reparto: [], asignado: 0, sobrante: 0, pagoMaximo: 0, avisos,
+             numerosReales: 0, apuestaPorNumero: 0, bajoMinimo: false };
   }
 
   // Las casillas con importe fijado a mano se respetan; el resto se reparte.
@@ -174,15 +175,23 @@ export function repartir(jugadas, total, moneda, banca, exposureBps) {
 
   const reparto = [];
   let asignado = 0;
+  let numerosReales = 0;      // total de números que abarca la selección
+  let minUnit = Infinity;     // la apuesta por número más baja
 
   for (const j of jugadas) {
     const esFija = typeof j.fijado === 'number' && j.fijado > 0;
     const monto = esFija ? j.fijado : trozo;   // lo que se envía al contrato
     if (monto <= 0) continue;
 
-    // Divisor interno del contrato: terminal /10, parlé /2, número /1.
+    // Cuántos números reales abarca esta casilla (terminal=10, resto=1)
+    // y divisor interno del contrato (terminal /10, parlé /2, número /1).
+    const cobertura = j.modo.numerosPorSeleccion ?? 1;
     const div = j.modo.id === 'terminal' ? 10 : (j.modo.id === 'parle' ? 2 : 1);
     const unit = monto / div;                  // lo que queda por número
+
+    numerosReales += cobertura;
+    if (unit < minUnit) minUnit = unit;
+
     reparto.push({
       clave: j.clave, modo: j.modo, yaApostado: j.yaApostado,
       monto,                        // se ENVÍA al contrato (calldata)
@@ -193,8 +202,15 @@ export function repartir(jugadas, total, moneda, banca, exposureBps) {
     asignado += monto;
   }
 
+  // La apuesta POR NÚMERO (la más baja, que es la que cuenta para el mínimo).
+  const apuestaPorNumero = isFinite(minUnit) ? minUnit : 0;
+
+  // ¿Cae por debajo del mínimo por número? -> avisar.
+  const bajoMinimo = minPorNumero > 0 && apuestaPorNumero > 0 && apuestaPorNumero < minPorNumero;
+
   const pagoMaximo = reparto.reduce((mx, r) => Math.max(mx, r.pago), 0);
-  return { reparto, asignado, sobrante: 0, pagoMaximo, avisos };
+  return { reparto, asignado, sobrante: 0, pagoMaximo, avisos,
+           numerosReales, apuestaPorNumero, bajoMinimo };
 }
 
 /* ================================================================== */

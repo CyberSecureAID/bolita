@@ -55,11 +55,18 @@ const banca = () => (S.moneda ? BANCA[S.moneda.id] ?? 0 : 0);
 const fmt = (n, opts) => (S.moneda ? formatear(n, S.moneda, opts) : '—');
 
 /**
- * Lee el importe del input y lo devuelve SIEMPRE en cripto (unidades de la
- * moneda), sin importar si el usuario lo escribió en CUP o en cripto.
- * Todo el resto del código trabaja en cripto; esta es la única traducción.
+ * Mínimo de apuesta POR NÚMERO, en cripto de la moneda actual.
+ * Parte de 7 CUP (MIN_CUP) y lo convierte a la cripto usando el precio.
+ * Si no hay precio, cae al mínimo del contrato de esa moneda.
  */
-function totalEnCripto() {
+function minPorNumeroCripto() {
+  if (!S.moneda) return 0;
+  const enCripto = CUP.cupAcripto(CUP.MIN_CUP, S.moneda.id, S.precios);
+  if (enCripto && enCripto > 0) return enCripto;
+  return S.moneda.minApuesta ?? 0;
+}
+
+
   const escrito = parseFloat($('monto').value) || 0;
   if (escrito <= 0 || !S.moneda) return 0;
   if (CUP.verEnCUP()) {
@@ -648,7 +655,7 @@ function pintarSeleccion() {
   const total = totalEnCripto();
   const r = repartir(
     S.seleccion.map((s) => ({ ...s, yaApostado: ocupadoDe(s.clave) })),
-    total, S.moneda, banca(), EXPOSICION_BPS
+    total, S.moneda, banca(), EXPOSICION_BPS, minPorNumeroCripto()
   );
 
   const porClave = Object.fromEntries(r.reparto.map((x) => [x.clave, x]));
@@ -739,9 +746,9 @@ function pintarBoleta() {
   if (!S.modo) { btn.disabled = true; btn.textContent = 'Elige un juego'; return; }
 
   const total = totalEnCripto();
-  $('i-jugadas').textContent = String(S.seleccion.length);
 
   if (S.seleccion.length === 0) {
+    $('i-jugadas').textContent = '0';
     btn.disabled = true;
     btn.textContent = S.modo.id === 'parle' ? 'Marca un par de números' : 'Marca al menos un número';
     $('i-reparto').textContent = '—'; $('i-pago').textContent = '—';
@@ -750,11 +757,14 @@ function pintarBoleta() {
 
   const r = repartir(
     S.seleccion.map((s) => ({ ...s, yaApostado: ocupadoDe(s.clave) })),
-    total, S.moneda, banca(), EXPOSICION_BPS
+    total, S.moneda, banca(), EXPOSICION_BPS, minPorNumeroCripto()
   );
 
-  $('i-reparto').textContent = r.reparto.length
-    ? `${mostrarValor(r.asignado)} en ${r.reparto.length}`
+  // "Jugadas" muestra los NÚMEROS REALES (un terminal = 10 números), no casillas.
+  $('i-jugadas').textContent = String(r.numerosReales);
+
+  $('i-reparto').textContent = r.numerosReales > 0
+    ? `${mostrarValor(r.asignado)} en ${r.numerosReales} ${r.numerosReales === 1 ? 'número' : 'números'}`
     : 'nada admitido';
   $('i-pago').textContent = r.pagoMaximo > 0
     ? mostrarValor(r.pagoMaximo)
@@ -800,6 +810,24 @@ function pintarBoleta() {
   }
   if (r.reparto.length === 0) {
     btn.disabled = true; btn.textContent = 'Sube el importe o quita jugadas'; return;
+  }
+
+  // AVISO DE MÍNIMO POR NÚMERO. Si el importe repartido entre todos los números
+  // reales deja menos del mínimo por número, no se deja apostar y se explica.
+  if (r.bajoMinimo) {
+    const minTxt = CUP.verEnCUP()
+      ? `${CUP.MIN_CUP} ${CUP.CUP_SIGLA} ${CUP.CUP_ICONO}`
+      : formatear(minPorNumeroCripto(), S.moneda);
+    // Cuánto tendría que apostar en total para cumplir el mínimo por número.
+    const totalMinCripto = minPorNumeroCripto() * r.numerosReales;
+    const totalMinTxt = mostrarValor(totalMinCripto);
+    $('avisos').innerHTML =
+      `<div class="av av-warn">El mínimo es <b>${minTxt} por número</b>. ` +
+      `Estás jugando <b>${r.numerosReales} números</b>, así que debes apostar ` +
+      `al menos <b>${totalMinTxt}</b> en total. Sube el importe o marca menos números.</div>`;
+    btn.disabled = true;
+    btn.textContent = `Mínimo ${totalMinTxt}`;
+    return;
   }
 
   btn.disabled = S.girando;
@@ -897,9 +925,15 @@ async function jugar() {
   const total = totalEnCripto();
   const r = repartir(
     S.seleccion.map((s) => ({ ...s, yaApostado: ocupadoDe(s.clave) })),
-    total, S.moneda, banca(), EXPOSICION_BPS
+    total, S.moneda, banca(), EXPOSICION_BPS, minPorNumeroCripto()
   );
   if (r.reparto.length === 0) return;
+
+  // Seguridad: no dejar apostar si cae por debajo del mínimo por número.
+  if (r.bajoMinimo) {
+    aviso(`El mínimo es ${CUP.MIN_CUP} ${CUP.CUP_SIGLA} por número. Sube el importe o marca menos números.`, true);
+    return;
+  }
 
   // Cada entrada del reparto lleva su monto ya calculado; le añadimos los
   // números reales de la jugada para mandarlos al contrato.
