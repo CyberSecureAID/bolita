@@ -2151,3 +2151,15 @@ body {
   background: linear-gradient(180deg, #F7E8B8, #E8B84B 55%, #B8912F);
   font-weight: 600;
 }
+
+/* Aviso de mínimo por número (advertencia) */
+.av-warn {
+  background: rgba(232,184,75,.1);
+  border: 1px solid rgba(232,184,75,.35);
+  color: #F7E8B8;
+  border-radius: 10px;
+  padding: 11px 13px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.av-warn b { color: #fff; }
