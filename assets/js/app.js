@@ -25,6 +25,7 @@ import { pintarCompra } from './comprar.js';
 import * as wallet from './wallet.js';
 import { ICONOS, ponerIcono } from './icons.js';
 import { logoDe, precios, enDolares } from './prices.js';
+import * as CUP from './cup.js';
 import * as contrato from './contrato.js';
 
 const EXPOSICION_BPS = 2000;
@@ -52,6 +53,32 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 
 const banca = () => (S.moneda ? BANCA[S.moneda.id] ?? 0 : 0);
 const fmt = (n, opts) => (S.moneda ? formatear(n, S.moneda, opts) : '—');
+
+/**
+ * Lee el importe del input y lo devuelve SIEMPRE en cripto (unidades de la
+ * moneda), sin importar si el usuario lo escribió en CUP o en cripto.
+ * Todo el resto del código trabaja en cripto; esta es la única traducción.
+ */
+function totalEnCripto() {
+  const escrito = parseFloat($('monto').value) || 0;
+  if (escrito <= 0 || !S.moneda) return 0;
+  if (CUP.verEnCUP()) {
+    const cripto = CUP.cupAcripto(escrito, S.moneda.id, S.precios);
+    // Si aún no hay precio, no se puede convertir: se toma como cripto directo
+    // (raro; los precios cargan al inicio).
+    return cripto === null ? escrito : cripto;
+  }
+  return escrito;
+}
+
+/**
+ * Muestra una cantidad de cripto en la vista activa (CUP por defecto, o cripto).
+ * Punto único para pintar importes/pagos/ganancias de forma coherente.
+ */
+function mostrarValor(cantidadCripto, moneda = S.moneda) {
+  return CUP.mostrar(cantidadCripto, moneda, S.precios,
+    (c, m) => (m ? formatear(c, m) : String(c)));
+}
 
 /* ================================================================== */
 /* Avisos                                                              */
@@ -224,8 +251,8 @@ function pintarMisApuestas(apuestas, prox) {
     const nums = a.modo === 2
       ? `<span class="ma-n">${pad2(a.numeroA)}</span><span class="ma-n">${pad2(a.numeroB)}</span>`
       : `<span class="ma-n">${a.modo === 0 ? a.numeroA : pad2(a.numeroA)}</span>`;
-    const imp = mon ? formatear(a.importe, mon) : a.importe;
-    const prem = mon ? formatear(a.premio, mon) : a.premio;
+    const imp = mon ? mostrarValor(a.importe, mon) : a.importe;
+    const prem = mon ? mostrarValor(a.premio, mon) : a.premio;
     return `
       <div class="ma-row">
         <span class="ma-modo">${NOMBRE_MODO[a.modo] ?? '—'}</span>
@@ -295,7 +322,7 @@ function pintarGanancias() {
     row.className = 'win-row';
     row.dataset.moneda = m.id;
 
-    const montoTxt = formatear(monto, m, { conSimbolo: true });
+    const montoTxt = mostrarValor(monto, m);
 
     row.innerHTML =
       (logo
@@ -405,11 +432,36 @@ function elegirMoneda(m) {
   const min = m.minApuesta;
   $('monto').step = min;
   $('monto').min = min;
-  $('monto').value = (min * 5).toFixed(m.decimalesVista).replace(/\.?0+$/, '');
-  $('amt-sym').textContent = m.simbolo;
+  actualizarVistaImporte();   // pone símbolo (CUP/cripto) y valor inicial
 
   pintarTodo();
   aviso(`Jugando en ${m.simbolo}`);
+}
+
+/**
+ * Ajusta el input de importe y su símbolo según la vista activa (CUP o cripto).
+ * En CUP: símbolo 💰 y un valor inicial redondo (ej. 700 CUP = ~1 USD).
+ * En cripto: símbolo de la moneda y un valor en sus unidades.
+ */
+function actualizarVistaImporte() {
+  const m = S.moneda;
+  if (!m) return;
+  if (CUP.verEnCUP()) {
+    $('amt-sym').textContent = CUP.CUP_SIGLA + ' ' + CUP.CUP_ICONO;
+    $('monto').step = 1;
+    $('monto').min = CUP.MIN_CUP;
+    // valor inicial sugerido: 700 CUP (~1 USD), si el campo está vacío o en 0
+    const actual = parseFloat($('monto').value) || 0;
+    if (actual <= 0) $('monto').value = 700;
+  } else {
+    $('amt-sym').textContent = m.simbolo;
+    $('monto').step = m.minApuesta;
+    $('monto').min = m.minApuesta;
+    const actual = parseFloat($('monto').value) || 0;
+    if (actual <= 0) {
+      $('monto').value = (m.minApuesta * 5).toFixed(m.decimalesVista).replace(/\.?0+$/, '');
+    }
+  }
 }
 
 /* ================================================================== */
@@ -593,7 +645,7 @@ function pintarSeleccion() {
   host.innerHTML = '';
   if (S.seleccion.length === 0) return;
 
-  const total = parseFloat($('monto').value) || 0;
+  const total = totalEnCripto();
   const r = repartir(
     S.seleccion.map((s) => ({ ...s, yaApostado: ocupadoDe(s.clave) })),
     total, S.moneda, banca(), EXPOSICION_BPS
@@ -686,7 +738,7 @@ function pintarBoleta() {
   }
   if (!S.modo) { btn.disabled = true; btn.textContent = 'Elige un juego'; return; }
 
-  const total = parseFloat($('monto').value) || 0;
+  const total = totalEnCripto();
   $('i-jugadas').textContent = String(S.seleccion.length);
 
   if (S.seleccion.length === 0) {
@@ -702,10 +754,10 @@ function pintarBoleta() {
   );
 
   $('i-reparto').textContent = r.reparto.length
-    ? `${fmt(r.asignado)} en ${r.reparto.length}`
+    ? `${mostrarValor(r.asignado)} en ${r.reparto.length}`
     : 'nada admitido';
   $('i-pago').textContent = r.pagoMaximo > 0
-    ? fmt(r.pagoMaximo) + (enUnidadPequena(r.pagoMaximo, S.moneda) ? ` · ${enUnidadPequena(r.pagoMaximo, S.moneda)}` : '')
+    ? mostrarValor(r.pagoMaximo)
     : '—';
 
   // PAGO EN VIVO: pregunta al contrato el premio REAL (topado por la banca de
@@ -725,8 +777,7 @@ function pintarBoleta() {
       .then((premioReal) => {
         if (seq !== S._pagoSeq) return;
         if (premioReal > 0 && S.moneda === moneda) {
-          $('i-pago').textContent = formatear(premioReal, moneda) +
-            (enUnidadPequena(premioReal, moneda) ? ` · ${enUnidadPequena(premioReal, moneda)}` : '');
+          $('i-pago').textContent = mostrarValor(premioReal, moneda);
         }
       })
       .catch(() => { /* si falla, se queda el estimado; nunca bloquea */ });
@@ -752,7 +803,7 @@ function pintarBoleta() {
   }
 
   btn.disabled = S.girando;
-  btn.textContent = S.girando ? 'Sorteando…' : `Jugar ${fmt(r.asignado)}`;
+  btn.textContent = S.girando ? 'Sorteando…' : `Jugar ${mostrarValor(r.asignado)}`;
 }
 
 /* ================================================================== */
@@ -843,7 +894,7 @@ async function jugar() {
     catch { aviso('Cambia a BNB Chain para apostar', true); return; }
   }
 
-  const total = parseFloat($('monto').value) || 0;
+  const total = totalEnCripto();
   const r = repartir(
     S.seleccion.map((s) => ({ ...s, yaApostado: ocupadoDe(s.clave) })),
     total, S.moneda, banca(), EXPOSICION_BPS
@@ -1063,6 +1114,23 @@ function pintarQuick() {
   const host = $('quick');
   host.innerHTML = '';
   if (!S.moneda) return;
+
+  if (CUP.verEnCUP()) {
+    // Montos rápidos redondos en pesos cubanos
+    for (const v of [100, 500, 1000]) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'q';
+      b.textContent = CUP.fmtCUP(v, { conIcono: false });
+      b.addEventListener('click', () => {
+        $('monto').value = v;
+        pintarSeleccion(); pintarBoleta();
+      });
+      host.appendChild(b);
+    }
+    return;
+  }
+
   const min = S.moneda.minApuesta;
   for (const k of [5, 10, 25]) {
     const v = min * k;
@@ -1121,6 +1189,37 @@ function init() {
     if (!wallet.esRedCorrecta()) wallet.cambiarARedCorrecta().catch(() => {});
   });
   $('monto').addEventListener('input', () => { pintarSeleccion(); pintarBoleta(); });
+
+  // Toggle CUP / cripto
+  const vt = $('vista-toggle');
+  if (vt) {
+    vt.addEventListener('click', (e) => {
+      const btn = e.target.closest('.vt-btn');
+      if (!btn) return;
+      const quiereCUP = btn.dataset.vista === 'cup';
+      if (quiereCUP === CUP.verEnCUP()) return;   // sin cambio
+      // Convertir el valor escrito para que el número tenga sentido en la nueva vista
+      const escrito = parseFloat($('monto').value) || 0;
+      CUP.ponerVista(quiereCUP);
+      // actualizar botones activos
+      vt.querySelectorAll('.vt-btn').forEach((b) =>
+        b.classList.toggle('activo', b.dataset.vista === btn.dataset.vista));
+      // recalcular el valor mostrado en la nueva unidad
+      if (S.moneda && escrito > 0 && S.precios) {
+        if (quiereCUP) {
+          const cup = CUP.criptoAcup(escrito, S.moneda.id, S.precios);
+          if (cup !== null) $('monto').value = Math.round(cup);
+        } else {
+          const cripto = CUP.cupAcripto(escrito, S.moneda.id, S.precios);
+          if (cripto !== null) $('monto').value = cripto.toFixed(S.moneda.decimalesVista).replace(/\.?0+$/, '');
+        }
+      }
+      actualizarVistaImporte();
+      pintarQuick();
+      pintarSeleccion();
+      pintarBoleta();
+    });
+  }
 
   $('pb-limpiar').addEventListener('click', () => {
     S.seleccion = []; S.pendienteParle = [];
