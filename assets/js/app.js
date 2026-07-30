@@ -783,23 +783,12 @@ function pintarBoleta() {
   // cifra transparente. Si la banca no alcanza para el multiplicador pleno,
   // el contrato devuelve menos y aquí se refleja. Es asíncrono: primero se ve
   // el estimado de arriba y en un instante se ajusta al valor real.
-  if (r.reparto.length > 0 && wallet.cuentaActual() && wallet.esRedCorrecta()) {
-    const jug = r.reparto[0];
-    const modoCod = contrato.codigoModo(jug.modo.id);
-    // El contrato divide internamente (terminal /10, parlé /2). Por eso se le
-    // pasa el MONTO de la casilla completo, no la unidad ya dividida.
-    const montoCasilla = jug.monto;
-    const moneda = S.moneda;
-    const seq = (S._pagoSeq = (S._pagoSeq || 0) + 1);
-    contrato.calcularPremio(moneda, modoCod, montoCasilla)
-      .then((premioReal) => {
-        if (seq !== S._pagoSeq) return;
-        if (premioReal > 0 && S.moneda === moneda) {
-          $('i-pago').textContent = mostrarValor(premioReal, moneda);
-        }
-      })
-      .catch(() => { /* si falla, se queda el estimado; nunca bloquea */ });
-  }
+  // El pago mostrado (r.pagoMaximo) ya se calcula bien en la web: es la apuesta
+  // POR NÚMERO (apuestaUnit) por el multiplicador del modo. Ej. terminal: 7 CUP
+  // por número x 90 = 630 CUP. Coincide con lo que el contrato paga al resolver
+  // (que internamente divide el terminal /10). No consultamos el pago en vivo
+  // aquí porque la función view del contrato no aplica esa división y confundiría
+  // el número; el tope por banca lo garantiza el propio contrato al apostar.
 
   $('avisos').innerHTML = r.avisos.length
     ? r.avisos.map((a) => `<div class="av">${a}</div>`).join('')
