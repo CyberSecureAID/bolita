@@ -2163,3 +2163,33 @@ body {
   line-height: 1.5;
 }
 .av-warn b { color: #fff; }
+
+/* ================================================================== */
+/* LOGO DEL PESO CUBANO (moneda)                                       */
+/* ================================================================== */
+
+/* Moneda mediana dentro del recuadro de importe */
+.amt { display: flex; align-items: center; gap: 10px; }
+.amt-coin {
+  width: 46px; height: 46px; flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(232,184,75,.35));
+  animation: cupSpin 6s ease-in-out infinite;
+}
+@keyframes cupSpin {
+  0%, 100% { transform: rotateY(0deg); }
+  50%      { transform: rotateY(180deg); }
+}
+/* Cuando la vista es cripto, se oculta la moneda CUP */
+.amt.cripto .amt-coin { display: none; }
+
+/* Moneda en el botón del toggle */
+.vt-coin {
+  width: 16px; height: 16px; vertical-align: middle;
+  margin-right: 2px; margin-top: -2px;
+}
+
+/* Icono pequeño inline (junto a textos, si hace falta) */
+.cup-ic {
+  width: 14px; height: 14px; vertical-align: middle;
+  display: inline-block;
+}
