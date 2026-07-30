@@ -38,8 +38,37 @@ export function ponerVista(cup) { _verEnCUP = Boolean(cup); }
 export function alternarVista() { _verEnCUP = !_verEnCUP; return _verEnCUP; }
 
 /* ================================================================== */
-/* Conversión                                                          */
+/* Precios de referencia (respaldo si CoinGecko no responde)           */
 /* ================================================================== */
+
+/**
+ * Precios USD aproximados por moneda. Solo se usan como RESPALDO cuando la
+ * tabla en vivo (CoinGecko) no tiene el dato, para que la vista en CUP nunca
+ * se quede sin funcionar. No son exactos; el precio real llega de CoinGecko.
+ * Ajusta estos si cambian mucho.
+ */
+export const PRECIO_REF = {
+  BNB: 600,
+  USDT: 1,
+  USDC: 1,
+  BTCB: 95000,
+  ETH: 3000,
+  USDTZ: 1,          // USDT.z se referencia como ~1 USD
+  BABYDOGE: 0.0000000003,
+  EXT: 0.000031664,
+};
+
+/**
+ * Devuelve el precio USD de una moneda: primero el de la tabla en vivo, y si
+ * no está, el de referencia. Garantiza que la conversión a CUP siempre tenga
+ * un número con el que trabajar.
+ */
+export function precioDe(monedaId, tablaPrecios) {
+  const vivo = tablaPrecios?.[monedaId];
+  if (typeof vivo === 'number' && vivo > 0) return vivo;
+  return PRECIO_REF[monedaId] ?? null;
+}
+
 
 /**
  * Cuántos CUP vale una cantidad de cripto.
@@ -49,7 +78,7 @@ export function alternarVista() { _verEnCUP = !_verEnCUP; return _verEnCUP; }
  * @returns {number|null} CUP, o null si no hay precio
  */
 export function criptoAcup(cantidadCripto, monedaId, tablaPrecios) {
-  const precioUSD = tablaPrecios?.[monedaId];
+  const precioUSD = precioDe(monedaId, tablaPrecios);
   if (typeof precioUSD !== 'number' || typeof cantidadCripto !== 'number') return null;
   return cantidadCripto * precioUSD * CUP_POR_USD;
 }
@@ -59,7 +88,7 @@ export function criptoAcup(cantidadCripto, monedaId, tablaPrecios) {
  * @returns {number|null} cantidad de cripto, o null si no hay precio
  */
 export function cupAcripto(cantidadCUP, monedaId, tablaPrecios) {
-  const precioUSD = tablaPrecios?.[monedaId];
+  const precioUSD = precioDe(monedaId, tablaPrecios);
   if (typeof precioUSD !== 'number' || !precioUSD || typeof cantidadCUP !== 'number') return null;
   return cantidadCUP / (precioUSD * CUP_POR_USD);
 }

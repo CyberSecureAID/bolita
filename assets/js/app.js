@@ -674,8 +674,8 @@ function pintarSeleccion() {
     chip.className = 'sel' + (s.fijado ? ' fijada' : '') + (info ? '' : ' fuera');
     chip.innerHTML = `
       <span class="sel-k">${s.clave}</span>
-      <span class="sel-m">${info ? fmt(info.monto, { conSimbolo: false }) : '—'}</span>
-      ${info ? `<span class="sel-p">→ ${fmt(info.pago, { conSimbolo: false })}</span>` : ''}
+      <span class="sel-m">${info ? mostrarValor(info.monto) : '—'}</span>
+      ${info ? `<span class="sel-p">→ ${mostrarValor(info.pago)}</span>` : ''}
       <button class="sel-fix" title="Fijar importe">${ICONOS.lapiz(11)}</button>
       <button class="sel-x" title="Quitar">${ICONOS.cerrar(11)}</button>
     `;
