@@ -155,9 +155,6 @@ function inyectarEstilo() {
   #colmena-app input:focus,#colmena-app select:focus{box-shadow:0 0 0 3px rgba(46,232,106,.14)}
   #colmena-app .rej{position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s,border-color .25s}
   #colmena-app .rej:hover{transform:translateY(-2px);border-color:rgba(46,232,106,.4);box-shadow:0 20px 50px rgba(0,0,0,.5)}
-  #colmena-app .rej::after{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;
-    background:linear-gradient(115deg,transparent 42%,rgba(46,232,106,.09) 50%,transparent 58%);background-size:260% 260%;animation:work 5.5s ease-in-out infinite}
-  @keyframes work{0%{background-position:0% 0%}100%{background-position:100% 100%}}
   #colmena-app .rej>*{position:relative;z-index:1}
   /* indicador En vivo */
   #colmena-app .live{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--neon-lit);background:rgba(46,232,106,.08);border:1px solid var(--neon-dim);border-radius:100px;padding:5px 11px}
@@ -179,14 +176,28 @@ function inyectarEstilo() {
   #colmena-app .pio-tags{display:flex;gap:6px;flex:0 0 auto}
   #colmena-app .pio-tag{font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:8px;background:rgba(46,232,106,.12);color:var(--neon-lit);border:1px solid var(--neon-dim);font-weight:700}
   #colmena-app .pio-tag.grey{background:rgba(157,189,178,.1);color:var(--ink-2);border-color:var(--line)}
-  #colmena-app .pio-band{position:relative;display:grid;grid-template-columns:1fr 1fr;border-radius:14px;overflow:hidden;margin:16px 0;border:1px solid rgba(255,255,255,.08)}
-  #colmena-app .pio-band .side{padding:15px 18px}
-  #colmena-app .pio-band .side.l{background:rgba(2,13,9,.5)}
-  #colmena-app .pio-band .r{background:linear-gradient(120deg,var(--neon-dim),var(--neon));color:#03210f;clip-path:polygon(16% 0,100% 0,100% 100%,0 100%);text-align:right}
-  #colmena-app .pio-band .r.neg{background:linear-gradient(120deg,#b03a3a,var(--rojo));color:#2a0808}
+  #colmena-app .pio-band{position:relative;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:rgba(2,13,9,.65);min-height:90px;display:flex;align-items:center;margin:16px 0}
+  #colmena-app .pio-band .l{position:relative;z-index:2;padding:16px 20px;flex:1}
+  #colmena-app .pio-band .r{position:absolute;top:0;right:0;bottom:0;width:58%;z-index:1;padding:14px 22px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;text-align:right;background:linear-gradient(120deg,var(--neon-dim),var(--neon));color:#03210f;clip-path:polygon(22% 0,100% 0,100% 100%,0 100%)}
+  #colmena-app .pio-band .r.neg{background:linear-gradient(120deg,#a83636,var(--rojo));color:#2a0808}
   #colmena-app .pio-band .k{font-family:var(--mono);font-size:10px;opacity:.85;text-transform:uppercase;letter-spacing:.4px}
-  #colmena-app .pio-band .v{font-family:var(--display);font-size:23px;font-weight:700;margin-top:5px}
-  #colmena-app .pio-band .side.l .v{color:var(--ink)}
+  #colmena-app .pio-band .l .v{font-family:var(--display);font-size:24px;font-weight:700;margin-top:5px;color:var(--ink)}
+  #colmena-app .pio-band .r .v{font-family:var(--display);font-size:26px;font-weight:800;margin-top:4px;line-height:1.05}
+  #colmena-app .pio-band .r .pct{font-family:var(--mono);font-size:13px;font-weight:700;margin-top:5px;opacity:.92}
+  /* colapsable + pestañas + órdenes */
+  #colmena-app .pio-toggle{width:100%;margin-top:14px;background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:12px;padding:12px;font-family:var(--mono);font-size:12px;color:var(--ink-2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+  #colmena-app .pio-toggle:hover{color:var(--gold);border-color:var(--gold-soft)}
+  #colmena-app .pio-panel{margin-top:10px;display:none}
+  #colmena-app .pio-panel.open{display:block;animation:rise .3s ease}
+  #colmena-app .pio-tabs{display:flex;gap:6px;margin-bottom:10px}
+  #colmena-app .pio-tabs button{flex:1;padding:9px;border:1px solid var(--line);background:transparent;color:var(--ink-2);border-radius:9px;font-family:var(--mono);font-size:12px;cursor:pointer}
+  #colmena-app .pio-tabs button.on{background:var(--gold);color:#1a1200;border-color:var(--gold);font-weight:700}
+  #colmena-app .ord-list{max-height:300px;overflow-y:auto;border:1px solid var(--line-soft);border-radius:10px;background:#020d09}
+  #colmena-app .ord-row{display:grid;grid-template-columns:1fr 1.4fr;gap:8px;padding:9px 13px;border-bottom:1px solid var(--line-soft);font-family:var(--mono);font-size:12px}
+  #colmena-app .ord-row:last-child{border-bottom:none}
+  #colmena-app .ord-row .st{text-align:right}
+  #colmena-app .ord-row .st.compra{color:var(--neon-lit)} #colmena-app .ord-row .st.venta{color:var(--rojo)} #colmena-app .ord-row .st.off{color:var(--ink-3)}
+  #colmena-app .gaswarn{background:rgba(255,107,107,.08);border:1px solid var(--rojo);color:var(--rojo);border-radius:10px;padding:9px 12px;font-family:var(--mono);font-size:11.5px;margin-top:12px}
   #colmena-app .pio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   #colmena-app .pio-box{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:11px 12px}
   #colmena-app .pio-box .k{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.3px}
@@ -289,12 +300,6 @@ function tiempoActivo(seg) {
   return `${d}d ${h}h ${mm}m`;
 }
 
-/* ---- Olvidar un par (para que el bot desaparezca al cerrarlo) ---- */
-function olvidarPar(cuenta, base, quote) {
-  const k = gb.claveDe(cuenta, base, quote); const m = JSON.parse(localStorage.getItem('bot-pares') || '{}');
-  delete m[k]; localStorage.setItem('bot-pares', JSON.stringify(m));
-}
-
 /* ---- Animación: recorrido de un bot de rejilla (para el hero) ---- */
 function animacionRecorrido() {
   const W = 560, H = 250, padL = 18, padR = 18;
@@ -330,12 +335,11 @@ function nivelesPreview(pMin, pMax, n, modo) {
   return out;
 }
 /** Dibuja una rejilla. `precios` = array de {p, tipo} donde tipo: 'compra'|'venta'|'off'. */
-function dibujar(precios, precio, pMin, pMax) {
+function dibujar(precios, precio, pMin, pMax, samples) {
   const W = 560, H = 320, padL = 70, padR = 16, padT = 16, padB = 26;
   if (!(pMin > 0 && pMax > pMin)) return svgVacio(W, H, 'Pon un rango para ver la rejilla');
-  const y = (p) => padT + (H - padT - padB) * (1 - (p - pMin) / (pMax - pMin));
+  const y = (p) => padT + (H - padT - padB) * (1 - (Math.max(pMin, Math.min(pMax, p)) - pMin) / (pMax - pMin));
   const partes = [];
-  // zonas
   if (precio && precio >= pMin && precio <= pMax) {
     const yp = y(precio);
     partes.push(`<rect x="${padL}" y="${yp}" width="${W-padR-padL}" height="${(H-padB-yp).toFixed(1)}" fill="#2EE86A" opacity=".05"/>`);
@@ -348,21 +352,25 @@ function dibujar(precios, precio, pMin, pMax) {
     const op = nv.tipo === 'off' ? '.35' : '.8';
     partes.push(`<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="${col}" stroke-width="1.4" opacity="${op}"/>`);
   }
-  // precio (aunque esté fuera del rango, lo pegamos al borde)
   const dentro = precio && precio >= pMin && precio <= pMax;
   const yp = precio ? (precio > pMax ? padT : precio < pMin ? H - padB : y(precio)) : null;
+  const hayTrail = samples && samples.length > 1;
+  if (hayTrail) {
+    // estela: recorrido del precio en el tiempo (x = tiempo, y = precio)
+    const n = samples.length, x0 = padL, x1 = W - padR;
+    const pts = samples.map((p, i) => `${(x0 + (x1 - x0) * (i / (n - 1))).toFixed(1)},${y(p).toFixed(1)}`);
+    partes.push(`<polyline points="${pts.join(' ')}" fill="none" stroke="#4DFF7A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/>`);
+    const lx = x1, ly = y(samples[n - 1]);
+    partes.push(`<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4.5" fill="#E4F5EF"><animate attributeName="r" values="4;8;4" dur="1.3s" repeatCount="indefinite"/></circle>`);
+  }
   if (precio) {
-    partes.push(`<line x1="${padL}" y1="${yp.toFixed(1)}" x2="${W-padR}" y2="${yp.toFixed(1)}" stroke="#E4F5EF" stroke-width="2" stroke-dasharray="5 4"/>`);
-    partes.push(`<circle cx="${padL}" cy="${yp.toFixed(1)}" r="4" fill="#E4F5EF"><animate attributeName="r" values="3;7;3" dur="1.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;.3;1" dur="1.4s" repeatCount="indefinite"/></circle>`);
-    partes.push(`<text x="${W-padR}" y="${(yp - 6).toFixed(1)}" fill="#E4F5EF" font-family="IBM Plex Mono" font-size="11" text-anchor="end">precio ahora ${precioFmt(precio)}${dentro ? '' : ' (fuera)'}</text>`);
+    partes.push(`<line x1="${padL}" y1="${yp.toFixed(1)}" x2="${W-padR}" y2="${yp.toFixed(1)}" stroke="#E4F5EF" stroke-width="${hayTrail ? 1 : 2}" stroke-dasharray="5 4" opacity="${hayTrail ? '.4' : '1'}"/>`);
+    if (!hayTrail) partes.push(`<circle cx="${padL}" cy="${yp.toFixed(1)}" r="4" fill="#E4F5EF"><animate attributeName="r" values="3;7;3" dur="1.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;.3;1" dur="1.4s" repeatCount="indefinite"/></circle>`);
+    partes.push(`<text x="${W-padR}" y="${(yp - 6).toFixed(1)}" fill="#E4F5EF" font-family="IBM Plex Mono" font-size="11" text-anchor="end">precio ${precioFmt(precio)}${dentro ? '' : ' (fuera)'}</text>`);
   }
   partes.push(`<text x="8" y="${padT+9}" fill="#9DBDB2" font-family="IBM Plex Mono" font-size="10">${precioFmt(pMax)}</text>`);
   partes.push(`<text x="8" y="${H-padB+4}" fill="#9DBDB2" font-family="IBM Plex Mono" font-size="10">${precioFmt(pMin)}</text>`);
-  // escáner tipo radar que recorre la rejilla (sensación de "vigilando")
-  partes.push(`<line x1="${padL}" x2="${W-padR}" y1="${padT}" y2="${padT}" stroke="#4DFF7A" stroke-width="1.5">
-    <animate attributeName="y1" values="${padT};${H-padB};${padT}" dur="5s" repeatCount="indefinite"/>
-    <animate attributeName="y2" values="${padT};${H-padB};${padT}" dur="5s" repeatCount="indefinite"/>
-    <animate attributeName="opacity" values="0;.45;0" dur="5s" repeatCount="indefinite"/></line>`);
+  if (!hayTrail) partes.push(`<line x1="${padL}" x2="${W-padR}" y1="${padT}" y2="${padT}" stroke="#4DFF7A" stroke-width="1.5"><animate attributeName="y1" values="${padT};${H-padB};${padT}" dur="5s" repeatCount="indefinite"/><animate attributeName="y2" values="${padT};${H-padB};${padT}" dur="5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;.45;0" dur="5s" repeatCount="indefinite"/></line>`);
   return `<svg class="chart" viewBox="0 0 ${W} ${H}">${partes.join('')}</svg>`;
 }
 function svgVacio(W, H, txt) {
@@ -584,7 +592,7 @@ async function onCrear() {
     if (aB < baseNeed) { aviso(m, 'info', `Permiso para ${base.simbolo}… confirma en tu wallet.`); await gb.aprobarToken(p.base, baseNeed); }
     aviso(m, 'info', 'Encendiendo… confirma en tu wallet.');
     await gb.crearRejilla(config);
-    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo });
+    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total: p.totalQuoteHumano, creadoLocal: Date.now() });
     aviso(m, 'info', '¡Bot encendido! Ya lo estoy vigilando. Revisa que tengas gas cargado.');
     refrescarRejillas();
   } catch (e) { aviso(m, 'err', 'No se pudo: ' + (e?.shortMessage || e?.message || e)); }
@@ -593,76 +601,131 @@ async function onCrear() {
 /* ================================================================== */
 /* Panel                                                               */
 /* ================================================================== */
+function ccl(cuenta, base, quote) { return `${(cuenta || '').toLowerCase()}|${base.toLowerCase()}|${quote.toLowerCase()}`; }
 function recordarPar(cuenta, base, quote, extra) {
   const k = gb.claveDe(cuenta, base, quote);
   const m = JSON.parse(localStorage.getItem('bot-pares') || '{}');
   m[k] = { base, quote, ...(extra || {}) }; localStorage.setItem('bot-pares', JSON.stringify(m));
+  // al (re)crear, quitar de la lista de cerradas para que vuelva a mostrarse
+  const c = JSON.parse(localStorage.getItem('bot-cerradas') || '{}'); delete c[ccl(cuenta, base, quote)]; localStorage.setItem('bot-cerradas', JSON.stringify(c));
+}
+function olvidarPar(cuenta, base, quote) {
+  // borrar de bot-pares por VALOR (por si la clave no coincide)
+  const m = JSON.parse(localStorage.getItem('bot-pares') || '{}');
+  for (const k of Object.keys(m)) { const p = m[k]; if (p && (p.base || '').toLowerCase() === base.toLowerCase() && (p.quote || '').toLowerCase() === quote.toLowerCase()) delete m[k]; }
+  localStorage.setItem('bot-pares', JSON.stringify(m));
+  // marcar como cerrada (blindaje: aunque el contrato la siga listando, no se muestra)
+  const c = JSON.parse(localStorage.getItem('bot-cerradas') || '{}'); c[ccl(cuenta, base, quote)] = 1; localStorage.setItem('bot-cerradas', JSON.stringify(c));
 }
 function simboloDe(addr) {
   if (addr.toLowerCase() === gb.WBNB.toLowerCase()) return 'BNB';
   const m = LISTA_MONEDAS.find((x) => (x.address || '').toLowerCase() === addr.toLowerCase());
   return m ? m.simbolo : addr.slice(0, 6);
 }
+
+/* ---- Estela (trail): muestrea el precio mientras la gráfica está abierta ---- */
+const TRAILS = new Map();
+function pararTrails() { for (const t of TRAILS.values()) if (t.timer) clearInterval(t.timer); TRAILS.clear(); }
+async function arrancarTrail(clave, par, pmin, pmax, decB, decQ, cuenta) {
+  if (TRAILS.has(clave)) return;
+  const st = { samples: [], timer: null }; TRAILS.set(clave, st);
+  const muestrear = async () => {
+    let precio = null; try { const pr = await gb.precioPar(par.base, par.quote, decB, decQ); precio = pr.precio; } catch {}
+    if (precio) { st.samples.push(precio); if (st.samples.length > 40) st.samples.shift(); }
+    const c = document.querySelector(`.pio-panel[data-clave="${clave}"] .trail-chart`);
+    if (c && st.niveles) c.innerHTML = dibujar(st.niveles, precio, pmin, pmax, st.samples);
+  };
+  try {
+    const nv = await gb.nivelesDe(clave); const R = await gb.resumen(cuenta, par.base, par.quote);
+    const ob = Number(gb.fmt(R.ordenBase, decB)) || 1;
+    st.niveles = nv.map((x) => { const p = Number(gb.fmt(x.minOutVenta, decQ)) / ob; const e = Number(x.estado); return { p, tipo: e === 1 ? 'compra' : e === 2 ? 'venta' : 'off' }; }).filter((x) => isFinite(x.p) && x.p > 0);
+  } catch { st.niveles = []; }
+  await muestrear();
+  st.timer = setInterval(muestrear, 6000);
+}
+
 async function refrescarRejillas() {
   const cuenta = wallet.cuentaActual(); const cont = $('c-rejillas'); if (!cuenta || !cont) return;
+  pararTrails();
   try {
     const claves = await gb.misRejillas(cuenta);
-    if (!claves.length) { cont.innerHTML = `<p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">Aún no tienes bots. Arma el primero arriba.</p>`; return; }
     const store = JSON.parse(localStorage.getItem('bot-pares') || '{}');
+    const cerradas = JSON.parse(localStorage.getItem('bot-cerradas') || '{}');
     const cards = [];
     for (const clave of claves) {
       const par = store[clave]; if (!par) continue;
+      if (cerradas[ccl(cuenta, par.base, par.quote)]) continue; // cerrado por el usuario → oculto
+      par.__cuenta = cuenta;
       try { cards.push(await tarjeta(cuenta, clave, par)); } catch {}
     }
-    cont.innerHTML = cards.length ? cards.join('') : `<p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">Sin bots para mostrar en este dispositivo.</p>`;
+    cont.innerHTML = cards.length ? cards.join('')
+      : `<p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">Aún no tienes bots activos. Arma el primero arriba.</p>`;
     enganchar(cuenta);
     activarContadores();
   } catch (e) { cont.innerHTML = `<div class="aviso err">No se pudieron cargar: ${e?.shortMessage || e?.message || e}</div>`; }
+}
+let GASMIN = null;
+function idDe(addr) {
+  if (addr.toLowerCase() === gb.WBNB.toLowerCase()) return 'BNB';
+  const e = Object.entries(MONEDAS).find(([, v]) => (v.address || '').toLowerCase() === addr.toLowerCase());
+  return e ? e[0] : null;
 }
 async function tarjeta(cuenta, clave, par) {
   const R = await gb.resumen(cuenta, par.base, par.quote);
   const decQ = par.decQuote ?? 18, decB = par.decBase ?? 18;
   const simB = par.simBase ?? simboloDe(par.base), simQ = par.simQuote ?? simboloDe(par.quote);
+  if (GASMIN === null) { try { GASMIN = await gb.gasMinOp(); } catch { GASMIN = 0n; } }
 
-  // Precio actual + rejilla viva (recupera precio de nivel = minOutVenta/ordenBase)
-  let chart = svgVacio(560, 300, 'sin datos'), precio = null, pmin = 0, pmax = 0;
+  // Niveles (órdenes) + precio
+  let precio = null, pmin = 0, pmax = 0, ps = [];
   const ordenBaseH = Number(gb.fmt(R.ordenBase, decB)) || 1;
   try {
     const niveles = await gb.nivelesDe(clave);
-    const ps = niveles.map((nv) => {
+    ps = niveles.map((nv) => {
       const p = Number(gb.fmt(nv.minOutVenta, decQ)) / ordenBaseH; const est = Number(nv.estado);
       return { p, tipo: est === 1 ? 'compra' : est === 2 ? 'venta' : 'off' };
     }).filter((x) => isFinite(x.p) && x.p > 0);
     try { const pr = await gb.precioPar(par.base, par.quote, decB, decQ); precio = pr.precio; } catch {}
-    if (ps.length) { pmin = Math.min(...ps.map((x) => x.p)); pmax = Math.max(...ps.map((x) => x.p)); chart = dibujar(ps, precio, pmin, pmax); }
+    if (ps.length) { pmin = Math.min(...ps.map((x) => x.p)); pmax = Math.max(...ps.map((x) => x.p)); }
   } catch {}
+  const chart = ps.length ? dibujar(ps, precio, pmin, pmax) : svgVacio(560, 300, 'este bot ya no tiene órdenes');
 
-  // Números tipo Pionex
-  const posBase = Number(gb.fmt(R.posicionBase, decB));
+  // Números
+  const invertido = (par.total != null) ? Number(par.total) : Number(gb.fmt(R.costeQuote, decQ));
   const costeQ = Number(gb.fmt(R.costeQuote, decQ));
-  const realizado = Number(gb.fmt(R.gananciaQuote, decQ));          // ganancia de vueltas completas
-  const valorPos = precio ? posBase * precio : 0;
-  const noRealizado = valorPos - costeQ;                            // pendiente sobre lo que aún tiene
-  const total = realizado + noRealizado;
-  const pct = (x) => costeQ > 0 ? (x / costeQ * 100) : 0;
-  const sg = (x) => (x < 0 ? '−' : '+');
-  const cls = (x) => (x < 0 ? 'neg' : 'pos');
+  const posBase = Number(gb.fmt(R.posicionBase, decB));
+  const realizado = Number(gb.fmt(R.gananciaQuote, decQ));
+  const noRealizado = precio ? (posBase * precio - costeQ) : 0;
+  const totalG = realizado + noRealizado;
+  const baseInv = invertido > 0 ? invertido : costeQ;
+  const pct = (x) => baseInv > 0 ? (x / baseInv * 100) : 0;
+  const sg = (x) => (x < 0 ? '−' : '+'), cls = (x) => (x < 0 ? 'neg' : 'pos');
   const gas = Number(gb.fmtBNB(R.gasSaldoWei)).toFixed(4);
+  const gasLow = R.gasSaldoWei < (GASMIN || 0n);
+  const creadoSeg = par.creadoLocal ? Math.floor(par.creadoLocal / 1000) : Number(R.creadaEn);
 
-  return `<div class="rej" data-b="${par.base}" data-q="${par.quote}" data-sq="${simQ}" data-sb="${simB}">
+  const ordRows = ps.slice().sort((a, b) => b.p - a.p).map((o) => {
+    const et = o.tipo === 'compra' ? 'Esperando comprar' : o.tipo === 'venta' ? 'Comprado, esperando vender' : 'En espera';
+    return `<div class="ord-row"><span class="pr">${precioFmt(o.p)} ${simQ}</span><span class="st ${o.tipo}">${et}</span></div>`;
+  }).join('') || `<div class="ord-row"><span class="pr">—</span><span class="st off">sin órdenes</span></div>`;
+
+  return `<div class="rej" data-b="${par.base}" data-q="${par.quote}" data-sq="${simQ}" data-sb="${simB}"
+     data-bid="${idDe(par.base) || ''}" data-qid="${idDe(par.quote) || ''}" data-pmin="${pmin}" data-pmax="${pmax}"
+     data-niv="${R.niveles}" data-total="${invertido}" data-decb="${decB}" data-decq="${decQ}">
     <div class="pio-head">
       ${logoDe(par.base, simB)}
       <div class="pio-titles">
         <div class="pio-pair">${simB}/${simQ}</div>
-        <div class="pio-sub">Activo ${tiempoActivo(R.creadaEn)} · ${R.activa ? 'operando' : 'detenido'}</div>
+        <div class="pio-sub">Activo ${tiempoActivo(creadoSeg)} · ${R.activa ? 'operando' : 'detenido'}</div>
       </div>
       <div class="pio-tags"><span class="pio-tag">LONG</span><span class="pio-tag grey">Spot</span></div>
     </div>
 
     <div class="pio-band">
-      <div class="side l"><div class="k">Invertido ahora (${simQ})</div><div class="v">${num(costeQ, 2)}</div></div>
-      <div class="side r ${total < 0 ? 'neg' : ''}"><div class="k">Ganancia total (${simQ})</div>
-        <div class="v numgo" data-to="${Math.abs(total)}" data-dec="4" data-pre="${sg(total)}" data-suf=" (${sg(pct(total))}${num(Math.abs(pct(total)), 2)}%)">${sg(total)}${num(Math.abs(total), 4)}</div></div>
+      <div class="l"><div class="k">Inversión (${simQ})</div><div class="v">${num(invertido, 2)}</div></div>
+      <div class="r ${totalG < 0 ? 'neg' : ''}"><div class="k">Ganancia total (${simQ})</div>
+        <div class="v numgo" data-to="${Math.abs(totalG)}" data-dec="4" data-pre="${sg(totalG)}">${sg(totalG)}${num(Math.abs(totalG), 4)}</div>
+        <div class="pct">(${sg(pct(totalG))}${num(Math.abs(pct(totalG)), 2)}%)</div></div>
     </div>
 
     <div class="pio-grid">
@@ -675,13 +738,21 @@ async function tarjeta(cuenta, clave, par) {
       <div class="pio-box"><div class="k">Precio ahora</div><div class="v">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">${simQ}</div></div>
       <div class="pio-box"><div class="k">Rango (${simQ})</div><div class="v" style="font-size:13px">${precioFmt(pmin)} – ${precioFmt(pmax)}</div><div class="v2" style="color:var(--ink-3)">${R.niveles} cuadrículas</div></div>
       <div class="pio-box"><div class="k">Vueltas / Ops</div><div class="v numgo" data-to="${Number(R.ciclos)}" data-dec="0">${R.ciclos}</div><div class="v2" style="color:var(--ink-3)">${R.totalOps} operaciones</div></div>
-      <div class="pio-box"><div class="k">Gas (BNB)</div><div class="v">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>
+      <div class="pio-box"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>
+    </div>
+    ${gasLow ? `<div class="gaswarn">⚠ Gas insuficiente: el bot no puede operar. Recarga BNB en el gas (arriba) para que empiece a comprar y vender.</div>` : ''}
+
+    <button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
+    <div class="pio-panel" data-clave="${clave}">
+      <div class="pio-tabs"><button data-tab="grafica" class="on">Gráfica</button><button data-tab="ordenes">Órdenes (${ps.length})</button></div>
+      <div class="tab-grafica"><div class="trail-chart">${chart}</div>
+        <div class="leg"><span style="color:var(--neon-lit)">● esperando comprar</span><span style="color:var(--rojo)">● comprado, esperando vender</span><span>● en espera</span></div></div>
+      <div class="tab-ordenes" style="display:none"><div class="ord-list">${ordRows}</div></div>
     </div>
 
-    <div style="margin-top:14px">${chart}<div class="leg"><span style="color:var(--neon-lit)">● esperando comprar</span><span style="color:var(--rojo)">● comprado, esperando vender</span><span>● en espera</span></div></div>
-
     <div class="ganmsg">💰 Tus ganancias caen solas en tu wallet cada vez que el bot vende. No hay nada que retirar.</div>
-    <div class="rej-btns">
+    <div class="rej-btns" style="grid-template-columns:1fr 1fr 1fr">
+      <button class="btn btn-linea" data-acc="editar">Editar</button>
       <button class="btn btn-oro" data-acc="terminar">Cerrar y vender</button>
       <button class="btn btn-rojo" data-acc="desconectar">Desconectar</button>
     </div>
@@ -689,31 +760,68 @@ async function tarjeta(cuenta, clave, par) {
   </div>`;
 }
 function esRechazo(e) { return e?.code === 'ACTION_REJECTED' || /reject|denied|user\s*rejected/i.test(e?.message || ''); }
+function editarBot(el) {
+  const bid = el.dataset.bid, qid = el.dataset.qid;
+  if (bid && MONEDAS[bid]) F.baseId = bid;
+  if (qid && MONEDAS[qid]) F.quoteId = qid;
+  F.avanzado = false; render();
+  // rellenar el formulario con la config actual
+  if ($('f-min')) $('f-min').value = Number(parseFloat(el.dataset.pmin).toPrecision(6));
+  if ($('f-max')) $('f-max').value = Number(parseFloat(el.dataset.pmax).toPrecision(6));
+  if ($('f-niv')) $('f-niv').value = el.dataset.niv;
+  if ($('f-total') && el.dataset.total && el.dataset.total !== 'undefined') $('f-total').value = el.dataset.total;
+  cargarPrecio();
+  aviso($('c-msg'), 'info', `Editando ${el.dataset.sb}/${el.dataset.sq}: cambia lo que quieras (por ejemplo las cuadrículas) y pulsa "Encender el bot" para guardar los cambios.`);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 function enganchar(cuenta) {
   document.querySelectorAll(`#${APP} .rej`).forEach((el) => {
     const b = el.dataset.b, q = el.dataset.q, sq = el.dataset.sq, sb = el.dataset.sb;
     wirePops(el);
     el.querySelectorAll('[data-acc]').forEach((btn) => btn.onclick = async () => {
       const acc = btn.dataset.acc;
+      if (acc === 'toggle-panel') {
+        const panel = el.querySelector('.pio-panel'); const abrir = !panel.classList.contains('open');
+        panel.classList.toggle('open', abrir); btn.textContent = abrir ? 'Ocultar ▴' : 'Ver el bot trabajando ▾';
+        if (abrir) arrancarTrail(panel.dataset.clave, { base: b, quote: q }, parseFloat(el.dataset.pmin), parseFloat(el.dataset.pmax), Number(el.dataset.decb), Number(el.dataset.decq), cuenta);
+        else { const t = TRAILS.get(panel.dataset.clave); if (t?.timer) { clearInterval(t.timer); TRAILS.delete(panel.dataset.clave); } }
+        return;
+      }
+      if (acc === 'tab-noop') return;
+      if (acc === 'editar') { editarBot(el); return; }
       if (acc === 'terminar') {
-        const ok = await modalConfirm({ titulo: 'Cerrar y vender', cuerpo: `Se venderá todo a <b>${sq}</b> y el bot se cerrará. El dinero queda en tu wallet. Necesitarás firmar un par de veces.`, ok: 'Sí, cerrar' });
+        const ok = await modalConfirm({ titulo: 'Cerrar y vender', cuerpo: `Se venderá todo a <b>${sq}</b> y el bot se cerrará. El dinero queda en tu wallet.`, ok: 'Sí, cerrar' });
         if (!ok) return;
         try {
           try { modalBusy('Vendiendo a estable… confirma en tu wallet.'); await gb.cerrarAhora(b, q); }
-          catch (e) { if (esRechazo(e)) { modalError('Cancelaste la firma. No se hizo ningún cambio.'); return; } /* quizá no había nada que vender: seguimos */ }
+          catch (e) { if (esRechazo(e)) { modalError('Cancelaste la firma. No se hizo ningún cambio.'); return; } }
           modalBusy('Cerrando el bot… confirma en tu wallet.'); await gb.cancelarRejilla(b, q);
           olvidarPar(cuenta, b, q); modalClose(); refrescarRejillas();
-        } catch (e) { modalError(esRechazo(e) ? 'Cancelaste la firma.' : (e?.shortMessage || e?.message || String(e))); }
+        } catch (e) {
+          // si el usuario firmó el cierre pero falló algo menor, igual lo ocultamos
+          if (!esRechazo(e)) { olvidarPar(cuenta, b, q); refrescarRejillas(); }
+          modalError(esRechazo(e) ? 'Cancelaste la firma.' : (e?.shortMessage || e?.message || String(e)));
+        }
       } else if (acc === 'desconectar') {
-        const ok = await modalConfirm({ titulo: 'Desconectar bot', cuerpo: `Se cerrará este bot y se <b>quitará el permiso</b> que le diste sobre tu ${sq} y ${sb}. No podrá volver a operar hasta que lo actives de nuevo. Necesitarás firmar varias veces.`, ok: 'Desconectar', peligro: true });
+        const ok = await modalConfirm({ titulo: 'Desconectar bot', cuerpo: `Se cerrará este bot y se <b>quitará el permiso</b> que le diste sobre tu ${sq} y ${sb}. No podrá operar hasta que lo actives de nuevo.`, ok: 'Desconectar', peligro: true });
         if (!ok) return;
         try {
           modalBusy('Cerrando el bot… confirma en tu wallet.'); await gb.cancelarRejilla(b, q);
           modalBusy(`Quitando el permiso de ${sq}… confirma.`); await gb.revocarToken(q);
           modalBusy(`Quitando el permiso de ${sb}… confirma.`); await gb.revocarToken(b);
           olvidarPar(cuenta, b, q); modalClose(); refrescarRejillas();
-        } catch (e) { modalError(esRechazo(e) ? 'Cancelaste una firma. Puede que algún permiso siga puesto; puedes intentarlo de nuevo.' : (e?.shortMessage || e?.message || String(e))); }
+        } catch (e) {
+          if (!esRechazo(e)) { olvidarPar(cuenta, b, q); refrescarRejillas(); }
+          modalError(esRechazo(e) ? 'Cancelaste una firma.' : (e?.shortMessage || e?.message || String(e)));
+        }
       }
+    });
+    // pestañas del panel
+    el.querySelectorAll('.pio-tabs button').forEach((tb) => tb.onclick = () => {
+      el.querySelectorAll('.pio-tabs button').forEach((x) => x.classList.remove('on')); tb.classList.add('on');
+      const g = el.querySelector('.tab-grafica'), o = el.querySelector('.tab-ordenes');
+      if (tb.dataset.tab === 'grafica') { g.style.display = ''; o.style.display = 'none'; }
+      else { g.style.display = 'none'; o.style.display = ''; }
     });
   });
 }
