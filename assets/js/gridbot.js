@@ -309,3 +309,4 @@ export async function retirarGas(bnbHumano) {
 export const fmt = ethers.formatUnits;
 export const parse = ethers.parseUnits;
 export const fmtBNB = ethers.formatEther;
+export const checksum = ethers.getAddress;

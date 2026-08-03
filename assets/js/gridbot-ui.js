@@ -124,7 +124,7 @@ function inyectarEstilo() {
   #colmena-app .stat b{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;color:var(--ink-3);text-transform:uppercase}
   #colmena-app .stat span{font-family:var(--display);font-size:15px;color:var(--ink)}
   #colmena-app .stat span.pos{color:var(--neon-lit)} #colmena-app .stat span.neg{color:var(--rojo)}
-  #colmena-app .rej-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
+  #colmena-app .rej-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
   #colmena-app .rej-btns .btn{font-size:12px;padding:10px}
   #colmena-app .leg{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:8px}
   #colmena-pop{position:absolute;z-index:9999;max-width:280px;background:#0B2419;border:1px solid var(--gold-soft);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;line-height:1.5}
@@ -169,11 +169,55 @@ function inyectarEstilo() {
   /* aparición suave de secciones */
   #colmena-app .card,#colmena-app .rej{animation:rise .5s ease both}
   @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-  @media(max-width:860px){#colmena-app .cols{grid-template-columns:1fr}#colmena-app .rej-grid{grid-template-columns:1fr}#colmena-app .prev{grid-template-columns:repeat(2,1fr)}}
+  /* ====== Ficha estilo Pionex ====== */
+  #colmena-app .pio-head{display:flex;align-items:center;gap:12px}
+  #colmena-app .pio-logo{width:46px;height:46px;border-radius:50%;flex:0 0 auto;object-fit:cover;background:#0b2419;border:1px solid var(--line)}
+  #colmena-app .pio-mono{width:46px;height:46px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;font-family:var(--display);font-weight:700;color:#03210f;font-size:14px;background:linear-gradient(135deg,var(--neon),var(--gold))}
+  #colmena-app .pio-titles{flex:1;min-width:0}
+  #colmena-app .pio-pair{font-family:var(--display);font-size:19px;color:var(--ink);font-weight:700;line-height:1.1}
+  #colmena-app .pio-sub{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:4px}
+  #colmena-app .pio-tags{display:flex;gap:6px;flex:0 0 auto}
+  #colmena-app .pio-tag{font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:8px;background:rgba(46,232,106,.12);color:var(--neon-lit);border:1px solid var(--neon-dim);font-weight:700}
+  #colmena-app .pio-tag.grey{background:rgba(157,189,178,.1);color:var(--ink-2);border-color:var(--line)}
+  #colmena-app .pio-band{position:relative;display:grid;grid-template-columns:1fr 1fr;border-radius:14px;overflow:hidden;margin:16px 0;border:1px solid rgba(255,255,255,.08)}
+  #colmena-app .pio-band .side{padding:15px 18px}
+  #colmena-app .pio-band .side.l{background:rgba(2,13,9,.5)}
+  #colmena-app .pio-band .r{background:linear-gradient(120deg,var(--neon-dim),var(--neon));color:#03210f;clip-path:polygon(16% 0,100% 0,100% 100%,0 100%);text-align:right}
+  #colmena-app .pio-band .r.neg{background:linear-gradient(120deg,#b03a3a,var(--rojo));color:#2a0808}
+  #colmena-app .pio-band .k{font-family:var(--mono);font-size:10px;opacity:.85;text-transform:uppercase;letter-spacing:.4px}
+  #colmena-app .pio-band .v{font-family:var(--display);font-size:23px;font-weight:700;margin-top:5px}
+  #colmena-app .pio-band .side.l .v{color:var(--ink)}
+  #colmena-app .pio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  #colmena-app .pio-box{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:11px 12px}
+  #colmena-app .pio-box .k{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.3px}
+  #colmena-app .pio-box .v{font-family:var(--display);font-size:16px;color:var(--ink);margin-top:5px}
+  #colmena-app .pio-box .v.pos{color:var(--neon-lit)} #colmena-app .pio-box .v.neg{color:var(--rojo)}
+  #colmena-app .pio-box .v2{font-family:var(--mono);font-size:11.5px;margin-top:2px}
+  #colmena-app .pio-box .v2.pos{color:var(--neon-lit)} #colmena-app .pio-box .v2.neg{color:var(--rojo)}
+  /* ====== Modal de la página ====== */
+  #colmena-modal{position:fixed;inset:0;z-index:2000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(2,8,6,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+  #colmena-modal.show{display:flex;animation:fade .2s ease}
+  #colmena-modal .m-card{max-width:430px;width:100%;background:linear-gradient(180deg,rgba(11,36,25,.97),rgba(6,21,16,.99));border:1px solid var(--gold-soft);border-radius:18px;padding:26px;box-shadow:0 30px 90px rgba(0,0,0,.65);animation:rise .25s ease}
+  #colmena-modal h4{font-family:var(--display);color:var(--gold);font-size:19px;margin:0 0 12px}
+  #colmena-modal p{font-size:14px;color:var(--ink-2);line-height:1.55;margin:0 0 20px}
+  #colmena-modal .m-btns{display:flex;gap:10px}
+  #colmena-modal .m-btns .btn{margin:0;flex:1}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  /* ====== gas: botón Max ====== */
+  #colmena-app .gas-sep{border-top:1px solid var(--line-soft);margin:14px 0 0;padding-top:12px}
+  #colmena-app .btn-max{width:100%;margin-top:0;padding:12px}
+  @media(max-width:860px){#colmena-app .cols{grid-template-columns:1fr}#colmena-app .rej-grid{grid-template-columns:1fr}#colmena-app .prev{grid-template-columns:repeat(2,1fr)}#colmena-app .pio-grid{grid-template-columns:repeat(2,1fr)}}
   `;
   document.head.appendChild(s);
   const pop = document.createElement('div'); pop.id = 'colmena-pop'; document.body.appendChild(pop);
   document.addEventListener('click', (e) => { if (!e.target.closest('.i-btn') && e.target.id !== 'colmena-pop') pop.style.display = 'none'; });
+  if (!$('colmena-modal')) {
+    const md = document.createElement('div'); md.id = 'colmena-modal';
+    md.innerHTML = `<div class="m-card"><h4 id="cm-title"></h4><p id="cm-body"></p>
+      <div class="m-btns"><button class="btn btn-linea" id="cm-cancel">Cancelar</button><button class="btn btn-oro" id="cm-ok">Confirmar</button></div></div>`;
+    document.body.appendChild(md);
+  }
+  window.__botLogoFail = function (img, ini) { const d = document.createElement('div'); d.className = 'pio-mono'; d.textContent = ini; img.replaceWith(d); };
 }
 
 /* ================================================================== */
@@ -199,6 +243,70 @@ function animarNumero(el) {
   requestAnimationFrame(step);
 }
 function activarContadores() { document.querySelectorAll(`#${APP} .numgo`).forEach(animarNumero); }
+
+/* ---- Modal de la página (reemplaza confirm/alert del navegador) ---- */
+function modalConfirm(o) {
+  return new Promise((resolve) => {
+    const m = $('colmena-modal'); if (!m) return resolve(false);
+    $('cm-title').textContent = o.titulo || '';
+    $('cm-body').innerHTML = o.cuerpo || '';
+    const btns = m.querySelector('.m-btns'); btns.style.display = 'flex';
+    const ok = $('cm-ok'), cancel = $('cm-cancel');
+    cancel.style.display = ''; cancel.textContent = o.cancelar || 'Cancelar';
+    ok.textContent = o.ok || 'Confirmar'; ok.className = 'btn ' + (o.peligro ? 'btn-rojo' : 'btn-oro');
+    m.classList.add('show');
+    const fin = (v) => { ok.onclick = null; cancel.onclick = null; m.onclick = null; resolve(v); };
+    ok.onclick = () => fin(true);
+    cancel.onclick = () => { m.classList.remove('show'); fin(false); };
+    m.onclick = (e) => { if (e.target === m) { m.classList.remove('show'); fin(false); } };
+  });
+}
+function modalBusy(txt) {
+  const m = $('colmena-modal'); if (!m) return;
+  $('cm-body').innerHTML = `<span class="skel" style="width:14px;height:14px;min-width:14px;border-radius:50%;vertical-align:middle;margin-right:9px"></span>${txt}`;
+  m.querySelector('.m-btns').style.display = 'none'; m.onclick = null; m.classList.add('show');
+}
+function modalError(txt) {
+  const m = $('colmena-modal'); if (!m) return;
+  $('cm-title').textContent = 'No se pudo completar'; $('cm-body').textContent = txt;
+  const btns = m.querySelector('.m-btns'); btns.style.display = 'flex';
+  $('cm-cancel').style.display = 'none'; const ok = $('cm-ok');
+  ok.textContent = 'Entendido'; ok.className = 'btn btn-linea'; ok.onclick = () => m.classList.remove('show');
+}
+function modalClose() { const m = $('colmena-modal'); if (m) m.classList.remove('show'); }
+
+/* ---- Logo de la moneda (Trust Wallet) con respaldo a monograma ---- */
+function logoDe(addr, simbolo) {
+  const ini = (simbolo || '?').slice(0, 3);
+  let url = null; try { url = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/${gb.checksum(addr)}/logo.png`; } catch (_) {}
+  return url ? `<img class="pio-logo" src="${url}" alt="${simbolo}" onerror="window.__botLogoFail(this,'${ini}')">` : `<div class="pio-mono">${ini}</div>`;
+}
+
+/* ---- Tiempo activo (Xd Yh Zm) ---- */
+function tiempoActivo(seg) {
+  let s = Math.floor(Date.now() / 1000 - Number(seg)); if (!(s > 0)) return '0d 0h 0m';
+  const d = Math.floor(s / 86400); s -= d * 86400; const h = Math.floor(s / 3600); s -= h * 3600; const mm = Math.floor(s / 60);
+  return `${d}d ${h}h ${mm}m`;
+}
+
+/* ---- Olvidar un par (para que el bot desaparezca al cerrarlo) ---- */
+function olvidarPar(cuenta, base, quote) {
+  const k = gb.claveDe(cuenta, base, quote); const m = JSON.parse(localStorage.getItem('bot-pares') || '{}');
+  delete m[k]; localStorage.setItem('bot-pares', JSON.stringify(m));
+}
+
+/* ---- Animación: recorrido de un bot de rejilla (para el hero) ---- */
+function animacionRecorrido() {
+  const W = 560, H = 250, padL = 18, padR = 18;
+  const ys = [55, 90, 125, 160, 195], mid = 125;
+  const lines = ys.map((y) => `<line x1="${padL}" x2="${W - padR}" y1="${y}" y2="${y}" stroke="${y < mid ? 'var(--rojo)' : 'var(--neon)'}" stroke-width="1.3" stroke-dasharray="7 7" opacity=".5"/>`).join('');
+  const etq = `<text x="${padL}" y="46" fill="var(--rojo)" font-family="IBM Plex Mono" font-size="10">vende</text><text x="${padL}" y="220" fill="var(--neon-lit)" font-family="IBM Plex Mono" font-size="10">compra</text>`;
+  const d = `M ${padL} 125 C 110 55, 175 195, 255 90 S 395 200, 460 105 S 545 160, ${W - padR} 125`;
+  const path = `<path d="${d}" fill="none" stroke="rgba(228,245,239,.22)" stroke-width="1.5"/>`;
+  const dot = `<circle r="6" fill="#E4F5EF"><animateMotion dur="7s" repeatCount="indefinite" path="${d}"/><animate attributeName="r" values="5;8;5" dur="1.3s" repeatCount="indefinite"/></circle>`;
+  const pops = [[150, 3], [305, 5], [455, 4]].map(([x, val], i) => `<text x="${x}" y="120" fill="var(--neon-lit)" font-family="IBM Plex Mono" font-size="13" font-weight="700" opacity="0">+$${val}<animate attributeName="opacity" values="0;1;0" dur="7s" begin="${i * 2.2}s" repeatCount="indefinite"/><animate attributeName="y" values="120;78" dur="7s" begin="${i * 2.2}s" repeatCount="indefinite"/></text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${lines}${etq}${path}${pops}${dot}</svg>`;
+}
 function dias(seg) { const s = Number(seg); return s ? Math.max(0, Math.floor((Date.now()/1000 - s)/86400)).toString() : '0'; }
 function aviso(el, tipo, msg) { if (el) el.innerHTML = `<div class="aviso ${tipo}">${msg}</div>`; }
 function iBtn(k) { return `<button class="i-btn" data-info="${k}" type="button">i</button>`; }
@@ -298,7 +406,8 @@ function render() {
   if (!cuenta) {
     host.innerHTML = headerHTML() + `<div class="wrap"><div class="card hero">
       <h1>Pon tu dinero a trabajar</h1>
-      <p class="lead" style="margin:0 auto 22px">El bot <b>compra barato y vende caro</b> por ti, día y noche, mientras duermes. Sin cuenta en ningún exchange, sin papeleo. Tú guardas tus monedas: nosotros nunca las tocamos.</p>
+      <p class="lead" style="margin:0 auto 10px">El bot <b>compra barato y vende caro</b> por ti, día y noche, mientras duermes. Sin cuenta en ningún exchange, sin papeleo. Tú guardas tus monedas: nosotros nunca las tocamos.</p>
+      <div style="max-width:520px;margin:6px auto 22px">${animacionRecorrido()}</div>
       <button class="btn btn-oro" id="c-conectar2" style="max-width:300px;margin:0 auto">Conectar wallet</button>
     </div></div>`;
     wireHeader();
@@ -350,7 +459,7 @@ function render() {
           <div class="gasbox">
             <div class="top"><div class="lab" style="margin:0">Gas del bot ${iBtn('gas')}</div><div class="v" id="c-gas"><span class="skel">0.00000</span></div></div>
             <div class="gas-row"><input id="f-gas" type="number" step="any" placeholder="0.01 BNB"><button class="btn btn-oro" id="f-gasdep">Recargar</button></div>
-            <button class="btn btn-linea btn-gasret" id="f-gasret" style="width:100%">Retirar mi gas</button>
+            <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret">Retirar todo el gas (Max)</button></div>
             <div id="c-gasmsg"></div>
           </div>
         </div>
@@ -514,66 +623,97 @@ async function tarjeta(cuenta, clave, par) {
   const R = await gb.resumen(cuenta, par.base, par.quote);
   const decQ = par.decQuote ?? 18, decB = par.decBase ?? 18;
   const simB = par.simBase ?? simboloDe(par.base), simQ = par.simQuote ?? simboloDe(par.quote);
-  const gan = R.gananciaQuote, neg = gan < 0n;
-  const ganN = Number(gb.fmt(neg ? -gan : gan, decQ));
-  const ganTxt = (neg ? '−' : '+') + num(ganN, 4) + ' ' + simQ;
-  // gráfica viva: recuperar precio de cada nivel desde minOutVenta / ordenBase
-  let chart = svgVacio(560, 320, 'sin datos'); let precioAhora = null;
+
+  // Precio actual + rejilla viva (recupera precio de nivel = minOutVenta/ordenBase)
+  let chart = svgVacio(560, 300, 'sin datos'), precio = null, pmin = 0, pmax = 0;
+  const ordenBaseH = Number(gb.fmt(R.ordenBase, decB)) || 1;
   try {
     const niveles = await gb.nivelesDe(clave);
-    const ordenBaseH = Number(gb.fmt(R.ordenBase, decB)) || 1;
     const ps = niveles.map((nv) => {
-      const p = Number(gb.fmt(nv.minOutVenta, decQ)) / ordenBaseH;
-      const est = Number(nv.estado);
+      const p = Number(gb.fmt(nv.minOutVenta, decQ)) / ordenBaseH; const est = Number(nv.estado);
       return { p, tipo: est === 1 ? 'compra' : est === 2 ? 'venta' : 'off' };
     }).filter((x) => isFinite(x.p) && x.p > 0);
-    try { const pr = await gb.precioPar(par.base, par.quote, decB, decQ); precioAhora = pr.precio; } catch {}
-    const min = Math.min(...ps.map((x) => x.p)), max = Math.max(...ps.map((x) => x.p));
-    chart = dibujar(ps, precioAhora, min, max);
+    try { const pr = await gb.precioPar(par.base, par.quote, decB, decQ); precio = pr.precio; } catch {}
+    if (ps.length) { pmin = Math.min(...ps.map((x) => x.p)); pmax = Math.max(...ps.map((x) => x.p)); chart = dibujar(ps, precio, pmin, pmax); }
   } catch {}
+
+  // Números tipo Pionex
+  const posBase = Number(gb.fmt(R.posicionBase, decB));
+  const costeQ = Number(gb.fmt(R.costeQuote, decQ));
+  const realizado = Number(gb.fmt(R.gananciaQuote, decQ));          // ganancia de vueltas completas
+  const valorPos = precio ? posBase * precio : 0;
+  const noRealizado = valorPos - costeQ;                            // pendiente sobre lo que aún tiene
+  const total = realizado + noRealizado;
+  const pct = (x) => costeQ > 0 ? (x / costeQ * 100) : 0;
+  const sg = (x) => (x < 0 ? '−' : '+');
+  const cls = (x) => (x < 0 ? 'neg' : 'pos');
+  const gas = Number(gb.fmtBNB(R.gasSaldoWei)).toFixed(4);
+
   return `<div class="rej" data-b="${par.base}" data-q="${par.quote}" data-sq="${simQ}" data-sb="${simB}">
-    <div class="rej-top"><span class="rej-par">${simB} / ${simQ}</span><span class="pill ${R.activa ? 'on' : 'off'}">${R.activa ? '<span class="dot"></span>Trabajando' : 'Pausada'}</span></div>
-    <div class="rej-grid">
-      <div>${chart}<div class="leg"><span style="color:var(--neon-lit)">● esperando comprar</span><span style="color:var(--rojo)">● comprado, esperando vender</span><span>● en espera</span></div></div>
-      <div>
-        <div class="ganmsg">💰 Tus ganancias caen solas en tu wallet cada vez que el bot vende. No hay nada que retirar.</div>
-        <div class="stats">
-          <div class="stat"><b>Ganancia real ${iBtn('ganancia')}</b><span class="numgo ${neg ? 'neg' : 'pos'}" data-to="${ganN}" data-dec="4" data-pre="${neg ? '−' : '+'}" data-suf=" ${simQ}">${ganTxt}</span></div>
-          <div class="stat"><b>Ventas hechas</b><span class="numgo" data-to="${Number(R.ciclos)}" data-dec="0">${R.ciclos}</span></div>
-          <div class="stat"><b>Operaciones</b><span class="numgo" data-to="${Number(R.totalOps)}" data-dec="0">${R.totalOps}</span></div>
-          <div class="stat"><b>Cuadrículas</b><span>${R.niveles}</span></div>
-          <div class="stat"><b>Días activo</b><span>${dias(R.creadaEn)}</span></div>
-          <div class="stat"><b>Gas</b><span>${Number(gb.fmtBNB(R.gasSaldoWei)).toFixed(4)}</span></div>
-        </div>
-        <div class="rej-btns">
-          <button class="btn btn-linea" data-acc="toggle">${R.activa ? 'Pausar' : 'Reanudar'}</button>
-          <button class="btn btn-oro" data-acc="terminar">Terminar y vender</button>
-          <button class="btn btn-rojo" data-acc="desconectar">Desconectar</button>
-        </div>
-        <div class="rej-msg"></div>
+    <div class="pio-head">
+      ${logoDe(par.base, simB)}
+      <div class="pio-titles">
+        <div class="pio-pair">${simB}/${simQ}</div>
+        <div class="pio-sub">Activo ${tiempoActivo(R.creadaEn)} · ${R.activa ? 'operando' : 'detenido'}</div>
       </div>
-    </div>`;
+      <div class="pio-tags"><span class="pio-tag">LONG</span><span class="pio-tag grey">Spot</span></div>
+    </div>
+
+    <div class="pio-band">
+      <div class="side l"><div class="k">Invertido ahora (${simQ})</div><div class="v">${num(costeQ, 2)}</div></div>
+      <div class="side r ${total < 0 ? 'neg' : ''}"><div class="k">Ganancia total (${simQ})</div>
+        <div class="v numgo" data-to="${Math.abs(total)}" data-dec="4" data-pre="${sg(total)}" data-suf=" (${sg(pct(total))}${num(Math.abs(pct(total)), 2)}%)">${sg(total)}${num(Math.abs(total), 4)}</div></div>
+    </div>
+
+    <div class="pio-grid">
+      <div class="pio-box"><div class="k">Grid profit ${iBtn('porcuad')}</div>
+        <div class="v ${cls(realizado)} numgo" data-to="${Math.abs(realizado)}" data-dec="4" data-pre="${sg(realizado)}">${sg(realizado)}${num(Math.abs(realizado), 4)}</div>
+        <div class="v2 ${cls(realizado)}">${sg(pct(realizado))}${num(Math.abs(pct(realizado)), 2)}%</div></div>
+      <div class="pio-box"><div class="k">No realizado ${iBtn('ganancia')}</div>
+        <div class="v ${cls(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div>
+        <div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>
+      <div class="pio-box"><div class="k">Precio ahora</div><div class="v">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">${simQ}</div></div>
+      <div class="pio-box"><div class="k">Rango (${simQ})</div><div class="v" style="font-size:13px">${precioFmt(pmin)} – ${precioFmt(pmax)}</div><div class="v2" style="color:var(--ink-3)">${R.niveles} cuadrículas</div></div>
+      <div class="pio-box"><div class="k">Vueltas / Ops</div><div class="v numgo" data-to="${Number(R.ciclos)}" data-dec="0">${R.ciclos}</div><div class="v2" style="color:var(--ink-3)">${R.totalOps} operaciones</div></div>
+      <div class="pio-box"><div class="k">Gas (BNB)</div><div class="v">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>
+    </div>
+
+    <div style="margin-top:14px">${chart}<div class="leg"><span style="color:var(--neon-lit)">● esperando comprar</span><span style="color:var(--rojo)">● comprado, esperando vender</span><span>● en espera</span></div></div>
+
+    <div class="ganmsg">💰 Tus ganancias caen solas en tu wallet cada vez que el bot vende. No hay nada que retirar.</div>
+    <div class="rej-btns">
+      <button class="btn btn-oro" data-acc="terminar">Cerrar y vender</button>
+      <button class="btn btn-rojo" data-acc="desconectar">Desconectar</button>
+    </div>
+    <div class="rej-msg"></div>
+  </div>`;
 }
+function esRechazo(e) { return e?.code === 'ACTION_REJECTED' || /reject|denied|user\s*rejected/i.test(e?.message || ''); }
 function enganchar(cuenta) {
   document.querySelectorAll(`#${APP} .rej`).forEach((el) => {
-    const b = el.dataset.b, q = el.dataset.q, sq = el.dataset.sq, m = el.querySelector('.rej-msg');
+    const b = el.dataset.b, q = el.dataset.q, sq = el.dataset.sq, sb = el.dataset.sb;
     wirePops(el);
     el.querySelectorAll('[data-acc]').forEach((btn) => btn.onclick = async () => {
       const acc = btn.dataset.acc;
-      try {
-        if (acc === 'toggle') {
-          const R = await gb.resumen(cuenta, b, q); aviso(m, 'info', 'Confirma en tu wallet…'); await gb.activarRejilla(b, q, !R.activa);
-        } else if (acc === 'terminar') {
-          if (!confirm('Se venderá todo a estable y se detendrá este bot. El dinero queda en tu wallet. ¿Continuar?')) return;
-          aviso(m, 'info', 'Vendiendo a estable… confirma en tu wallet.'); await gb.cerrarAhora(b, q);
-          aviso(m, 'info', 'Deteniendo el bot… confirma.'); await gb.cancelarRejilla(b, q);
-        } else if (acc === 'desconectar') {
-          if (!confirm(`Esto quita el permiso que le diste al bot sobre tu ${sq} (y la otra moneda del par) y lo desconecta. El bot no podrá operar hasta que lo actives de nuevo. ¿Continuar?`)) return;
-          aviso(m, 'info', `Quitando permiso de ${sq}… confirma.`); await gb.revocarToken(q);
-          aviso(m, 'info', 'Quitando el otro permiso… confirma.'); await gb.revocarToken(b);
-        }
-        refrescarRejillas();
-      } catch (e) { aviso(m, 'err', e?.shortMessage || e?.message || e); }
+      if (acc === 'terminar') {
+        const ok = await modalConfirm({ titulo: 'Cerrar y vender', cuerpo: `Se venderá todo a <b>${sq}</b> y el bot se cerrará. El dinero queda en tu wallet. Necesitarás firmar un par de veces.`, ok: 'Sí, cerrar' });
+        if (!ok) return;
+        try {
+          try { modalBusy('Vendiendo a estable… confirma en tu wallet.'); await gb.cerrarAhora(b, q); }
+          catch (e) { if (esRechazo(e)) { modalError('Cancelaste la firma. No se hizo ningún cambio.'); return; } /* quizá no había nada que vender: seguimos */ }
+          modalBusy('Cerrando el bot… confirma en tu wallet.'); await gb.cancelarRejilla(b, q);
+          olvidarPar(cuenta, b, q); modalClose(); refrescarRejillas();
+        } catch (e) { modalError(esRechazo(e) ? 'Cancelaste la firma.' : (e?.shortMessage || e?.message || String(e))); }
+      } else if (acc === 'desconectar') {
+        const ok = await modalConfirm({ titulo: 'Desconectar bot', cuerpo: `Se cerrará este bot y se <b>quitará el permiso</b> que le diste sobre tu ${sq} y ${sb}. No podrá volver a operar hasta que lo actives de nuevo. Necesitarás firmar varias veces.`, ok: 'Desconectar', peligro: true });
+        if (!ok) return;
+        try {
+          modalBusy('Cerrando el bot… confirma en tu wallet.'); await gb.cancelarRejilla(b, q);
+          modalBusy(`Quitando el permiso de ${sq}… confirma.`); await gb.revocarToken(q);
+          modalBusy(`Quitando el permiso de ${sb}… confirma.`); await gb.revocarToken(b);
+          olvidarPar(cuenta, b, q); modalClose(); refrescarRejillas();
+        } catch (e) { modalError(esRechazo(e) ? 'Cancelaste una firma. Puede que algún permiso siga puesto; puedes intentarlo de nuevo.' : (e?.shortMessage || e?.message || String(e))); }
+      }
     });
   });
 }
