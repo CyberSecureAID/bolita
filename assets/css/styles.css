@@ -2204,3 +2204,9 @@ body {
   width: 14px; height: 14px; vertical-align: middle;
   display: inline-block;
 }
+
+/* --- Ajuste del menú superior: enlaces en una sola línea y wallet sin encimarse --- */
+.nav { flex-wrap: nowrap; }
+.nav-links a { white-space: nowrap; }
+.nav-right { flex-shrink: 0; }
+.nav-links { flex-shrink: 1; min-width: 0; }
