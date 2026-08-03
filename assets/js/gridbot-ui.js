@@ -69,6 +69,11 @@ function inyectarEstilo() {
   #bot .gas-row .btn{width:auto;margin-top:0;white-space:nowrap;padding:11px 14px}
   #bot .conectar{text-align:center;padding:40px 20px}
   @media(max-width:720px){#bot .bot-grid{grid-template-columns:1fr}}
+  /* Vista limpia: al entrar a La Colmena, se oculta el resto de la página. */
+  body.solo-bot #jugar, body.solo-bot #bombo, body.solo-bot #mis-apuestas,
+  body.solo-bot #charada, body.solo-bot #info, body.solo-bot .win-wrap,
+  body.solo-bot .verso-card, body.solo-bot .foot, body.solo-bot .drum-extra{display:none !important}
+  body.solo-bot #bot-sec{min-height:calc(100vh - 70px);padding-top:20px}
   `;
   document.head.appendChild(s);
 }
@@ -398,9 +403,25 @@ function engancharBotonesRejilla(cuenta) {
 /* Arranque                                                            */
 /* ================================================================== */
 
+function wireVistaLimpia() {
+  // Al tocar "La Colmena": ocultar el resto y mostrar solo el bot.
+  document.querySelectorAll('a[href="#bot"]').forEach((a) => a.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.body.classList.add('solo-bot');
+    window.scrollTo(0, 0);
+    render();
+    $('menu-movil')?.classList.remove('open');
+    $('btn-menu')?.classList.remove('on');
+  }));
+  // Al tocar cualquier otro enlace del nav o el logo: volver a la página normal.
+  document.querySelectorAll('.nav-links a:not([href="#bot"]), .menu-movil a:not([href="#bot"]), a.brand')
+    .forEach((a) => a.addEventListener('click', () => document.body.classList.remove('solo-bot')));
+}
+
 function arrancar() {
   if (!$('bot')) return;
   render();
+  wireVistaLimpia();
   wallet.alCambiar(() => render());
 }
 
