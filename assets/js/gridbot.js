@@ -39,7 +39,9 @@ const ABI = [
   'function ajustarSlippage(address,address,uint16)',
   'function ajustarCooldown(address,address,uint32)',
   'function depositarGas() payable',
-  'function retirarGas(uint256)'
+  'function retirarGas(uint256)',
+  'function clave(address,address,address) view returns (bytes32)',
+  'event Ejecutado(address indexed usuario, bytes32 indexed clave, uint256 indice, bool compra, uint256 entrada, uint256 salida)'
 ];
 
 const ERC20 = [
@@ -97,6 +99,24 @@ export async function misRejillas(usuario)          { return cLee().misRejillas(
 export async function gasSaldo(usuario)             { return cLee().gasSaldo(usuario); }
 export async function gasMinOp()                    { try { return await cLee().gasMinOp(); } catch { return 0n; } }
 export async function cotizar(amountIn, path)       { return cLee().cotizar(amountIn, path); }
+
+/** Historial real de operaciones del bot (evento Ejecutado). Devuelve
+ *  [{compra, precio, bloque, i}] en orden. Ventana de bloques acotada para RPCs. */
+export async function operacionesDe(usuario, base, quote, decB, decQ, desdeBloques = 45000) {
+  const c = cLee();
+  let k; try { k = await c.clave(usuario, base, quote); } catch { k = claveDe(usuario, base, quote); }
+  let latest = 0; try { latest = await lector().getBlockNumber(); } catch {}
+  const from = latest > desdeBloques ? latest - desdeBloques : 0;
+  let logs = [];
+  try { logs = await c.queryFilter(c.filters.Ejecutado(usuario, k), from, latest || 'latest'); } catch { return []; }
+  return logs.map((l) => {
+    const a = l.args, compra = a.compra;
+    const inH = Number(ethers.formatUnits(a.entrada, compra ? decQ : decB));
+    const outH = Number(ethers.formatUnits(a.salida, compra ? decB : decQ));
+    const precio = compra ? (outH > 0 ? inH / outH : NaN) : (inH > 0 ? outH / inH : NaN);
+    return { compra, precio, bloque: l.blockNumber, i: Number(a.indice) };
+  }).filter((x) => isFinite(x.precio) && x.precio > 0);
+}
 
 export async function allowance(tokenAddr, duenio) {
   const t = new ethers.Contract(tokenAddr, ERC20, lector());
@@ -217,6 +237,20 @@ export async function construirConfig(p) {
     minOutVenta:  aBI(ordenBaseHumano * Pi, p.decQuote),
     estado: Pi < Pnow ? 1 : 0   // arma compras bajo el precio; las ventas se arman al comprar
   }));
+
+  // POSICIÓN INICIAL (estilo Pionex): la compra más alta (la más cercana al precio)
+  // se deja lista para ejecutarse A MERCADO ya, para que el bot tome posición de
+  // inmediato y la ganancia/pérdida se mueva desde el arranque (el keeper la dispara
+  // en ≤1 min). Se hace bajando su minOutCompra al rendimiento actual del mercado.
+  try {
+    let topBuy = -1, mejor = -Infinity;
+    precios.forEach((Pi, idx) => { if (Pi < Pnow && Pi > mejor) { mejor = Pi; topBuy = idx; } });
+    if (topBuy >= 0) {
+      const ordenQuoteBI = aBI(ordenQuoteHumano, p.decQuote);
+      const outMercado = await cotizar(ordenQuoteBI, rutas.compra); // base que rinde ahora
+      if (outMercado > 0n) niveles[topBuy].minOutCompra = outMercado * 99n / 100n; // 1% de margen
+    }
+  } catch (_) { /* si falla, el bot igual compra cuando el precio baje al primer nivel */ }
 
   const tpUnitOut = p.tpPrecio > 0 ? aBI(ordenBaseHumano * Number(p.tpPrecio), p.decQuote) : 0n;
   const slUnitOut = p.slPrecio > 0 ? aBI(ordenBaseHumano * Number(p.slPrecio), p.decQuote) : 0n;

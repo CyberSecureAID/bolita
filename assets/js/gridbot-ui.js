@@ -202,10 +202,10 @@ function inyectarEstilo() {
   #colmena-app .pio-band .l{position:relative;z-index:2;padding:16px 20px;flex:1}
   #colmena-app .pio-band .r{position:absolute;top:0;right:0;bottom:0;width:58%;z-index:1;padding:14px 22px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;text-align:right;background:linear-gradient(120deg,var(--neon-dim),var(--neon));color:#03210f;clip-path:polygon(22% 0,100% 0,100% 100%,0 100%)}
   #colmena-app .pio-band .r.neg{background:linear-gradient(120deg,#a83636,var(--rojo));color:#2a0808}
-  #colmena-app .pio-band .k{font-family:var(--mono);font-size:10px;opacity:.85;text-transform:uppercase;letter-spacing:.4px}
-  #colmena-app .pio-band .l .v{font-family:var(--display);font-size:24px;font-weight:700;margin-top:5px;color:var(--ink)}
-  #colmena-app .pio-band .r .v{font-family:var(--display);font-size:28px;font-weight:700;margin-top:4px;line-height:1.05;letter-spacing:-.5px}
-  #colmena-app .pio-band .r .pct{font-family:var(--mono);font-size:13px;font-weight:700;margin-top:5px;opacity:.92}
+  #colmena-app .pio-band .k{font-family:var(--mono);font-size:11px;opacity:.9;text-transform:uppercase;letter-spacing:.4px}
+  #colmena-app .pio-band .l .v{font-family:var(--display);font-size:27px;font-weight:700;margin-top:4px;color:var(--ink)}
+  #colmena-app .pio-band .r .v{font-family:var(--display);font-size:34px;font-weight:700;margin-top:2px;line-height:1;letter-spacing:-.5px}
+  #colmena-app .pio-band .r .pct{font-family:var(--mono);font-size:15px;font-weight:700;margin-top:5px;opacity:.95}
   /* colapsable + pestañas + órdenes */
   #colmena-app .pio-toggle{width:100%;margin-top:14px;background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:12px;padding:12px;font-family:var(--mono);font-size:12px;color:var(--ink-2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
   #colmena-app .pio-toggle:hover{color:var(--gold);border-color:var(--gold-soft)}
@@ -325,9 +325,16 @@ function logoDe(addr, simbolo) {
 
 /* ---- Tiempo activo (Xd Yh Zm) ---- */
 function tiempoActivo(seg) {
-  let s = Math.floor(Date.now() / 1000 - Number(seg)); if (!(s > 0)) return '0d 0h 0m';
-  const d = Math.floor(s / 86400); s -= d * 86400; const h = Math.floor(s / 3600); s -= h * 3600; const mm = Math.floor(s / 60);
-  return `${d}d ${h}h ${mm}m`;
+  let s = Math.floor(Date.now() / 1000 - Number(seg)); if (!(s > 0)) s = 0;
+  const d = Math.floor(s / 86400); s -= d * 86400; const h = Math.floor(s / 3600); s -= h * 3600; const mm = Math.floor(s / 60); const ss = s - mm * 60;
+  return `${d}d ${h}h ${mm}m ${ss}s`;
+}
+let RELOJ = null;
+function iniciarReloj() {
+  if (RELOJ) return;
+  RELOJ = setInterval(() => {
+    document.querySelectorAll(`#${APP} .pio-time`).forEach((el) => { const s = Number(el.dataset.since); if (s) el.textContent = tiempoActivo(s); });
+  }, 1000);
 }
 
 /* ---- Animación: recorrido de un bot de rejilla (para el hero) ---- */
@@ -410,7 +417,7 @@ function nivelesPreview(pMin, pMax, n, modo) {
   return out;
 }
 /** Dibuja una rejilla. `precios` = array de {p, tipo} donde tipo: 'compra'|'venta'|'off'. */
-function dibujar(precios, precio, pMin, pMax, samples) {
+function dibujar(precios, precio, pMin, pMax, samples, ops) {
   const W = 560, H = 320, padL = 70, padR = 16, padT = 16, padB = 26;
   if (!(pMin > 0 && pMax > pMin)) return svgVacio(W, H, 'Pon un rango para ver la rejilla');
   const y = (p) => padT + (H - padT - padB) * (1 - (Math.max(pMin, Math.min(pMax, p)) - pMin) / (pMax - pMin));
@@ -429,23 +436,37 @@ function dibujar(precios, precio, pMin, pMax, samples) {
   }
   const dentro = precio && precio >= pMin && precio <= pMax;
   const yp = precio ? (precio > pMax ? padT : precio < pMin ? H - padB : y(precio)) : null;
-  const hayTrail = samples && samples.length > 1;
+  const hayOps = ops && ops.length > 0;
+  const hayTrail = !hayOps && samples && samples.length > 1;
+
+  if (hayOps) {
+    // RASTRO REAL: trayectoria de las operaciones ejecutadas (compra verde / venta roja)
+    const n = ops.length, x0 = padL, x1 = W - padR;
+    const xi = (i) => n === 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * (i / (n - 1));
+    if (n > 1) {
+      const pts = ops.map((o, i) => `${xi(i).toFixed(1)},${y(o.precio).toFixed(1)}`);
+      partes.push(`<polyline points="${pts.join(' ')}" fill="none" stroke="rgba(228,245,239,.45)" stroke-width="1.6" stroke-linejoin="round"/>`);
+    }
+    ops.forEach((o, i) => {
+      const c = o.compra ? '#4DFF7A' : '#FF6B6B';
+      partes.push(`<circle cx="${xi(i).toFixed(1)}" cy="${y(o.precio).toFixed(1)}" r="4.2" fill="${c}" stroke="#020C08" stroke-width="1"/>`);
+    });
+  }
   if (hayTrail) {
-    // estela: recorrido del precio en el tiempo (x = tiempo, y = precio)
     const n = samples.length, x0 = padL, x1 = W - padR;
     const pts = samples.map((p, i) => `${(x0 + (x1 - x0) * (i / (n - 1))).toFixed(1)},${y(p).toFixed(1)}`);
     partes.push(`<polyline points="${pts.join(' ')}" fill="none" stroke="#4DFF7A" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/>`);
-    const lx = x1, ly = y(samples[n - 1]);
-    partes.push(`<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4.5" fill="#E4F5EF"><animate attributeName="r" values="4;8;4" dur="1.3s" repeatCount="indefinite"/></circle>`);
+    partes.push(`<circle cx="${x1.toFixed(1)}" cy="${y(samples[n-1]).toFixed(1)}" r="4.5" fill="#E4F5EF"><animate attributeName="r" values="4;8;4" dur="1.3s" repeatCount="indefinite"/></circle>`);
   }
   if (precio) {
-    partes.push(`<line x1="${padL}" y1="${yp.toFixed(1)}" x2="${W-padR}" y2="${yp.toFixed(1)}" stroke="#E4F5EF" stroke-width="${hayTrail ? 1 : 2}" stroke-dasharray="5 4" opacity="${hayTrail ? '.4' : '1'}"/>`);
-    if (!hayTrail) partes.push(`<circle cx="${padL}" cy="${yp.toFixed(1)}" r="4" fill="#E4F5EF"><animate attributeName="r" values="3;7;3" dur="1.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;.3;1" dur="1.4s" repeatCount="indefinite"/></circle>`);
+    const suave = hayOps || hayTrail;
+    partes.push(`<line x1="${padL}" y1="${yp.toFixed(1)}" x2="${W-padR}" y2="${yp.toFixed(1)}" stroke="#E4F5EF" stroke-width="${suave ? 1 : 2}" stroke-dasharray="5 4" opacity="${suave ? '.4' : '1'}"/>`);
+    if (!suave) partes.push(`<circle cx="${padL}" cy="${yp.toFixed(1)}" r="4" fill="#E4F5EF"><animate attributeName="r" values="3;7;3" dur="1.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;.3;1" dur="1.4s" repeatCount="indefinite"/></circle>`);
     partes.push(`<text x="${W-padR}" y="${(yp - 6).toFixed(1)}" fill="#E4F5EF" font-family="IBM Plex Mono" font-size="11" text-anchor="end">precio ${precioFmt(precio)}${dentro ? '' : ' (fuera)'}</text>`);
   }
   partes.push(`<text x="8" y="${padT+9}" fill="#9DBDB2" font-family="IBM Plex Mono" font-size="10">${precioFmt(pMax)}</text>`);
   partes.push(`<text x="8" y="${H-padB+4}" fill="#9DBDB2" font-family="IBM Plex Mono" font-size="10">${precioFmt(pMin)}</text>`);
-  if (!hayTrail) partes.push(`<line x1="${padL}" x2="${W-padR}" y1="${padT}" y2="${padT}" stroke="#4DFF7A" stroke-width="1.5"><animate attributeName="y1" values="${padT};${H-padB};${padT}" dur="5s" repeatCount="indefinite"/><animate attributeName="y2" values="${padT};${H-padB};${padT}" dur="5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;.45;0" dur="5s" repeatCount="indefinite"/></line>`);
+  if (!hayOps && !hayTrail) partes.push(`<line x1="${padL}" x2="${W-padR}" y1="${padT}" y2="${padT}" stroke="#4DFF7A" stroke-width="1.5"><animate attributeName="y1" values="${padT};${H-padB};${padT}" dur="5s" repeatCount="indefinite"/><animate attributeName="y2" values="${padT};${H-padB};${padT}" dur="5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;.45;0" dur="5s" repeatCount="indefinite"/></line>`);
   return `<svg class="chart" viewBox="0 0 ${W} ${H}">${partes.join('')}</svg>`;
 }
 function svgVacio(W, H, txt) {
@@ -766,18 +787,19 @@ const TRAILS = new Map();
 function pararTrails() { for (const t of TRAILS.values()) if (t.timer) clearInterval(t.timer); TRAILS.clear(); }
 async function arrancarTrail(clave, par, pmin, pmax, decB, decQ, cuenta) {
   if (TRAILS.has(clave)) return;
-  const st = { samples: [], timer: null }; TRAILS.set(clave, st);
+  const st = { samples: [], timer: null, ops: [] }; TRAILS.set(clave, st);
   const muestrear = async () => {
     let precio = null; try { const pr = await gb.precioPar(par.base, par.quote, decB, decQ); precio = pr.precio; } catch {}
     if (precio) { st.samples.push(precio); if (st.samples.length > 40) st.samples.shift(); }
     const c = document.querySelector(`.pio-panel[data-clave="${clave}"] .trail-chart`);
-    if (c && st.niveles) c.innerHTML = dibujar(st.niveles, precio, pmin, pmax, st.samples);
+    if (c && st.niveles) c.innerHTML = dibujar(st.niveles, precio, pmin, pmax, st.samples, st.ops);
   };
   try {
     const nv = await gb.nivelesDe(clave); const R = await gb.resumen(cuenta, par.base, par.quote);
     const ob = Number(gb.fmt(R.ordenBase, decB)) || 1;
     st.niveles = nv.map((x) => { const p = Number(gb.fmt(x.minOutVenta, decQ)) / ob; const e = Number(x.estado); return { p, tipo: e === 1 ? 'compra' : e === 2 ? 'venta' : 'off' }; }).filter((x) => isFinite(x.p) && x.p > 0);
   } catch { st.niveles = []; }
+  try { st.ops = await gb.operacionesDe(cuenta, par.base, par.quote, decB, decQ); } catch { st.ops = []; }
   await muestrear();
   st.timer = setInterval(muestrear, 6000);
 }
@@ -826,7 +848,8 @@ async function tarjeta(cuenta, clave, par) {
     try { const pr = await gb.precioPar(par.base, par.quote, decB, decQ); precio = pr.precio; } catch {}
     if (ps.length) { pmin = Math.min(...ps.map((x) => x.p)); pmax = Math.max(...ps.map((x) => x.p)); }
   } catch {}
-  const chart = ps.length ? dibujar(ps, precio, pmin, pmax) : svgVacio(560, 300, 'este bot ya no tiene órdenes');
+  let ops = []; try { ops = await gb.operacionesDe(cuenta, par.base, par.quote, decB, decQ); } catch {}
+  const chart = ps.length ? dibujar(ps, precio, pmin, pmax, null, ops) : svgVacio(560, 300, 'este bot ya no tiene órdenes');
 
   // Números
   const invertido = (par.total != null) ? Number(par.total) : Number(gb.fmt(R.costeQuote, decQ));
@@ -854,7 +877,7 @@ async function tarjeta(cuenta, clave, par) {
       ${logoDe(par.base, simB)}
       <div class="pio-titles">
         <div class="pio-pair">${simB}/${simQ}</div>
-        <div class="pio-sub">Activo ${tiempoActivo(creadoSeg)} · ${R.activa ? 'operando' : 'detenido'}</div>
+        <div class="pio-sub">Activo <span class="pio-time" data-since="${creadoSeg}">${tiempoActivo(creadoSeg)}</span> · ${R.activa ? 'operando' : 'detenido'}</div>
       </div>
       <div class="pio-tags"><span class="pio-tag">LONG</span><span class="pio-tag grey">Spot</span></div>
     </div>
@@ -969,7 +992,7 @@ function enganchar(cuenta) {
 /* ================================================================== */
 async function arrancar() {
   if (!$(APP)) return;
-  render();
+  render(); iniciarReloj();
   wallet.alCambiar(() => render());
   try { await wallet.reconectarSiProcede(); } catch {}
 }
