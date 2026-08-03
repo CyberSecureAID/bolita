@@ -43,7 +43,7 @@ function inyectarEstilo() {
   if ($('colmena-css')) return;
   const s = document.createElement('style'); s.id = 'colmena-css';
   s.textContent = `
-  #colmena-app{font-family:var(--sans);color:var(--ink)}
+  #colmena-app{font-family:var(--sans);color:var(--ink);position:relative;isolation:isolate}
   #colmena-app .c-hdr{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
     gap:12px;padding:14px 22px;background:rgba(3,11,8,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
   #colmena-app .c-brand{font-family:var(--display);font-weight:700;font-size:20px;color:var(--gold);text-decoration:none;letter-spacing:.3px}
@@ -128,6 +128,47 @@ function inyectarEstilo() {
   #colmena-app .rej-btns .btn{font-size:12px;padding:10px}
   #colmena-app .leg{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:8px}
   #colmena-pop{position:absolute;z-index:9999;max-width:280px;background:#0B2419;border:1px solid var(--gold-soft);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;line-height:1.5}
+  /* ============ VIDA: fondo, brillos y movimiento ============ */
+  #colmena-app::before{content:"";position:fixed;inset:-25%;z-index:-2;pointer-events:none;
+    background:
+      radial-gradient(38% 40% at 16% 28%, rgba(46,232,106,.20), transparent 60%),
+      radial-gradient(34% 38% at 84% 20%, rgba(77,255,122,.13), transparent 60%),
+      radial-gradient(42% 44% at 72% 82%, rgba(232,184,75,.11), transparent 62%);
+    filter:blur(72px);animation:drift 26s ease-in-out infinite alternate}
+  #colmena-app::after{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;opacity:.45;
+    background-image:radial-gradient(rgba(46,232,106,.10) 1px, transparent 1.5px);background-size:34px 34px;
+    animation:stars 90s linear infinite}
+  @keyframes drift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(3%,-2%,0) scale(1.08)}100%{transform:translate3d(-3%,2%,0) scale(1.05)}}
+  @keyframes stars{from{background-position:0 0}to{background-position:340px 700px}}
+  @media(prefers-reduced-motion:reduce){#colmena-app::before,#colmena-app::after{animation:none}}
+  /* botones vivos */
+  #colmena-app .btn{transition:transform .12s ease,filter .15s,box-shadow .2s}
+  #colmena-app .btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  #colmena-app .btn:active{transform:translateY(0)}
+  #colmena-app .btn-verde,#colmena-app .btn-oro{position:relative;overflow:hidden}
+  #colmena-app .btn-verde::after,#colmena-app .btn-oro::after{content:"";position:absolute;top:0;left:-120%;width:55%;height:100%;
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.4),transparent);transform:skewX(-18deg);pointer-events:none;animation:sheen 3.8s ease-in-out infinite}
+  @keyframes sheen{0%,55%{left:-120%}100%{left:135%}}
+  /* tarjetas con vida */
+  #colmena-app .card{transition:box-shadow .25s,border-color .25s}
+  #colmena-app .card:hover{border-color:rgba(46,232,106,.22);box-shadow:0 18px 50px rgba(0,0,0,.45)}
+  #colmena-app input:focus,#colmena-app select:focus{box-shadow:0 0 0 3px rgba(46,232,106,.14)}
+  #colmena-app .rej{position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s,border-color .25s}
+  #colmena-app .rej:hover{transform:translateY(-2px);border-color:rgba(46,232,106,.4);box-shadow:0 20px 50px rgba(0,0,0,.5)}
+  #colmena-app .rej::after{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;
+    background:linear-gradient(115deg,transparent 42%,rgba(46,232,106,.09) 50%,transparent 58%);background-size:260% 260%;animation:work 5.5s ease-in-out infinite}
+  @keyframes work{0%{background-position:0% 0%}100%{background-position:100% 100%}}
+  #colmena-app .rej>*{position:relative;z-index:1}
+  /* indicador En vivo */
+  #colmena-app .live{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--neon-lit);background:rgba(46,232,106,.08);border:1px solid var(--neon-dim);border-radius:100px;padding:5px 11px}
+  #colmena-app .live i{width:7px;height:7px;border-radius:50%;background:var(--neon-lit);box-shadow:0 0 8px var(--neon-lit);animation:cpulse 1.2s ease-in-out infinite}
+  /* esqueleto de carga */
+  #colmena-app .skel{display:inline-block;min-width:70px;height:1em;border-radius:8px;color:transparent;
+    background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.12),rgba(255,255,255,.04));background-size:200% 100%;animation:shimmer 1.3s linear infinite}
+  @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+  /* aparición suave de secciones */
+  #colmena-app .card,#colmena-app .rej{animation:rise .5s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
   @media(max-width:860px){#colmena-app .cols{grid-template-columns:1fr}#colmena-app .rej-grid{grid-template-columns:1fr}#colmena-app .prev{grid-template-columns:repeat(2,1fr)}}
   `;
   document.head.appendChild(s);
@@ -149,6 +190,15 @@ function precioFmt(n) {
   return n.toFixed(dec).replace(/0+$/, '').replace(/\.$/, '');
 }
 function num(n, d = 4) { return isFinite(n) ? n.toLocaleString('en-US', { maximumFractionDigits: d }) : '—'; }
+function animarNumero(el) {
+  const to = parseFloat(el.dataset.to); if (!isFinite(to)) return;
+  const dec = parseInt(el.dataset.dec || '0', 10), pre = el.dataset.pre || '', suf = el.dataset.suf || '';
+  const dur = 800, t0 = performance.now();
+  const step = (t) => { const k = Math.min(1, (t - t0) / dur); const e = 1 - Math.pow(1 - k, 3);
+    el.textContent = pre + num(to * e, dec) + suf; if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function activarContadores() { document.querySelectorAll(`#${APP} .numgo`).forEach(animarNumero); }
 function dias(seg) { const s = Number(seg); return s ? Math.max(0, Math.floor((Date.now()/1000 - s)/86400)).toString() : '0'; }
 function aviso(el, tipo, msg) { if (el) el.innerHTML = `<div class="aviso ${tipo}">${msg}</div>`; }
 function iBtn(k) { return `<button class="i-btn" data-info="${k}" type="button">i</button>`; }
@@ -200,6 +250,11 @@ function dibujar(precios, precio, pMin, pMax) {
   }
   partes.push(`<text x="8" y="${padT+9}" fill="#9DBDB2" font-family="IBM Plex Mono" font-size="10">${precioFmt(pMax)}</text>`);
   partes.push(`<text x="8" y="${H-padB+4}" fill="#9DBDB2" font-family="IBM Plex Mono" font-size="10">${precioFmt(pMin)}</text>`);
+  // escáner tipo radar que recorre la rejilla (sensación de "vigilando")
+  partes.push(`<line x1="${padL}" x2="${W-padR}" y1="${padT}" y2="${padT}" stroke="#4DFF7A" stroke-width="1.5">
+    <animate attributeName="y1" values="${padT};${H-padB};${padT}" dur="5s" repeatCount="indefinite"/>
+    <animate attributeName="y2" values="${padT};${H-padB};${padT}" dur="5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;.45;0" dur="5s" repeatCount="indefinite"/></line>`);
   return `<svg class="chart" viewBox="0 0 ${W} ${H}">${partes.join('')}</svg>`;
 }
 function svgVacio(W, H, txt) {
@@ -223,7 +278,7 @@ function headerHTML() {
   else right = `<span class="dir">${wallet.abreviar(cuenta)}</span><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
     <a class="c-brand" href="index.html">Bot Algorítmico</a>
-    <div class="c-hdr-r"><a class="c-volver" href="index.html">← La Bolita</a>${right}</div>
+    <div class="c-hdr-r"><span class="live"><i></i>En vivo</span><a class="c-volver" href="index.html">← La Bolita</a>${right}</div>
   </header>`;
 }
 function wireHeader() {
@@ -293,7 +348,7 @@ function render() {
             <div class="p"><b>Por vuelta ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
           </div>
           <div class="gasbox">
-            <div class="top"><div class="lab" style="margin:0">Gas del bot ${iBtn('gas')}</div><div class="v" id="c-gas">…</div></div>
+            <div class="top"><div class="lab" style="margin:0">Gas del bot ${iBtn('gas')}</div><div class="v" id="c-gas"><span class="skel">0.00000</span></div></div>
             <div class="gas-row"><input id="f-gas" type="number" step="any" placeholder="0.01 BNB"><button class="btn btn-oro" id="f-gasdep">Recargar</button></div>
             <button class="btn btn-linea btn-gasret" id="f-gasret" style="width:100%">Retirar mi gas</button>
             <div id="c-gasmsg"></div>
@@ -301,7 +356,7 @@ function render() {
         </div>
       </div>
     </div>
-    <div class="colmenas card"><h3>Mis bots</h3><div id="c-rejillas"><p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">Cargando…</p></div></div>
+    <div class="colmenas card"><h3>Mis bots</h3><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
   </div>`;
 
   wireHeader();
@@ -452,6 +507,7 @@ async function refrescarRejillas() {
     }
     cont.innerHTML = cards.length ? cards.join('') : `<p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">Sin bots para mostrar en este dispositivo.</p>`;
     enganchar(cuenta);
+    activarContadores();
   } catch (e) { cont.innerHTML = `<div class="aviso err">No se pudieron cargar: ${e?.shortMessage || e?.message || e}</div>`; }
 }
 async function tarjeta(cuenta, clave, par) {
@@ -459,7 +515,8 @@ async function tarjeta(cuenta, clave, par) {
   const decQ = par.decQuote ?? 18, decB = par.decBase ?? 18;
   const simB = par.simBase ?? simboloDe(par.base), simQ = par.simQuote ?? simboloDe(par.quote);
   const gan = R.gananciaQuote, neg = gan < 0n;
-  const ganTxt = (neg ? '−' : '+') + num(Number(gb.fmt(neg ? -gan : gan, decQ)), 4) + ' ' + simQ;
+  const ganN = Number(gb.fmt(neg ? -gan : gan, decQ));
+  const ganTxt = (neg ? '−' : '+') + num(ganN, 4) + ' ' + simQ;
   // gráfica viva: recuperar precio de cada nivel desde minOutVenta / ordenBase
   let chart = svgVacio(560, 320, 'sin datos'); let precioAhora = null;
   try {
@@ -481,9 +538,9 @@ async function tarjeta(cuenta, clave, par) {
       <div>
         <div class="ganmsg">💰 Tus ganancias caen solas en tu wallet cada vez que el bot vende. No hay nada que retirar.</div>
         <div class="stats">
-          <div class="stat"><b>Ganancia real ${iBtn('ganancia')}</b><span class="${neg ? 'neg' : 'pos'}">${ganTxt}</span></div>
-          <div class="stat"><b>Ventas hechas</b><span>${R.ciclos}</span></div>
-          <div class="stat"><b>Operaciones</b><span>${R.totalOps}</span></div>
+          <div class="stat"><b>Ganancia real ${iBtn('ganancia')}</b><span class="numgo ${neg ? 'neg' : 'pos'}" data-to="${ganN}" data-dec="4" data-pre="${neg ? '−' : '+'}" data-suf=" ${simQ}">${ganTxt}</span></div>
+          <div class="stat"><b>Ventas hechas</b><span class="numgo" data-to="${Number(R.ciclos)}" data-dec="0">${R.ciclos}</span></div>
+          <div class="stat"><b>Operaciones</b><span class="numgo" data-to="${Number(R.totalOps)}" data-dec="0">${R.totalOps}</span></div>
           <div class="stat"><b>Cuadrículas</b><span>${R.niveles}</span></div>
           <div class="stat"><b>Días activo</b><span>${dias(R.creadaEn)}</span></div>
           <div class="stat"><b>Gas</b><span>${Number(gb.fmtBNB(R.gasSaldoWei)).toFixed(4)}</span></div>
