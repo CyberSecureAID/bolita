@@ -12,7 +12,7 @@ import { MONEDAS, LISTA_MONEDAS } from './tokens.js';
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
 // Lo que se OPERA (base). Las estables no pueden ser base.
-const BASES  = ['BNB', 'BTCB', 'ETH', 'BABYDOGE'];
+const BASES  = ['BNB', 'BTCB', 'ETH'];
 // Contra qué se mide (quote): estables.
 const QUOTES = ['USDT', 'USDC'];
 

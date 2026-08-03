@@ -33,7 +33,7 @@ const ABI = [
   'function gasSaldo(address) view returns (uint256)',
   'function gasMinOp() view returns (uint256)',
   'function misRejillas(address) view returns (bytes32[])',
-  'function crearRejilla((address base,address quote,address[] pathCompra,address[] pathVenta,uint256 ordenQuote,uint256 ordenBase,(uint128 minOutCompra,uint128 minOutVenta,uint8 estado)[] niveles,uint16 slippageBps,uint32 cooldownSeg,uint128 tpUnitOut,uint128 slUnitOut))',
+  'function crearRejilla((address base,address quote,address[] pathCompra,address[] pathVenta,uint256 ordenQuote,uint256 ordenBase,(uint128 minOutCompra,uint128 minOutVenta,uint8 estado)[] niveles,uint16 slippageBps,uint32 cooldownSeg,uint128 tpUnitOut,uint128 slUnitOut,uint24 feeTier))',
   'function activarRejilla(address,address,bool)',
   'function cancelarRejilla(address,address)',
   'function cerrarAhora(address,address)',
@@ -54,6 +54,8 @@ const ERC20 = [
 
 /* PancakeSwap V2 Factory + par, para leer el precio spot de las reservas. */
 const FACTORY = '0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73';
+const ROUTER_V2 = '0x10ED43C718714eb63d5aA57B78B54704E256024E'; // solo para precios/rutas de referencia; los swaps van por V3
+const ROUTER_V2_ABI = ['function getAmountsOut(uint256 amountIn, address[] path) view returns (uint256[])'];
 const FAC_ABI = ['function getPair(address,address) view returns (address)'];
 const PAIR_ABI = ['function getReserves() view returns (uint112,uint112,uint32)', 'function token0() view returns (address)'];
 
@@ -100,7 +102,11 @@ export async function pathsDe(clave)                { return cLee().pathsDe(clav
 export async function misRejillas(usuario)          { return cLee().misRejillas(usuario); }
 export async function gasSaldo(usuario)             { return cLee().gasSaldo(usuario); }
 export async function gasMinOp()                    { try { return await cLee().gasMinOp(); } catch { return 0n; } }
-export async function cotizar(amountIn, path)       { return cLee().cotizar(amountIn, path); }
+export async function cotizar(amountIn, path) {
+  const r = new ethers.Contract(ROUTER_V2, ROUTER_V2_ABI, lector());
+  const o = await r.getAmountsOut(amountIn, path);
+  return o[o.length - 1];
+}
 
 /** Historial real de operaciones del bot (evento Ejecutado). Devuelve
  *  [{compra, precio, bloque, i}] en orden. Ventana de bloques acotada para RPCs. */
@@ -260,6 +266,7 @@ export async function construirConfig(p) {
     slippageBps: p.slippageBps || 0,
     cooldownSeg: p.cooldownSeg || 0,
     tpUnitOut, slUnitOut,
+    feeTier: 500,   // pool V3 0.05% (BNB/ETH/BTCB vs USDT/USDC)
     _Pnow: Pnow, _pasoPct: pasoPct, _nSell: nSell, _nBuy: nBuy,
     _ordenQuoteHumano: ordenQuoteHumano, _ordenBaseHumano: ordenBaseHumano, _precios: precios
   };
@@ -295,7 +302,8 @@ export async function crearRejilla(config) {
     ordenQuote: config.ordenQuote, ordenBase: config.ordenBase,
     niveles: config.niveles,
     slippageBps: config.slippageBps, cooldownSeg: config.cooldownSeg,
-    tpUnitOut: config.tpUnitOut, slUnitOut: config.slUnitOut
+    tpUnitOut: config.tpUnitOut, slUnitOut: config.slUnitOut,
+    feeTier: config.feeTier ?? 500
   };
   const bot = await cEscribe();
   const tx = await bot.crearRejilla(c);
