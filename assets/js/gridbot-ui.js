@@ -37,7 +37,7 @@ const INFO = {
 const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'geo', precio: null, rutas: null, avanzado: false, saldoQuote: null, preset: 'equilibrado' };
 const moneda = (id) => MONEDAS[id];
 const FEE_CICLO = 0.0015; // V3: 0.05%×2 PancakeSwap + nuestra comisión en 0
-const GAS_OP_USD = 0.02; // ~coste de gas por operación en BSC (~0.05-0.1 gwei)
+const GAS_OP_USD = 0.012; // ~coste de gas por operación en BSC hoy (~0.05 gwei)
 const VOL_DIARIA = { BNB: 0.04, BTCB: 0.025, ETH: 0.035, BABYDOGE: 0.10 }; // volatilidad diaria típica (estimada)
 const PRESETS = {
   tranquilo:   { rango: 0.30, grids: 14 },  // pocas ops, cada cuadrícula grande → rinde con poco capital, aguanta meses
@@ -624,7 +624,7 @@ function render() {
             <div class="p"><b>Precio</b><span id="pv-precio">—</span></div>
             <div class="p"><b>Reparto ${iBtn('reparto')}</b><span id="pv-compras">—</span></div>
             <div class="p"><b>Por compra</b><span id="pv-orden">—</span></div>
-            <div class="p"><b>Por vuelta ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
+            <div class="p"><b>Neto/vuelta ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
           </div>
           <div class="asesor" id="c-asesor" style="display:none">
             <div class="as-top"><b>Estimación</b> ${iBtn('asesor')}</div>
@@ -700,8 +700,9 @@ function actualizarVista() {
     if ($('pv-compras')) $('pv-compras').textContent = `${nSell} venden · ${nBuy} compran`;
     const ordenQuote = total > 0 ? total / n : 0;
     if ($('pv-orden')) $('pv-orden').textContent = ordenQuote ? num(ordenQuote, 2) : '—';
-    const net = ordenQuote * (pasoPct - FEE_CICLO);
-    if ($('pv-gan')) $('pv-gan').textContent = ordenQuote ? (net > 0 ? num(net, 3) : '≈0') : '—';
+    const net = ordenQuote * (pasoPct - FEE_CICLO) - 2 * GAS_OP_USD;   // tras comisiones Y gas
+    const gEl = $('pv-gan');
+    if (gEl) { gEl.textContent = ordenQuote ? (net >= 0 ? '+' + num(net, 3) : '−' + num(Math.abs(net), 3)) : '—'; gEl.className = net >= 0 ? 'pos' : 'neg'; }
     asesorar(total, n, pasoPct, ordenQuote, net);
   } else {
     ['pv-compras','pv-orden','pv-gan'].forEach((id) => { if ($(id)) $(id).textContent = '—'; });
