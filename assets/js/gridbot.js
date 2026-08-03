@@ -114,11 +114,18 @@ async function unaRuta(entra, sale, montoPrueba) {
   return [entra, WBNB, sale];
 }
 
-/** Devuelve {compra: [quote..base], venta: [base..quote]}. */
-export async function resolverRutas(base, quote, ordenQuote, ordenBase) {
-  const compra = await unaRuta(quote, base, ordenQuote);
-  const venta  = await unaRuta(base, quote, ordenBase);
+/** Devuelve {compra: [quote..base], venta: [base..quote]} usando sondas de 1 unidad. */
+export async function resolverRutas(base, quote, decBase, decQuote) {
+  const compra = await unaRuta(quote, base, ethers.parseUnits('1', decQuote));
+  const venta  = await unaRuta(base, quote, ethers.parseUnits('1', decBase));
   return { compra, venta };
+}
+
+/** Precio actual del par: cuántos quote vale 1 base (en humano). */
+export async function precioPar(base, quote, decBase, decQuote, rutas) {
+  const r = rutas || await resolverRutas(base, quote, decBase, decQuote);
+  const qOut = await cotizar(ethers.parseUnits('1', decBase), r.venta);
+  return { precio: Number(ethers.formatUnits(qOut, decQuote)), rutas: r };
 }
 
 /* ================================================================== */
@@ -142,52 +149,55 @@ function porRatio(valor, ratio) {
   return (valor * r) / 1_000_000_000n;
 }
 
+/** Convierte un número humano a unidades del token (recorta decimales). */
+function aBI(numeroHumano, dec) {
+  const s = Number(numeroHumano);
+  if (!isFinite(s) || s <= 0) return 0n;
+  return ethers.parseUnits(s.toFixed(Math.min(dec, 18)), dec);
+}
+
 /**
  * Construye el ConfigIn listo para crearRejilla.
- * @param p.base,p.quote      direcciones de los tokens (usar WBNB para BNB)
- * @param p.decBase,p.decQuote decimales
- * @param p.pMin,p.pMax        rango de precio (quote por 1 base, en humano)
- * @param p.niveles           nº de cuadrículas
- * @param p.modo              'arit' | 'geo'
- * @param p.ordenQuoteHumano  quote por compra
- * @param p.ordenBaseHumano   base por venta
- * @param p.slippageBps       (0 = usa el máximo del contrato)
- * @param p.cooldownSeg       (0 = sin límite)
- * @param p.tpPrecio,p.slPrecio  Take-Profit / Stop-Loss en precio (0 = off)
+ * Acepta `totalQuoteHumano` (inversión total; el bot la reparte) o bien
+ * `ordenQuoteHumano`/`ordenBaseHumano` explícitos.
+ * @param p.base,p.quote,p.decBase,p.decQuote,p.pMin,p.pMax,p.niveles,p.modo
+ * @param p.slippageBps,p.cooldownSeg,p.tpPrecio,p.slPrecio,p.rutas
  */
 export async function construirConfig(p) {
-  const ordenQuote = ethers.parseUnits(String(p.ordenQuoteHumano), p.decQuote);
-  const ordenBase  = ethers.parseUnits(String(p.ordenBaseHumano),  p.decBase);
-
-  const rutas = p.rutas || await resolverRutas(p.base, p.quote, ordenQuote, ordenBase);
-
-  // Referencias actuales del mercado (según Pancake, vía el contrato).
-  const bOutNow = await cotizar(ordenQuote, rutas.compra); // base que rinde ordenQuote
-  const qOutNow = await cotizar(ordenBase,  rutas.venta);  // quote que rinde ordenBase
-  const Pnow = Number(ethers.formatUnits(qOutNow, p.decQuote)) / Number(p.ordenBaseHumano);
+  const rutas = p.rutas || await resolverRutas(p.base, p.quote, p.decBase, p.decQuote);
+  const { precio: Pnow } = await precioPar(p.base, p.quote, p.decBase, p.decQuote, rutas);
   if (!(Pnow > 0)) throw new Error('No se pudo leer el precio del par');
 
   const precios = preciosNiveles(Number(p.pMin), Number(p.pMax), p.niveles, p.modo || 'arit');
 
-  const niveles = precios.map((Pi) => {
-    const minOutCompra = porRatio(bOutNow, Pnow / Pi); // más base cuando el precio baja
-    const minOutVenta  = porRatio(qOutNow, Pi / Pnow); // más quote cuando el precio sube
-    const estado = Pi < Pnow ? 1 : (Pi > Pnow ? 2 : 0); // compra abajo, venta arriba
-    return { minOutCompra, minOutVenta, estado };
-  });
+  let ordenQuoteHumano = p.ordenQuoteHumano;
+  let ordenBaseHumano  = p.ordenBaseHumano;
+  if (p.totalQuoteHumano) {
+    const nBuy = Math.max(1, precios.filter((Pi) => Pi < Pnow).length);
+    ordenQuoteHumano = Number(p.totalQuoteHumano) / nBuy;
+    ordenBaseHumano  = ordenQuoteHumano / Pnow;
+  }
+  if (!(ordenQuoteHumano > 0 && ordenBaseHumano > 0)) throw new Error('Falta el tamaño de orden');
 
-  const tpUnitOut = p.tpPrecio > 0 ? porRatio(qOutNow, Number(p.tpPrecio) / Pnow) : 0n;
-  const slUnitOut = p.slPrecio > 0 ? porRatio(qOutNow, Number(p.slPrecio) / Pnow) : 0n;
+  const niveles = precios.map((Pi) => ({
+    minOutCompra: aBI(ordenQuoteHumano / Pi, p.decBase),
+    minOutVenta:  aBI(ordenBaseHumano * Pi, p.decQuote),
+    estado: Pi < Pnow ? 1 : 0   // arma compras bajo el precio; las ventas se arman al comprar
+  }));
+
+  const tpUnitOut = p.tpPrecio > 0 ? aBI(ordenBaseHumano * Number(p.tpPrecio), p.decQuote) : 0n;
+  const slUnitOut = p.slPrecio > 0 ? aBI(ordenBaseHumano * Number(p.slPrecio), p.decQuote) : 0n;
 
   return {
     base: p.base, quote: p.quote,
     pathCompra: rutas.compra, pathVenta: rutas.venta,
-    ordenQuote, ordenBase,
+    ordenQuote: aBI(ordenQuoteHumano, p.decQuote),
+    ordenBase:  aBI(ordenBaseHumano, p.decBase),
     niveles,
     slippageBps: p.slippageBps || 0,
     cooldownSeg: p.cooldownSeg || 0,
     tpUnitOut, slUnitOut,
-    _Pnow: Pnow // referencia para la UI (no va al contrato)
+    _Pnow: Pnow, _ordenQuoteHumano: ordenQuoteHumano, _ordenBaseHumano: ordenBaseHumano, _precios: precios
   };
 }
 
@@ -204,7 +214,14 @@ export async function aprobarToken(tokenAddr) {
 }
 
 export async function crearRejilla(config) {
-  const { _Pnow, ...c } = config; // quita el campo auxiliar
+  const c = {
+    base: config.base, quote: config.quote,
+    pathCompra: config.pathCompra, pathVenta: config.pathVenta,
+    ordenQuote: config.ordenQuote, ordenBase: config.ordenBase,
+    niveles: config.niveles,
+    slippageBps: config.slippageBps, cooldownSeg: config.cooldownSeg,
+    tpUnitOut: config.tpUnitOut, slUnitOut: config.slUnitOut
+  };
   const bot = await cEscribe();
   const tx = await bot.crearRejilla(c);
   return tx.wait();
