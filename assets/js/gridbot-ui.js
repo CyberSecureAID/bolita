@@ -34,7 +34,7 @@ const INFO = {
 
 const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'geo', precio: null, rutas: null, avanzado: false, saldoQuote: null };
 const moneda = (id) => MONEDAS[id];
-const FEE_CICLO = 0.002; // 0.10% por operación × 2 (compra + venta)
+const FEE_CICLO = 0.007; // costo real por vuelta: 0.25%×2 PancakeSwap + 0.1%×2 nuestra
 const CARET = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23C9A84B' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E";
 
 /* ================================================================== */
@@ -167,9 +167,9 @@ function inyectarEstilo() {
   #colmena-app .saldo-chip:hover{color:var(--gold)} #colmena-app .saldo-chip b{color:var(--gold)}
   #colmena-app .btn-avz{background:rgba(255,255,255,.03);border:1px solid var(--line-soft);color:var(--ink-3);font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;margin-top:14px;transition:color .12s,border-color .12s}
   #colmena-app .btn-avz:hover{color:var(--gold);border-color:var(--gold-soft)}
-  #colmena-app .paso-box{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;padding:11px 14px;background:rgba(232,184,75,.06);border:1px solid var(--gold-soft);border-radius:11px}
-  #colmena-app .paso-box span{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.5px}
-  #colmena-app .paso-box b{font-family:var(--display);font-size:18px;color:var(--gold)}
+  #colmena-app .paso-box{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding:12px 14px;background:#04140E;border:1px solid var(--line-soft);border-radius:11px}
+  #colmena-app .paso-box span{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px}
+  #colmena-app .paso-box b{font-family:var(--display);font-size:17px;color:var(--ink)}
   #colmena-app .c-foot{max-width:1180px;margin:40px auto 0;padding:28px 22px 40px;border-top:1px solid var(--line)}
   #colmena-app .c-foot h4{font-family:var(--display);color:var(--gold);font-size:16px;margin:0 0 18px}
   #colmena-app .c-foot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -635,12 +635,7 @@ function actualizarVista() {
   const hint = $('c-hint');
   let aviso1 = '';
   if (F.precio && pMin > 0 && pMax > pMin && (F.precio < pMin || F.precio > pMax))
-    aviso1 = `<div class="hint">⚠ El precio de ahora (${precioFmt(F.precio)}) está fuera de tu rango. Ajusta el rango o dale a "Sugerir".</div>`;
-  if (valido && total > 0) {
-    const ordenQ = total / n;
-    if (ordenQ < 3)
-      aviso1 += `<div class="hint" style="color:var(--rojo)">⚠ Cada cuadrícula sería de solo ${num(ordenQ, 2)} ${moneda(F.quoteId).simbolo}. El gas de la red (unos centavos por operación) se comería la ganancia. Usa <b>menos cuadrículas</b> o <b>más inversión</b>.</div>`;
-  }
+    aviso1 = `<div class="hint">El precio de ahora (${precioFmt(F.precio)}) está fuera de tu rango. El bot esperará a que entre; si quieres que opere ya, ajusta el rango.</div>`;
   if (hint) hint.innerHTML = aviso1;
 
   if (valido) {
