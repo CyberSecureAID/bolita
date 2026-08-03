@@ -51,13 +51,16 @@ function inyectarEstilo() {
   #colmena-app .c-volver{font-family:var(--mono);font-size:12px;color:var(--ink-3);text-decoration:none}
   #colmena-app .c-volver:hover{color:var(--gold)}
   #colmena-app .dir{font-family:var(--mono);font-size:12px;color:var(--neon-lit);background:rgba(46,232,106,.1);border:1px solid var(--neon-dim);border-radius:100px;padding:8px 14px}
-  #colmena-app .hdr-off{width:34px;height:34px;border-radius:50%;background:transparent;border:1px solid var(--line);color:var(--ink-3);cursor:pointer}
+  #colmena-app .hdr-off{width:34px;height:34px;border-radius:50%;background:transparent;border:1px solid var(--line);color:var(--ink-3);cursor:pointer;display:inline-grid;place-items:center;padding:0;line-height:0}
+  #colmena-app .hdr-off svg{display:block}
   #colmena-app .hdr-off:hover{border-color:var(--rojo);color:var(--rojo)}
   #colmena-app .hdr-btn{margin:0;width:auto;padding:10px 18px}
   #colmena-app .wrap{max-width:1180px;margin:0 auto;padding:26px 22px 60px}
   #colmena-app .lead{font-size:15px;color:var(--ink-2);margin:0 0 22px;max-width:660px}
   #colmena-app .lead b{color:var(--gold)}
-  #colmena-app .cols{display:grid;grid-template-columns:minmax(0,0.92fr) minmax(0,1.08fr);gap:20px;align-items:start}
+  #colmena-app .cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch}
+  #colmena-app .cols>div{display:flex;flex-direction:column}
+  #colmena-app .cols>div>.card{flex:1}
   #colmena-app .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:18px;padding:22px}
   #colmena-app .card h3{font-family:var(--display);color:var(--gold);margin:0 0 4px;font-size:18px}
   #colmena-app .card .sub{color:var(--ink-3);font-size:12.5px;margin:0 0 16px}
@@ -107,6 +110,9 @@ function inyectarEstilo() {
   #colmena-app .rej-par{font-family:var(--display);color:var(--gold);font-size:17px}
   #colmena-app .pill{font-family:var(--mono);font-size:10px;padding:4px 9px;border-radius:20px}
   #colmena-app .pill.on{background:rgba(46,232,106,.15);color:var(--neon-lit)} #colmena-app .pill.off{background:rgba(100,133,122,.15);color:var(--ink-3)}
+  @keyframes cpulse{0%,100%{opacity:.4;transform:scale(.8)}50%{opacity:1;transform:scale(1.25)}}
+  #colmena-app .pill.on .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--neon-lit);margin-right:6px;animation:cpulse 1.2s ease-in-out infinite;vertical-align:middle}
+  #colmena-app .ganmsg{background:rgba(46,232,106,.06);border:1px solid var(--neon-dim);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--neon-lit);margin:12px 0}
   #colmena-app .rej-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;align-items:start}
   #colmena-app .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
   #colmena-app .stat{background:#020D09;border:1px solid var(--line-soft);border-radius:10px;padding:9px}
@@ -170,12 +176,12 @@ function dibujar(precios, precio, pMin, pMax) {
   if (precio && precio >= pMin && precio <= pMax) {
     const yp = y(precio);
     partes.push(`<rect x="${padL}" y="${yp}" width="${W-padR-padL}" height="${(H-padB-yp).toFixed(1)}" fill="#2EE86A" opacity=".05"/>`);
-    partes.push(`<rect x="${padL}" y="${padT}" width="${W-padR-padL}" height="${(yp-padT).toFixed(1)}" fill="#E8B84B" opacity=".05"/>`);
+    partes.push(`<rect x="${padL}" y="${padT}" width="${W-padR-padL}" height="${(yp-padT).toFixed(1)}" fill="#FF6B6B" opacity=".05"/>`);
   }
   for (const nv of precios) {
     if (nv.p < pMin || nv.p > pMax) continue;
     const yy = y(nv.p).toFixed(1);
-    const col = nv.tipo === 'compra' ? 'var(--neon)' : nv.tipo === 'venta' ? 'var(--gold)' : 'var(--ink-3)';
+    const col = nv.tipo === 'compra' ? 'var(--neon)' : nv.tipo === 'venta' ? 'var(--rojo)' : 'var(--ink-3)';
     const op = nv.tipo === 'off' ? '.35' : '.8';
     partes.push(`<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="${col}" stroke-width="1.4" opacity="${op}"/>`);
   }
@@ -184,6 +190,7 @@ function dibujar(precios, precio, pMin, pMax) {
   const yp = precio ? (precio > pMax ? padT : precio < pMin ? H - padB : y(precio)) : null;
   if (precio) {
     partes.push(`<line x1="${padL}" y1="${yp.toFixed(1)}" x2="${W-padR}" y2="${yp.toFixed(1)}" stroke="#E4F5EF" stroke-width="2" stroke-dasharray="5 4"/>`);
+    partes.push(`<circle cx="${padL}" cy="${yp.toFixed(1)}" r="4" fill="#E4F5EF"><animate attributeName="r" values="3;7;3" dur="1.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;.3;1" dur="1.4s" repeatCount="indefinite"/></circle>`);
     partes.push(`<text x="${W-padR}" y="${(yp - 6).toFixed(1)}" fill="#E4F5EF" font-family="IBM Plex Mono" font-size="11" text-anchor="end">precio ahora ${precioFmt(precio)}${dentro ? '' : ' (fuera)'}</text>`);
   }
   partes.push(`<text x="8" y="${padT+9}" fill="#9DBDB2" font-family="IBM Plex Mono" font-size="10">${precioFmt(pMax)}</text>`);
@@ -210,7 +217,7 @@ function headerHTML() {
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
   else right = `<span class="dir">${wallet.abreviar(cuenta)}</span><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
-    <a class="c-brand" href="index.html">El Piloto</a>
+    <a class="c-brand" href="index.html">Bot Algorítmico</a>
     <div class="c-hdr-r"><a class="c-volver" href="index.html">← La Bolita</a>${right}</div>
   </header>`;
 }
@@ -267,7 +274,6 @@ function render() {
             <div><div class="lab">Protegerme de caídas ${iBtn('sl')}</div><input id="f-sl" type="number" step="any" placeholder="off"></div>
           </div>
         </div>
-        <div id="c-aprob" class="mt"></div>
         <button class="btn btn-verde mt" id="f-crear">Encender el bot</button>
         <div id="c-msg"></div>
       </div>
@@ -283,7 +289,7 @@ function render() {
           </div>
           <div class="gasbox">
             <div class="top"><div class="lab" style="margin:0">Gas del bot ${iBtn('gas')}</div><div class="v" id="c-gas">…</div></div>
-            <div class="gas-row"><input id="f-gas" type="number" step="any" placeholder="0.02 BNB"><button class="btn btn-oro" id="f-gasdep">Recargar</button></div>
+            <div class="gas-row"><input id="f-gas" type="number" step="any" placeholder="0.01 BNB"><button class="btn btn-oro" id="f-gasdep">Recargar</button></div>
             <button class="btn btn-linea btn-gasret" id="f-gasret" style="width:100%">Retirar mi gas</button>
             <div id="c-gasmsg"></div>
           </div>
@@ -305,7 +311,7 @@ function render() {
   $('f-gasret').onclick = onRetirarGas;
   wirePops(host);
 
-  cargarPrecio(); refrescarGas(); refrescarAprobaciones(); refrescarRejillas();
+  cargarPrecio(); refrescarGas(); refrescarRejillas();
 }
 
 /* ================================================================== */
@@ -340,39 +346,19 @@ function actualizarVista() {
 }
 function sugerirRango() {
   if (!F.precio) { aviso($('c-msg'), 'err', 'Espera un segundo a que cargue el precio y vuelve a intentar.'); return; }
-  $('f-min').value = Number((F.precio * 0.9).toPrecision(6));
-  $('f-max').value = Number((F.precio * 1.1).toPrecision(6));
-  if (!$('f-niv').value) $('f-niv').value = 20;
+  // Rango amplio (±30%) y bastantes cuadrículas: pensado para que aguante semanas
+  // de movimiento sin quedar fuera de rango, con separación cómoda sobre las comisiones.
+  $('f-min').value = Number((F.precio * 0.70).toPrecision(6));
+  $('f-max').value = Number((F.precio * 1.30).toPrecision(6));
+  $('f-niv').value = 30;
   actualizarVista();
 }
 
 /* ================================================================== */
-/* Aprobaciones (un solo botón)                                        */
+/* Permisos (limitados, dentro de "Encender")                          */
 /* ================================================================== */
-async function refrescarAprobaciones() {
-  const cuenta = wallet.cuentaActual(); const cont = $('c-aprob'); if (!cuenta || !cont) return;
-  const base = moneda(F.baseId), quote = moneda(F.quoteId);
-  const bA = gb.dirDe(base), qA = gb.dirDe(quote);
-  try {
-    const [aB, aQ] = await Promise.all([gb.allowance(bA, cuenta), gb.allowance(qA, cuenta)]);
-    const faltan = [];
-    if (aQ < 1n) faltan.push({ addr: qA, sim: quote.simbolo });
-    if (aB < 1n) faltan.push({ addr: bA, sim: base.simbolo });
-    if (!faltan.length) { cont.innerHTML = ''; return; }
-    cont.innerHTML = `<button class="btn btn-linea" id="c-activar">Activar para operar</button>
-      <div class="hint" style="text-align:center">Le das permiso al bot para intercambiar tu ${faltan.map((f) => f.sim).join(' y ')}. Tu dinero sigue en tu wallet.</div>`;
-    $('c-activar').onclick = () => activar(faltan);
-  } catch {}
-}
-async function activar(faltan) {
-  const m = $('c-msg');
-  for (const f of faltan) {
-    aviso(m, 'info', `Activando ${f.sim}… confirma en tu wallet.`);
-    try { await gb.aprobarToken(f.addr); } catch (e) { aviso(m, 'err', 'No se pudo activar: ' + (e?.shortMessage || e?.message || e)); return; }
-  }
-  aviso(m, 'info', 'Listo, ya puedes encender el bot.');
-  refrescarAprobaciones();
-}
+// Convierte un número humano a unidades del token (recorta decimales para parseUnits).
+function mBI(human, dec) { return gb.parse(Number(human).toFixed(Math.min(dec, 8)), dec); }
 
 /* ================================================================== */
 /* Gas                                                                 */
@@ -403,6 +389,7 @@ async function onRetirarGas() {
 /* ================================================================== */
 async function onCrear() {
   const m = $('c-msg'); const base = moneda(F.baseId), quote = moneda(F.quoteId);
+  const cuenta = wallet.cuentaActual();
   const p = {
     base: gb.dirDe(base), quote: gb.dirDe(quote), decBase: base.decimals, decQuote: quote.decimals,
     pMin: parseFloat($('f-min').value), pMax: parseFloat($('f-max').value),
@@ -414,13 +401,21 @@ async function onCrear() {
   if (!(p.pMin > 0 && p.pMax > p.pMin)) { aviso(m, 'err', 'Revisa el rango: el precio alto debe ser mayor que el bajo. Prueba "Sugerir".'); return; }
   if (!(p.niveles >= 2)) { aviso(m, 'err', 'Pon al menos 2 cuadrículas.'); return; }
   if (!(p.totalQuoteHumano > 0)) { aviso(m, 'err', '¿Cuánto quieres invertir?'); return; }
-  if (F.precio && (F.precio < p.pMin || F.precio > p.pMax)) { aviso(m, 'warn', 'Ojo: el precio de ahora está fuera del rango; el bot esperará a que entre. Si quieres que empiece ya, ajusta el rango.'); }
+  if (F.precio && (F.precio < p.pMin || F.precio > p.pMax)) { aviso(m, 'warn', 'Ojo: el precio de ahora está fuera del rango; el bot esperará a que entre. Si quieres que empiece ya, ajusta el rango o dale a "Sugerir".'); }
   aviso(m, 'info', 'Preparando tu bot con el precio real…');
   try {
     const config = await gb.construirConfig(p);
+    const price = config._Pnow || F.precio || 1;
+    const total = p.totalQuoteHumano;
+    // Permisos LIMITADOS (finitos, para varios ciclos) — NUNCA ilimitados.
+    const topeQuote = total * 20, topeBase = (total / price) * 20;
+    const quoteNeed = mBI(topeQuote, quote.decimals), baseNeed = mBI(topeBase, base.decimals);
+    const [aQ, aB] = await Promise.all([gb.allowance(p.quote, cuenta), gb.allowance(p.base, cuenta)]);
+    if (aQ < quoteNeed) { aviso(m, 'info', `Permiso para ${quote.simbolo} (hasta ${num(topeQuote, 2)})… confirma en tu wallet.`); await gb.aprobarToken(p.quote, quoteNeed); }
+    if (aB < baseNeed) { aviso(m, 'info', `Permiso para ${base.simbolo}… confirma en tu wallet.`); await gb.aprobarToken(p.base, baseNeed); }
     aviso(m, 'info', 'Encendiendo… confirma en tu wallet.');
     await gb.crearRejilla(config);
-    recordarPar(wallet.cuentaActual(), config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo });
+    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo });
     aviso(m, 'info', '¡Bot encendido! Ya lo estoy vigilando. Revisa que tengas gas cargado.');
     refrescarRejillas();
   } catch (e) { aviso(m, 'err', 'No se pudo: ' + (e?.shortMessage || e?.message || e)); }
@@ -474,23 +469,24 @@ async function tarjeta(cuenta, clave, par) {
     const min = Math.min(...ps.map((x) => x.p)), max = Math.max(...ps.map((x) => x.p));
     chart = dibujar(ps, precioAhora, min, max);
   } catch {}
-  return `<div class="rej" data-b="${par.base}" data-q="${par.quote}">
-    <div class="rej-top"><span class="rej-par">${simB} / ${simQ}</span><span class="pill ${R.activa ? 'on' : 'off'}">${R.activa ? 'Trabajando' : 'Pausada'}</span></div>
+  return `<div class="rej" data-b="${par.base}" data-q="${par.quote}" data-sq="${simQ}" data-sb="${simB}">
+    <div class="rej-top"><span class="rej-par">${simB} / ${simQ}</span><span class="pill ${R.activa ? 'on' : 'off'}">${R.activa ? '<span class="dot"></span>Trabajando' : 'Pausada'}</span></div>
     <div class="rej-grid">
-      <div>${chart}<div class="leg"><span style="color:var(--neon-lit)">● esperando comprar</span><span style="color:var(--gold)">● comprado, esperando vender</span><span>● en espera</span></div></div>
+      <div>${chart}<div class="leg"><span style="color:var(--neon-lit)">● esperando comprar</span><span style="color:var(--rojo)">● comprado, esperando vender</span><span>● en espera</span></div></div>
       <div>
+        <div class="ganmsg">💰 Tus ganancias caen solas en tu wallet cada vez que el bot vende. No hay nada que retirar.</div>
         <div class="stats">
           <div class="stat"><b>Ganancia real ${iBtn('ganancia')}</b><span class="${neg ? 'neg' : 'pos'}">${ganTxt}</span></div>
           <div class="stat"><b>Ventas hechas</b><span>${R.ciclos}</span></div>
           <div class="stat"><b>Operaciones</b><span>${R.totalOps}</span></div>
           <div class="stat"><b>Cuadrículas</b><span>${R.niveles}</span></div>
-          <div class="stat"><b>Días activa</b><span>${dias(R.creadaEn)}</span></div>
+          <div class="stat"><b>Días activo</b><span>${dias(R.creadaEn)}</span></div>
           <div class="stat"><b>Gas</b><span>${Number(gb.fmtBNB(R.gasSaldoWei)).toFixed(4)}</span></div>
         </div>
         <div class="rej-btns">
           <button class="btn btn-linea" data-acc="toggle">${R.activa ? 'Pausar' : 'Reanudar'}</button>
-          <button class="btn btn-oro" data-acc="cerrar">Vender y cerrar</button>
-          <button class="btn btn-rojo" data-acc="cancelar">Apagar</button>
+          <button class="btn btn-oro" data-acc="terminar">Terminar y vender</button>
+          <button class="btn btn-rojo" data-acc="desconectar">Desconectar</button>
         </div>
         <div class="rej-msg"></div>
       </div>
@@ -498,13 +494,22 @@ async function tarjeta(cuenta, clave, par) {
 }
 function enganchar(cuenta) {
   document.querySelectorAll(`#${APP} .rej`).forEach((el) => {
-    const b = el.dataset.b, q = el.dataset.q, m = el.querySelector('.rej-msg');
+    const b = el.dataset.b, q = el.dataset.q, sq = el.dataset.sq, m = el.querySelector('.rej-msg');
     wirePops(el);
     el.querySelectorAll('[data-acc]').forEach((btn) => btn.onclick = async () => {
+      const acc = btn.dataset.acc;
       try {
-        if (btn.dataset.acc === 'toggle') { const R = await gb.resumen(cuenta, b, q); aviso(m, 'info', 'Confirma en tu wallet…'); await gb.activarRejilla(b, q, !R.activa); }
-        else if (btn.dataset.acc === 'cerrar') { aviso(m, 'info', 'Vendiendo todo a estable… confirma.'); await gb.cerrarAhora(b, q); }
-        else if (btn.dataset.acc === 'cancelar') { aviso(m, 'info', 'Apagando… confirma.'); await gb.cancelarRejilla(b, q); }
+        if (acc === 'toggle') {
+          const R = await gb.resumen(cuenta, b, q); aviso(m, 'info', 'Confirma en tu wallet…'); await gb.activarRejilla(b, q, !R.activa);
+        } else if (acc === 'terminar') {
+          if (!confirm('Se venderá todo a estable y se detendrá este bot. El dinero queda en tu wallet. ¿Continuar?')) return;
+          aviso(m, 'info', 'Vendiendo a estable… confirma en tu wallet.'); await gb.cerrarAhora(b, q);
+          aviso(m, 'info', 'Deteniendo el bot… confirma.'); await gb.cancelarRejilla(b, q);
+        } else if (acc === 'desconectar') {
+          if (!confirm(`Esto quita el permiso que le diste al bot sobre tu ${sq} (y la otra moneda del par) y lo desconecta. El bot no podrá operar hasta que lo actives de nuevo. ¿Continuar?`)) return;
+          aviso(m, 'info', `Quitando permiso de ${sq}… confirma.`); await gb.revocarToken(q);
+          aviso(m, 'info', 'Quitando el otro permiso… confirma.'); await gb.revocarToken(b);
+        }
         refrescarRejillas();
       } catch (e) { aviso(m, 'err', e?.shortMessage || e?.message || e); }
     });

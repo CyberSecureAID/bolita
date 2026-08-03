@@ -238,11 +238,22 @@ export async function construirConfig(p) {
 /* Escrituras (el usuario firma)                                       */
 /* ================================================================== */
 
-/** Aprueba al GridBot para gastar un token (allowance amplio, una sola vez). */
-export async function aprobarToken(tokenAddr) {
+/** Aprueba al GridBot para gastar un token, por un MONTO LIMITADO (no ilimitado).
+ *  `montoBI` es la cantidad en unidades del token (BigInt). Un permiso finito evita
+ *  que la wallet muestre el aviso rojo de "permiso ilimitado". */
+export async function aprobarToken(tokenAddr, montoBI) {
   const s = await firmante();
   const t = new ethers.Contract(tokenAddr, ERC20, s);
-  const tx = await t.approve(GRIDBOT, ethers.MaxUint256);
+  const monto = (typeof montoBI === 'bigint') ? montoBI : ethers.MaxUint256;
+  const tx = await t.approve(GRIDBOT, monto);
+  return tx.wait();
+}
+
+/** Revoca el permiso: pone el allowance del token a 0 para el GridBot. */
+export async function revocarToken(tokenAddr) {
+  const s = await firmante();
+  const t = new ethers.Contract(tokenAddr, ERC20, s);
+  const tx = await t.approve(GRIDBOT, 0n);
   return tx.wait();
 }
 
