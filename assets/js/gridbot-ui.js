@@ -71,12 +71,12 @@ function inyectarEstilo() {
   #colmena-app select{-webkit-appearance:none;appearance:none;padding-right:40px;background-image:url("${CARET}");background-repeat:no-repeat;background-position:right 14px center;background-size:12px}
   #colmena-app input:focus,#colmena-app select:focus{outline:none;border-color:var(--gold)}
   #colmena-app .fila{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  #colmena-app .btn{width:100%;box-sizing:border-box;border:none;border-radius:12px;padding:14px;font-family:var(--display);font-weight:700;font-size:15px;cursor:pointer;transition:filter .15s}
-  #colmena-app .btn:hover{filter:brightness(1.1)} #colmena-app .btn:disabled{opacity:.5;cursor:not-allowed}
-  #colmena-app .btn-oro{background:var(--gold);color:#1a1200}
-  #colmena-app .btn-verde{background:var(--neon);color:#03210f}
-  #colmena-app .btn-linea{background:transparent;border:1px solid var(--line);color:var(--ink)}
-  #colmena-app .btn-rojo{background:transparent;border:1px solid var(--rojo);color:var(--rojo)}
+  #colmena-app .btn,#colmena-modal .btn{width:100%;box-sizing:border-box;border:none;border-radius:12px;padding:14px;font-family:var(--display);font-weight:700;font-size:15px;cursor:pointer;transition:filter .15s}
+  #colmena-app .btn:hover,#colmena-modal .btn:hover{filter:brightness(1.1)} #colmena-app .btn:disabled{opacity:.5;cursor:not-allowed}
+  #colmena-app .btn-oro,#colmena-modal .btn-oro{background:var(--gold);color:#1a1200}
+  #colmena-app .btn-verde,#colmena-modal .btn-verde{background:var(--neon);color:#03210f}
+  #colmena-app .btn-linea,#colmena-modal .btn-linea{background:transparent;border:1px solid var(--line);color:var(--ink)}
+  #colmena-app .btn-rojo,#colmena-modal .btn-rojo{background:transparent;border:1px solid var(--rojo);color:var(--rojo)}
   #colmena-app .mt{margin-top:14px} #colmena-app .mt8{margin-top:8px}
   #colmena-app .link{background:none;border:none;color:var(--gold-soft);font-family:var(--mono);font-size:12px;cursor:pointer;text-decoration:underline;padding:0;margin-top:16px}
   #colmena-app .sug{background:none;border:1px solid var(--gold-soft);color:var(--gold);border-radius:8px;padding:6px 10px;font-family:var(--mono);font-size:11px;cursor:pointer;margin-left:auto}
