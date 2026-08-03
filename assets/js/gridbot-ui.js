@@ -164,6 +164,17 @@ function inyectarEstilo() {
   #colmena-app .stepper-btns button:active{transform:scale(.92)}
   #colmena-app .saldo-chip{font-family:var(--mono);font-size:10px;color:var(--gold-soft);cursor:pointer;white-space:nowrap;text-transform:none;letter-spacing:0}
   #colmena-app .saldo-chip:hover{color:var(--gold)} #colmena-app .saldo-chip b{color:var(--gold)}
+  #colmena-app .btn-avz{background:rgba(255,255,255,.03);border:1px solid var(--line-soft);color:var(--ink-3);font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;margin-top:14px;transition:color .12s,border-color .12s}
+  #colmena-app .btn-avz:hover{color:var(--gold);border-color:var(--gold-soft)}
+  #colmena-app .c-foot{max-width:1180px;margin:40px auto 0;padding:28px 22px 40px;border-top:1px solid var(--line)}
+  #colmena-app .c-foot h4{font-family:var(--display);color:var(--gold);font-size:16px;margin:0 0 18px}
+  #colmena-app .c-foot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  #colmena-app .c-faq{background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:14px;padding:16px}
+  #colmena-app .c-faq h5{font-family:var(--display);color:var(--ink);font-size:13.5px;margin:0 0 7px}
+  #colmena-app .c-faq p{font-family:var(--sans);color:var(--ink-2);font-size:12.5px;line-height:1.55;margin:0}
+  #colmena-app .c-foot-bottom{margin-top:22px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+  #colmena-app .c-foot-bottom a{color:var(--gold-soft);text-decoration:none} #colmena-app .c-foot-bottom a:hover{color:var(--gold)}
+  @media(max-width:720px){#colmena-app .c-foot-grid{grid-template-columns:1fr}}
   #colmena-app .rej{position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s,border-color .25s}
   #colmena-app .rej:hover{transform:translateY(-2px);border-color:rgba(46,232,106,.4);box-shadow:0 20px 50px rgba(0,0,0,.5)}
   #colmena-app .rej>*{position:relative;z-index:1}
@@ -193,7 +204,7 @@ function inyectarEstilo() {
   #colmena-app .pio-band .r.neg{background:linear-gradient(120deg,#a83636,var(--rojo));color:#2a0808}
   #colmena-app .pio-band .k{font-family:var(--mono);font-size:10px;opacity:.85;text-transform:uppercase;letter-spacing:.4px}
   #colmena-app .pio-band .l .v{font-family:var(--display);font-size:24px;font-weight:700;margin-top:5px;color:var(--ink)}
-  #colmena-app .pio-band .r .v{font-family:var(--display);font-size:26px;font-weight:800;margin-top:4px;line-height:1.05}
+  #colmena-app .pio-band .r .v{font-family:var(--display);font-size:28px;font-weight:700;margin-top:4px;line-height:1.05;letter-spacing:-.5px}
   #colmena-app .pio-band .r .pct{font-family:var(--mono);font-size:13px;font-weight:700;margin-top:5px;opacity:.92}
   /* colapsable + pestañas + órdenes */
   #colmena-app .pio-toggle{width:100%;margin-top:14px;background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:12px;padding:12px;font-family:var(--mono);font-size:12px;color:var(--ink-2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
@@ -296,6 +307,14 @@ function modalError(txt) {
   ok.textContent = 'Entendido'; ok.className = 'btn btn-linea'; ok.onclick = () => m.classList.remove('show');
 }
 function modalClose() { const m = $('colmena-modal'); if (m) m.classList.remove('show'); }
+function modalDone(titulo, txt) {
+  const m = $('colmena-modal'); if (!m) return;
+  $('cm-title').textContent = titulo; $('cm-body').innerHTML = txt;
+  const btns = m.querySelector('.m-btns'); btns.style.display = 'flex';
+  $('cm-cancel').style.display = 'none'; const ok = $('cm-ok');
+  ok.textContent = '¡Listo!'; ok.className = 'btn btn-oro'; ok.onclick = () => m.classList.remove('show');
+  m.classList.add('show');
+}
 
 /* ---- Logo de la moneda (Trust Wallet) con respaldo a monograma ---- */
 function logoDe(addr, simbolo) {
@@ -324,7 +343,13 @@ function animacionRecorrido() {
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${lines}${etq}${path}${pops}${dot}</svg>`;
 }
 function dias(seg) { const s = Number(seg); return s ? Math.max(0, Math.floor((Date.now()/1000 - s)/86400)).toString() : '0'; }
-function aviso(el, tipo, msg) { if (el) el.innerHTML = `<div class="aviso ${tipo}">${msg}</div>`; }
+const _avT = new WeakMap();
+function aviso(el, tipo, msg, ms = 5000) {
+  if (!el) return;
+  el.innerHTML = `<div class="aviso ${tipo}">${msg}</div>`;
+  const t = _avT.get(el); if (t) clearTimeout(t);
+  if (ms > 0) _avT.set(el, setTimeout(() => { el.innerHTML = ''; }, ms));
+}
 function iBtn(k) { return `<button class="i-btn" data-info="${k}" type="button">i</button>`; }
 function abrirPop(btn) {
   const pop = $('colmena-pop'); pop.textContent = INFO[btn.dataset.info] || '';
@@ -452,6 +477,21 @@ function wireHeader() {
   if ($('c-red')) $('c-red').onclick = () => wallet.cambiarARedCorrecta().catch(() => {});
   if ($('c-off')) $('c-off').onclick = () => wallet.desconectar().catch(() => {});
 }
+function footerHTML() {
+  const faqs = [
+    ['¿Qué hace el bot?', 'Compra barato y vende caro por ti, solo, mientras el precio sube y baja dentro del rango que elijas.'],
+    ['¿Es seguro mi dinero?', 'Sí. Tus monedas nunca salen de tu wallet a manos de nadie. Le das un permiso limitado que puedes quitar cuando quieras con "Desconectar".'],
+    ['¿Necesito cuenta o KYC?', 'No. Solo tu wallet. Sin registros, sin papeleo y sin exchange.'],
+    ['¿Qué cuesta?', 'Una comisión pequeña por operación más el gas de la red (unos centavos), que sale del tanque de gas del bot.'],
+    ['¿Puedo perder dinero?', 'Sí. El trading tiene riesgo. Si el precio se sale del rango, el bot espera. Invierte solo lo que puedas permitirte perder. Esto no es consejo financiero.'],
+    ['¿Y el aviso de mi wallet?', 'Tu wallet puede mostrar un aviso porque el contrato es nuevo y aún no tiene reputación. El permiso que otorgas es limitado y revocable.']
+  ];
+  return `<footer class="c-foot">
+    <h4>Preguntas frecuentes</h4>
+    <div class="c-foot-grid">${faqs.map(([q, a]) => `<div class="c-faq"><h5>${q}</h5><p>${a}</p></div>`).join('')}</div>
+    <div class="c-foot-bottom">Bot Algorítmico · Opera bajo tu propio riesgo · <a href="index.html">Volver a La Bolita</a></div>
+  </footer>`;
+}
 
 /* ================================================================== */
 /* Render                                                              */
@@ -467,7 +507,7 @@ function render() {
       <p class="lead" style="margin:0 auto 10px">El bot <b>compra barato y vende caro</b> por ti, día y noche, mientras duermes. Sin cuenta en ningún exchange, sin papeleo. Tú guardas tus monedas: nosotros nunca las tocamos.</p>
       <div style="max-width:520px;margin:6px auto 22px">${animacionRecorrido()}</div>
       <button class="btn btn-oro" id="c-conectar2" style="max-width:300px;margin:0 auto">Conectar wallet</button>
-    </div></div>`;
+    </div>${footerHTML()}</div>`;
     wireHeader();
     $('c-conectar2').onclick = () => wallet.conectar().catch(() => {});
     return;
@@ -488,7 +528,7 @@ function render() {
           <div><div class="lab">Cuadrículas ${iBtn('cuadriculas')}</div>${campoNum('f-niv',{value:20,min:2,max:100,step:1,int:true})}</div>
           <div><div class="lab" style="justify-content:space-between;gap:8px"><span style="display:flex;align-items:center;gap:6px">Invierto <span id="f-total-sym">(${moneda(F.quoteId).simbolo})</span> ${iBtn('inversion')}</span><span id="f-total-saldo" class="saldo-chip">—</span></div>${campoNum('f-total',{placeholder:'0.00',step:1,min:0})}</div>
         </div>
-        <button class="link" id="f-toggleavz">${F.avanzado ? '− Ocultar avanzado' : '+ Opciones avanzadas'}</button>
+        <div style="text-align:right"><button class="btn-avz" id="f-toggleavz">${F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas'}</button></div>
         <div class="avz" id="f-avz" style="${F.avanzado ? '' : 'display:none'}">
           <div class="lab">Reparto ${iBtn('reparto')}</div>
           <div class="seg" id="f-modo"><button data-modo="arit" class="${F.modo==='arit'?'on':''}">Parejo</button><button data-modo="geo" class="${F.modo==='geo'?'on':''}">Proporcional</button></div>
@@ -517,13 +557,14 @@ function render() {
           <div class="gasbox">
             <div class="top"><div class="lab" style="margin:0">Gas del bot ${iBtn('gas')}</div><div class="v" id="c-gas"><span class="skel">0.00000</span></div></div>
             <div class="gas-row">${campoNum('f-gas',{placeholder:'0.01 BNB',step:0.005,min:0})}<button class="btn btn-oro" id="f-gasdep">Recargar</button></div>
-            <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret">Retirar todo el gas (Max)</button></div>
+            <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret">Retirar todo el gas</button></div>
             <div id="c-gasmsg"></div>
           </div>
         </div>
       </div>
     </div>
     <div class="colmenas card"><h3>Mis bots</h3><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
+    ${footerHTML()}
   </div>`;
 
   wireHeader();
@@ -535,7 +576,7 @@ function render() {
   };
   $('f-toggleavz').onclick = () => {
     F.avanzado = !F.avanzado; const a = $('f-avz'); if (a) a.style.display = F.avanzado ? '' : 'none';
-    $('f-toggleavz').textContent = F.avanzado ? '− Ocultar avanzado' : '+ Opciones avanzadas';
+    $('f-toggleavz').textContent = F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas';
   };
   host.querySelectorAll('#f-modo button').forEach((b) => b.onclick = () => { host.querySelectorAll('#f-modo button').forEach((x) => x.classList.remove('on')); b.classList.add('on'); F.modo = b.dataset.modo; actualizarVista(); });
   ['f-min','f-max','f-niv','f-total'].forEach((id) => { const e = $(id); if (e) e.oninput = actualizarVista; });
@@ -649,25 +690,50 @@ async function onCrear() {
   if (!(p.pMin > 0 && p.pMax > p.pMin)) { aviso(m, 'err', 'Revisa el rango: el precio alto debe ser mayor que el bajo. Prueba "Sugerir".'); return; }
   if (!(p.niveles >= 2)) { aviso(m, 'err', 'Pon al menos 2 cuadrículas.'); return; }
   if (!(p.totalQuoteHumano > 0)) { aviso(m, 'err', '¿Cuánto quieres invertir?'); return; }
-  if (F.saldoQuote != null && p.totalQuoteHumano > F.saldoQuote + 1e-9) { aviso(m, 'err', `No tienes tanto: solo tienes ${num(F.saldoQuote, 2)} ${quote.simbolo}. Usa "Máx" para poner el tope.`); return; }
-  if (F.precio && (F.precio < p.pMin || F.precio > p.pMax)) { aviso(m, 'warn', 'Ojo: el precio de ahora está fuera del rango; el bot esperará a que entre. Si quieres que empiece ya, ajusta el rango o dale a "Sugerir".'); }
-  aviso(m, 'info', 'Preparando tu bot con el precio real…');
+  const total = p.totalQuoteHumano;
+
+  const n1 = F.precio && (F.precio < p.pMin || F.precio > p.pMax);
+  const ok = await modalConfirm({
+    titulo: 'Encender el bot',
+    cuerpo: `Vas a poner a trabajar <b>${num(total, 2)} ${quote.simbolo}</b> en ${simboloDe(p.base)}/${quote.simbolo}.<br><br>Te pediré firmar <b>varias veces</b> en tu wallet y te explicaré cada paso. Tu dinero sigue en tu wallet; solo le das permiso al bot para intercambiar dentro de este par.${n1 ? '<br><br>⚠ El precio de ahora está fuera de tu rango: el bot esperará a que entre.' : ''}`,
+    ok: 'Sí, encender'
+  });
+  if (!ok) return;
+
   try {
+    // 0) Verificar saldo real ANTES de firmar nada
+    modalBusy('Comprobando tu saldo…');
+    const balBI = await gb.balanceToken(p.quote, cuenta);
+    const balH = Number(gb.fmt(balBI, quote.decimals)); F.saldoQuote = balH;
+    if (total > balH + 1e-9) { modalError(`No tienes suficiente ${quote.simbolo}. En tu wallet hay ${num(balH, 4)} ${quote.simbolo} y quieres invertir ${num(total, 2)}. Baja la cantidad o usa "Máx".`); return; }
+
+    modalBusy('Calculando tu rejilla con el precio real…');
     const config = await gb.construirConfig(p);
     const price = config._Pnow || F.precio || 1;
-    const total = p.totalQuoteHumano;
-    // Permisos LIMITADOS (finitos, para varios ciclos) — NUNCA ilimitados.
     const topeQuote = total * 20, topeBase = (total / price) * 20;
     const quoteNeed = mBI(topeQuote, quote.decimals), baseNeed = mBI(topeBase, base.decimals);
     const [aQ, aB] = await Promise.all([gb.allowance(p.quote, cuenta), gb.allowance(p.base, cuenta)]);
-    if (aQ < quoteNeed) { aviso(m, 'info', `Permiso para ${quote.simbolo} (hasta ${num(topeQuote, 2)})… confirma en tu wallet.`); await gb.aprobarToken(p.quote, quoteNeed); }
-    if (aB < baseNeed) { aviso(m, 'info', `Permiso para ${base.simbolo}… confirma en tu wallet.`); await gb.aprobarToken(p.base, baseNeed); }
-    aviso(m, 'info', 'Encendiendo… confirma en tu wallet.');
+
+    const pasos = (aQ < quoteNeed ? 1 : 0) + (aB < baseNeed ? 1 : 0) + 1;
+    let i = 0;
+    if (aQ < quoteNeed) {
+      i++; modalBusy(`<b>Paso ${i} de ${pasos} — Permiso de ${quote.simbolo}.</b><br>Le das permiso al bot para usar tu ${quote.simbolo} y comprar cuando el precio baje (hasta ${num(topeQuote, 2)} ${quote.simbolo}, límite que puedes revocar cuando quieras).<br><br>Confirma en tu wallet.`);
+      await gb.aprobarToken(p.quote, quoteNeed);
+    }
+    if (aB < baseNeed) {
+      i++; modalBusy(`<b>Paso ${i} de ${pasos} — Permiso de ${base.simbolo}.</b><br>Para que el bot pueda vender lo que vaya comprando y dejarte la ganancia.<br><br>Confirma en tu wallet.`);
+      await gb.aprobarToken(p.base, baseNeed);
+    }
+    i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu bot con tu configuración y empieza a vigilar el mercado.<br><br>Confirma en tu wallet.`);
     await gb.crearRejilla(config);
-    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total: p.totalQuoteHumano, creadoLocal: Date.now() });
-    aviso(m, 'info', '¡Bot encendido! Ya lo estoy vigilando. Revisa que tengas gas cargado.');
-    refrescarRejillas();
-  } catch (e) { aviso(m, 'err', 'No se pudo: ' + (e?.shortMessage || e?.message || e)); }
+
+    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, creadoLocal: Date.now() });
+    modalDone('¡Bot encendido!', `Tu bot ya está trabajando en ${simboloDe(p.base)}/${quote.simbolo}. Recuerda tener <b>gas</b> cargado para que pueda operar. Lo verás abajo en "Mis bots".`);
+    refrescarRejillas(); refrescarSaldoInversion();
+  } catch (e) {
+    if (esRechazo(e)) { modalClose(); }   // canceló la firma: cerrar sin drama
+    else modalError(e?.shortMessage || e?.message || String(e));
+  }
 }
 
 /* ================================================================== */
