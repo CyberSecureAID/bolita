@@ -15,6 +15,8 @@
 
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
 
+// ⚠️ IMPORTANTE: cambia esta dirección por la de tu PROXY de GridBotV2 recién desplegado.
+// (La de abajo es el contrato V1 viejo; con el V2 ya no sirve.)
 export const GRIDBOT = '0x86641CD8518c12346790E82808988A554F9F480C';
 export const WBNB    = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
 const RPCS = [
@@ -221,36 +223,30 @@ export async function construirConfig(p) {
   const { precio: Pnow } = await precioPar(p.base, p.quote, p.decBase, p.decQuote, rutas);
   if (!(Pnow > 0)) throw new Error('No se pudo leer el precio del par');
 
-  const precios = preciosNiveles(Number(p.pMin), Number(p.pMax), p.niveles, p.modo || 'arit');
+  // SIEMPRE geométrico: todas las cuadrículas separadas al MISMO % (paso constante).
+  const precios = preciosNiveles(Number(p.pMin), Number(p.pMax), p.niveles, 'geo');
+  const nLevels = precios.length;
+  const pasoPct = Math.pow(Number(p.pMax) / Number(p.pMin), 1 / (nLevels - 1)) - 1;
 
+  // Capital por cuadrícula: igual en todas. El REPARTO entre comprar-ahora (ventas de
+  // arriba) y reservar (compras de abajo) es PROPORCIONAL a cuántas cuadrículas caen a
+  // cada lado de la entrada (lo decide dónde está Pnow), no 50/50.
   let ordenQuoteHumano = p.ordenQuoteHumano;
   let ordenBaseHumano  = p.ordenBaseHumano;
   if (p.totalQuoteHumano) {
-    const nBuy = Math.max(1, precios.filter((Pi) => Pi < Pnow).length);
-    ordenQuoteHumano = Number(p.totalQuoteHumano) / nBuy;
-    ordenBaseHumano  = ordenQuoteHumano / Pnow;
+    ordenQuoteHumano = Number(p.totalQuoteHumano) / nLevels;
+    ordenBaseHumano  = (ordenQuoteHumano / Pnow) * 0.985; // pequeño colchón: el inventario cubre todas las ventas
   }
   if (!(ordenQuoteHumano > 0 && ordenBaseHumano > 0)) throw new Error('Falta el tamaño de orden');
 
   const niveles = precios.map((Pi) => ({
-    minOutCompra: aBI(ordenQuoteHumano / Pi, p.decBase),
-    minOutVenta:  aBI(ordenBaseHumano * Pi, p.decQuote),
-    estado: Pi < Pnow ? 1 : 0   // arma compras bajo el precio; las ventas se arman al comprar
+    minOutCompra: aBI(ordenQuoteHumano / Pi, p.decBase),   // dispara COMPRA cuando el precio baja a Pi
+    minOutVenta:  aBI(ordenBaseHumano * Pi, p.decQuote),   // dispara VENTA cuando el precio sube a Pi
+    estado: Pi < Pnow ? 1 : 2   // ABAJO de la entrada = compra limit · ARRIBA = venta (el contrato compra su inventario al crear)
   }));
 
-  // POSICIÓN INICIAL (estilo Pionex): la compra más alta (la más cercana al precio)
-  // se deja lista para ejecutarse A MERCADO ya, para que el bot tome posición de
-  // inmediato y la ganancia/pérdida se mueva desde el arranque (el keeper la dispara
-  // en ≤1 min). Se hace bajando su minOutCompra al rendimiento actual del mercado.
-  try {
-    let topBuy = -1, mejor = -Infinity;
-    precios.forEach((Pi, idx) => { if (Pi < Pnow && Pi > mejor) { mejor = Pi; topBuy = idx; } });
-    if (topBuy >= 0) {
-      const ordenQuoteBI = aBI(ordenQuoteHumano, p.decQuote);
-      const outMercado = await cotizar(ordenQuoteBI, rutas.compra); // base que rinde ahora
-      if (outMercado > 0n) niveles[topBuy].minOutCompra = outMercado * 99n / 100n; // 1% de margen
-    }
-  } catch (_) { /* si falla, el bot igual compra cuando el precio baje al primer nivel */ }
+  const nSell = precios.filter((Pi) => Pi >= Pnow).length;
+  const nBuy  = nLevels - nSell;
 
   const tpUnitOut = p.tpPrecio > 0 ? aBI(ordenBaseHumano * Number(p.tpPrecio), p.decQuote) : 0n;
   const slUnitOut = p.slPrecio > 0 ? aBI(ordenBaseHumano * Number(p.slPrecio), p.decQuote) : 0n;
@@ -264,7 +260,8 @@ export async function construirConfig(p) {
     slippageBps: p.slippageBps || 0,
     cooldownSeg: p.cooldownSeg || 0,
     tpUnitOut, slUnitOut,
-    _Pnow: Pnow, _ordenQuoteHumano: ordenQuoteHumano, _ordenBaseHumano: ordenBaseHumano, _precios: precios
+    _Pnow: Pnow, _pasoPct: pasoPct, _nSell: nSell, _nBuy: nBuy,
+    _ordenQuoteHumano: ordenQuoteHumano, _ordenBaseHumano: ordenBaseHumano, _precios: precios
   };
 }
 

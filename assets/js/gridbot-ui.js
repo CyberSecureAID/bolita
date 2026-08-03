@@ -23,7 +23,8 @@ const INFO = {
   inversion: 'Cuánto dinero pones a trabajar. El bot lo reparte entre las cuadrículas para ir comprando por partes cuando el precio baja.',
   proteccion: 'Cuánta diferencia de precio aceptas al operar. Si el precio salta más que esto justo al operar, el bot no opera para no comprarte caro. Si no sabes, deja 1%.',
   ritmo: 'Tiempo mínimo entre una operación y otra. Déjalo en 0 y operará cada vez que pueda.',
-  reparto: '"Parejo": escalones a la misma distancia. "Proporcional": separados por porcentaje, mejor para monedas que se mueven mucho.',
+  reparto: 'Cuántas cuadrículas quedan por ENCIMA de tu precio de entrada (que se venden) y cuántas por DEBAJO (que compran). El bot compra a mercado el inventario de las de arriba al encender, y deja las de abajo esperando bajadas. El reparto del dinero es proporcional a cada lado, no mitad y mitad.',
+  separacion: 'La distancia, en porcentaje, entre una cuadrícula y la siguiente. Es igual en todas (por eso el bot compra y vende parejo). La calcula el sistema con tu rango y tu número de cuadrículas: más cuadrículas = menos distancia; más rango = más distancia.',
   tp: 'Opcional. Si el precio sube hasta aquí, el bot vende todo y termina, dejándote la ganancia.',
   sl: 'Opcional. Si el precio baja hasta aquí, el bot vende todo para no seguir perdiendo. Un freno de emergencia.',
   gas: 'La red cobra unos centavos por cada operación (el "gas", no es nuestra comisión). Deja aquí ~2 USD en BNB y el bot se encarga solo. Es tuyo: lo retiras cuando quieras.',
@@ -31,7 +32,7 @@ const INFO = {
   porcuad: 'Lo que ganas cada vez que el bot completa una vuelta (compra abajo y vende arriba), ya con la comisión descontada.'
 };
 
-const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'arit', precio: null, rutas: null, avanzado: false, saldoQuote: null };
+const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'geo', precio: null, rutas: null, avanzado: false, saldoQuote: null };
 const moneda = (id) => MONEDAS[id];
 const FEE_CICLO = 0.002; // 0.10% por operación × 2 (compra + venta)
 const CARET = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23C9A84B' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E";
@@ -166,6 +167,9 @@ function inyectarEstilo() {
   #colmena-app .saldo-chip:hover{color:var(--gold)} #colmena-app .saldo-chip b{color:var(--gold)}
   #colmena-app .btn-avz{background:rgba(255,255,255,.03);border:1px solid var(--line-soft);color:var(--ink-3);font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;margin-top:14px;transition:color .12s,border-color .12s}
   #colmena-app .btn-avz:hover{color:var(--gold);border-color:var(--gold-soft)}
+  #colmena-app .paso-box{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;padding:11px 14px;background:rgba(232,184,75,.06);border:1px solid var(--gold-soft);border-radius:11px}
+  #colmena-app .paso-box span{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.5px}
+  #colmena-app .paso-box b{font-family:var(--display);font-size:18px;color:var(--gold)}
   #colmena-app .c-foot{max-width:1180px;margin:40px auto 0;padding:28px 22px 40px;border-top:1px solid var(--line)}
   #colmena-app .c-foot h4{font-family:var(--display);color:var(--gold);font-size:16px;margin:0 0 18px}
   #colmena-app .c-foot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -204,7 +208,8 @@ function inyectarEstilo() {
   #colmena-app .pio-band .r.neg{background:linear-gradient(120deg,#a83636,var(--rojo));color:#2a0808}
   #colmena-app .pio-band .k{font-family:var(--mono);font-size:11px;opacity:.9;text-transform:uppercase;letter-spacing:.4px}
   #colmena-app .pio-band .l .v{font-family:var(--display);font-size:27px;font-weight:700;margin-top:4px;color:var(--ink)}
-  #colmena-app .pio-band .r .v{font-family:var(--display);font-size:34px;font-weight:700;margin-top:2px;line-height:1;letter-spacing:-.5px}
+  #colmena-app .pio-band .r .v{font-family:var(--display);font-size:34px;font-weight:700;margin-top:2px;line-height:1;letter-spacing:-.5px;-webkit-text-stroke:.6px currentColor;text-stroke:.6px currentColor}
+  #colmena-app .pio-band .l .v{-webkit-text-stroke:.5px currentColor;text-stroke:.5px currentColor}
   #colmena-app .pio-band .r .pct{font-family:var(--mono);font-size:15px;font-weight:700;margin-top:5px;opacity:.95}
   /* colapsable + pestañas + órdenes */
   #colmena-app .pio-toggle{width:100%;margin-top:14px;background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:12px;padding:12px;font-family:var(--mono);font-size:12px;color:var(--ink-2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
@@ -549,10 +554,9 @@ function render() {
           <div><div class="lab">Cuadrículas ${iBtn('cuadriculas')}</div>${campoNum('f-niv',{value:20,min:2,max:100,step:1,int:true})}</div>
           <div><div class="lab" style="justify-content:space-between;gap:8px"><span style="display:flex;align-items:center;gap:6px">Invierto <span id="f-total-sym">(${moneda(F.quoteId).simbolo})</span> ${iBtn('inversion')}</span><span id="f-total-saldo" class="saldo-chip">—</span></div>${campoNum('f-total',{placeholder:'0.00',step:1,min:0})}</div>
         </div>
+        <div class="paso-box"><span>Separación entre cuadrículas ${iBtn('separacion')}</span><b id="pv-paso">—</b></div>
         <div style="text-align:right"><button class="btn-avz" id="f-toggleavz">${F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas'}</button></div>
         <div class="avz" id="f-avz" style="${F.avanzado ? '' : 'display:none'}">
-          <div class="lab">Reparto ${iBtn('reparto')}</div>
-          <div class="seg" id="f-modo"><button data-modo="arit" class="${F.modo==='arit'?'on':''}">Parejo</button><button data-modo="geo" class="${F.modo==='geo'?'on':''}">Proporcional</button></div>
           <div class="fila">
             <div><div class="lab">Protección precio % ${iBtn('proteccion')}</div>${campoNum('f-slip',{value:1,step:0.5,min:0,max:10})}</div>
             <div><div class="lab">Ritmo mín (s) ${iBtn('ritmo')}</div>${campoNum('f-cd',{value:0,step:5,min:0,int:true})}</div>
@@ -571,7 +575,7 @@ function render() {
           <div id="c-hint"></div>
           <div class="prev">
             <div class="p"><b>Precio</b><span id="pv-precio">—</span></div>
-            <div class="p"><b>Compra en</b><span id="pv-compras">—</span></div>
+            <div class="p"><b>Reparto ${iBtn('reparto')}</b><span id="pv-compras">—</span></div>
             <div class="p"><b>Por compra</b><span id="pv-orden">—</span></div>
             <div class="p"><b>Por vuelta ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
           </div>
@@ -599,7 +603,6 @@ function render() {
     F.avanzado = !F.avanzado; const a = $('f-avz'); if (a) a.style.display = F.avanzado ? '' : 'none';
     $('f-toggleavz').textContent = F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas';
   };
-  host.querySelectorAll('#f-modo button').forEach((b) => b.onclick = () => { host.querySelectorAll('#f-modo button').forEach((x) => x.classList.remove('on')); b.classList.add('on'); F.modo = b.dataset.modo; actualizarVista(); });
   ['f-min','f-max','f-niv','f-total'].forEach((id) => { const e = $(id); if (e) e.oninput = actualizarVista; });
   $('f-sug').onclick = sugerirRango;
   $('f-crear').onclick = onCrear;
@@ -625,17 +628,28 @@ function actualizarVista() {
   if ($('pv-precio')) $('pv-precio').textContent = precioFmt(F.precio);
   const pMin = parseFloat($('f-min')?.value), pMax = parseFloat($('f-max')?.value);
   const n = parseInt($('f-niv')?.value, 10), total = parseFloat($('f-total')?.value);
+  const valido = F.precio && pMin > 0 && pMax > pMin && n >= 2;
+  const pasoPct = valido ? (Math.pow(pMax / pMin, 1 / (n - 1)) - 1) : null;
+  if ($('pv-paso')) $('pv-paso').textContent = pasoPct != null ? num(pasoPct * 100, 2) + '%' : '—';
+
   const hint = $('c-hint');
-  if (hint) hint.innerHTML = (F.precio && pMin > 0 && pMax > pMin && (F.precio < pMin || F.precio > pMax))
-    ? `<div class="hint">⚠ El precio de ahora (${precioFmt(F.precio)}) está fuera de tu rango. Ajusta el rango o dale a "Sugerir" para que el bot pueda operar.</div>` : '';
-  if (F.precio && pMin > 0 && pMax > pMin && n >= 2) {
-    const ps = nivelesPreview(pMin, pMax, n, F.modo);
-    const nBuy = ps.filter((p) => p < F.precio).length || 1;
-    if ($('pv-compras')) $('pv-compras').textContent = `${ps.filter((p) => p < F.precio).length} niveles`;
-    const ordenQuote = total > 0 ? total / nBuy : 0;
+  let aviso1 = '';
+  if (F.precio && pMin > 0 && pMax > pMin && (F.precio < pMin || F.precio > pMax))
+    aviso1 = `<div class="hint">⚠ El precio de ahora (${precioFmt(F.precio)}) está fuera de tu rango. Ajusta el rango o dale a "Sugerir".</div>`;
+  if (valido && total > 0) {
+    const ordenQ = total / n;
+    if (ordenQ < 3)
+      aviso1 += `<div class="hint" style="color:var(--rojo)">⚠ Cada cuadrícula sería de solo ${num(ordenQ, 2)} ${moneda(F.quoteId).simbolo}. El gas de la red (unos centavos por operación) se comería la ganancia. Usa <b>menos cuadrículas</b> o <b>más inversión</b>.</div>`;
+  }
+  if (hint) hint.innerHTML = aviso1;
+
+  if (valido) {
+    const ps = nivelesPreview(pMin, pMax, n, 'geo');
+    const nSell = ps.filter((p) => p >= F.precio).length, nBuy = n - nSell;
+    if ($('pv-compras')) $('pv-compras').textContent = `${nSell} venden · ${nBuy} compran`;
+    const ordenQuote = total > 0 ? total / n : 0;
     if ($('pv-orden')) $('pv-orden').textContent = ordenQuote ? num(ordenQuote, 2) : '—';
-    const stepPct = F.modo === 'geo' ? Math.pow(pMax / pMin, 1 / (n - 1)) - 1 : ((pMax - pMin) / (n - 1)) / F.precio;
-    const net = ordenQuote * (stepPct - FEE_CICLO);
+    const net = ordenQuote * (pasoPct - FEE_CICLO);
     if ($('pv-gan')) $('pv-gan').textContent = ordenQuote ? (net > 0 ? num(net, 3) : '≈0') : '—';
   } else {
     ['pv-compras','pv-orden','pv-gan'].forEach((id) => { if ($(id)) $(id).textContent = '—'; });
@@ -643,11 +657,11 @@ function actualizarVista() {
 }
 function sugerirRango() {
   if (!F.precio) { aviso($('c-msg'), 'err', 'Espera un segundo a que cargue el precio y vuelve a intentar.'); return; }
-  // Rango amplio (±30%) y bastantes cuadrículas: pensado para que aguante semanas
-  // de movimiento sin quedar fuera de rango, con separación cómoda sobre las comisiones.
-  $('f-min').value = Number((F.precio * 0.70).toPrecision(6));
-  $('f-max').value = Number((F.precio * 1.30).toPrecision(6));
-  $('f-niv').value = 30;
+  // Menos cuadrículas: cada compra es de tamaño útil y el gas no se la come.
+  // Rango ±25% para que aguante buen movimiento sin salirse.
+  $('f-min').value = Number((F.precio * 0.75).toPrecision(6));
+  $('f-max').value = Number((F.precio * 1.25).toPrecision(6));
+  $('f-niv').value = 12;
   actualizarVista();
 }
 
@@ -748,7 +762,7 @@ async function onCrear() {
     i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu bot con tu configuración y empieza a vigilar el mercado.<br><br>Confirma en tu wallet.`);
     await gb.crearRejilla(config);
 
-    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, creadoLocal: Date.now() });
+    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, entry: config._Pnow, creadoLocal: Date.now() });
     modalDone('¡Bot encendido!', `Tu bot ya está trabajando en ${simboloDe(p.base)}/${quote.simbolo}. Recuerda tener <b>gas</b> cargado para que pueda operar. Lo verás abajo en "Mis bots".`);
     refrescarRejillas(); refrescarSaldoInversion();
   } catch (e) {
@@ -861,6 +875,8 @@ async function tarjeta(cuenta, clave, par) {
   const baseInv = invertido > 0 ? invertido : costeQ;
   const pct = (x) => baseInv > 0 ? (x / baseInv * 100) : 0;
   const sg = (x) => (x < 0 ? '−' : '+'), cls = (x) => (x < 0 ? 'neg' : 'pos');
+  const mkt = (par.entry && precio) ? (precio - par.entry) / par.entry * 100 : null;
+  const sinPos = posBase <= 0 && Number(R.comprasHechas) === 0;
   const gas = Number(gb.fmtBNB(R.gasSaldoWei)).toFixed(4);
   const gasLow = R.gasSaldoWei < (GASMIN || 0n);
   const creadoSeg = par.creadoLocal ? Math.floor(par.creadoLocal / 1000) : Number(R.creadaEn);
@@ -896,12 +912,13 @@ async function tarjeta(cuenta, clave, par) {
       <div class="pio-box"><div class="k">No realizado ${iBtn('ganancia')}</div>
         <div class="v ${cls(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div>
         <div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>
-      <div class="pio-box"><div class="k">Precio ahora</div><div class="v">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">${simQ}</div></div>
+      <div class="pio-box"><div class="k">Entrada → Ahora</div><div class="v" style="font-size:14px">${par.entry ? precioFmt(par.entry) : '—'} → ${precioFmt(precio)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}">${mkt == null ? simQ : sg(mkt) + num(Math.abs(mkt), 2) + '% mercado'}</div></div>
       <div class="pio-box"><div class="k">Rango (${simQ})</div><div class="v" style="font-size:13px">${precioFmt(pmin)} – ${precioFmt(pmax)}</div><div class="v2" style="color:var(--ink-3)">${R.niveles} cuadrículas</div></div>
       <div class="pio-box"><div class="k">Vueltas / Ops</div><div class="v numgo" data-to="${Number(R.ciclos)}" data-dec="0">${R.ciclos}</div><div class="v2" style="color:var(--ink-3)">${R.totalOps} operaciones</div></div>
       <div class="pio-box"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>
     </div>
     ${gasLow ? `<div class="gaswarn">⚠ Gas insuficiente: el bot no puede operar. Recarga BNB en el gas (arriba) para que empiece a comprar y vender.</div>` : ''}
+    ${sinPos && !gasLow ? `<div class="gaswarn" style="background:rgba(232,184,75,.08);border-color:var(--gold-soft);color:var(--gold)">⏳ Tomando posición inicial… El bot está comprando su primera parte a mercado (el keeper la ejecuta en 1–2 min). En cuanto compre, verás aquí la ganancia moverse con el mercado.</div>` : ''}
 
     <button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
     <div class="pio-panel" data-clave="${clave}">
