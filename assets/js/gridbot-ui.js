@@ -104,8 +104,13 @@ function inyectarEstilo() {
   #colmena-app .aviso.warn{background:rgba(232,184,75,.08);color:var(--gold);border:1px solid var(--gold-soft)}
   #colmena-app .hero{text-align:center;padding:70px 20px}
   #colmena-app .hero h1{font-family:var(--display);color:var(--gold);font-size:34px;margin:0 0 12px}
-  #colmena-app .colmenas{margin-top:24px}
-  #colmena-app .rej{border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:16px;background:#04140E}
+  #colmena-app .colmenas{margin-top:24px;position:relative;overflow:hidden;
+    background:linear-gradient(180deg,rgba(3,11,8,.82),rgba(3,11,8,.9)),url('assets/img/fondo-bots.webp') center/cover no-repeat;
+    border:1px solid var(--line);box-shadow:inset 0 0 90px rgba(46,232,106,.07),0 24px 60px rgba(0,0,0,.45)}
+  #colmena-app .colmenas h3{position:relative;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+  #colmena-app .rej{border:1px solid rgba(46,232,106,.18);border-radius:16px;padding:18px;margin-top:16px;
+    background:rgba(4,20,14,.55);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+    box-shadow:0 10px 34px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04)}
   #colmena-app .rej-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
   #colmena-app .rej-par{font-family:var(--display);color:var(--gold);font-size:17px}
   #colmena-app .pill{font-family:var(--mono);font-size:10px;padding:4px 9px;border-radius:20px}
