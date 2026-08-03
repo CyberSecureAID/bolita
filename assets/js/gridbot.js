@@ -17,7 +17,7 @@ import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
 
 // ⚠️ IMPORTANTE: cambia esta dirección por la de tu PROXY de GridBotV2 recién desplegado.
 // (La de abajo es el contrato V1 viejo; con el V2 ya no sirve.)
-export const GRIDBOT = '0x86641CD8518c12346790E82808988A554F9F480C';
+export const GRIDBOT = '0x4e86430BC2260FE359d1Ea7Eef8B595fB241F93B';
 export const WBNB    = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
 const RPCS = [
   'https://bsc-dataseed.binance.org',
