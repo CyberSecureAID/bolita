@@ -36,8 +36,8 @@ const INFO = {
 
 const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'geo', precio: null, rutas: null, avanzado: false, saldoQuote: null, preset: 'equilibrado' };
 const moneda = (id) => MONEDAS[id];
-const FEE_CICLO = 0.007; // costo real por vuelta: 0.25%×2 PancakeSwap + 0.1%×2 nuestra
-const GAS_OP_USD = 0.02; // ~coste de gas por operación en BSC hoy (~0.1 gwei); estable
+const FEE_CICLO = 0.0015; // V3: 0.05%×2 PancakeSwap + nuestra comisión en 0
+const GAS_OP_USD = 0.02; // ~coste de gas por operación en BSC (~0.05-0.1 gwei)
 const VOL_DIARIA = { BNB: 0.04, BTCB: 0.025, ETH: 0.035, BABYDOGE: 0.10 }; // volatilidad diaria típica (estimada)
 const PRESETS = {
   tranquilo:   { rango: 0.30, grids: 14 },  // pocas ops, cada cuadrícula grande → rinde con poco capital, aguanta meses
