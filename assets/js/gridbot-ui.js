@@ -25,6 +25,8 @@ const INFO = {
   ritmo: 'Tiempo mínimo entre una operación y otra. Déjalo en 0 y operará cada vez que pueda.',
   reparto: 'Cuántas cuadrículas quedan por ENCIMA de tu precio de entrada (que se venden) y cuántas por DEBAJO (que compran). El bot compra a mercado el inventario de las de arriba al encender, y deja las de abajo esperando bajadas. El reparto del dinero es proporcional a cada lado, no mitad y mitad.',
   separacion: 'La distancia, en porcentaje, entre una cuadrícula y la siguiente. Es igual en todas (por eso el bot compra y vende parejo). La calcula el sistema con tu rango y tu número de cuadrículas: más cuadrículas = menos distancia; más rango = más distancia.',
+  estrategia: 'Configuraciones listas según lo que buscas. "Tranquilo": rango amplio y pocas cuadrículas grandes — opera menos pero cada operación rinde y aguanta meses sin salirse; ideal con poco capital. "Equilibrado": punto medio. "Activo": rango más ceñido y más cuadrículas — opera más seguido, pero necesita más capital para que cada cuadrícula sea rentable. Puedes ajustar el rango a mano después.',
+  asesor: 'Estimación aproximada de cuántas operaciones haría el bot al día y cuánto rendiría al mes, según la volatilidad típica de la moneda. NO es una promesa: si el mercado se mueve más, gana más; si se queda quieto, gana menos. Sirve para comparar configuraciones entre sí.',
   tp: 'Opcional. Si el precio sube hasta aquí, el bot vende todo y termina, dejándote la ganancia.',
   sl: 'Opcional. Si el precio baja hasta aquí, el bot vende todo para no seguir perdiendo. Un freno de emergencia.',
   gas: 'La red cobra unos centavos por cada operación (el "gas", no es nuestra comisión). Deja aquí ~2 USD en BNB y el bot se encarga solo. Es tuyo: lo retiras cuando quieras.',
@@ -32,9 +34,16 @@ const INFO = {
   porcuad: 'Lo que ganas cada vez que el bot completa una vuelta (compra abajo y vende arriba), ya con la comisión descontada.'
 };
 
-const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'geo', precio: null, rutas: null, avanzado: false, saldoQuote: null };
+const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'geo', precio: null, rutas: null, avanzado: false, saldoQuote: null, preset: 'equilibrado' };
 const moneda = (id) => MONEDAS[id];
 const FEE_CICLO = 0.007; // costo real por vuelta: 0.25%×2 PancakeSwap + 0.1%×2 nuestra
+const GAS_OP_USD = 0.02; // ~coste de gas por operación en BSC hoy (~0.1 gwei); estable
+const VOL_DIARIA = { BNB: 0.04, BTCB: 0.025, ETH: 0.035, BABYDOGE: 0.10 }; // volatilidad diaria típica (estimada)
+const PRESETS = {
+  tranquilo:   { rango: 0.30, grids: 14 },  // pocas ops, cada cuadrícula grande → rinde con poco capital, aguanta meses
+  equilibrado: { rango: 0.20, grids: 24 },
+  activo:      { rango: 0.12, grids: 40 },   // más ops, más sensible; pide más capital por cuadrícula
+};
 const CARET = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23C9A84B' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E";
 
 /* ================================================================== */
@@ -170,6 +179,19 @@ function inyectarEstilo() {
   #colmena-app .paso-box{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding:12px 14px;background:#04140E;border:1px solid var(--line-soft);border-radius:11px}
   #colmena-app .paso-box span{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px}
   #colmena-app .paso-box b{font-family:var(--display);font-size:17px;color:var(--ink)}
+  #colmena-app .seg.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+  #colmena-app .seg.presets button{padding:10px 6px;border:1px solid var(--line);background:transparent;color:var(--ink-2);border-radius:9px;font-family:var(--mono);font-size:12px;cursor:pointer;transition:.12s}
+  #colmena-app .seg.presets button:hover{border-color:var(--gold-soft);color:var(--ink)}
+  #colmena-app .seg.presets button.on{background:var(--gold);color:#1a1200;border-color:var(--gold);font-weight:700}
+  #colmena-app .asesor{margin-top:10px;background:linear-gradient(180deg,rgba(46,232,106,.05),rgba(46,232,106,.02));border:1px solid var(--line-soft);border-radius:12px;padding:13px 14px}
+  #colmena-app .asesor .as-top{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+  #colmena-app .asesor .as-top b{color:var(--gold)}
+  #colmena-app .asesor .as-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #colmena-app .asesor .as-grid>div{display:flex;flex-direction:column;gap:3px}
+  #colmena-app .asesor .as-grid span{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+  #colmena-app .asesor .as-grid b{font-family:var(--display);font-size:17px;color:var(--ink)}
+  #colmena-app .asesor .as-grid b.pos{color:var(--neon-lit)} #colmena-app .asesor .as-grid b.neg{color:var(--rojo)}
+  #colmena-app .asesor .as-nota{margin-top:10px;font-family:var(--sans);font-size:11.5px;line-height:1.5;color:var(--ink-2)}
   #colmena-app .c-foot{max-width:1180px;margin:40px auto 0;padding:28px 22px 40px;border-top:1px solid var(--line)}
   #colmena-app .c-foot h4{font-family:var(--display);color:var(--gold);font-size:16px;margin:0 0 18px}
   #colmena-app .c-foot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -245,6 +267,17 @@ function inyectarEstilo() {
   #colmena-app .gas-sep{border-top:1px solid var(--line-soft);margin:14px 0 0;padding-top:12px}
   #colmena-app .btn-max{width:100%;margin-top:0;padding:12px}
   @media(max-width:860px){#colmena-app .cols{grid-template-columns:1fr}#colmena-app .rej-grid{grid-template-columns:1fr}#colmena-app .prev{grid-template-columns:repeat(2,1fr)}#colmena-app .pio-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){
+    #colmena-app .c-hdr{padding:10px 14px}
+    #colmena-app .c-hdr-r{gap:8px}
+    #colmena-app .c-volver,#colmena-app .live{display:none}
+    #colmena-app .c-brand{font-size:17px}
+    #colmena-app .hdr-btn{padding:9px 14px;font-size:13px}
+    #colmena-app .wrap{padding:18px 14px 50px}
+    #colmena-app .hero{padding:44px 16px}
+    #colmena-app .hero h1{font-size:26px}
+    #colmena-app .seg.presets button{font-size:11px;padding:9px 4px}
+  }
   `;
   document.head.appendChild(s);
   const pop = document.createElement('div'); pop.id = 'colmena-pop'; document.body.appendChild(pop);
@@ -498,8 +531,15 @@ function headerHTML() {
     <div class="c-hdr-r"><span class="live"><i></i>En vivo</span><a class="c-volver" href="index.html">← La Bolita</a>${right}</div>
   </header>`;
 }
+function conectarWallet() {
+  Promise.resolve().then(() => wallet.conectar()).catch((e) => {
+    const el = $('c-hero-msg') || $('c-msg');
+    const msg = e?.shortMessage || e?.message || String(e);
+    if (el) aviso(el, 'err', 'No se pudo conectar: ' + msg + '. Si estás en el móvil, abre esta página desde el navegador de tu wallet (MetaMask o Trust Wallet).', 8000);
+  });
+}
 function wireHeader() {
-  if ($('c-conectar')) $('c-conectar').onclick = () => wallet.conectar().catch(() => {});
+  if ($('c-conectar')) $('c-conectar').onclick = conectarWallet;
   if ($('c-red')) $('c-red').onclick = () => wallet.cambiarARedCorrecta().catch(() => {});
   if ($('c-off')) $('c-off').onclick = () => wallet.desconectar().catch(() => {});
 }
@@ -532,10 +572,11 @@ function render() {
       <h1>Pon tu dinero a trabajar</h1>
       <p class="lead" style="margin:0 auto 10px">El bot <b>compra barato y vende caro</b> por ti, día y noche, mientras duermes. Sin cuenta en ningún exchange, sin papeleo. Tú guardas tus monedas: nosotros nunca las tocamos.</p>
       <div style="max-width:520px;margin:6px auto 22px">${animacionRecorrido()}</div>
-      <button class="btn btn-oro" id="c-conectar2" style="max-width:300px;margin:0 auto">Conectar wallet</button>
+      <div style="text-align:center"><button class="btn btn-oro" id="c-conectar2" style="max-width:320px;margin:0 auto;display:block">Conectar wallet</button></div>
+      <div id="c-hero-msg" style="max-width:420px;margin:12px auto 0"></div>
     </div>${footerHTML()}</div>`;
     wireHeader();
-    $('c-conectar2').onclick = () => wallet.conectar().catch(() => {});
+    if ($('c-conectar2')) $('c-conectar2').onclick = conectarWallet;
     return;
   }
 
@@ -548,6 +589,12 @@ function render() {
         <p class="sub">Elige moneda, di cuánto inviertes y enciende. Toca la (i) si no sabes qué es algo.</p>
         <div class="lab">Moneda ${iBtn('par')}</div>
         <div class="fila"><select id="f-base">${optHTML(BASES, F.baseId)}</select><select id="f-quote">${optHTML(QUOTES, F.quoteId)}</select></div>
+        <div class="lab">Estrategia ${iBtn('estrategia')}</div>
+        <div class="seg presets" id="f-preset">
+          <button type="button" data-preset="tranquilo" class="${F.preset==='tranquilo'?'on':''}">Tranquilo</button>
+          <button type="button" data-preset="equilibrado" class="${F.preset==='equilibrado'?'on':''}">Equilibrado</button>
+          <button type="button" data-preset="activo" class="${F.preset==='activo'?'on':''}">Activo</button>
+        </div>
         <div class="lab">Rango de precio ${iBtn('rango')}<button class="sug" id="f-sug" type="button">Sugerir</button></div>
         <div class="fila">${campoNum('f-min',{placeholder:'precio bajo',pct:0.005})}${campoNum('f-max',{placeholder:'precio alto',pct:0.005})}</div>
         <div class="fila">
@@ -579,6 +626,14 @@ function render() {
             <div class="p"><b>Por compra</b><span id="pv-orden">—</span></div>
             <div class="p"><b>Por vuelta ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
           </div>
+          <div class="asesor" id="c-asesor" style="display:none">
+            <div class="as-top"><b>Estimación</b> ${iBtn('asesor')}</div>
+            <div class="as-grid">
+              <div><span>Operaciones/día</span><b id="as-ops">—</b></div>
+              <div><span>Ganancia/mes aprox.</span><b id="as-mes">—</b></div>
+            </div>
+            <div class="as-nota" id="as-nota"></div>
+          </div>
           <div class="gasbox">
             <div class="top"><div class="lab" style="margin:0">Gas del bot ${iBtn('gas')}</div><div class="v" id="c-gas"><span class="skel">0.00000</span></div></div>
             <div class="gas-row">${campoNum('f-gas',{placeholder:'0.01 BNB',step:0.005,min:0})}<button class="btn btn-oro" id="f-gasdep">Recargar</button></div>
@@ -605,6 +660,7 @@ function render() {
   };
   ['f-min','f-max','f-niv','f-total'].forEach((id) => { const e = $(id); if (e) e.oninput = actualizarVista; });
   $('f-sug').onclick = sugerirRango;
+  document.querySelectorAll(`#${APP} #f-preset button`).forEach((b) => b.onclick = () => aplicarPreset(b.dataset.preset));
   $('f-crear').onclick = onCrear;
   $('f-gasdep').onclick = onDepositarGas;
   $('f-gasret').onclick = onRetirarGas;
@@ -646,18 +702,45 @@ function actualizarVista() {
     if ($('pv-orden')) $('pv-orden').textContent = ordenQuote ? num(ordenQuote, 2) : '—';
     const net = ordenQuote * (pasoPct - FEE_CICLO);
     if ($('pv-gan')) $('pv-gan').textContent = ordenQuote ? (net > 0 ? num(net, 3) : '≈0') : '—';
+    asesorar(total, n, pasoPct, ordenQuote, net);
   } else {
     ['pv-compras','pv-orden','pv-gan'].forEach((id) => { if ($(id)) $(id).textContent = '—'; });
+    const a = $('c-asesor'); if (a) a.style.display = 'none';
   }
 }
-function sugerirRango() {
-  if (!F.precio) { aviso($('c-msg'), 'err', 'Espera un segundo a que cargue el precio y vuelve a intentar.'); return; }
-  // Menos cuadrículas: cada compra es de tamaño útil y el gas no se la come.
-  // Rango ±25% para que aguante buen movimiento sin salirse.
-  $('f-min').value = Number((F.precio * 0.75).toPrecision(6));
-  $('f-max').value = Number((F.precio * 1.25).toPrecision(6));
-  $('f-niv').value = 12;
+/** Estimación honesta: operaciones/día y rendimiento/mes según volatilidad típica. */
+function asesorar(total, n, pasoPct, ordenQuote, netPorVuelta) {
+  const box = $('c-asesor'); if (!box) return;
+  if (!(total > 0 && pasoPct > 0)) { box.style.display = 'none'; return; }
+  const vol = VOL_DIARIA[F.baseId] || 0.03;
+  const gasCiclo = 2 * GAS_OP_USD;                       // dos operaciones por vuelta (estable ≈ USD)
+  const netCiclo = ordenQuote * (pasoPct - FEE_CICLO) - gasCiclo;
+  const vueltasDia = vol / (2 * pasoPct);                // cruces de ida y vuelta por día (aprox)
+  const netDia = vueltasDia * netCiclo;
+  const pctMes = total > 0 ? (netDia * 30 / total) * 100 : 0;
+  box.style.display = '';
+  $('as-ops').textContent = (vueltasDia * 2).toFixed(vueltasDia * 2 < 1 ? 1 : 0);
+  const mesEl = $('as-mes');
+  mesEl.textContent = (netDia * 30 >= 0 ? '+' : '−') + num(Math.abs(netDia * 30), 2) + ' ' + moneda(F.quoteId).simbolo + '  (' + (pctMes >= 0 ? '+' : '−') + num(Math.abs(pctMes), 1) + '%)';
+  mesEl.className = netDia >= 0 ? 'pos' : 'neg';
+  let nota = '';
+  if (netCiclo <= 0) nota = 'Con esta configuración cada vuelta apenas cubre el gas. Prueba la estrategia "Tranquilo" o sube el capital: cada cuadrícula rinde cuando mueve varios dólares.';
+  else if (vueltasDia < 0.3) nota = 'Rinde, pero opera poco (mercado tranquilo para este rango). Para más movimiento, prueba "Activo".';
+  else nota = 'Configuración equilibrada para este capital. La estimación depende de cuánto se mueva el mercado.';
+  $('as-nota').textContent = nota;
+}
+function aplicarPreset(id) {
+  if (!F.precio) { aviso($('c-msg'), 'err', 'Espera a que cargue el precio y vuelve a intentar.'); return; }
+  const p = PRESETS[id]; if (!p) return;
+  F.preset = id;
+  document.querySelectorAll(`#${APP} #f-preset button`).forEach((b) => b.classList.toggle('on', b.dataset.preset === id));
+  $('f-min').value = Number((F.precio * (1 - p.rango)).toPrecision(6));
+  $('f-max').value = Number((F.precio * (1 + p.rango)).toPrecision(6));
+  $('f-niv').value = p.grids;
   actualizarVista();
+}
+function sugerirRango() {
+  aplicarPreset('equilibrado');
 }
 
 /* ================================================================== */
