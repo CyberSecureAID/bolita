@@ -31,7 +31,7 @@ const INFO = {
   porcuad: 'Lo que ganas cada vez que el bot completa una vuelta (compra abajo y vende arriba), ya con la comisión descontada.'
 };
 
-const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'arit', precio: null, rutas: null, avanzado: false };
+const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'arit', precio: null, rutas: null, avanzado: false, saldoQuote: null };
 const moneda = (id) => MONEDAS[id];
 const FEE_CICLO = 0.002; // 0.10% por operación × 2 (compra + venta)
 const CARET = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23C9A84B' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E";
@@ -153,6 +153,17 @@ function inyectarEstilo() {
   #colmena-app .card{transition:box-shadow .25s,border-color .25s}
   #colmena-app .card:hover{border-color:rgba(46,232,106,.22);box-shadow:0 18px 50px rgba(0,0,0,.45)}
   #colmena-app input:focus,#colmena-app select:focus{box-shadow:0 0 0 3px rgba(46,232,106,.14)}
+  #colmena-app input[type=number]::-webkit-inner-spin-button,#colmena-app input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  #colmena-app input[type=number]{-moz-appearance:textfield}
+  #colmena-app .stepper{position:relative}
+  #colmena-app .stepper input{padding-right:38px}
+  #colmena-app .gas-row .stepper{flex:1}
+  #colmena-app .stepper-btns{position:absolute;right:6px;top:6px;bottom:6px;display:flex;flex-direction:column;gap:3px}
+  #colmena-app .stepper-btns button{flex:1;width:24px;border:1px solid var(--line);background:#0b2419;color:var(--gold-soft);border-radius:6px;font-size:7px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0;transition:background .12s,color .12s,transform .1s}
+  #colmena-app .stepper-btns button:hover{background:var(--gold);color:#1a1200;border-color:var(--gold)}
+  #colmena-app .stepper-btns button:active{transform:scale(.92)}
+  #colmena-app .saldo-chip{font-family:var(--mono);font-size:10px;color:var(--gold-soft);cursor:pointer;white-space:nowrap;text-transform:none;letter-spacing:0}
+  #colmena-app .saldo-chip:hover{color:var(--gold)} #colmena-app .saldo-chip b{color:var(--gold)}
   #colmena-app .rej{position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s,border-color .25s}
   #colmena-app .rej:hover{transform:translateY(-2px);border-color:rgba(46,232,106,.4);box-shadow:0 20px 50px rgba(0,0,0,.5)}
   #colmena-app .rej>*{position:relative;z-index:1}
@@ -323,6 +334,45 @@ function abrirPop(btn) {
 }
 function wirePops(root) { (root || document).querySelectorAll('.i-btn').forEach((b) => b.onclick = (e) => { e.stopPropagation(); abrirPop(b); }); }
 
+/* Campo numérico con flechas propias (con estilo) y tope en el mínimo. */
+function campoNum(id, o = {}) {
+  const min = o.min ?? 0;
+  const attrs = [
+    `id="${id}"`, 'type="number"', 'inputmode="decimal"',
+    o.placeholder != null ? `placeholder="${o.placeholder}"` : '',
+    o.value != null ? `value="${o.value}"` : '',
+    `min="${min}"`, o.max != null ? `max="${o.max}"` : '',
+    `step="${o.int ? 1 : (o.step ?? 'any')}"`,
+    `data-min="${min}"`, o.max != null ? `data-max="${o.max}"` : '',
+    o.pct != null ? `data-pct="${o.pct}"` : `data-step="${o.step ?? 1}"`,
+    o.int ? 'data-int="1"' : ''
+  ].filter(Boolean).join(' ');
+  return `<div class="stepper"><input ${attrs}><span class="stepper-btns"><button type="button" class="st-up" tabindex="-1">▲</button><button type="button" class="st-dn" tabindex="-1">▼</button></span></div>`;
+}
+function wireSteppers(root) {
+  (root || document).querySelectorAll(`#${APP} .stepper`).forEach((wr) => {
+    const inp = wr.querySelector('input'); if (!inp) return;
+    const isInt = inp.dataset.int === '1', pct = inp.dataset.pct ? parseFloat(inp.dataset.pct) : null;
+    const lims = () => ({ min: parseFloat(inp.dataset.min), max: inp.dataset.max != null && inp.dataset.max !== '' ? parseFloat(inp.dataset.max) : Infinity });
+    const paso = (dir) => {
+      const { min, max } = lims();
+      let v = parseFloat(inp.value); if (!isFinite(v)) v = isFinite(min) ? min : 0;
+      const delta = pct ? Math.max(v * pct, 0.000001) : parseFloat(inp.dataset.step || '1');
+      let nv = (pct && v === 0) ? min + (dir > 0 ? delta : 0) : v + dir * delta;
+      if (nv < min) nv = min; if (nv > max) nv = max;
+      inp.value = isInt ? Math.round(nv) : Number(nv.toPrecision(8));
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    wr.querySelector('.st-up').onclick = () => paso(1);
+    wr.querySelector('.st-dn').onclick = () => paso(-1);
+    inp.addEventListener('change', () => {
+      const { min, max } = lims(); const v = parseFloat(inp.value); if (!isFinite(v)) return;
+      const c = v < min ? min : v > max ? max : v;
+      if (c !== v) { inp.value = isInt ? Math.round(c) : Number(c.toPrecision(8)); inp.dispatchEvent(new Event('input', { bubbles: true })); }
+    });
+  });
+}
+
 /* ================================================================== */
 /* Gráficas                                                            */
 /* ================================================================== */
@@ -433,22 +483,22 @@ function render() {
         <div class="lab">Moneda ${iBtn('par')}</div>
         <div class="fila"><select id="f-base">${optHTML(BASES, F.baseId)}</select><select id="f-quote">${optHTML(QUOTES, F.quoteId)}</select></div>
         <div class="lab">Rango de precio ${iBtn('rango')}<button class="sug" id="f-sug" type="button">Sugerir</button></div>
-        <div class="fila"><input id="f-min" type="number" step="any" placeholder="precio bajo"><input id="f-max" type="number" step="any" placeholder="precio alto"></div>
+        <div class="fila">${campoNum('f-min',{placeholder:'precio bajo',pct:0.005})}${campoNum('f-max',{placeholder:'precio alto',pct:0.005})}</div>
         <div class="fila">
-          <div><div class="lab">Cuadrículas ${iBtn('cuadriculas')}</div><input id="f-niv" type="number" min="2" max="100" value="20"></div>
-          <div><div class="lab">Invierto (${moneda(F.quoteId).simbolo}) ${iBtn('inversion')}</div><input id="f-total" type="number" step="any" placeholder="0.00"></div>
+          <div><div class="lab">Cuadrículas ${iBtn('cuadriculas')}</div>${campoNum('f-niv',{value:20,min:2,max:100,step:1,int:true})}</div>
+          <div><div class="lab" style="justify-content:space-between;gap:8px"><span style="display:flex;align-items:center;gap:6px">Invierto <span id="f-total-sym">(${moneda(F.quoteId).simbolo})</span> ${iBtn('inversion')}</span><span id="f-total-saldo" class="saldo-chip">—</span></div>${campoNum('f-total',{placeholder:'0.00',step:1,min:0})}</div>
         </div>
         <button class="link" id="f-toggleavz">${F.avanzado ? '− Ocultar avanzado' : '+ Opciones avanzadas'}</button>
         <div class="avz" id="f-avz" style="${F.avanzado ? '' : 'display:none'}">
           <div class="lab">Reparto ${iBtn('reparto')}</div>
           <div class="seg" id="f-modo"><button data-modo="arit" class="${F.modo==='arit'?'on':''}">Parejo</button><button data-modo="geo" class="${F.modo==='geo'?'on':''}">Proporcional</button></div>
           <div class="fila">
-            <div><div class="lab">Protección precio % ${iBtn('proteccion')}</div><input id="f-slip" type="number" step="any" value="1"></div>
-            <div><div class="lab">Ritmo mín (s) ${iBtn('ritmo')}</div><input id="f-cd" type="number" step="1" value="0"></div>
+            <div><div class="lab">Protección precio % ${iBtn('proteccion')}</div>${campoNum('f-slip',{value:1,step:0.5,min:0,max:10})}</div>
+            <div><div class="lab">Ritmo mín (s) ${iBtn('ritmo')}</div>${campoNum('f-cd',{value:0,step:5,min:0,int:true})}</div>
           </div>
           <div class="fila">
-            <div><div class="lab">Cerrar con ganancia ${iBtn('tp')}</div><input id="f-tp" type="number" step="any" placeholder="off"></div>
-            <div><div class="lab">Protegerme de caídas ${iBtn('sl')}</div><input id="f-sl" type="number" step="any" placeholder="off"></div>
+            <div><div class="lab">Cerrar con ganancia ${iBtn('tp')}</div>${campoNum('f-tp',{placeholder:'off',pct:0.01,min:0})}</div>
+            <div><div class="lab">Protegerme de caídas ${iBtn('sl')}</div>${campoNum('f-sl',{placeholder:'off',pct:0.01,min:0})}</div>
           </div>
         </div>
         <button class="btn btn-verde mt" id="f-crear">Encender el bot</button>
@@ -466,7 +516,7 @@ function render() {
           </div>
           <div class="gasbox">
             <div class="top"><div class="lab" style="margin:0">Gas del bot ${iBtn('gas')}</div><div class="v" id="c-gas"><span class="skel">0.00000</span></div></div>
-            <div class="gas-row"><input id="f-gas" type="number" step="any" placeholder="0.01 BNB"><button class="btn btn-oro" id="f-gasdep">Recargar</button></div>
+            <div class="gas-row">${campoNum('f-gas',{placeholder:'0.01 BNB',step:0.005,min:0})}<button class="btn btn-oro" id="f-gasdep">Recargar</button></div>
             <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret">Retirar todo el gas (Max)</button></div>
             <div id="c-gasmsg"></div>
           </div>
@@ -477,9 +527,16 @@ function render() {
   </div>`;
 
   wireHeader();
-  $('f-base').onchange = (e) => { F.baseId = e.target.value; F.precio = null; F.rutas = null; render(); cargarPrecio(); };
-  $('f-quote').onchange = (e) => { F.quoteId = e.target.value; F.precio = null; F.rutas = null; render(); cargarPrecio(); };
-  $('f-toggleavz').onclick = () => { F.avanzado = !F.avanzado; render(); };
+  $('f-base').onchange = (e) => { F.baseId = e.target.value; F.precio = null; F.rutas = null; cargarPrecio(); };
+  $('f-quote').onchange = (e) => {
+    F.quoteId = e.target.value; F.precio = null; F.rutas = null;
+    const sy = $('f-total-sym'); if (sy) sy.textContent = '(' + moneda(F.quoteId).simbolo + ')';
+    refrescarSaldoInversion(); cargarPrecio();
+  };
+  $('f-toggleavz').onclick = () => {
+    F.avanzado = !F.avanzado; const a = $('f-avz'); if (a) a.style.display = F.avanzado ? '' : 'none';
+    $('f-toggleavz').textContent = F.avanzado ? '− Ocultar avanzado' : '+ Opciones avanzadas';
+  };
   host.querySelectorAll('#f-modo button').forEach((b) => b.onclick = () => { host.querySelectorAll('#f-modo button').forEach((x) => x.classList.remove('on')); b.classList.add('on'); F.modo = b.dataset.modo; actualizarVista(); });
   ['f-min','f-max','f-niv','f-total'].forEach((id) => { const e = $(id); if (e) e.oninput = actualizarVista; });
   $('f-sug').onclick = sugerirRango;
@@ -487,8 +544,9 @@ function render() {
   $('f-gasdep').onclick = onDepositarGas;
   $('f-gasret').onclick = onRetirarGas;
   wirePops(host);
+  wireSteppers(host);
 
-  cargarPrecio(); refrescarGas(); refrescarRejillas();
+  cargarPrecio(); refrescarGas(); refrescarSaldoInversion(); refrescarRejillas();
 }
 
 /* ================================================================== */
@@ -544,6 +602,19 @@ async function refrescarGas() {
   const cuenta = wallet.cuentaActual(); const el = $('c-gas'); if (!cuenta || !el) return;
   try { const s = await gb.gasSaldo(cuenta); el.textContent = `${Number(gb.fmtBNB(s)).toFixed(5)} BNB`; } catch { el.textContent = '—'; }
 }
+async function refrescarSaldoInversion() {
+  const cuenta = wallet.cuentaActual(); const el = $('f-total-saldo'), inp = $('f-total'); if (!el || !cuenta) return;
+  el.textContent = '…';
+  try {
+    const quote = moneda(F.quoteId);
+    const bal = await gb.balanceToken(gb.dirDe(quote), cuenta);
+    const balH = Number(gb.fmt(bal, quote.decimals)); F.saldoQuote = balH;
+    el.innerHTML = `Tienes ${num(balH, 2)} · <b>Máx</b>`;
+    if (inp) inp.dataset.max = balH;                 // el stepper y el clamp respetan este tope
+    if (inp && parseFloat(inp.value) > balH) { inp.value = Number(balH.toPrecision(8)); inp.dispatchEvent(new Event('input', { bubbles: true })); }
+    el.onclick = () => { if (F.saldoQuote > 0 && inp) { inp.value = Number(F.saldoQuote.toPrecision(8)); inp.dispatchEvent(new Event('input', { bubbles: true })); } };
+  } catch { el.textContent = ''; F.saldoQuote = null; }
+}
 async function onDepositarGas() {
   const v = parseFloat($('f-gas').value); const m = $('c-gasmsg');
   if (!(v > 0)) { aviso(m, 'err', 'Escribe cuánto BNB quieres poner.'); return; }
@@ -578,6 +649,7 @@ async function onCrear() {
   if (!(p.pMin > 0 && p.pMax > p.pMin)) { aviso(m, 'err', 'Revisa el rango: el precio alto debe ser mayor que el bajo. Prueba "Sugerir".'); return; }
   if (!(p.niveles >= 2)) { aviso(m, 'err', 'Pon al menos 2 cuadrículas.'); return; }
   if (!(p.totalQuoteHumano > 0)) { aviso(m, 'err', '¿Cuánto quieres invertir?'); return; }
+  if (F.saldoQuote != null && p.totalQuoteHumano > F.saldoQuote + 1e-9) { aviso(m, 'err', `No tienes tanto: solo tienes ${num(F.saldoQuote, 2)} ${quote.simbolo}. Usa "Máx" para poner el tope.`); return; }
   if (F.precio && (F.precio < p.pMin || F.precio > p.pMax)) { aviso(m, 'warn', 'Ojo: el precio de ahora está fuera del rango; el bot esperará a que entre. Si quieres que empiece ya, ajusta el rango o dale a "Sugerir".'); }
   aviso(m, 'info', 'Preparando tu bot con el precio real…');
   try {
