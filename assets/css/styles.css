@@ -2210,3 +2210,17 @@ body {
 .nav-links a { white-space: nowrap; }
 .nav-right { flex-shrink: 0; }
 .nav-links { flex-shrink: 1; min-width: 0; }
+
+/* --- Menú robusto: hamburguesa hasta 1024px; barra apretada por encima --- */
+@media (max-width: 1024px) {
+  .nav-links { display: none; }
+  .btn-menu { display: flex; }
+  .menu-movil { display: flex; }
+}
+@media (min-width: 1025px) {
+  .nav { flex-wrap: nowrap; gap: 14px; }
+  .nav-links { display: flex; flex-shrink: 1; min-width: 0; gap: 2px; }
+  .nav-links a { white-space: nowrap; font-size: 13px; padding: 6px 10px; }
+  .nav-right { flex-shrink: 0; }
+  .brand { flex-shrink: 0; }
+}
