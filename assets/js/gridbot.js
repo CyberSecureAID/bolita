@@ -48,6 +48,11 @@ const ERC20 = [
   'function balanceOf(address) view returns (uint256)'
 ];
 
+/* PancakeSwap V2 Factory + par, para leer el precio spot de las reservas. */
+const FACTORY = '0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73';
+const FAC_ABI = ['function getPair(address,address) view returns (address)'];
+const PAIR_ABI = ['function getReserves() view returns (uint112,uint112,uint32)', 'function token0() view returns (address)'];
+
 /* ================================================================== */
 /* Proveedores y contratos                                             */
 /* ================================================================== */
@@ -121,11 +126,39 @@ export async function resolverRutas(base, quote, decBase, decQuote) {
   return { compra, venta };
 }
 
-/** Precio actual del par: cuántos quote vale 1 base (en humano). */
+/** Precio spot directo desde las reservas de un pool (sin impacto). */
+async function precioDirecto(inTok, outTok, decIn, decOut) {
+  const fac = new ethers.Contract(FACTORY, FAC_ABI, lector());
+  const pair = await fac.getPair(inTok, outTok);
+  if (!pair || pair === ethers.ZeroAddress) return null;
+  const pc = new ethers.Contract(pair, PAIR_ABI, lector());
+  const [r0, r1] = await pc.getReserves();
+  const t0 = (await pc.token0()).toLowerCase();
+  const [rIn, rOut] = t0 === inTok.toLowerCase() ? [r0, r1] : [r1, r0];
+  if (rIn === 0n) return null;
+  const inH = Number(ethers.formatUnits(rIn, decIn));
+  const outH = Number(ethers.formatUnits(rOut, decOut));
+  return inH > 0 ? outH / inH : null;
+}
+
+/** Precio spot del par (quote por 1 base): directo o vía WBNB. Sin impacto. */
+export async function precioSpot(base, quote, decBase, decQuote) {
+  const d = await precioDirecto(base, quote, decBase, decQuote);
+  if (d && isFinite(d) && d > 0) return d;
+  const bw = await precioDirecto(base, WBNB, decBase, 18);
+  const wq = await precioDirecto(WBNB, quote, 18, decQuote);
+  return (bw && wq) ? bw * wq : null;
+}
+
+/** Precio actual del par (spot por reservas; respaldo por cotización). */
 export async function precioPar(base, quote, decBase, decQuote, rutas) {
   const r = rutas || await resolverRutas(base, quote, decBase, decQuote);
-  const qOut = await cotizar(ethers.parseUnits('1', decBase), r.venta);
-  return { precio: Number(ethers.formatUnits(qOut, decQuote)), rutas: r };
+  let precio = null;
+  try { precio = await precioSpot(base, quote, decBase, decQuote); } catch (_) {}
+  if (!(precio > 0)) {
+    try { const q = await cotizar(ethers.parseUnits('1', decBase), r.venta); precio = Number(ethers.formatUnits(q, decQuote)); } catch (_) {}
+  }
+  return { precio, rutas: r };
 }
 
 /* ================================================================== */

@@ -11,7 +11,10 @@ import { MONEDAS, LISTA_MONEDAS } from './tokens.js';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
-const OPERABLES = LISTA_MONEDAS;
+// Lo que se OPERA (base). Las estables no pueden ser base.
+const BASES  = ['BNB', 'BTCB', 'ETH', 'BABYDOGE'];
+// Contra qué se mide (quote): estables.
+const QUOTES = ['USDT', 'USDC'];
 
 const INFO = {
   par: 'Elige qué moneda quieres comprar y vender, y contra cuál (lo normal es una estable como USDT). El bot comprará barato y venderá caro entre esas dos, solo.',
@@ -125,10 +128,14 @@ function inyectarEstilo() {
 /* Utilidades                                                          */
 /* ================================================================== */
 function precioFmt(n) {
-  if (!isFinite(n) || n === null) return '—';
+  if (n === null || !isFinite(n)) return '—';
   const a = Math.abs(n);
-  const d = a >= 1 ? 2 : a >= 0.01 ? 4 : 6;
-  return n.toLocaleString('en-US', { maximumFractionDigits: d });
+  if (a === 0) return '0';
+  if (a >= 1) return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  if (a >= 0.01) return n.toLocaleString('en-US', { maximumFractionDigits: 4 });
+  if (a >= 0.0001) return n.toLocaleString('en-US', { maximumFractionDigits: 6 });
+  const dec = Math.min(18, -Math.floor(Math.log10(a)) + 3);
+  return n.toFixed(dec).replace(/0+$/, '').replace(/\.$/, '');
 }
 function num(n, d = 4) { return isFinite(n) ? n.toLocaleString('en-US', { maximumFractionDigits: d }) : '—'; }
 function dias(seg) { const s = Number(seg); return s ? Math.max(0, Math.floor((Date.now()/1000 - s)/86400)).toString() : '0'; }
@@ -201,9 +208,9 @@ function headerHTML() {
   let right;
   if (!cuenta) right = `<button class="btn btn-oro hdr-btn" id="c-conectar">Conectar wallet</button>`;
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
-  else right = `<span class="dir">${wallet.abreviar(cuenta)}</span><button class="hdr-off" id="c-off" title="Desconectar">⏻</button>`;
+  else right = `<span class="dir">${wallet.abreviar(cuenta)}</span><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
-    <a class="c-brand" href="index.html">🐝 La Colmena</a>
+    <a class="c-brand" href="index.html">El Piloto</a>
     <div class="c-hdr-r"><a class="c-volver" href="index.html">← La Bolita</a>${right}</div>
   </header>`;
 }
@@ -232,17 +239,15 @@ function render() {
     return;
   }
 
-  const opts = OPERABLES.map((m) => m.id);
-  const sel = (val, exc) => opts.filter((id) => id !== exc).map((id) => `<option value="${id}" ${id === val ? 'selected' : ''}>${moneda(id).simbolo}</option>`).join('');
+  const optHTML = (ids, val) => ids.map((id) => `<option value="${id}" ${id === val ? 'selected' : ''}>${moneda(id).simbolo}</option>`).join('');
 
   host.innerHTML = headerHTML() + `<div class="wrap">
-    <p class="lead">Elige una moneda, dime <b>cuánto quieres invertir</b> y enciende. El bot compra cuando baja y vende cuando sube, solo. Toca la <b>(i)</b> de cada cosa si no sabes qué es.</p>
     <div class="cols">
       <div class="card">
-        <h3>Arma tu colmena</h3>
-        <p class="sub">Lo básico está aquí. Lo demás, en "Opciones avanzadas".</p>
+        <h3>Arma tu bot</h3>
+        <p class="sub">Elige moneda, di cuánto inviertes y enciende. Toca la (i) si no sabes qué es algo.</p>
         <div class="lab">Moneda ${iBtn('par')}</div>
-        <div class="fila"><select id="f-base">${sel(F.baseId, F.quoteId)}</select><select id="f-quote">${sel(F.quoteId, F.baseId)}</select></div>
+        <div class="fila"><select id="f-base">${optHTML(BASES, F.baseId)}</select><select id="f-quote">${optHTML(QUOTES, F.quoteId)}</select></div>
         <div class="lab">Rango de precio ${iBtn('rango')}<button class="sug" id="f-sug" type="button">Sugerir</button></div>
         <div class="fila"><input id="f-min" type="number" step="any" placeholder="precio bajo"><input id="f-max" type="number" step="any" placeholder="precio alto"></div>
         <div class="fila">
@@ -263,7 +268,7 @@ function render() {
           </div>
         </div>
         <div id="c-aprob" class="mt"></div>
-        <button class="btn btn-verde mt" id="f-crear">Encender la colmena</button>
+        <button class="btn btn-verde mt" id="f-crear">Encender el bot</button>
         <div id="c-msg"></div>
       </div>
       <div>
@@ -271,10 +276,10 @@ function render() {
           <div id="c-chart">${graficaPreview()}</div>
           <div id="c-hint"></div>
           <div class="prev">
-            <div class="p"><b>Precio ahora</b><span id="pv-precio">—</span></div>
+            <div class="p"><b>Precio</b><span id="pv-precio">—</span></div>
             <div class="p"><b>Compra en</b><span id="pv-compras">—</span></div>
             <div class="p"><b>Por compra</b><span id="pv-orden">—</span></div>
-            <div class="p"><b>Ganas x cuadrícula ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
+            <div class="p"><b>Por vuelta ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
           </div>
           <div class="gasbox">
             <div class="top"><div class="lab" style="margin:0">Gas del bot ${iBtn('gas')}</div><div class="v" id="c-gas">…</div></div>
@@ -285,7 +290,7 @@ function render() {
         </div>
       </div>
     </div>
-    <div class="colmenas card"><h3>Mis colmenas</h3><div id="c-rejillas"><p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">Cargando…</p></div></div>
+    <div class="colmenas card"><h3>Mis bots</h3><div id="c-rejillas"><p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">Cargando…</p></div></div>
   </div>`;
 
   wireHeader();
@@ -365,7 +370,7 @@ async function activar(faltan) {
     aviso(m, 'info', `Activando ${f.sim}… confirma en tu wallet.`);
     try { await gb.aprobarToken(f.addr); } catch (e) { aviso(m, 'err', 'No se pudo activar: ' + (e?.shortMessage || e?.message || e)); return; }
   }
-  aviso(m, 'info', 'Listo, ya puedes encender la colmena.');
+  aviso(m, 'info', 'Listo, ya puedes encender el bot.');
   refrescarAprobaciones();
 }
 
@@ -410,13 +415,13 @@ async function onCrear() {
   if (!(p.niveles >= 2)) { aviso(m, 'err', 'Pon al menos 2 cuadrículas.'); return; }
   if (!(p.totalQuoteHumano > 0)) { aviso(m, 'err', '¿Cuánto quieres invertir?'); return; }
   if (F.precio && (F.precio < p.pMin || F.precio > p.pMax)) { aviso(m, 'warn', 'Ojo: el precio de ahora está fuera del rango; el bot esperará a que entre. Si quieres que empiece ya, ajusta el rango.'); }
-  aviso(m, 'info', 'Preparando tu colmena con el precio real…');
+  aviso(m, 'info', 'Preparando tu bot con el precio real…');
   try {
     const config = await gb.construirConfig(p);
     aviso(m, 'info', 'Encendiendo… confirma en tu wallet.');
     await gb.crearRejilla(config);
     recordarPar(wallet.cuentaActual(), config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo });
-    aviso(m, 'info', '¡Colmena encendida! El bot ya la está vigilando. Revisa que tengas gas cargado.');
+    aviso(m, 'info', '¡Bot encendido! Ya lo estoy vigilando. Revisa que tengas gas cargado.');
     refrescarRejillas();
   } catch (e) { aviso(m, 'err', 'No se pudo: ' + (e?.shortMessage || e?.message || e)); }
 }
@@ -438,14 +443,14 @@ async function refrescarRejillas() {
   const cuenta = wallet.cuentaActual(); const cont = $('c-rejillas'); if (!cuenta || !cont) return;
   try {
     const claves = await gb.misRejillas(cuenta);
-    if (!claves.length) { cont.innerHTML = `<p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">Aún no tienes colmenas. Arma la primera arriba.</p>`; return; }
+    if (!claves.length) { cont.innerHTML = `<p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">Aún no tienes bots. Arma el primero arriba.</p>`; return; }
     const store = JSON.parse(localStorage.getItem('bot-pares') || '{}');
     const cards = [];
     for (const clave of claves) {
       const par = store[clave]; if (!par) continue;
       try { cards.push(await tarjeta(cuenta, clave, par)); } catch {}
     }
-    cont.innerHTML = cards.length ? cards.join('') : `<p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">Sin colmenas para mostrar en este dispositivo.</p>`;
+    cont.innerHTML = cards.length ? cards.join('') : `<p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">Sin bots para mostrar en este dispositivo.</p>`;
     enganchar(cuenta);
   } catch (e) { cont.innerHTML = `<div class="aviso err">No se pudieron cargar: ${e?.shortMessage || e?.message || e}</div>`; }
 }
