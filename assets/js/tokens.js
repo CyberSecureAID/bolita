@@ -159,42 +159,42 @@ export const MONEDAS = {
 
   // ---- Volátiles operables por el bot (estándar, sin impuesto de transferencia) ----
   SOL: {
-    id: 'SOL', simbolo: 'SOL', nombre: 'Solana (Binance-Peg)',
+    id: 'SOL', soloBot: true, simbolo: 'SOL', nombre: 'Solana (Binance-Peg)',
     address: '0x570A5D26f7765Ecb712C0924E4De545B89fD43dF', decimals: 18,
     icono: '◎', color: '#14F195',
     minApuesta: 0.0008, maxPorJugada: 0.015, maxPorPersona: 0.04, maxPago: 0.1,
     decimalesVista: 4, unidadPequena: { nombre: '', factor: 1 }
   },
   DOGE: {
-    id: 'DOGE', simbolo: 'DOGE', nombre: 'Dogecoin (Binance-Peg)',
+    id: 'DOGE', soloBot: true, simbolo: 'DOGE', nombre: 'Dogecoin (Binance-Peg)',
     address: '0xbA2aE424d960c26247Dd6c32edC70B295c744C43', decimals: 8,
     icono: 'Ð', color: '#C2A633',
     minApuesta: 0.6, maxPorJugada: 12, maxPorPersona: 30, maxPago: 75,
     decimalesVista: 2, unidadPequena: { nombre: '', factor: 1 }
   },
   XRP: {
-    id: 'XRP', simbolo: 'XRP', nombre: 'XRP (Binance-Peg)',
+    id: 'XRP', soloBot: true, simbolo: 'XRP', nombre: 'XRP (Binance-Peg)',
     address: '0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE', decimals: 18,
     icono: '✕', color: '#25A768',
     minApuesta: 0.05, maxPorJugada: 1, maxPorPersona: 2.5, maxPago: 6,
     decimalesVista: 3, unidadPequena: { nombre: '', factor: 1 }
   },
   CAKE: {
-    id: 'CAKE', simbolo: 'CAKE', nombre: 'PancakeSwap',
+    id: 'CAKE', soloBot: true, simbolo: 'CAKE', nombre: 'PancakeSwap',
     address: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', decimals: 18,
     icono: '🥞', color: '#D1884F',
     minApuesta: 0.04, maxPorJugada: 0.8, maxPorPersona: 2, maxPago: 5,
     decimalesVista: 3, unidadPequena: { nombre: '', factor: 1 }
   },
   LINK: {
-    id: 'LINK', simbolo: 'LINK', nombre: 'Chainlink (Binance-Peg)',
+    id: 'LINK', soloBot: true, simbolo: 'LINK', nombre: 'Chainlink (Binance-Peg)',
     address: '0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD', decimals: 18,
     icono: '⬡', color: '#2A5ADA',
     minApuesta: 0.005, maxPorJugada: 0.1, maxPorPersona: 0.25, maxPago: 0.6,
     decimalesVista: 4, unidadPequena: { nombre: '', factor: 1 }
   },
   ADA: {
-    id: 'ADA', simbolo: 'ADA', nombre: 'Cardano (Binance-Peg)',
+    id: 'ADA', soloBot: true, simbolo: 'ADA', nombre: 'Cardano (Binance-Peg)',
     address: '0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47', decimals: 18,
     icono: '₳', color: '#0033AD',
     minApuesta: 0.13, maxPorJugada: 2.6, maxPorPersona: 6.6, maxPago: 16,
@@ -220,7 +220,8 @@ export const COMPRAR_URL = {
   ADA:      'https://pancakeswap.finance/swap?outputCurrency=0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47'
 };
 
-export const LISTA_MONEDAS = Object.values(MONEDAS);
+export const LISTA_MONEDAS = Object.values(MONEDAS).filter((m) => !m.soloBot); // lotería: sin monedas solo-bot
+export const LISTA_TODAS   = Object.values(MONEDAS);                              // bot: todas
 
 /**
  * Formatea una cantidad en la unidad de la moneda.

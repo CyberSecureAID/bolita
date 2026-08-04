@@ -7,7 +7,7 @@
 
 import * as gb from './gridbot.js';
 import * as wallet from './wallet.js';
-import { MONEDAS, LISTA_MONEDAS } from './tokens.js';
+import { MONEDAS, LISTA_TODAS } from './tokens.js';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -1131,7 +1131,7 @@ function olvidarPar(cuenta, base, quote) {
 }
 function simboloDe(addr) {
   if (addr.toLowerCase() === gb.WBNB.toLowerCase()) return 'BNB';
-  const m = LISTA_MONEDAS.find((x) => (x.address || '').toLowerCase() === addr.toLowerCase());
+  const m = LISTA_TODAS.find((x) => (x.address || '').toLowerCase() === addr.toLowerCase());
   return m ? m.simbolo : addr.slice(0, 6);
 }
 
