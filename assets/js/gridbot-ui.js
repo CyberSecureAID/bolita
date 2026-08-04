@@ -645,8 +645,7 @@ function render() {
           <div class="asesor" id="c-asesor" style="display:none">
             <div class="as-top"><b>Estimación</b> ${iBtn('asesor')}</div>
             <div class="as-grid">
-              <div><span>Operaciones/día</span><b id="as-ops">—</b></div>
-              <div><span>Ganancia/mes aprox.</span><b id="as-mes">—</b></div>
+              <div><span>Operaciones/día (est.)</span><b id="as-ops">—</b></div>
             </div>
             <div class="as-nota" id="as-nota"></div>
           </div>
@@ -664,11 +663,11 @@ function render() {
   </div>`;
 
   wireHeader();
-  $('f-base').onchange = (e) => { F.baseId = e.target.value; F.precio = null; F.rutas = null; cargarPrecio(); };
-  $('f-quote').onchange = (e) => {
+  $('f-base').onchange = async (e) => { F.baseId = e.target.value; F.precio = null; F.rutas = null; await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado'); };
+  $('f-quote').onchange = async (e) => {
     F.quoteId = e.target.value; F.precio = null; F.rutas = null;
     const sy = $('f-total-sym'); if (sy) sy.textContent = '(' + moneda(F.quoteId).simbolo + ')';
-    refrescarSaldoInversion(); cargarPrecio();
+    refrescarSaldoInversion(); await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado');
   };
   $('f-toggleavz').onclick = () => {
     F.avanzado = !F.avanzado; const a = $('f-avz'); if (a) a.style.display = F.avanzado ? '' : 'none';
@@ -737,14 +736,6 @@ function asesorar(total, n, pasoPct, ordenQuote, netPorVuelta) {
   const pctMes = total > 0 ? (netDia * 30 / total) * 100 : 0;
   box.style.display = '';
   $('as-ops').textContent = (vueltasDia * 2).toFixed(vueltasDia * 2 < 1 ? 1 : 0);
-  const mesEl = $('as-mes');
-  if (netDia >= 0) {
-    mesEl.textContent = '+' + num(netDia * 30, 2) + ' ' + moneda(F.quoteId).simbolo + '  (+' + num(pctMes, 1) + '%)';
-    mesEl.className = 'pos';
-  } else {
-    mesEl.textContent = 'Ajusta la config ↓';
-    mesEl.className = 'neg';
-  }
   let nota = '';
   if (netCiclo <= 0) nota = 'Con esta configuración cada vuelta apenas cubre el gas. Prueba la estrategia "Tranquilo" o sube el capital: cada cuadrícula rinde cuando mueve varios dólares.';
   else if (vueltasDia < 0.3) nota = 'Rinde, pero opera poco (mercado tranquilo para este rango). Para más movimiento, prueba "Activo".';
@@ -937,6 +928,51 @@ async function refrescarRejillas() {
     enganchar(cuenta);
     activarContadores();
   } catch (e) { cont.innerHTML = `<div class="aviso err">No se pudieron cargar: ${e?.shortMessage || e?.message || e}</div>`; }
+  if (PNL_TIMER) clearInterval(PNL_TIMER);
+  PNL_TIMER = setInterval(refrescarPnls, 15000);
+}
+
+let PNL_TIMER = null;
+/** Refresca en vivo los números de cada bot (P&L, vueltas) sin recargar la página ni reiniciar la gráfica. */
+async function refrescarPnls() {
+  const cuenta = wallet.cuentaActual(); if (!cuenta) return;
+  const cards = document.querySelectorAll(`#${APP} .rej`);
+  for (const card of cards) {
+    const base = card.dataset.b, quote = card.dataset.q;
+    if (!base || !quote) continue;
+    const decB = Number(card.dataset.decb) || 18, decQ = Number(card.dataset.decq) || 18;
+    const invertido = Number(card.dataset.total) || 0;
+    try {
+      const R = await gb.resumen(cuenta, base, quote);
+      let precio = null; try { const pr = await gb.precioPar(base, quote, decB, decQ); precio = pr.precio; } catch {}
+      const costeQ = Number(gb.fmt(R.costeQuote, decQ));
+      const posBase = Number(gb.fmt(R.posicionBase, decB));
+      const realizado = Number(gb.fmt(R.gananciaQuote, decQ));
+      const noRealizado = precio ? (posBase * precio - costeQ) : 0;
+      const totalG = realizado + noRealizado;
+      const baseInv = invertido > 0 ? invertido : costeQ;
+      const P = (x) => baseInv > 0 ? (x / baseInv * 100) : 0;
+      const sg = (x) => (x < 0 ? '−' : '+'), cls = (x) => (x < 0 ? 'neg' : 'pos');
+      const r = card.querySelector('.pio-band .r');
+      if (r) {
+        r.classList.toggle('neg', totalG < 0);
+        const v = r.querySelector('.v'); if (v) v.textContent = sg(totalG) + num(Math.abs(totalG), 4);
+        const pc = r.querySelector('.pct'); if (pc) pc.textContent = '(' + sg(P(totalG)) + num(Math.abs(P(totalG)), 2) + '%)';
+      }
+      const boxes = card.querySelectorAll('.pio-grid .pio-box');
+      const upd = (box, val, pctVal) => {
+        if (!box) return;
+        const v = box.querySelector('.v'), v2 = box.querySelector('.v2');
+        if (v) { v.classList.remove('pos', 'neg'); v.classList.add(cls(val)); v.textContent = sg(val) + num(Math.abs(val), 4); }
+        if (v2 && pctVal !== undefined) { v2.classList.remove('pos', 'neg'); v2.classList.add(cls(val)); v2.textContent = sg(pctVal) + num(Math.abs(pctVal), 2) + '%'; }
+      };
+      upd(boxes[0], realizado, P(realizado));      // Grid profit
+      upd(boxes[1], noRealizado, P(noRealizado));  // No realizado
+      const vu = boxes[4];                          // Vueltas / Ops
+      if (vu) { const v = vu.querySelector('.v'); const v2 = vu.querySelector('.v2');
+        if (v) v.textContent = String(R.ciclos); if (v2) v2.textContent = R.totalOps + ' operaciones'; }
+    } catch (_) {}
+  }
 }
 let GASMIN = null;
 function idDe(addr) {
