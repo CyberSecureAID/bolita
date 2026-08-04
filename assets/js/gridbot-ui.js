@@ -710,7 +710,7 @@ function render() {
             <div class="p"><b>Precio</b><span id="pv-precio">—</span></div>
             <div class="p"><b>Reparto ${iBtn('reparto')}</b><span id="pv-compras" class="rep-wrap">—</span></div>
             <div class="p"><b>Por compra</b><span id="pv-orden">—</span></div>
-            <div class="p"><b>Neto/vuelta ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
+            <div class="p"><b>Ganancia/vuelta ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
           </div>
           <div class="asesor" id="c-asesor" style="display:none">
             <div class="as-top"><b>Estimación</b> ${iBtn('asesor')}</div>
