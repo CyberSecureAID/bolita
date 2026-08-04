@@ -929,7 +929,7 @@ async function refrescarRejillas() {
     activarContadores();
   } catch (e) { cont.innerHTML = `<div class="aviso err">No se pudieron cargar: ${e?.shortMessage || e?.message || e}</div>`; }
   if (PNL_TIMER) clearInterval(PNL_TIMER);
-  PNL_TIMER = setInterval(refrescarPnls, 15000);
+  PNL_TIMER = setInterval(refrescarPnls, 10000);
 }
 
 let PNL_TIMER = null;
@@ -968,6 +968,14 @@ async function refrescarPnls() {
       };
       upd(boxes[0], realizado, P(realizado));      // Grid profit
       upd(boxes[1], noRealizado, P(noRealizado));  // No realizado
+      const entry = Number(card.dataset.entry) || null;   // Entrada → Ahora (tiquea en vivo)
+      const ea = boxes[2];
+      if (ea && precio) {
+        const v = ea.querySelector('.v'); if (v) v.textContent = (entry ? precioFmt(entry) : '—') + ' → ' + precioFmt(precio);
+        const mkt = entry ? (precio - entry) / entry * 100 : null;
+        const v2 = ea.querySelector('.v2');
+        if (v2 && mkt !== null) { v2.classList.remove('pos', 'neg'); v2.classList.add(cls(mkt)); v2.textContent = sg(mkt) + num(Math.abs(mkt), 2) + '% mercado'; }
+      }
       const vu = boxes[4];                          // Vueltas / Ops
       if (vu) { const v = vu.querySelector('.v'); const v2 = vu.querySelector('.v2');
         if (v) v.textContent = String(R.ciclos); if (v2) v2.textContent = R.totalOps + ' operaciones'; }
@@ -1024,7 +1032,7 @@ async function tarjeta(cuenta, clave, par) {
 
   return `<div class="rej" data-b="${par.base}" data-q="${par.quote}" data-sq="${simQ}" data-sb="${simB}"
      data-bid="${idDe(par.base) || ''}" data-qid="${idDe(par.quote) || ''}" data-pmin="${pmin}" data-pmax="${pmax}"
-     data-niv="${R.niveles}" data-total="${invertido}" data-decb="${decB}" data-decq="${decQ}">
+     data-niv="${R.niveles}" data-total="${invertido}" data-decb="${decB}" data-decq="${decQ}" data-entry="${par.entry || ''}">
     <div class="pio-head">
       ${logoDe(par.base, simB)}
       <div class="pio-titles">
