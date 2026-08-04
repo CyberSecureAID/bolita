@@ -33,7 +33,7 @@ const ABI = [
   'function gasSaldo(address) view returns (uint256)',
   'function gasMinOp() view returns (uint256)',
   'function misRejillas(address) view returns (bytes32[])',
-  'function crearRejilla((address base,address quote,address[] pathCompra,address[] pathVenta,uint256 ordenQuote,uint256 ordenBase,(uint128 minOutCompra,uint128 minOutVenta,uint8 estado)[] niveles,uint16 slippageBps,uint32 cooldownSeg,uint128 tpUnitOut,uint128 slUnitOut,uint24 feeTier,uint8 modo,uint16 objetivoBps,uint16 factorBps,uint256 compraInicialQuote))',
+  'function crearRejilla((address base,address quote,address[] pathCompra,address[] pathVenta,uint256 ordenQuote,uint256 ordenBase,(uint128 minOutCompra,uint128 minOutVenta,uint8 estado)[] niveles,uint16 slippageBps,uint32 cooldownSeg,uint128 tpUnitOut,uint128 slUnitOut,uint24 feeTier,uint8 modo,uint16 objetivoBps,uint16 factorBps,uint256 compraInicialQuote,uint16 margenBps))',
   'function activarRejilla(address,address,bool)',
   'function cancelarRejilla(address,address)',
   'function cerrarAhora(address,address)',
@@ -239,13 +239,23 @@ function aBI(numeroHumano, dec) {
  * @param p.base,p.quote,p.decBase,p.decQuote,p.pMin,p.pMax,p.niveles,p.modo
  * @param p.slippageBps,p.cooldownSeg,p.tpPrecio,p.slPrecio,p.rutas
  */
+const FEE_VUELTA = 0.0015;  // comisión aproximada por vuelta en V3 (0.05%x2 + colchón)
 export async function construirConfig(p) {
   const rutas = p.rutas || await resolverRutas(p.base, p.quote, p.decBase, p.decQuote);
   const { precio: Pnow } = await precioPar(p.base, p.quote, p.decBase, p.decQuote, rutas);
   if (!(Pnow > 0)) throw new Error('No se pudo leer el precio del par');
 
+  // Blindaje anti-contradicción: si el usuario fijó "ganancia por cuadrícula",
+  // el número de cuadrículas se DERIVA del rango para que la separación sea ese %.
+  // Así no puede pedir 10% por cuadrícula Y 500 cuadrículas a la vez.
+  let nivObjetivo = p.niveles;
+  const margenPct = p.margenPct || 0;
+  if (margenPct > 0 && p.margenModo !== 'rango') {
+    const sp = margenPct + FEE_VUELTA;
+    nivObjetivo = Math.max(2, Math.min(100, Math.round(Math.log(Number(p.pMax) / Number(p.pMin)) / Math.log(1 + sp))));
+  }
   // SIEMPRE geométrico: todas las cuadrículas separadas al MISMO % (paso constante).
-  const precios = preciosNiveles(Number(p.pMin), Number(p.pMax), p.niveles, 'geo');
+  const precios = preciosNiveles(Number(p.pMin), Number(p.pMax), nivObjetivo, 'geo');
   const nLevels = precios.length;
   const pasoPct = Math.pow(Number(p.pMax) / Number(p.pMin), 1 / (nLevels - 1)) - 1;
 
@@ -287,6 +297,7 @@ export async function construirConfig(p) {
     tpUnitOut, slUnitOut,
     feeTier,   // pool V3 detectado automáticamente para este par
     modo: 0, objetivoBps: 0, factorBps: 0, compraInicialQuote: 0n,
+    margenBps: Math.round((p.margenPct || 0) * 10000),
     _Pnow: Pnow, _pasoPct: pasoPct, _nSell: nSell, _nBuy: nBuy,
     _ordenQuoteHumano: ordenQuoteHumano, _ordenBaseHumano: ordenBaseHumano, _precios: precios
   };
@@ -342,7 +353,7 @@ export async function construirConfigAcumulador(p) {
     modo: 1,
     objetivoBps: Math.round(p.objetivoPct * 10000),
     factorBps: Math.round(factor * 10000),
-    compraInicialQuote: aBI(compraInicial, p.decQuote),
+    compraInicialQuote: aBI(compraInicial, p.decQuote), margenBps: 0,
     _Pnow: Pnow, _ordenQuote: ordenQuote, _compraInicial: compraInicial, _precios: precios,
     _promedioEstimado: (compraInicial + restante) / ((compraInicial / Pnow) + niveles.reduce((a, nv, i) => a + (ordenQuote * (1 + factor * (n - 1 - i))) / precios[i], 0))
   };
@@ -383,7 +394,8 @@ export async function crearRejilla(config) {
     modo: config.modo ?? 0,
     objetivoBps: config.objetivoBps ?? 0,
     factorBps: config.factorBps ?? 0,
-    compraInicialQuote: config.compraInicialQuote ?? 0n
+    compraInicialQuote: config.compraInicialQuote ?? 0n,
+    margenBps: config.margenBps ?? 0
   };
   const bot = await cEscribe();
   const tx = await bot.crearRejilla(c);

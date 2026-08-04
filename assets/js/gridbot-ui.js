@@ -32,6 +32,8 @@ const INFO = {
   gas: 'La red cobra unos centavos por cada operación (el "gas", no es nuestra comisión). Deja aquí ~2 USD en BNB y el bot se encarga solo. Es tuyo: lo retiras cuando quieras.',
   ganancia: 'Lo que ya ganaste de verdad, con la comisión y el gas descontados. Es dinero que ya está en tu wallet.',
   porcuad: 'Lo que ganas cada vez que el bot completa una vuelta (compra abajo y vende arriba), ya con la comisión descontada.',
+  margenmodo: 'Cuando fijas "Ganancia por cuadrícula", elige qué prioriza el sistema. "Ajustar cuadrículas": mantiene tu rango y calcula cuántas cuadrículas caben. "Ampliar rango": mantiene tu número de cuadrículas y te ofrece ampliar el rango (el bot será menos sensible, pero cada cuadrícula gana ese %). Así puedes operar con poco capital sin que la comisión se coma la ganancia.',
+  margen: 'Opcional. Si lo pones, cada cuadrícula se venderá SOLO cuando gane al menos ese % por encima de la comisión — nunca a pérdida. Y el sistema recalcula solo cuántas cuadrículas caben en tu rango para que la separación sea ese %. Déjalo en "auto" para el reparto normal.',
   tipobot: 'Dos formas de trabajar. CUADRÍCULA: compra y vende en cada nivel, muchas operaciones pequeñas. ACUMULADOR: compra en la caída (más volumen mientras más baja, para promediar mejor) y vende TODO junto cuando el total gane el % que elijas — menos operaciones, menos comisiones.',
   acmin: 'El precio más bajo hasta donde el bot seguirá comprando. Cuanto más abajo, más aguanta una caída sin quedarse sin comprar. Pon un mínimo realista para tu moneda.',
   acniv: 'En cuántas compras separadas se reparte tu dinero desde el precio de ahora hasta el mínimo. Más compras = más suave el promediado.',
@@ -42,7 +44,7 @@ const INFO = {
   vueltas: 'Una VUELTA ENTERA es una operación completa: el bot compró en una cuadrícula y luego vendió en otra (o al revés). Ahí se concreta la ganancia de rejilla. "Operaciones" cuenta cada compra o cada venta por separado; una vuelta son dos operaciones. Si el precio cruzó una cuadrícula pero aún no ves la vuelta, es que el keeper todavía no ejecutó esa venta on-chain.'
 };
 
-const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'geo', precio: null, rutas: null, avanzado: false, saldoQuote: null, preset: 'equilibrado', tipo: 'grid' };
+const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'geo', precio: null, rutas: null, avanzado: false, saldoQuote: null, preset: 'equilibrado', tipo: 'grid', margenModo: 'cuadriculas' };
 const moneda = (id) => MONEDAS[id];
 const FEE_CICLO = 0.0015; // V3: 0.05%×2 PancakeSwap + nuestra comisión en 0
 const GAS_OP_USD = 0.012; // ~coste de gas por operación en BSC hoy (~0.05 gwei)
@@ -650,6 +652,9 @@ function render() {
             <div><div class="lab">Cuadrículas ${iBtn('cuadriculas')}</div>${campoNum('f-niv',{value:20,min:2,max:100,step:1,int:true})}</div>
             <div><div class="lab" style="justify-content:space-between;gap:8px"><span style="display:flex;align-items:center;gap:6px">Invierto <span id="f-total-sym">(${moneda(F.quoteId).simbolo})</span> ${iBtn('inversion')}</span><span id="f-total-saldo" class="saldo-chip">—</span></div>${campoNum('f-total',{placeholder:'0.00',step:1,min:0})}</div>
           </div>
+          <div class="lab">Ganancia por cuadrícula % ${iBtn('margen')} <span style="color:var(--ink-3);font-size:11px;font-family:var(--mono)">— opcional, recalcula las cuadrículas</span></div>
+          ${campoNum('f-margen',{placeholder:'auto',min:0,max:20,step:0.5})}
+          <div id="f-margen-nota"></div>
           <div class="paso-box"><span>Separación entre cuadrículas ${iBtn('separacion')}</span><b id="pv-paso">—</b></div>
         </div>
         <div id="f-acum" style="${F.tipo==='acum'?'':'display:none'}">
@@ -683,6 +688,11 @@ function render() {
           <div class="fila">
             <div><div class="lab">Protección precio % ${iBtn('proteccion')}</div>${campoNum('f-slip',{value:1,step:0.5,min:0,max:10})}</div>
             <div><div class="lab">Ritmo mín (s) ${iBtn('ritmo')}</div>${campoNum('f-cd',{value:0,step:5,min:0,int:true})}</div>
+          </div>
+          <div class="lab">Con "Ganancia por cuadrícula" ${iBtn('margenmodo')}</div>
+          <div class="seg presets" id="f-margenmodo" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
+            <button type="button" data-mm="cuadriculas" class="${F.margenModo!=='rango'?'on':''}">Ajustar cuadrículas</button>
+            <button type="button" data-mm="rango" class="${F.margenModo==='rango'?'on':''}">Ampliar rango</button>
           </div>
           <div class="fila" id="f-avz-tpsl">
             <div><div class="lab">Cerrar con ganancia ${iBtn('tp')}</div>${campoNum('f-tp',{placeholder:'off',pct:0.01,min:0})}</div>
@@ -733,7 +743,14 @@ function render() {
     F.avanzado = !F.avanzado; const a = $('f-avz'); if (a) a.style.display = F.avanzado ? '' : 'none';
     $('f-toggleavz').textContent = F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas';
   };
-  ['f-min','f-max','f-niv','f-total'].forEach((id) => { const e = $(id); if (e) e.oninput = actualizarVista; });
+  { const e = $('f-total'); if (e) e.oninput = actualizarVista; }
+  { const e = $('f-niv'); if (e) e.oninput = () => { recomputarPorMargen(); actualizarVista(); }; }
+  document.querySelectorAll(`#${APP} #f-margenmodo button`).forEach((b) => b.onclick = () => {
+    F.margenModo = b.dataset.mm;
+    document.querySelectorAll(`#${APP} #f-margenmodo button`).forEach((x) => x.classList.remove('on')); b.classList.add('on');
+    recomputarPorMargen(); actualizarVista();
+  });
+  ['f-min','f-max','f-margen'].forEach((id) => { const e = $(id); if (e) e.oninput = () => { recomputarPorMargen(); actualizarVista(); }; });
   $('f-sug').onclick = sugerirRango;
   document.querySelectorAll(`#${APP} #f-preset button`).forEach((b) => b.onclick = () => aplicarPreset(b.dataset.preset));
   document.querySelectorAll(`#${APP} #f-tipo button`).forEach((b) => b.onclick = () => { F.tipo = b.dataset.tipo; pintarTipo(); });
@@ -818,7 +835,56 @@ function aplicarPreset(id) {
   $('f-min').value = Number((F.precio * (1 - p.rango)).toPrecision(6));
   $('f-max').value = Number((F.precio * (1 + p.rango)).toPrecision(6));
   $('f-niv').value = p.grids;
+  recomputarPorMargen();
   actualizarVista();
+}
+function rangoNecesario(n, margen) {
+  const s = margen / 100 + FEE_CICLO;
+  const ratio = Math.pow(1 + s, n - 1);
+  const price = F.precio;
+  return { pMin: price / Math.sqrt(ratio), pMax: price * Math.sqrt(ratio) };
+}
+async function ampliarRango(pMin, pMax, n, margen) {
+  const ok = await modalConfirm({
+    titulo: 'Ampliar el rango',
+    cuerpo: `Para que tus <b>${n} cuadrículas</b> ganen <b>${num(margen, 1)}%</b> cada una (por encima de la comisión), el rango debe ampliarse a:<br><br><b>${precioFmt(pMin)} – ${precioFmt(pMax)}</b><br><br>Un rango más amplio hace el bot <b>menos sensible</b>: opera menos seguido, pero cada operación deja tu ganancia limpia, sin que la comisión se la coma. Así puedes operar con el capital que quieras.<br><br>¿Aplicar este rango?`,
+    ok: 'Sí, ampliar'
+  });
+  if (!ok) return;
+  $('f-min').value = Number(pMin.toPrecision(6));
+  $('f-max').value = Number(pMax.toPrecision(6));
+  recomputarPorMargen(); actualizarVista();
+}
+function recomputarPorMargen() {
+  const margen = parseFloat($('f-margen')?.value) || 0;
+  const niv = $('f-niv'); const nota = $('f-margen-nota');
+  if (nota) nota.innerHTML = '';
+  if (!(margen > 0)) {   // "auto": modo manual normal
+    if (niv) { niv.readOnly = false; niv.style.opacity = ''; niv.title = ''; }
+    return;
+  }
+  if (F.margenModo === 'rango') {
+    // Priorizar cuadrículas: el usuario fija N; ofrecemos ampliar el rango.
+    if (niv) { niv.readOnly = false; niv.style.opacity = ''; niv.title = ''; }
+    const n = parseInt($('f-niv')?.value, 10) || 0;
+    if (n >= 2 && F.precio) {
+      const { pMin, pMax } = rangoNecesario(n, margen);
+      const aMin = parseFloat($('f-min')?.value) || 0, aMax = parseFloat($('f-max')?.value) || 0;
+      const yaOk = aMin > 0 && aMax > 0 && Math.abs(aMin - pMin) / pMin < 0.02 && Math.abs(aMax - pMax) / pMax < 0.02;
+      if (nota && !yaOk) {
+        nota.innerHTML = `<div class="hint">Para <b>${n} cuadrículas</b> al ${num(margen, 1)}% cada una, el rango debe ser <b>${precioFmt(pMin)} – ${precioFmt(pMax)}</b> (bot menos sensible). <button class="sug" id="f-ampliar" type="button">Ampliar rango</button></div>`;
+        if ($('f-ampliar')) $('f-ampliar').onclick = () => ampliarRango(pMin, pMax, n, margen);
+      }
+    }
+    return;
+  }
+  // Modo por defecto: derivar cuadrículas del rango (campo bloqueado).
+  const pMin = parseFloat($('f-min')?.value) || 0, pMax = parseFloat($('f-max')?.value) || 0;
+  if (!(pMin > 0 && pMax > pMin)) return;
+  const spacing = margen / 100 + FEE_CICLO;
+  let n = Math.round(Math.log(pMax / pMin) / Math.log(1 + spacing));
+  n = Math.max(2, Math.min(100, n));
+  if (niv) { niv.value = n; niv.readOnly = true; niv.style.opacity = '0.6'; niv.title = 'Calculado por tu % de ganancia'; }
 }
 function sugerirRango() {
   aplicarPreset('equilibrado');
@@ -880,7 +946,8 @@ async function onCrear() {
     niveles: parseInt($('f-niv').value, 10), modo: F.modo, totalQuoteHumano: parseFloat($('f-total').value),
     slippageBps: Math.round((parseFloat($('f-slip')?.value) || 1) * 100),
     cooldownSeg: parseInt($('f-cd')?.value, 10) || 0,
-    tpPrecio: parseFloat($('f-tp')?.value) || 0, slPrecio: parseFloat($('f-sl')?.value) || 0, rutas: F.rutas
+    tpPrecio: parseFloat($('f-tp')?.value) || 0, slPrecio: parseFloat($('f-sl')?.value) || 0,
+    margenPct: (parseFloat($('f-margen')?.value) || 0) / 100, margenModo: F.margenModo, rutas: F.rutas
   };
   if (!(p.pMin > 0 && p.pMax > p.pMin)) { aviso(m, 'err', 'Revisa el rango: el precio alto debe ser mayor que el bajo. Prueba "Sugerir".'); return; }
   if (!(p.niveles >= 2)) { aviso(m, 'err', 'Pon al menos 2 cuadrículas.'); return; }
