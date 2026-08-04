@@ -851,6 +851,7 @@ async function ampliarRango(pMin, pMax, n, margen) {
     ok: 'Sí, ampliar'
   });
   if (!ok) return;
+  modalClose();   // FIX: cerrar el modal al confirmar (antes se quedaba pegado)
   $('f-min').value = Number(pMin.toPrecision(6));
   $('f-max').value = Number(pMax.toPrecision(6));
   recomputarPorMargen(); actualizarVista();
@@ -863,31 +864,43 @@ function recomputarPorMargen() {
     if (niv) { niv.readOnly = false; niv.style.opacity = ''; niv.title = ''; }
     return;
   }
+  const total = parseFloat($('f-total')?.value) || 0;
+  const simQ = moneda(F.quoteId).simbolo;
+  // Máximo de cuadrículas que el capital soporta al % dado (cada una debe cubrir su gas).
+  const maxViable = total > 0 ? Math.max(2, Math.floor(total * (margen / 100) / (2 * GAS_OP_USD))) : 100;
+  const sepObj = margen + FEE_CICLO * 100;   // separación objetivo en %
+
   if (F.margenModo === 'rango') {
-    // Priorizar cuadrículas: el usuario fija N; ofrecemos ampliar el rango.
+    // El usuario fija N; calculamos el rango y avisamos si el gas no da.
     if (niv) { niv.readOnly = false; niv.style.opacity = ''; niv.title = ''; }
     const n = parseInt($('f-niv')?.value, 10) || 0;
-    if (n >= 2 && F.precio) {
-      const { pMin, pMax } = rangoNecesario(n, margen);
-      const aMin = parseFloat($('f-min')?.value) || 0, aMax = parseFloat($('f-max')?.value) || 0;
-      const yaOk = aMin > 0 && aMax > 0 && Math.abs(aMin - pMin) / pMin < 0.02 && Math.abs(aMax - pMax) / pMax < 0.02;
-      if (nota && !yaOk) {
-        nota.innerHTML = `<div class="hint">Para <b>${n} cuadrículas</b> al ${num(margen, 1)}% cada una, el rango debe ser <b>${precioFmt(pMin)} – ${precioFmt(pMax)}</b> (bot menos sensible). <button class="sug" id="f-ampliar" type="button">Ampliar rango</button></div>`;
-        if ($('f-ampliar')) $('f-ampliar').onclick = () => ampliarRango(pMin, pMax, n, margen);
-      }
+    if (!(n >= 2 && F.precio && nota)) return;
+    if (total > 0 && n > maxViable) {
+      nota.innerHTML = `<div class="hint" style="color:var(--rojo)">⚠ Con ${num(total, 0)} ${simQ} y ${n} cuadrículas al ${num(margen, 1)}%, cada cuadrícula es demasiado pequeña: el gas se comería la ganancia. Con este capital lo rentable es <b>máximo ~${maxViable} cuadrículas</b>. Sube el capital, sube el % o baja las cuadrículas.</div>`;
+      return;
+    }
+    const { pMin, pMax } = rangoNecesario(n, margen);
+    const aMin = parseFloat($('f-min')?.value) || 0, aMax = parseFloat($('f-max')?.value) || 0;
+    const yaOk = aMin > 0 && aMax > 0 && Math.abs(aMin - pMin) / pMin < 0.02 && Math.abs(aMax - pMax) / pMax < 0.02;
+    if (!yaOk) {
+      nota.innerHTML = `<div class="hint">Para <b>${n} cuadrículas</b> al ${num(margen, 1)}% cada una (separación ≈ <b>${num(sepObj, 2)}%</b>), el rango debe ser <b>${precioFmt(pMin)} – ${precioFmt(pMax)}</b> (bot menos sensible). <button class="sug" id="f-ampliar" type="button">Aplicar rango</button></div>`;
+      if ($('f-ampliar')) $('f-ampliar').onclick = () => ampliarRango(pMin, pMax, n, margen);
+    } else {
+      nota.innerHTML = `<div class="hint" style="color:var(--neon-lit)">✓ Rango ajustado: ${n} cuadrículas al ${num(margen, 1)}% cada una (separación ≈ ${num(sepObj, 2)}%).</div>`;
     }
     return;
   }
-  // Modo por defecto: derivar cuadrículas del rango (campo bloqueado).
+  // Modo por defecto: derivar cuadrículas del rango (campo bloqueado), con tope de gas.
   const pMin = parseFloat($('f-min')?.value) || 0, pMax = parseFloat($('f-max')?.value) || 0;
   if (!(pMin > 0 && pMax > pMin)) return;
   const spacing = margen / 100 + FEE_CICLO;
   let n = Math.round(Math.log(pMax / pMin) / Math.log(1 + spacing));
   n = Math.max(2, Math.min(100, n));
-  // Tope de gas: cada cuadrícula debe rendir más que su gas → no crear cuadrículas minúsculas.
-  const total = parseFloat($('f-total')?.value) || 0;
-  if (total > 0) { const maxG = Math.max(2, Math.floor(total * (margen / 100) / (2 * GAS_OP_USD))); if (n > maxG) n = maxG; }
+  if (total > 0 && n > maxViable) n = maxViable;   // tope de gas
   if (niv) { niv.value = n; niv.readOnly = true; niv.style.opacity = '0.6'; niv.title = 'Calculado por tu % de ganancia y tu capital'; }
+  if (nota && total > 0 && n <= maxViable && maxViable <= 3) {
+    nota.innerHTML = `<div class="hint">Con ${num(total, 0)} ${simQ} y ${num(margen, 1)}% por cuadrícula, tu capital solo da para pocas cuadrículas rentables (el gas manda). Sube el capital o el % para tener más.</div>`;
+  }
 }
 function sugerirRango() {
   aplicarPreset('equilibrado');
@@ -992,6 +1005,8 @@ async function onCrear() {
 
     modalBusy('Calculando tu rejilla con el precio real…');
     const config = await gb.construirConfig(p);
+    const netV = (config._ordenQuoteHumano || 0) * ((config._pasoPct || 0) - FEE_CICLO) - 2 * GAS_OP_USD;
+    if (netV < 0) { modalError('Con esta configuración el gas se comería la ganancia de cada vuelta (daría pérdida). Sube el capital, sube la "ganancia por cuadrícula" o usa menos cuadrículas.'); return; }
     const price = config._Pnow || F.precio || 1;
     const topeQuote = total * 20, topeBase = (total / price) * 20;
     const quoteNeed = mBI(topeQuote, quote.decimals), baseNeed = mBI(topeBase, base.decimals);
