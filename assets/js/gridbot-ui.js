@@ -1442,9 +1442,12 @@ function enganchar(cuenta) {
 /* ================================================================== */
 async function arrancar() {
   if (!$(APP)) return;
-  render(); iniciarReloj();
+  const host = $(APP);
+  // Splash neutro mientras se resuelve si hay wallet conectada (evita el pestañeo del hero).
+  host.innerHTML = `<div style="min-height:64vh;display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-family:var(--mono);font-size:13px"><span class="skel" style="width:16px;height:16px;min-width:16px;border-radius:50%;margin-right:10px"></span>Cargando…</div>`;
   wallet.alCambiar(() => render());
-  try { await wallet.reconectarSiProcede(); } catch {}
+  try { await wallet.reconectarSiProcede(); } catch (_) {}
+  render(); iniciarReloj();
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
 else arrancar();
