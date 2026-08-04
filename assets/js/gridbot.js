@@ -33,7 +33,7 @@ const ABI = [
   'function gasSaldo(address) view returns (uint256)',
   'function gasMinOp() view returns (uint256)',
   'function misRejillas(address) view returns (bytes32[])',
-  'function crearRejilla((address base,address quote,address[] pathCompra,address[] pathVenta,uint256 ordenQuote,uint256 ordenBase,(uint128 minOutCompra,uint128 minOutVenta,uint8 estado)[] niveles,uint16 slippageBps,uint32 cooldownSeg,uint128 tpUnitOut,uint128 slUnitOut,uint24 feeTier))',
+  'function crearRejilla((address base,address quote,address[] pathCompra,address[] pathVenta,uint256 ordenQuote,uint256 ordenBase,(uint128 minOutCompra,uint128 minOutVenta,uint8 estado)[] niveles,uint16 slippageBps,uint32 cooldownSeg,uint128 tpUnitOut,uint128 slUnitOut,uint24 feeTier,uint8 modo,uint16 objetivoBps,uint16 factorBps,uint256 compraInicialQuote))',
   'function activarRejilla(address,address,bool)',
   'function cancelarRejilla(address,address)',
   'function cerrarAhora(address,address)',
@@ -286,8 +286,65 @@ export async function construirConfig(p) {
     cooldownSeg: p.cooldownSeg || 0,
     tpUnitOut, slUnitOut,
     feeTier,   // pool V3 detectado automáticamente para este par
+    modo: 0, objetivoBps: 0, factorBps: 0, compraInicialQuote: 0n,
     _Pnow: Pnow, _pasoPct: pasoPct, _nSell: nSell, _nBuy: nBuy,
     _ordenQuoteHumano: ordenQuoteHumano, _ordenBaseHumano: ordenBaseHumano, _precios: precios
+  };
+}
+
+/** Config del BOT ACUMULADOR: compra progresiva hacia abajo + venta total en ganancia. */
+export async function construirConfigAcumulador(p) {
+  const rutas = p.rutas || await resolverRutas(p.base, p.quote, p.decBase, p.decQuote);
+  const { precio: Pnow } = await precioPar(p.base, p.quote, p.decBase, p.decQuote, rutas);
+  if (!(Pnow > 0)) throw new Error('No se pudo leer el precio del par');
+
+  const total = Number(p.totalQuoteHumano);
+  const n = p.niveles;                 // niveles de compra (todos debajo de la entrada)
+  const iniPct = p.iniPct;             // 0..1 comprado a mercado al abrir
+  const factor = p.factorPct;          // 0.2 = +20% de volumen por nivel al bajar
+  if (!(total > 0 && n >= 1)) throw new Error('Revisa capital y número de compras');
+
+  const pTop = Pnow * 0.999;           // primer nivel apenas debajo de la entrada
+  const pMin = Number(p.pMin);
+  if (!(pMin > 0 && pMin < pTop)) throw new Error('El mínimo debe ser menor que el precio actual');
+
+  const precios = [];
+  for (let i = 0; i < n; i++) {
+    const t = n === 1 ? 1 : i / (n - 1);        // i=0 abajo (pMin) · i=n-1 arriba (pTop)
+    precios.push(pMin * Math.pow(pTop / pMin, t));
+  }
+
+  const compraInicial = total * iniPct;
+  const restante = total * (1 - iniPct);
+  let sumPesos = 0;
+  for (let d = 0; d < n; d++) sumPesos += (1 + factor * d);   // depth 0 arriba
+  const ordenQuote = restante / sumPesos;                     // unidad base (nivel de arriba)
+
+  const niveles = precios.map((Pi, i) => {
+    const depth = n - 1 - i;                                  // arriba depth 0 · abajo depth n-1
+    const montoC = ordenQuote * (1 + factor * depth);
+    return { minOutCompra: aBI(montoC / Pi, p.decBase), minOutVenta: 0n, estado: 1 };
+  });
+
+  const feeTier = await mejorFeeTier(p.quote, p.base, aBI(ordenQuote, p.decQuote));
+  if (!feeTier) throw new Error('Esta moneda no tiene pool en PancakeSwap V3. Prueba con otra.');
+
+  let ordenBase = aBI(ordenQuote / Pnow, p.decBase); if (ordenBase <= 0n) ordenBase = 1n;
+
+  return {
+    base: p.base, quote: p.quote,
+    pathCompra: rutas.compra, pathVenta: rutas.venta,
+    ordenQuote: aBI(ordenQuote, p.decQuote), ordenBase,
+    niveles,
+    slippageBps: p.slippageBps || 0, cooldownSeg: p.cooldownSeg || 0,
+    tpUnitOut: 0n, slUnitOut: 0n,
+    feeTier,
+    modo: 1,
+    objetivoBps: Math.round(p.objetivoPct * 10000),
+    factorBps: Math.round(factor * 10000),
+    compraInicialQuote: aBI(compraInicial, p.decQuote),
+    _Pnow: Pnow, _ordenQuote: ordenQuote, _compraInicial: compraInicial, _precios: precios,
+    _promedioEstimado: (compraInicial + restante) / ((compraInicial / Pnow) + niveles.reduce((a, nv, i) => a + (ordenQuote * (1 + factor * (n - 1 - i))) / precios[i], 0))
   };
 }
 
@@ -322,7 +379,11 @@ export async function crearRejilla(config) {
     niveles: config.niveles,
     slippageBps: config.slippageBps, cooldownSeg: config.cooldownSeg,
     tpUnitOut: config.tpUnitOut, slUnitOut: config.slUnitOut,
-    feeTier: config.feeTier ?? 500
+    feeTier: config.feeTier ?? 500,
+    modo: config.modo ?? 0,
+    objetivoBps: config.objetivoBps ?? 0,
+    factorBps: config.factorBps ?? 0,
+    compraInicialQuote: config.compraInicialQuote ?? 0n
   };
   const bot = await cEscribe();
   const tx = await bot.crearRejilla(c);
