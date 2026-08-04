@@ -155,6 +155,50 @@ export const MONEDAS = {
     maxPago: 16000000,
     decimalesVista: 0,
     unidadPequena: { nombre: '', factor: 1 }
+  },
+
+  // ---- Volátiles operables por el bot (estándar, sin impuesto de transferencia) ----
+  SOL: {
+    id: 'SOL', simbolo: 'SOL', nombre: 'Solana (Binance-Peg)',
+    address: '0x570A5D26f7765Ecb712C0924E4De545B89fD43dF', decimals: 18,
+    icono: '◎', color: '#14F195',
+    minApuesta: 0.0008, maxPorJugada: 0.015, maxPorPersona: 0.04, maxPago: 0.1,
+    decimalesVista: 4, unidadPequena: { nombre: '', factor: 1 }
+  },
+  DOGE: {
+    id: 'DOGE', simbolo: 'DOGE', nombre: 'Dogecoin (Binance-Peg)',
+    address: '0xbA2aE424d960c26247Dd6c32edC70B295c744C43', decimals: 8,
+    icono: 'Ð', color: '#C2A633',
+    minApuesta: 0.6, maxPorJugada: 12, maxPorPersona: 30, maxPago: 75,
+    decimalesVista: 2, unidadPequena: { nombre: '', factor: 1 }
+  },
+  XRP: {
+    id: 'XRP', simbolo: 'XRP', nombre: 'XRP (Binance-Peg)',
+    address: '0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE', decimals: 18,
+    icono: '✕', color: '#25A768',
+    minApuesta: 0.05, maxPorJugada: 1, maxPorPersona: 2.5, maxPago: 6,
+    decimalesVista: 3, unidadPequena: { nombre: '', factor: 1 }
+  },
+  CAKE: {
+    id: 'CAKE', simbolo: 'CAKE', nombre: 'PancakeSwap',
+    address: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', decimals: 18,
+    icono: '🥞', color: '#D1884F',
+    minApuesta: 0.04, maxPorJugada: 0.8, maxPorPersona: 2, maxPago: 5,
+    decimalesVista: 3, unidadPequena: { nombre: '', factor: 1 }
+  },
+  LINK: {
+    id: 'LINK', simbolo: 'LINK', nombre: 'Chainlink (Binance-Peg)',
+    address: '0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD', decimals: 18,
+    icono: '⬡', color: '#2A5ADA',
+    minApuesta: 0.005, maxPorJugada: 0.1, maxPorPersona: 0.25, maxPago: 0.6,
+    decimalesVista: 4, unidadPequena: { nombre: '', factor: 1 }
+  },
+  ADA: {
+    id: 'ADA', simbolo: 'ADA', nombre: 'Cardano (Binance-Peg)',
+    address: '0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47', decimals: 18,
+    icono: '₳', color: '#0033AD',
+    minApuesta: 0.13, maxPorJugada: 2.6, maxPorPersona: 6.6, maxPago: 16,
+    decimalesVista: 3, unidadPequena: { nombre: '', factor: 1 }
   }
 };
 
@@ -167,7 +211,13 @@ export const COMPRAR_URL = {
   ETH:      'https://pancakeswap.finance/swap?outputCurrency=0x2170Ed0880ac9A755fd29B2688956BD959F933F8',
   USDTZ:    'https://pancakeswap.finance/swap?outputCurrency=0x4BE35Ec329343d7d9F548d42B0F8c17FFfe07db4',
   BABYDOGE: 'https://pancakeswap.finance/swap?outputCurrency=0xc748673057861a797275CD8A068AbB95A902e8de',
-  EXT:      'https://smartdefi.com/token/bsc/0xd86b5cd7cFC28a1e4Fd6b39F133bF64EF24c5246/(chart//secondary:swap)'
+  EXT:      'https://smartdefi.com/token/bsc/0xd86b5cd7cFC28a1e4Fd6b39F133bF64EF24c5246/(chart//secondary:swap)',
+  SOL:      'https://pancakeswap.finance/swap?outputCurrency=0x570A5D26f7765Ecb712C0924E4De545B89fD43dF',
+  DOGE:     'https://pancakeswap.finance/swap?outputCurrency=0xbA2aE424d960c26247Dd6c32edC70B295c744C43',
+  XRP:      'https://pancakeswap.finance/swap?outputCurrency=0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE',
+  CAKE:     'https://pancakeswap.finance/swap?outputCurrency=0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82',
+  LINK:     'https://pancakeswap.finance/swap?outputCurrency=0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD',
+  ADA:      'https://pancakeswap.finance/swap?outputCurrency=0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47'
 };
 
 export const LISTA_MONEDAS = Object.values(MONEDAS);

@@ -12,7 +12,7 @@ import { MONEDAS, LISTA_MONEDAS } from './tokens.js';
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
 // Lo que se OPERA (base). Las estables no pueden ser base.
-const BASES  = ['BNB', 'BTCB', 'ETH'];
+const BASES  = ['BNB', 'BTCB', 'ETH', 'SOL', 'DOGE', 'XRP', 'CAKE', 'LINK', 'ADA'];
 // Contra qué se mide (quote): estables.
 const QUOTES = ['USDT', 'USDC'];
 
@@ -38,11 +38,12 @@ const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'geo', precio: null, rutas: nu
 const moneda = (id) => MONEDAS[id];
 const FEE_CICLO = 0.0015; // V3: 0.05%×2 PancakeSwap + nuestra comisión en 0
 const GAS_OP_USD = 0.012; // ~coste de gas por operación en BSC hoy (~0.05 gwei)
-const VOL_DIARIA = { BNB: 0.04, BTCB: 0.025, ETH: 0.035, BABYDOGE: 0.10 }; // volatilidad diaria típica (estimada)
+const VOL_DIARIA = { BNB: 0.04, BTCB: 0.025, ETH: 0.035, SOL: 0.06, DOGE: 0.08, XRP: 0.06, CAKE: 0.07, LINK: 0.06, ADA: 0.06, BABYDOGE: 0.10 }; // volatilidad diaria típica (estimada)
 const PRESETS = {
   tranquilo:   { rango: 0.30, grids: 14 },  // pocas ops, cada cuadrícula grande → rinde con poco capital, aguanta meses
   equilibrado: { rango: 0.20, grids: 24 },
   activo:      { rango: 0.12, grids: 40 },   // más ops, más sensible; pide más capital por cuadrícula
+  volatil:     { rango: 0.45, grids: 26 },   // monedas volátiles: rango amplio + cuadrículas medias (aguanta sin salirse)
 };
 const CARET = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23C9A84B' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E";
 
@@ -179,7 +180,7 @@ function inyectarEstilo() {
   #colmena-app .paso-box{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding:12px 14px;background:#04140E;border:1px solid var(--line-soft);border-radius:11px}
   #colmena-app .paso-box span{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px}
   #colmena-app .paso-box b{font-family:var(--display);font-size:17px;color:var(--ink)}
-  #colmena-app .seg.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+  #colmena-app .seg.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
   #colmena-app .seg.presets button{padding:10px 6px;border:1px solid var(--line);background:transparent;color:var(--ink-2);border-radius:9px;font-family:var(--mono);font-size:12px;cursor:pointer;transition:.12s}
   #colmena-app .seg.presets button:hover{border-color:var(--gold-soft);color:var(--ink)}
   #colmena-app .seg.presets button.on{background:var(--gold);color:#1a1200;border-color:var(--gold);font-weight:700}
@@ -230,9 +231,9 @@ function inyectarEstilo() {
   #colmena-app .pio-band .r.neg{background:linear-gradient(120deg,#a83636,var(--rojo));color:#2a0808}
   #colmena-app .pio-band .k{font-family:var(--mono);font-size:11px;opacity:.9;text-transform:uppercase;letter-spacing:.4px}
   #colmena-app .pio-band .l .v{font-family:var(--display);font-size:27px;font-weight:700;margin-top:4px;color:var(--ink)}
-  #colmena-app .pio-band .r .v{font-family:var(--display);font-size:34px;font-weight:700;margin-top:2px;line-height:1;letter-spacing:-.5px;-webkit-text-stroke:.6px currentColor;text-stroke:.6px currentColor}
+  #colmena-app .pio-band .r .v{font-family:var(--display);font-size:34px;font-weight:800;margin-top:2px;line-height:1;letter-spacing:-.5px;-webkit-text-stroke:1.1px currentColor;text-stroke:1.1px currentColor}
   #colmena-app .pio-band .l .v{-webkit-text-stroke:.5px currentColor;text-stroke:.5px currentColor}
-  #colmena-app .pio-band .r .pct{font-family:var(--mono);font-size:15px;font-weight:700;margin-top:5px;opacity:.95}
+  #colmena-app .pio-band .r .pct{font-family:var(--mono);font-size:15px;font-weight:800;margin-top:5px;opacity:1;-webkit-text-stroke:.35px currentColor;text-stroke:.35px currentColor}
   /* colapsable + pestañas + órdenes */
   #colmena-app .pio-toggle{width:100%;margin-top:14px;background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:12px;padding:12px;font-family:var(--mono);font-size:12px;color:var(--ink-2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
   #colmena-app .pio-toggle:hover{color:var(--gold);border-color:var(--gold-soft)}
@@ -276,7 +277,20 @@ function inyectarEstilo() {
     #colmena-app .wrap{padding:18px 14px 50px}
     #colmena-app .hero{padding:44px 16px}
     #colmena-app .hero h1{font-size:26px}
-    #colmena-app .seg.presets button{font-size:11px;padding:9px 4px}
+    #colmena-app .seg.presets{grid-template-columns:repeat(2,1fr)}
+    #colmena-app .seg.presets button{font-size:12px;padding:10px 4px}
+    #colmena-app .cols{gap:14px}
+    #colmena-app .card{padding:16px}
+    #colmena-app .pio-band .r{width:64%;padding:12px 16px}
+    #colmena-app .pio-band .l{padding:12px 14px}
+    #colmena-app .pio-band .r .v{font-size:26px}
+    #colmena-app .pio-band .l .v{font-size:21px}
+    #colmena-app .pio-band .pct{font-size:13px}
+    #colmena-app .prev{grid-template-columns:repeat(2,1fr)}
+    #colmena-app .pio-grid{grid-template-columns:repeat(2,1fr)}
+    #colmena-app .fila{flex-wrap:wrap}
+    #colmena-app select,#colmena-app input{min-width:0}
+    #colmena-app .asesor .as-grid{grid-template-columns:1fr 1fr}
   }
   `;
   document.head.appendChild(s);
@@ -594,6 +608,7 @@ function render() {
           <button type="button" data-preset="tranquilo" class="${F.preset==='tranquilo'?'on':''}">Tranquilo</button>
           <button type="button" data-preset="equilibrado" class="${F.preset==='equilibrado'?'on':''}">Equilibrado</button>
           <button type="button" data-preset="activo" class="${F.preset==='activo'?'on':''}">Activo</button>
+          <button type="button" data-preset="volatil" class="${F.preset==='volatil'?'on':''}">Volátil</button>
         </div>
         <div class="lab">Rango de precio ${iBtn('rango')}<button class="sug" id="f-sug" type="button">Sugerir</button></div>
         <div class="fila">${campoNum('f-min',{placeholder:'precio bajo',pct:0.005})}${campoNum('f-max',{placeholder:'precio alto',pct:0.005})}</div>

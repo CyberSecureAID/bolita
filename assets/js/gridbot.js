@@ -56,6 +56,21 @@ const ERC20 = [
 const FACTORY = '0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73';
 const ROUTER_V2 = '0x10ED43C718714eb63d5aA57B78B54704E256024E'; // solo para precios/rutas de referencia; los swaps van por V3
 const ROUTER_V2_ABI = ['function getAmountsOut(uint256 amountIn, address[] path) view returns (uint256[])'];
+const QUOTER_V3 = '0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997';
+const QUOTER_ABI = ['function quoteExactInputSingle((address tokenIn,address tokenOut,uint256 amountIn,uint24 fee,uint160 sqrtPriceLimitX96)) returns (uint256 amountOut,uint160 sqrtPriceX96After,uint32 initializedTicksCrossed,uint256 gasEstimate)'];
+const FEE_TIERS = [500, 2500, 100, 10000];
+// Prueba los pools V3 y devuelve el fee tier con mejor cotización (más profundo). 0 = no hay pool.
+export async function mejorFeeTier(tokenIn, tokenOut, amountIn) {
+  const q = new ethers.Contract(QUOTER_V3, QUOTER_ABI, lector());
+  let best = 0, bestOut = 0n;
+  for (const fee of FEE_TIERS) {
+    try {
+      const r = await q.quoteExactInputSingle.staticCall({ tokenIn, tokenOut, amountIn, fee, sqrtPriceLimitX96: 0 });
+      if (r[0] > bestOut) { bestOut = r[0]; best = fee; }
+    } catch (_) {}
+  }
+  return best;
+}
 const FAC_ABI = ['function getPair(address,address) view returns (address)'];
 const PAIR_ABI = ['function getReserves() view returns (uint112,uint112,uint32)', 'function token0() view returns (address)'];
 
@@ -245,6 +260,10 @@ export async function construirConfig(p) {
   }
   if (!(ordenQuoteHumano > 0 && ordenBaseHumano > 0)) throw new Error('Falta el tamaño de orden');
 
+  // Detecta el mejor pool V3 de este par (cada moneda vive en un fee tier distinto).
+  const feeTier = await mejorFeeTier(p.quote, p.base, aBI(ordenQuoteHumano, p.decQuote));
+  if (!feeTier) throw new Error('Esta moneda no tiene pool en PancakeSwap V3. Prueba con otra.');
+
   const niveles = precios.map((Pi) => ({
     minOutCompra: aBI(ordenQuoteHumano / Pi, p.decBase),   // dispara COMPRA cuando el precio baja a Pi
     minOutVenta:  aBI(ordenBaseHumano * Pi, p.decQuote),   // dispara VENTA cuando el precio sube a Pi
@@ -266,7 +285,7 @@ export async function construirConfig(p) {
     slippageBps: p.slippageBps || 0,
     cooldownSeg: p.cooldownSeg || 0,
     tpUnitOut, slUnitOut,
-    feeTier: 500,   // pool V3 0.05% (BNB/ETH/BTCB vs USDT/USDC)
+    feeTier,   // pool V3 detectado automáticamente para este par
     _Pnow: Pnow, _pasoPct: pasoPct, _nSell: nSell, _nBuy: nBuy,
     _ordenQuoteHumano: ordenQuoteHumano, _ordenBaseHumano: ordenBaseHumano, _precios: precios
   };
