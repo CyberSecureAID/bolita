@@ -743,7 +743,7 @@ function render() {
     F.avanzado = !F.avanzado; const a = $('f-avz'); if (a) a.style.display = F.avanzado ? '' : 'none';
     $('f-toggleavz').textContent = F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas';
   };
-  { const e = $('f-total'); if (e) e.oninput = actualizarVista; }
+  { const e = $('f-total'); if (e) e.oninput = () => { recomputarPorMargen(); actualizarVista(); }; }
   { const e = $('f-niv'); if (e) e.oninput = () => { recomputarPorMargen(); actualizarVista(); }; }
   document.querySelectorAll(`#${APP} #f-margenmodo button`).forEach((b) => b.onclick = () => {
     F.margenModo = b.dataset.mm;
@@ -884,7 +884,10 @@ function recomputarPorMargen() {
   const spacing = margen / 100 + FEE_CICLO;
   let n = Math.round(Math.log(pMax / pMin) / Math.log(1 + spacing));
   n = Math.max(2, Math.min(100, n));
-  if (niv) { niv.value = n; niv.readOnly = true; niv.style.opacity = '0.6'; niv.title = 'Calculado por tu % de ganancia'; }
+  // Tope de gas: cada cuadrícula debe rendir más que su gas → no crear cuadrículas minúsculas.
+  const total = parseFloat($('f-total')?.value) || 0;
+  if (total > 0) { const maxG = Math.max(2, Math.floor(total * (margen / 100) / (2 * GAS_OP_USD))); if (n > maxG) n = maxG; }
+  if (niv) { niv.value = n; niv.readOnly = true; niv.style.opacity = '0.6'; niv.title = 'Calculado por tu % de ganancia y tu capital'; }
 }
 function sugerirRango() {
   aplicarPreset('equilibrado');
@@ -936,6 +939,23 @@ async function onRetirarGas() {
 /* ================================================================== */
 /* Crear                                                               */
 /* ================================================================== */
+async function asegurarSuscripcion(cuenta) {
+  let act = false;
+  try { act = await gb.estaActivo(cuenta); } catch (_) {}
+  if (act) return true;
+  const precio = await gb.precioSub();
+  if (!(precio > 0n)) { modalError('La activación del bot aún no está configurada. Avísame para revisarlo.'); return false; }
+  const precioBNB = Number(gb.fmtBNB(precio));
+  const ok = await modalConfirm({
+    titulo: 'Activar tu bot (30 días)',
+    cuerpo: `Para encender tu bot hay que activarlo por 30 días. Es un pago único de <b>${num(precioBNB, 5)} BNB</b> (≈ $1) que firmas desde tu wallet. Con eso puedes tener <b>todos los bots que quieras</b> este mes.<br><br>¿Activar ahora?`,
+    ok: 'Sí, activar'
+  });
+  if (!ok) return false;
+  modalBusy('Activando tu bot (firma el pago en tu wallet)…');
+  await gb.suscribir();
+  return true;
+}
 async function onCrear() {
   if (F.tipo === 'acum') return onCrearAcum();
   const m = $('c-msg'); const base = moneda(F.baseId), quote = moneda(F.quoteId);
@@ -968,6 +988,7 @@ async function onCrear() {
     const balBI = await gb.balanceToken(p.quote, cuenta);
     const balH = Number(gb.fmt(balBI, quote.decimals)); F.saldoQuote = balH;
     if (total > balH + 1e-9) { modalError(`No tienes suficiente ${quote.simbolo}. En tu wallet hay ${num(balH, 4)} ${quote.simbolo} y quieres invertir ${num(total, 2)}. Baja la cantidad o usa "Máx".`); return; }
+    if (!(await asegurarSuscripcion(cuenta))) { modalClose(); return; }
 
     modalBusy('Calculando tu rejilla con el precio real…');
     const config = await gb.construirConfig(p);
@@ -1073,6 +1094,7 @@ async function onCrearAcum() {
     const balBI = await gb.balanceToken(p.quote, cuenta);
     const balH = Number(gb.fmt(balBI, quote.decimals)); F.saldoQuote = balH;
     if (total > balH + 1e-9) { modalError(`No tienes suficiente ${quote.simbolo}. Hay ${num(balH, 4)} y quieres invertir ${num(total, 2)}.`); return; }
+    if (!(await asegurarSuscripcion(cuenta))) { modalClose(); return; }
     modalBusy('Calculando tu acumulador con el precio real…');
     const config = await gb.construirConfigAcumulador(p);
     const price = config._Pnow || F.precio || 1;

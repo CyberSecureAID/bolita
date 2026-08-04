@@ -33,6 +33,9 @@ const ABI = [
   'function gasSaldo(address) view returns (uint256)',
   'function gasMinOp() view returns (uint256)',
   'function misRejillas(address) view returns (bytes32[])',
+  'function activo(address usuario) view returns (bool)',
+  'function precioSuscripcion() view returns (uint256)',
+  'function suscribir() payable',
   'function crearRejilla((address base,address quote,address[] pathCompra,address[] pathVenta,uint256 ordenQuote,uint256 ordenBase,(uint128 minOutCompra,uint128 minOutVenta,uint8 estado)[] niveles,uint16 slippageBps,uint32 cooldownSeg,uint128 tpUnitOut,uint128 slUnitOut,uint24 feeTier,uint8 modo,uint16 objetivoBps,uint16 factorBps,uint256 compraInicialQuote,uint16 margenBps))',
   'function activarRejilla(address,address,bool)',
   'function cancelarRejilla(address,address)',
@@ -240,6 +243,7 @@ function aBI(numeroHumano, dec) {
  * @param p.slippageBps,p.cooldownSeg,p.tpPrecio,p.slPrecio,p.rutas
  */
 const FEE_VUELTA = 0.0015;  // comisión aproximada por vuelta en V3 (0.05%x2 + colchón)
+const GAS_OP_USD = 0.012;   // ~coste de gas por operación en BSC (para no crear cuadrículas que el gas se coma)
 export async function construirConfig(p) {
   const rutas = p.rutas || await resolverRutas(p.base, p.quote, p.decBase, p.decQuote);
   const { precio: Pnow } = await precioPar(p.base, p.quote, p.decBase, p.decQuote, rutas);
@@ -253,6 +257,10 @@ export async function construirConfig(p) {
   if (margenPct > 0 && p.margenModo !== 'rango') {
     const sp = margenPct + FEE_VUELTA;
     nivObjetivo = Math.max(2, Math.min(100, Math.round(Math.log(Number(p.pMax) / Number(p.pMin)) / Math.log(1 + sp))));
+    // Blindaje gas: cada cuadrícula debe rendir más que el gas de su vuelta.
+    // maxGrids = capital * margen / (2 * gasPorOperación)
+    const maxPorGas = Math.max(2, Math.floor(Number(p.totalQuoteHumano) * margenPct / (2 * GAS_OP_USD)));
+    if (nivObjetivo > maxPorGas) nivObjetivo = maxPorGas;
   }
   // SIEMPRE geométrico: todas las cuadrículas separadas al MISMO % (paso constante).
   const precios = preciosNiveles(Number(p.pMin), Number(p.pMax), nivObjetivo, 'geo');
@@ -379,6 +387,19 @@ export async function revocarToken(tokenAddr) {
   const s = await firmante();
   const t = new ethers.Contract(tokenAddr, ERC20, s);
   const tx = await t.approve(GRIDBOT, 0n);
+  return tx.wait();
+}
+
+export async function estaActivo(cuenta) {
+  try { return await cLee().activo(cuenta); } catch (_) { return false; }
+}
+export async function precioSub() {
+  try { return await cLee().precioSuscripcion(); } catch (_) { return 0n; }
+}
+export async function suscribir() {
+  const precio = await cLee().precioSuscripcion();
+  const bot = await cEscribe();
+  const tx = await bot.suscribir({ value: precio });
   return tx.wait();
 }
 
