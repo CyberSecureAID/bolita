@@ -189,6 +189,18 @@ function inyectarEstilo() {
   #colmena-app .paso-box span{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px}
   #colmena-app .paso-box b{font-family:var(--display);font-size:17px;color:var(--ink)}
   #colmena-app .seg.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+  #colmena-app .bot-tipos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  #colmena-app .bot-tipo{display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;padding:14px;border:1.5px solid var(--line);background:#04140E;border-radius:14px;cursor:pointer;transition:.14s}
+  #colmena-app .bot-tipo:hover{border-color:var(--gold-soft)}
+  #colmena-app .bot-tipo.on{border-color:var(--gold);background:rgba(232,184,75,.07);box-shadow:0 0 0 1px var(--gold) inset}
+  #colmena-app .bot-tipo .bot-ico{font-size:26px;line-height:1}
+  #colmena-app .bot-tipo .bot-nom{font-family:var(--display);font-size:15px;font-weight:700;color:var(--ink)}
+  #colmena-app .bot-tipo.on .bot-nom{color:var(--gold)}
+  #colmena-app .bot-tipo .bot-des{font-family:var(--sans);font-size:11px;line-height:1.4;color:var(--ink-3)}
+  #colmena-app .rep-wrap{display:flex;flex-direction:column;gap:4px;align-items:center;margin-top:4px}
+  #colmena-app .rep-pill{font-family:var(--mono);font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:100px;white-space:nowrap}
+  #colmena-app .rep-v{background:rgba(46,232,106,.14);color:var(--neon-lit);border:1px solid var(--neon-dim)}
+  #colmena-app .rep-c{background:rgba(232,80,80,.14);color:#ff9090;border:1px solid rgba(232,80,80,.3)}
   #colmena-app .seg.presets button{padding:10px 6px;border:1px solid var(--line);background:transparent;color:var(--ink-2);border-radius:9px;font-family:var(--mono);font-size:12px;cursor:pointer;transition:.12s}
   #colmena-app .seg.presets button:hover{border-color:var(--gold-soft);color:var(--ink)}
   #colmena-app .seg.presets button.on{background:var(--gold);color:#1a1200;border-color:var(--gold);font-weight:700}
@@ -609,10 +621,18 @@ function render() {
       <div class="card">
         <h3>Arma tu bot</h3>
         <p class="sub">Elige moneda, di cuánto inviertes y enciende. Toca la (i) si no sabes qué es algo.</p>
-        <div class="lab">Tipo de bot ${iBtn('tipobot')}</div>
-        <div class="seg presets" id="f-tipo" style="grid-template-columns:1fr 1fr">
-          <button type="button" data-tipo="grid" class="${F.tipo!=='acum'?'on':''}">Cuadrícula</button>
-          <button type="button" data-tipo="acum" class="${F.tipo==='acum'?'on':''}">Acumulador</button>
+        <div class="lab">¿Qué bot quieres armar? ${iBtn('tipobot')}</div>
+        <div class="bot-tipos" id="f-tipo">
+          <button type="button" data-tipo="grid" class="bot-tipo ${F.tipo!=='acum'?'on':''}">
+            <div class="bot-ico">🤖</div>
+            <div class="bot-nom">Bot de Cuadrícula</div>
+            <div class="bot-des">Compra y vende en cada nivel. Muchas operaciones pequeñas.</div>
+          </button>
+          <button type="button" data-tipo="acum" class="bot-tipo ${F.tipo==='acum'?'on':''}">
+            <div class="bot-ico">🦾</div>
+            <div class="bot-nom">Bot Acumulador</div>
+            <div class="bot-des">Compra en la caída y vende todo junto en ganancia.</div>
+          </button>
         </div>
         <div class="lab">Moneda ${iBtn('par')}</div>
         <div class="fila"><select id="f-base">${optHTML(BASES, F.baseId)}</select><select id="f-quote">${optHTML(QUOTES, F.quoteId)}</select></div>
@@ -664,7 +684,7 @@ function render() {
             <div><div class="lab">Protección precio % ${iBtn('proteccion')}</div>${campoNum('f-slip',{value:1,step:0.5,min:0,max:10})}</div>
             <div><div class="lab">Ritmo mín (s) ${iBtn('ritmo')}</div>${campoNum('f-cd',{value:0,step:5,min:0,int:true})}</div>
           </div>
-          <div class="fila">
+          <div class="fila" id="f-avz-tpsl">
             <div><div class="lab">Cerrar con ganancia ${iBtn('tp')}</div>${campoNum('f-tp',{placeholder:'off',pct:0.01,min:0})}</div>
             <div><div class="lab">Protegerme de caídas ${iBtn('sl')}</div>${campoNum('f-sl',{placeholder:'off',pct:0.01,min:0})}</div>
           </div>
@@ -678,7 +698,7 @@ function render() {
           <div id="c-hint"></div>
           <div class="prev">
             <div class="p"><b>Precio</b><span id="pv-precio">—</span></div>
-            <div class="p"><b>Reparto ${iBtn('reparto')}</b><span id="pv-compras">—</span></div>
+            <div class="p"><b>Reparto ${iBtn('reparto')}</b><span id="pv-compras" class="rep-wrap">—</span></div>
             <div class="p"><b>Por compra</b><span id="pv-orden">—</span></div>
             <div class="p"><b>Neto/vuelta ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
           </div>
@@ -760,7 +780,7 @@ function actualizarVista() {
   if (valido) {
     const ps = nivelesPreview(pMin, pMax, n, 'geo');
     const nSell = ps.filter((p) => p >= F.precio).length, nBuy = n - nSell;
-    if ($('pv-compras')) $('pv-compras').textContent = `${nSell} venden · ${nBuy} compran`;
+    if ($('pv-compras')) $('pv-compras').innerHTML = `<span class="rep-pill rep-v">${nSell} venden</span><span class="rep-pill rep-c">${nBuy} compran</span>`;
     const ordenQuote = total > 0 ? total / n : 0;
     if ($('pv-orden')) $('pv-orden').textContent = ordenQuote ? num(ordenQuote, 2) : '—';
     const net = ordenQuote * (pasoPct - FEE_CICLO) - 2 * GAS_OP_USD;   // tras comisiones Y gas
@@ -919,8 +939,11 @@ function pintarTipo() {
   const g = $('f-grid'), a = $('f-acum');
   if (g) g.style.display = acum ? 'none' : '';
   if (a) a.style.display = acum ? '' : 'none';
+  // Panel derecho (gráfica/reparto/neto) es solo del bot de cuadrícula.
+  ['c-chart', 'c-hint', 'c-asesor'].forEach((id) => { const e = $(id); if (e) e.style.display = acum ? 'none' : ''; });
   const prev = document.querySelector(`#${APP} .prev`); if (prev) prev.style.display = acum ? 'none' : '';
-  if (acum) { const as = $('c-asesor'); if (as) as.style.display = 'none'; }
+  // TP/SL no aplican al acumulador (usa su % objetivo).
+  const tpsl = $('f-avz-tpsl'); if (tpsl) tpsl.style.display = acum ? 'none' : '';
   document.querySelectorAll(`#${APP} #f-tipo button`).forEach((b) => b.classList.toggle('on', (b.dataset.tipo === 'acum') === acum));
   if (acum) previewAcum(); else actualizarVista();
 }
@@ -1198,7 +1221,7 @@ async function tarjeta(cuenta, clave, par) {
       <div class="pio-box"><div class="k">Rango (${simQ})</div><div class="v" style="font-size:13px">${precioFmt(pmin)} – ${precioFmt(pmax)}</div><div class="v2" style="color:var(--ink-3)">${R.niveles} cuadrículas</div></div>
       <div class="pio-box"><div class="k">Vueltas / Ops ${iBtn('vueltas')}</div><div class="v numgo" data-to="${Number(R.ciclos)}" data-dec="0">${R.ciclos}</div><div class="v2" style="color:var(--ink-3)">${R.totalOps} operaciones</div></div>
       <div class="pio-box"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>
-      <div class="pio-box"><div class="k">Precio medio ${iBtn('promedio')}</div><div class="v" style="font-size:14px">${posBase > 0 ? precioFmt(costeQ / posBase) : '—'}</div><div class="v2" style="color:var(--ink-3)">tu coste</div></div>
+      ${par.tipo === 'acum' ? `<div class="pio-box"><div class="k">Precio medio ${iBtn('promedio')}</div><div class="v" style="font-size:14px">${posBase > 0 ? precioFmt(costeQ / posBase) : '—'}</div><div class="v2" style="color:var(--ink-3)">tu coste</div></div>` : ''}
     </div>
     ${gasLow ? `<div class="gaswarn">⚠ Gas insuficiente: el bot no puede operar. Recarga BNB en el gas (arriba) para que empiece a comprar y vender.</div>` : ''}
     ${sinPos && !gasLow ? `<div class="gaswarn" style="background:rgba(232,184,75,.08);border-color:var(--gold-soft);color:var(--gold)">⏳ Tomando posición inicial… El bot está comprando su primera parte a mercado (el keeper la ejecuta en 1–2 min). En cuanto compre, verás aquí la ganancia moverse con el mercado.</div>` : ''}
