@@ -31,7 +31,13 @@ import { ethers } from 'ethers';
 /* ================================================================== */
 
 const CONTRATO   = '0x964a68D3A2dB18c723581410C49aa8789048E1B9';
-const RPC        = 'https://bsc-dataseed.binance.org';
+const RPCS = [
+  'https://bsc-dataseed.binance.org',
+  'https://bsc-dataseed1.defibit.io',
+  'https://bsc-dataseed1.ninicoin.io',
+  'https://bsc-rpc.publicnode.com',
+  'https://1rpc.io/bnb'
+];
 const FLORIDA_URL = 'https://bolita-florida.yamicelanvivesqui.workers.dev';
 const ZONA       = 'America/New_York';
 
@@ -111,8 +117,20 @@ async function drawDeFlorida(turno, fechaUS) {
 /* Tareas                                                              */
 /* ================================================================== */
 
+/** Devuelve el primer RPC que responde (si uno se cae, prueba el siguiente). */
+async function getProvider() {
+  for (const url of RPCS) {
+    try {
+      const p = new ethers.JsonRpcProvider(url, 56, { staticNetwork: true });
+      await p.getBlockNumber();
+      return p;
+    } catch (_) { /* prueba el siguiente */ }
+  }
+  throw new Error('ningún RPC disponible');
+}
+
 async function contratoConFirma(env) {
-  const provider = new ethers.JsonRpcProvider(RPC);
+  const provider = await getProvider();
   const wallet = new ethers.Wallet(env.OWNER_PRIVATE_KEY, provider);
   return new ethers.Contract(CONTRATO, ABI, wallet);
 }
@@ -146,29 +164,38 @@ async function abrirPendientes(env, log) {
  * RESOLVER: para cada sorteo cuya hora ya pasó (hoy), si la tirada existe,
  * no está resuelta ni cancelada, y Florida ya publicó, la resuelve.
  */
+/** Resuelve UNA tirada (turno s, fecha dada) si procede. No lanza si ya está lista. */
+async function resolverUno(c, fecha, s, log) {
+  const { y, mo, d } = fecha;
+  const id = idTirada(y, mo, d, s.sufijo);
+  const ahora = Math.floor(Date.now() / 1000);
+  const tsSorteo = tsFlorida(y, mo, d, s.h, s.m);
+  if (ahora < tsSorteo) { log.push(`resolver ${id}: aún no es la hora`); return; }
+
+  const t = await c.tiradas(id);
+  if (!t.existe)   { log.push(`resolver ${id}: no existe, salto`); return; }
+  if (t.resuelta)  { log.push(`resolver ${id}: ya resuelta, salto`); return; }
+  if (t.cancelada) { log.push(`resolver ${id}: cancelada, salto`); return; }
+
+  const fechaUS = `${String(mo).padStart(2,'0')}/${String(d).padStart(2,'0')}/${y}`;
+  const nums = await drawDeFlorida(s.turno, fechaUS);
+  if (!nums) { log.push(`resolver ${id}: Florida aún no publicó, reintento luego`); return; }
+
+  const tx = await c.resolverTirada(id, nums.fijo, nums.corrido1, nums.corrido2);
+  await tx.wait();
+  log.push(`resolver ${id}: RESUELTA fijo ${nums.fijo} corridos ${nums.corrido1}/${nums.corrido2} tx ${tx.hash}`);
+}
+
 async function resolverPendientes(env, log) {
   const c = await contratoConFirma(env);
-  const { y, mo, d } = partesFlorida();
-  const ahora = Math.floor(Date.now() / 1000);
-  const fechaUS = `${String(mo).padStart(2,'0')}/${String(d).padStart(2,'0')}/${y}`;
+  const hoy = partesFlorida();
+  const ayer = partesFlorida(new Date(Date.now() - 24 * 3600 * 1000));
 
-  for (const s of SORTEOS) {
-    const id = idTirada(y, mo, d, s.sufijo);
-    const tsSorteo = tsFlorida(y, mo, d, s.h, s.m);
-    if (ahora < tsSorteo) { log.push(`resolver ${id}: aún no es la hora`); continue; }
-
-    const t = await c.tiradas(id);
-    if (!t.existe)   { log.push(`resolver ${id}: no existe, salto`); continue; }
-    if (t.resuelta)  { log.push(`resolver ${id}: ya resuelta, salto`); continue; }
-    if (t.cancelada) { log.push(`resolver ${id}: cancelada, salto`); continue; }
-
-    const nums = await drawDeFlorida(s.turno, fechaUS);
-    if (!nums) { log.push(`resolver ${id}: Florida aún no publicó, reintento luego`); continue; }
-
-    const tx = await c.resolverTirada(id, nums.fijo, nums.corrido1, nums.corrido2);
-    await tx.wait();
-    log.push(`resolver ${id}: RESUELTA fijo ${nums.fijo} corridos ${nums.corrido1}/${nums.corrido2} tx ${tx.hash}`);
-  }
+  // Hoy: ambos sorteos. Ayer: solo la noche (por si publicó tarde o el worker
+  // estuvo caído y ya cruzó medianoche de Florida).
+  for (const s of SORTEOS) await resolverUno(c, hoy, s, log);
+  const noche = SORTEOS.find((s) => s.turno === 'noche');
+  if (noche) await resolverUno(c, ayer, noche, log);
 }
 
 /* ================================================================== */
