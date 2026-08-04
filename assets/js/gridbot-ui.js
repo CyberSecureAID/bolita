@@ -627,8 +627,8 @@ function render() {
         <div class="bot-tipos" id="f-tipo">
           <button type="button" data-tipo="grid" class="bot-tipo ${F.tipo!=='acum'?'on':''}">
             <div class="bot-ico">🤖</div>
-            <div class="bot-nom">Bot de Cuadrícula</div>
-            <div class="bot-des">Compra y vende en cada nivel. Muchas operaciones pequeñas.</div>
+            <div class="bot-nom">Cuadrícula Inteligente</div>
+            <div class="bot-des">Compra y vende en niveles, pero solo cierra cada cuadrícula en ganancia (cubre comisión + gas).</div>
           </button>
           <button type="button" data-tipo="acum" class="bot-tipo ${F.tipo==='acum'?'on':''}">
             <div class="bot-ico">🦾</div>
