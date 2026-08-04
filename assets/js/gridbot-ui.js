@@ -31,7 +31,8 @@ const INFO = {
   sl: 'Opcional. Si el precio baja hasta aquí, el bot vende todo para no seguir perdiendo. Un freno de emergencia.',
   gas: 'La red cobra unos centavos por cada operación (el "gas", no es nuestra comisión). Deja aquí ~2 USD en BNB y el bot se encarga solo. Es tuyo: lo retiras cuando quieras.',
   ganancia: 'Lo que ya ganaste de verdad, con la comisión y el gas descontados. Es dinero que ya está en tu wallet.',
-  porcuad: 'Lo que ganas cada vez que el bot completa una vuelta (compra abajo y vende arriba), ya con la comisión descontada.'
+  porcuad: 'Lo que ganas cada vez que el bot completa una vuelta (compra abajo y vende arriba), ya con la comisión descontada.',
+  vueltas: 'Una VUELTA ENTERA es una operación completa: el bot compró en una cuadrícula y luego vendió en otra (o al revés). Ahí se concreta la ganancia de rejilla. "Operaciones" cuenta cada compra o cada venta por separado; una vuelta son dos operaciones. Si el precio cruzó una cuadrícula pero aún no ves la vuelta, es que el keeper todavía no ejecutó esa venta on-chain.'
 };
 
 const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'geo', precio: null, rutas: null, avanzado: false, saldoQuote: null, preset: 'equilibrado' };
@@ -737,8 +738,13 @@ function asesorar(total, n, pasoPct, ordenQuote, netPorVuelta) {
   box.style.display = '';
   $('as-ops').textContent = (vueltasDia * 2).toFixed(vueltasDia * 2 < 1 ? 1 : 0);
   const mesEl = $('as-mes');
-  mesEl.textContent = (netDia * 30 >= 0 ? '+' : '−') + num(Math.abs(netDia * 30), 2) + ' ' + moneda(F.quoteId).simbolo + '  (' + (pctMes >= 0 ? '+' : '−') + num(Math.abs(pctMes), 1) + '%)';
-  mesEl.className = netDia >= 0 ? 'pos' : 'neg';
+  if (netDia >= 0) {
+    mesEl.textContent = '+' + num(netDia * 30, 2) + ' ' + moneda(F.quoteId).simbolo + '  (+' + num(pctMes, 1) + '%)';
+    mesEl.className = 'pos';
+  } else {
+    mesEl.textContent = 'Ajusta la config ↓';
+    mesEl.className = 'neg';
+  }
   let nota = '';
   if (netCiclo <= 0) nota = 'Con esta configuración cada vuelta apenas cubre el gas. Prueba la estrategia "Tranquilo" o sube el capital: cada cuadrícula rinde cuando mueve varios dólares.';
   else if (vueltasDia < 0.3) nota = 'Rinde, pero opera poco (mercado tranquilo para este rango). Para más movimiento, prueba "Activo".';
@@ -1008,7 +1014,7 @@ async function tarjeta(cuenta, clave, par) {
         <div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>
       <div class="pio-box"><div class="k">Entrada → Ahora</div><div class="v" style="font-size:14px">${par.entry ? precioFmt(par.entry) : '—'} → ${precioFmt(precio)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}">${mkt == null ? simQ : sg(mkt) + num(Math.abs(mkt), 2) + '% mercado'}</div></div>
       <div class="pio-box"><div class="k">Rango (${simQ})</div><div class="v" style="font-size:13px">${precioFmt(pmin)} – ${precioFmt(pmax)}</div><div class="v2" style="color:var(--ink-3)">${R.niveles} cuadrículas</div></div>
-      <div class="pio-box"><div class="k">Vueltas / Ops</div><div class="v numgo" data-to="${Number(R.ciclos)}" data-dec="0">${R.ciclos}</div><div class="v2" style="color:var(--ink-3)">${R.totalOps} operaciones</div></div>
+      <div class="pio-box"><div class="k">Vueltas / Ops ${iBtn('vueltas')}</div><div class="v numgo" data-to="${Number(R.ciclos)}" data-dec="0">${R.ciclos}</div><div class="v2" style="color:var(--ink-3)">${R.totalOps} operaciones</div></div>
       <div class="pio-box"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>
     </div>
     ${gasLow ? `<div class="gaswarn">⚠ Gas insuficiente: el bot no puede operar. Recarga BNB en el gas (arriba) para que empiece a comprar y vender.</div>` : ''}
