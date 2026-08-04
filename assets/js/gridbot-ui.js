@@ -200,7 +200,7 @@ function inyectarEstilo() {
   #colmena-app .bot-tipo.on .bot-nom{color:var(--gold)}
   #colmena-app .bot-tipo .bot-des{font-family:var(--sans);font-size:11px;line-height:1.4;color:var(--ink-3)}
   #colmena-app .rep-wrap{display:flex;flex-direction:column;gap:4px;align-items:center;margin-top:4px}
-  #colmena-app .rep-pill{font-family:var(--mono);font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:100px;white-space:nowrap}
+  #colmena-app .rep-pill{font-family:var(--mono);font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:7px;white-space:nowrap}
   #colmena-app .rep-v{background:rgba(46,232,106,.14);color:var(--neon-lit);border:1px solid var(--neon-dim)}
   #colmena-app .rep-c{background:rgba(232,80,80,.14);color:#ff9090;border:1px solid rgba(232,80,80,.3)}
   #colmena-app .seg.presets button{padding:10px 6px;border:1px solid var(--line);background:transparent;color:var(--ink-2);border-radius:9px;font-family:var(--mono);font-size:12px;cursor:pointer;transition:.12s}
@@ -743,14 +743,14 @@ function render() {
     F.avanzado = !F.avanzado; const a = $('f-avz'); if (a) a.style.display = F.avanzado ? '' : 'none';
     $('f-toggleavz').textContent = F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas';
   };
-  { const e = $('f-total'); if (e) e.oninput = () => { recomputarPorMargen(); actualizarVista(); }; }
-  { const e = $('f-niv'); if (e) e.oninput = () => { recomputarPorMargen(); actualizarVista(); }; }
+  { const e = $('f-total'); if (e) e.oninput = () => { asegurarRentable(); actualizarVista(); }; }
+  { const e = $('f-niv'); if (e) e.oninput = () => { asegurarRentable(); actualizarVista(); }; }
   document.querySelectorAll(`#${APP} #f-margenmodo button`).forEach((b) => b.onclick = () => {
     F.margenModo = b.dataset.mm;
     document.querySelectorAll(`#${APP} #f-margenmodo button`).forEach((x) => x.classList.remove('on')); b.classList.add('on');
     recomputarPorMargen(); actualizarVista();
   });
-  ['f-min','f-max','f-margen'].forEach((id) => { const e = $(id); if (e) e.oninput = () => { recomputarPorMargen(); actualizarVista(); }; });
+  ['f-min','f-max','f-margen'].forEach((id) => { const e = $(id); if (e) e.oninput = () => { asegurarRentable(); actualizarVista(); }; });
   $('f-sug').onclick = sugerirRango;
   document.querySelectorAll(`#${APP} #f-preset button`).forEach((b) => b.onclick = () => aplicarPreset(b.dataset.preset));
   document.querySelectorAll(`#${APP} #f-tipo button`).forEach((b) => b.onclick = () => { F.tipo = b.dataset.tipo; pintarTipo(); });
@@ -790,6 +790,7 @@ function actualizarVista() {
 
   const hint = $('c-hint');
   let aviso1 = '';
+  if (NOTA_GAS) aviso1 += `<div class="hint">${NOTA_GAS}</div>`;
   if (F.precio && pMin > 0 && pMax > pMin && (F.precio < pMin || F.precio > pMax))
     aviso1 = `<div class="hint">El precio de ahora (${precioFmt(F.precio)}) está fuera de tu rango. El bot esperará a que entre; si quieres que opere ya, ajusta el rango.</div>`;
   if (hint) hint.innerHTML = aviso1;
@@ -835,8 +836,30 @@ function aplicarPreset(id) {
   $('f-min').value = Number((F.precio * (1 - p.rango)).toPrecision(6));
   $('f-max').value = Number((F.precio * (1 + p.rango)).toPrecision(6));
   $('f-niv').value = p.grids;
-  recomputarPorMargen();
+  asegurarRentable();
   actualizarVista();
+}
+let NOTA_GAS = '';
+function maxGridsRentable(pMin, pMax, total) {
+  for (let n = 2; n <= 100; n++) {
+    const spacing = Math.pow(pMax / pMin, 1 / (n - 1)) - 1;
+    const net = (total / n) * (spacing - FEE_CICLO) - 2 * GAS_OP_USD;
+    if (net < 0) return Math.max(2, n - 1);
+  }
+  return 100;
+}
+// Garantiza que "Neto por vuelta" sea SIEMPRE positivo: capa las cuadrículas al máximo rentable.
+function asegurarRentable() {
+  NOTA_GAS = '';
+  const margen = parseFloat($('f-margen')?.value) || 0;
+  if (margen > 0) { recomputarPorMargen(); return; }   // el modo margen ya se capa solo
+  const total = parseFloat($('f-total')?.value) || 0;
+  const pMin = parseFloat($('f-min')?.value) || 0, pMax = parseFloat($('f-max')?.value) || 0;
+  const niv = $('f-niv');
+  if (!(total > 0 && pMin > 0 && pMax > pMin && niv)) return;
+  const maxN = maxGridsRentable(pMin, pMax, total);
+  const cur = parseInt(niv.value, 10) || 0;
+  if (cur > maxN) { niv.value = maxN; NOTA_GAS = `Ajusté a ${maxN} cuadrículas para que cada vuelta deje ganancia con tu capital (con más, el gas se la comería).`; }
 }
 function rangoNecesario(n, margen) {
   const s = margen / 100 + FEE_CICLO;
