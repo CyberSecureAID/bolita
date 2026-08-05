@@ -2205,6 +2205,12 @@ async function compartirBot(card) {
   const shadow = (b = 16, oy = 3) => { g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = b; g.shadowOffsetY = oy; };
   const noShadow = () => { g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetY = 0; };
 
+  // Puntas doradas: relleno TODO el lienzo con un dorado bicolor; se verá solo en las
+  // esquinas (detrás de la imagen redondeada), para que al compartir no se vean cuadradas.
+  const oroBg = g.createLinearGradient(0, 0, W, H);
+  oroBg.addColorStop(0, '#f9e3a0'); oroBg.addColorStop(.42, '#e8b84b'); oroBg.addColorStop(.72, '#c79426'); oroBg.addColorStop(1, '#7a5713');
+  g.fillStyle = oroBg; g.fillRect(0, 0, W, H);
+
   rr(0, 0, W, H, 48); g.clip();   // esquinas redondeadas de TODA la imagen
 
   if (botImg) {
