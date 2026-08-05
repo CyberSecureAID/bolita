@@ -2187,6 +2187,9 @@ async function compartirBot(card) {
   const neg = ganEl?.classList.contains('neg');
   const bid = card.dataset.bid || '';
   const fecha = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+  const _since = Number(card.querySelector('.pio-time')?.dataset.since || 0);
+  let activo = '';
+  if (_since > 0) { let s = Math.floor(Date.now() / 1000 - _since); if (s < 0) s = 0; const d = Math.floor(s / 86400); s -= d * 86400; const h = Math.floor(s / 3600); s -= h * 3600; const mm = Math.floor(s / 60); activo = (d > 0 ? d + 'd ' : '') + (d > 0 || h > 0 ? h + 'h ' : '') + mm + 'm'; }
   const acento = { grid: '#4d9fff', acum: '#b47cff', cash: '#e8b84b', dca: '#34d97b' }[tipo] || '#e8b84b';
   const DISPLAY = '"Chakra Petch", "Trebuchet MS", sans-serif', MONO = '"IBM Plex Mono", ui-monospace, monospace';
 
@@ -2237,8 +2240,9 @@ async function compartirBot(card) {
   else { g.fillStyle = acento; g.beginPath(); g.arc(lx + lr, ly + lr, lr, 0, 7); g.fill(); noShadow(); g.fillStyle = '#08121f'; g.font = `800 38px ${DISPLAY}`; g.textAlign = 'center'; g.fillText(sb[0] || '?', lx + lr, ly + lr + 14); g.textAlign = 'left'; }
   noShadow();
   shadow(18, 3);
-  g.fillStyle = acento; g.font = `700 52px ${DISPLAY}`; g.fillText(nombre, lx + lr * 2 + 28, ly + 40);
-  g.fillStyle = '#eaecef'; g.font = `500 27px ${MONO}`; g.fillText(`${pair}    ·    ${fecha}`, lx + lr * 2 + 30, ly + 80);
+  g.fillStyle = acento; g.font = `700 52px ${DISPLAY}`; g.fillText(nombre, lx + lr * 2 + 28, ly + 34);
+  g.fillStyle = '#eaecef'; g.font = `500 26px ${MONO}`; g.fillText(`${pair} · ${fecha}`, lx + lr * 2 + 30, ly + 70);
+  if (activo) { g.fillStyle = '#e8b84b'; g.font = `600 22px ${MONO}`; g.fillText(`Activo  ${activo}`, lx + lr * 2 + 30, ly + 102); }
   noShadow();
 
   // ── Abajo: banda Inversión ↔ Ganancia (chaflán + verde de la página + 3D dorado) ──
