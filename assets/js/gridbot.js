@@ -152,6 +152,21 @@ export async function balanceToken(tokenAddr, duenio) {
   const t = new ethers.Contract(tokenAddr, ERC20, lector());
   return t.balanceOf(duenio);
 }
+/** ¿Esta dirección es el WBNB (o sea, la moneda es BNB)? */
+export function esBNB(tokenAddr) { return (tokenAddr || '').toLowerCase() === WBNB.toLowerCase(); }
+/** Saldo NATIVO de BNB (no WBNB). */
+export async function saldoNativoBNB(duenio) { return lector().getBalance(duenio); }
+/** Saldo "real" para mostrar: nativo si es BNB, ERC20 si no. */
+export async function saldoParaMostrar(tokenAddr, duenio) {
+  return esBNB(tokenAddr) ? saldoNativoBNB(duenio) : balanceToken(tokenAddr, duenio);
+}
+/** Envuelve BNB nativo -> WBNB (para que el bot pueda venderlo). */
+export async function envolverBNB(montoWei) {
+  const abi = ['function deposit() payable'];
+  const c = new ethers.Contract(WBNB, abi, await firmante());
+  const tx = await c.deposit({ value: montoWei });
+  return tx.wait();
+}
 
 /* ================================================================== */
 /* Rutas de swap (directa o vía WBNB)                                  */

@@ -138,6 +138,25 @@ function inyectarEstilo() {
   #colmena-app .acum-flow{display:flex;flex-direction:column;gap:8px;text-align:left;max-width:320px;margin:0 auto}
   #colmena-app .acum-flow .af{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;color:var(--ink-2);background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:10px;padding:9px 12px}
   #colmena-app .acum-flow .af span{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,#5cf58c,#1ea34a);color:#03210f;font-weight:800;font-size:12px}
+  /* ===== Cash Out ===== */
+  #colmena-app .cash-note{font-family:var(--sans);font-size:12.5px;color:var(--ink-2);line-height:1.5;background:rgba(232,184,75,.06);border:1px solid var(--gold-soft);border-radius:11px;padding:11px 13px;margin-bottom:14px}
+  #colmena-app .cash-note b{color:var(--gold)}
+  #colmena-app .cash-amt{position:relative}
+  #colmena-app .cash-usd{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:12px;color:var(--ink-3);pointer-events:none}
+  #colmena-app .cash-slider{width:100%;margin:12px 0 6px;-webkit-appearance:none;appearance:none;height:6px;border-radius:100px;background:var(--line);outline:none}
+  #colmena-app .cash-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:linear-gradient(180deg,#f7db8d,var(--gold) 60%,#c79426);border:2px solid #8f6a1a;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  #colmena-app .cash-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--gold);border:2px solid #8f6a1a;cursor:pointer}
+  #colmena-app .cash-resumen{margin-top:16px;background:linear-gradient(180deg,rgba(232,184,75,.07),rgba(255,255,255,.015));border:1px solid var(--gold-soft);border-radius:16px;padding:16px 18px;box-shadow:0 8px 24px rgba(0,0,0,.32)}
+  #colmena-app .cash-resumen .cr-top{font-family:var(--display);color:var(--gold);font-size:14px;font-weight:700;text-align:center;margin-bottom:12px;text-shadow:0 1px 1px rgba(0,0,0,.4);letter-spacing:.3px}
+  #colmena-app .cash-resumen .cr-rows{display:flex;flex-direction:column;gap:1px;background:var(--line-soft);border-radius:11px;overflow:hidden}
+  #colmena-app .cash-resumen .cr-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:rgba(0,0,0,.22);font-family:var(--mono);font-size:12.5px}
+  #colmena-app .cash-resumen .cr-row span{color:var(--ink-3)}
+  #colmena-app .cash-resumen .cr-row b{color:var(--ink);font-family:var(--display);font-size:15px}
+  #colmena-app .cash-resumen .cr-gan b{font-size:18px}
+  #colmena-app .cash-resumen .cr-gan b.pos{color:var(--neon-lit);text-shadow:0 0 12px rgba(46,232,106,.3)}
+  #colmena-app .cash-resumen .cr-gan b.neg{color:var(--rojo)}
+  #colmena-app .cash-resumen .cr-note{text-align:center;font-family:var(--sans);font-size:12px;color:var(--ink-2);line-height:1.55;margin-top:12px}
+  #colmena-app .cash-resumen .cr-note b{color:var(--gold)}
   #colmena-app .btn-verde,#colmena-modal .btn-verde{background:linear-gradient(180deg,#5cf58c,var(--neon) 45%,#1ea34a);color:#03210f;box-shadow:0 4px 0 #12702f,0 8px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.4);transition:transform .09s,box-shadow .09s,filter .12s;text-shadow:0 1px 0 rgba(255,255,255,.25)}
   #colmena-app .btn-verde:active,#colmena-modal .btn-verde:active{transform:translateY(4px);box-shadow:0 0 0 #12702f,0 3px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .btn-linea,#colmena-modal .btn-linea{background:transparent;border:1px solid var(--line);color:var(--ink)}
@@ -841,10 +860,14 @@ function render() {
           </div>
         </div>
         <div id="f-cash" style="${F.tipo==='cash'?'':'display:none'}">
-          <div class="hint" style="margin-bottom:8px">Arriba: la <b>primera moneda</b> es la que ya tienes y vas a vender; la <b>segunda</b> es la estable donde recibirás.</div>
-          <div class="lab" style="justify-content:space-between;gap:8px"><span style="display:flex;align-items:center;gap:6px">Cantidad a vender <span id="fc-sim">(${moneda(F.baseId).simbolo})</span> ${iBtn('cashcant')}</span><span id="fc-saldo" class="saldo-chip">—</span></div>
-          ${campoNum('fc-cant',{placeholder:'0.00',step:0.01,min:0})}
-          <div class="lab">Vender cuando ${iBtn('cashobj')}</div>
+          <div class="cash-note">Vendes la <b>primera moneda</b> (la que ya tienes) y recibes la <b>segunda</b> (tu estable) en tu wallet.</div>
+          <div class="lab" style="justify-content:space-between;gap:8px"><span style="display:flex;align-items:center;gap:6px">Cantidad a vender ${iBtn('cashcant')}</span><span id="fc-saldo" class="saldo-chip">—</span></div>
+          <div class="cash-amt">${campoNum('fc-cant',{placeholder:'0.00',step:0.01,min:0})}<div class="cash-usd" id="fc-cant-usd">≈ $0.00</div></div>
+          <input type="range" id="fc-slider" class="cash-slider" min="0" max="100" value="0" step="1">
+          <div class="seg presets" id="fc-pctamt" style="grid-template-columns:repeat(6,1fr);margin-top:2px">
+            <button type="button" data-pa="5">5%</button><button type="button" data-pa="10">10%</button><button type="button" data-pa="25">25%</button><button type="button" data-pa="50">50%</button><button type="button" data-pa="75">75%</button><button type="button" data-pa="100">100%</button>
+          </div>
+          <div class="lab" style="margin-top:16px">Vender cuando ${iBtn('cashobj')}</div>
           <div class="seg presets" id="fc-modo" style="grid-template-columns:1fr 1fr">
             <button type="button" data-cm="pct" class="on">Suba un %</button>
             <button type="button" data-cm="precio">Llegue a un precio</button>
@@ -856,13 +879,15 @@ function render() {
             ${campoNum('fc-pct',{value:10,min:0.5,max:2000,step:1})}
           </div>
           <div id="fc-precio-wrap" style="display:none;margin-top:8px">${campoNum('fc-precio',{placeholder:'precio objetivo',pct:0.05})}</div>
-          <div class="asesor" id="fc-prev" style="margin-top:12px">
-            <div class="as-top"><b>Resumen del Cash Out</b></div>
-            <div class="as-grid">
-              <div><span>Recibirás (aprox.)</span><b id="fc-p-recibe">—</b></div>
-              <div><span>Ganancia</span><b id="fc-p-gan" class="pos">—</b></div>
+          <div class="cash-resumen" id="fc-prev">
+            <div class="cr-top">Resumen del Cash Out</div>
+            <div class="cr-rows">
+              <div class="cr-row"><span>Vendes</span><b id="fc-p-cant">—</b></div>
+              <div class="cr-row"><span>Valor ahora</span><b id="fc-p-valor">—</b></div>
+              <div class="cr-row"><span>Recibirás al objetivo</span><b id="fc-p-recibe">—</b></div>
+              <div class="cr-row cr-gan"><span>Ganancia estimada</span><b id="fc-p-gan" class="pos">—</b></div>
             </div>
-            <div class="as-nota">Vendes solo cuando el precio llegue a tu objetivo, y recibes en <b id="fc-p-est">${moneda(F.quoteId).simbolo}</b> en tu wallet. <b>Ten esa moneda agregada</b> en tu wallet para verla (llega igual aunque no la tengas agregada).</div>
+            <div class="cr-note">Vende solo cuando el precio llegue a tu objetivo y recibe <b id="fc-p-est">${moneda(F.quoteId).simbolo}</b> en tu wallet.<br><span style="opacity:.75">Ten esa moneda agregada en tu wallet para verla — llega igual.</span></div>
           </div>
         </div>
         <div style="text-align:right"><button class="btn-avz" id="f-toggleavz">${F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas'}</button></div>
@@ -984,6 +1009,8 @@ function render() {
     const v = $('fc-pct'); if (v) { v.value = b.dataset.p; previewCash(); }
   });
   ['fc-cant', 'fc-pct', 'fc-precio'].forEach((id) => { const e = $(id); if (e) e.oninput = previewCash; });
+  if ($('fc-slider')) $('fc-slider').oninput = () => { const pct = parseFloat($('fc-slider').value) || 0; setCantCash((F.saldoBase || 0) * pct / 100); };
+  document.querySelectorAll(`#${APP} #fc-pctamt button`).forEach((b) => b.onclick = () => setCantCash((F.saldoBase || 0) * (parseFloat(b.dataset.pa) || 0) / 100));
   refrescarSaldoCash();
   pintarTipo();
   $('f-crear').onclick = onCrear;
@@ -1185,10 +1212,14 @@ async function refrescarSaldoCash() {
   el.textContent = '…';
   try {
     const base = moneda(F.baseId);
-    const bal = await gb.balanceToken(gb.dirDe(base), cuenta);
+    const bal = await gb.saldoParaMostrar(gb.dirDe(base), cuenta);
     const balH = Number(gb.fmt(bal, base.decimals));
-    el.innerHTML = `Tienes ${num(balH, 6)} · <b>Máx</b>`;
-    el.onclick = () => { const inp = $('fc-cant'); if (inp && balH > 0) { inp.value = Number(balH.toPrecision(8)); previewCash(); } };
+    F.saldoBase = balH;
+    const usd = F.precio ? ' · $' + num(balH * F.precio, 2) : '';
+    el.innerHTML = `Tienes ${num(balH, 6)} ${base.simbolo}${usd} · <b>Máx</b>`;
+    el.onclick = () => setCantCash(balH);
+    const inp = $('fc-cant'); if (inp && !inp.value && balH > 0) setCantCash(balH);
+    else previewCash();
   } catch { el.textContent = ''; }
 }
 async function onDepositarGas() {
@@ -1390,20 +1421,34 @@ async function onCrearAcum() {
     if (esRechazo(e)) { modalClose(); } else modalError(e?.shortMessage || e?.message || String(e));
   }
 }
+function setCantCash(v) {
+  const inp = $('fc-cant'); if (!inp) return;
+  inp.value = v > 0 ? Number(v.toPrecision(8)) : '';
+  previewCash();
+}
 function previewCash() {
   const cant = parseFloat($('fc-cant')?.value) || 0;
   const modoObj = F.cashModo || 'pct';
   let targetPrice = 0;
   if (modoObj === 'precio') targetPrice = parseFloat($('fc-precio')?.value) || 0;
   else { const pct = parseFloat($('fc-pct')?.value) || 0; if (F.precio && pct > 0) targetPrice = F.precio * (1 + pct / 100); }
-  const rec = $('fc-p-recibe'), gan = $('fc-p-gan'), est = $('fc-p-est'), sim = $('fc-sim');
-  if (sim) sim.textContent = '(' + moneda(F.baseId).simbolo + ')';
-  if (est) est.textContent = moneda(F.quoteId).simbolo;
+  const simB = moneda(F.baseId).simbolo, simQ = moneda(F.quoteId).simbolo;
+  const est = $('fc-p-est'); if (est) est.textContent = simQ;
+  const usd = $('fc-cant-usd'); if (usd) usd.textContent = (cant > 0 && F.precio) ? '≈ $' + num(cant * F.precio, 2) : '≈ $0.00';
+  const sl = $('fc-slider'); if (sl && F.saldoBase > 0) sl.value = Math.max(0, Math.min(100, Math.round(cant / F.saldoBase * 100)));
+  const setT = (id, v) => { const e = $(id); if (e) e.textContent = v; };
   if (cant > 0 && targetPrice > 0 && F.precio) {
-    const proceeds = cant * targetPrice, g = cant * (targetPrice - F.precio);
-    if (rec) rec.textContent = num(proceeds, 2) + ' ' + moneda(F.quoteId).simbolo;
-    if (gan) { gan.textContent = (g >= 0 ? '+' : '') + num(g, 2) + ' ' + moneda(F.quoteId).simbolo; gan.className = g >= 0 ? 'pos' : 'neg'; }
-  } else { if (rec) rec.textContent = '—'; if (gan) { gan.textContent = '—'; gan.className = ''; } }
+    const valor = cant * F.precio, proceeds = cant * targetPrice, g = proceeds - valor;
+    setT('fc-p-cant', num(cant, 6) + ' ' + simB);
+    setT('fc-p-valor', num(valor, 2) + ' ' + simQ);
+    setT('fc-p-recibe', num(proceeds, 2) + ' ' + simQ);
+    const gan = $('fc-p-gan'); if (gan) { gan.textContent = (g >= 0 ? '+' : '') + num(g, 2) + ' ' + simQ; gan.className = g >= 0 ? 'pos' : 'neg'; }
+  } else {
+    setT('fc-p-cant', cant > 0 ? num(cant, 6) + ' ' + simB : '—');
+    setT('fc-p-valor', (cant > 0 && F.precio) ? num(cant * F.precio, 2) + ' ' + simQ : '—');
+    setT('fc-p-recibe', '—');
+    const gan = $('fc-p-gan'); if (gan) { gan.textContent = '—'; gan.className = 'pos'; }
+  }
 }
 async function onCrearCashOut() {
   const m = $('c-msg'); const base = moneda(F.baseId), quote = moneda(F.quoteId);
@@ -1435,10 +1480,20 @@ async function onCrearCashOut() {
   if (!ok) return;
   try {
     modalBusy('Comprobando tu saldo…');
-    const balBI = await gb.balanceToken(p.base, cuenta);
+    const balBI = await gb.saldoParaMostrar(p.base, cuenta);
     const balH = Number(gb.fmt(balBI, base.decimals));
     if (cantidad > balH + 1e-9) { modalError(`No tienes suficiente ${base.simbolo}. En tu wallet hay ${num(balH, 6)} ${base.simbolo} y quieres vender ${num(cantidad, 6)}.`); return; }
     if (!(await asegurarSuscripcion(cuenta))) { modalClose(); return; }
+    // Si la moneda es BNB, hay que envolver a WBNB lo que falte (para que el bot pueda venderlo).
+    if (gb.esBNB(p.base)) {
+      const wbnbBal = await gb.balanceToken(p.base, cuenta);
+      const wbnbH = Number(gb.fmt(wbnbBal, base.decimals));
+      if (cantidad > wbnbH + 1e-12) {
+        const falta = cantidad - wbnbH;
+        modalBusy(`<b>Preparando tu BNB…</b><br>Se convierte ${num(falta, 6)} BNB a WBNB para poder venderlo (sigue siendo tuyo).<br><br>Confirma en tu wallet.`);
+        await gb.envolverBNB(mBI(falta * 1.001, base.decimals));
+      }
+    }
     modalBusy('Preparando tu Cash Out con el precio real…');
     const config = await gb.construirConfigCashOut(p);
     const topeBase = cantidad * 3;
@@ -1476,6 +1531,11 @@ function simboloDe(addr) {
   const m = LISTA_TODAS.find((x) => (x.address || '').toLowerCase() === addr.toLowerCase());
   return m ? m.simbolo : addr.slice(0, 6);
 }
+function monedaPorDir(addr) {
+  const a = (addr || '').toLowerCase();
+  return LISTA_TODAS.find((x) => (x.address || '').toLowerCase() === a)
+    || (a === gb.WBNB.toLowerCase() ? { simbolo: 'BNB', decimals: 18, address: gb.WBNB } : null);
+}
 
 /* ---- Estela (trail): muestrea el precio mientras la gráfica está abierta ---- */
 const TRAILS = new Map();
@@ -1508,7 +1568,18 @@ async function refrescarRejillas() {
     const cerradas = JSON.parse(localStorage.getItem('bot-cerradas') || '{}');
     const cards = [];
     for (const clave of claves) {
-      const par = store[clave]; if (!par) continue;
+      let par = store[clave];
+      if (!par) {
+        // Falta en localStorage (otro navegador, caché borrada…): reconstruir desde el contrato.
+        try {
+          const paths = await gb.pathsDe(clave);
+          const venta = paths.pathVenta || paths[1] || paths.venta || [];
+          if (!venta || venta.length < 2) continue;
+          const bAddr = venta[0], qAddr = venta[venta.length - 1];
+          const mb = monedaPorDir(bAddr), mq = monedaPorDir(qAddr);
+          par = { base: bAddr, quote: qAddr, decBase: mb?.decimals ?? 18, decQuote: mq?.decimals ?? 18, simBase: mb?.simbolo || simboloDe(bAddr), simQuote: mq?.simbolo || simboloDe(qAddr) };
+        } catch { continue; }
+      }
       if (cerradas[ccl(cuenta, par.base, par.quote)]) continue; // cerrado por el usuario → oculto
       par.__cuenta = cuenta;
       try { cards.push(await tarjeta(cuenta, clave, par)); } catch {}
@@ -1631,7 +1702,7 @@ async function tarjeta(cuenta, clave, par) {
 
   return `<div class="rej" data-b="${par.base}" data-q="${par.quote}" data-sq="${simQ}" data-sb="${simB}"
      data-bid="${idDe(par.base) || ''}" data-qid="${idDe(par.quote) || ''}" data-pmin="${pmin}" data-pmax="${pmax}"
-     data-niv="${R.niveles}" data-total="${invertido}" data-decb="${decB}" data-decq="${decQ}" data-entry="${par.entry || ''}">
+     data-niv="${R.niveles}" data-total="${invertido}" data-decb="${decB}" data-decq="${decQ}" data-entry="${par.entry || ''}" data-tipo="${par.tipo || 'grid'}">
     <div class="pio-head">
       ${logoDe(par.base, simB)}
       <div class="pio-titles">
@@ -1767,15 +1838,21 @@ function enganchar(cuenta) {
       if (acc === 'tab-noop') return;
       if (acc === 'editar') { editarBot(el); return; }
       if (acc === 'terminar') {
-        const ok = await modalConfirm({ titulo: 'Cerrar y vender', cuerpo: `Se venderá todo a <b>${sq}</b> y el bot se cerrará. El dinero queda en tu wallet.`, ok: 'Sí, cerrar' });
+        const esCash = el.dataset.tipo === 'cash';
+        const ok = await modalConfirm({
+          titulo: esCash ? 'Cerrar Cash Out' : 'Cerrar y vender',
+          cuerpo: esCash ? `Se cancelará este Cash Out y se quita el permiso. <b>Tu cripto se queda en tu wallet</b>, no se vende nada.` : `Se venderá todo a <b>${sq}</b> y el bot se cerrará. El dinero queda en tu wallet.`,
+          ok: 'Sí, cerrar'
+        });
         if (!ok) return;
         try {
-          try { modalBusy('Vendiendo a estable… confirma en tu wallet.'); await gb.cerrarAhora(b, q); }
-          catch (e) { if (esRechazo(e)) { modalError('Cancelaste la firma. No se hizo ningún cambio.'); return; } }
+          if (!esCash) {
+            try { modalBusy('Vendiendo a estable… confirma en tu wallet.'); await gb.cerrarAhora(b, q); }
+            catch (e) { if (esRechazo(e)) { modalError('Cancelaste la firma. No se hizo ningún cambio.'); return; } }
+          }
           modalBusy('Cerrando el bot… confirma en tu wallet.'); await gb.cancelarRejilla(b, q);
           olvidarPar(cuenta, b, q); modalClose(); refrescarRejillas();
         } catch (e) {
-          // si el usuario firmó el cierre pero falló algo menor, igual lo ocultamos
           if (!esRechazo(e)) { olvidarPar(cuenta, b, q); refrescarRejillas(); }
           modalError(esRechazo(e) ? 'Cancelaste la firma.' : (e?.shortMessage || e?.message || String(e)));
         }
