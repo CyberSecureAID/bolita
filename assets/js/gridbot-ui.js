@@ -302,10 +302,17 @@ function inyectarEstilo() {
   #colmena-app .prev .p span.neg{color:#ff7a7a}
   /* reparto: sin título, solo las cápsulas centradas */
   #colmena-app .prev .prep{padding:14% 12%}
-  #colmena-app .prev .p .rep-wrap{gap:4px;margin-top:0}
-  #colmena-app .prev .p .rep-pill{font-size:9px;padding:3px 8px;border-radius:6px;margin-top:0}
+  #colmena-app .prev .p .rep-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:0}
+  #colmena-app .prev .p .rep-pill{display:inline-block;width:auto;font-size:10px;padding:3px 11px;border-radius:7px;margin-top:0}
   /* ícono de info visible sobre el metal */
   #colmena-app .prev .p .i-btn{opacity:1;color:var(--gold);border-color:var(--gold-soft);background:rgba(4,7,10,.6);box-shadow:0 1px 2px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.12)}
+  /* En móvil/tableta (2 columnas): casillas más grandes -> texto e info interiores más grandes */
+  @media(max-width:860px){
+    #colmena-app .prev .p b{font-size:10px}
+    #colmena-app .prev .p span{font-size:21px}
+    #colmena-app .prev .p .rep-wrap{gap:7px}
+    #colmena-app .prev .p .rep-pill{font-size:12px;padding:4px 14px}
+  }
   #colmena-app .gasbox{background:#12161c;border:1px solid var(--line-soft);border-radius:12px;padding:14px;margin-top:16px}
   #colmena-app .gasbox .top{display:flex;align-items:center;justify-content:space-between}
   #colmena-app .gasbox .v{font-family:var(--display);color:var(--gold);font-size:20px}
