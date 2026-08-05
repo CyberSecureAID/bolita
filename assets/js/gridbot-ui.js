@@ -75,6 +75,8 @@ function inyectarEstilo() {
     --line:#2b3139; --line-soft:rgba(255,255,255,.055);
     --neon:#12d18e; --neon-lit:#2ee86a; --neon-dim:rgba(14,203,129,.38);
     --rojo:#f6465d;
+    --az:#4d9fff; --mo:#b47cff; --ve:#34d97b;   /* acentos por bot */
+    --acento:var(--gold);                          /* color del bot seleccionado (lo fija pintarTipo) */
     font-family:var(--sans);color:var(--ink);position:relative;isolation:isolate;
     background:#0b0e11;min-height:100vh;overflow-x:hidden}
   #colmena-app .c-hdr{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
@@ -98,7 +100,7 @@ function inyectarEstilo() {
   #colmena-app .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:18px;padding:22px}
   #colmena-app .card h3{font-family:var(--display);color:var(--gold);margin:0 0 4px;font-size:18px}
   #colmena-app .card .sub{color:var(--ink-3);font-size:12.5px;margin:0 0 16px}
-  #colmena-app .lab{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--ink-2);margin:16px 0 7px;padding-left:3px;text-transform:uppercase;letter-spacing:.6px}
+  #colmena-app .lab{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--acento);margin:16px 0 7px;padding-left:3px;text-transform:uppercase;letter-spacing:.6px}
   #colmena-app .i-btn{width:14px;height:14px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--ink-3);font-family:var(--display);font-size:9px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;opacity:.6;transition:opacity .15s,color .15s,border-color .15s}
   #colmena-app .i-btn:hover{opacity:1;color:var(--gold);border-color:var(--gold-soft)}
   #colmena-app .i-btn:hover{background:var(--gold);color:#1a1200;border-color:var(--gold)}
@@ -145,9 +147,13 @@ function inyectarEstilo() {
   /* ===== Pestañas de bot (tipo carpeta) + foto ===== */
   #colmena-app .bot-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
   #colmena-app .bot-tab{display:flex;flex-direction:column;align-items:center;gap:5px;padding:11px 5px;background:linear-gradient(180deg,#1b2027,#12161c);border:1.5px solid var(--line);border-radius:12px;cursor:pointer;color:var(--ink-3);box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);transition:transform .1s,box-shadow .1s,border-color .14s,color .14s,background .14s}
-  #colmena-app .bot-tab:hover{border-color:var(--gold-soft);color:var(--ink-2)}
+  #colmena-app .bot-tab:hover{border-color:var(--gold-soft);filter:brightness(1.15)}
   #colmena-app .bot-tab .bt-ico{display:grid}
   #colmena-app .bot-tab .bt-nom{font-family:var(--mono);font-size:10.5px;font-weight:700;text-align:center;line-height:1.05}
+  #colmena-app .bot-tab[data-tipo="grid"]{color:var(--az)}
+  #colmena-app .bot-tab[data-tipo="acum"]{color:var(--mo)}
+  #colmena-app .bot-tab[data-tipo="cash"]{color:var(--gold)}
+  #colmena-app .bot-tab[data-tipo="dca"]{color:var(--ve)}
   #colmena-app .bot-tab.on{color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border-color:#c79426;box-shadow:0 4px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.45);text-shadow:0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .bot-tab.on:active{transform:translateY(2px);box-shadow:0 2px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.45)}
   #colmena-app .bot-foto{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin-bottom:16px;border:2px solid var(--gold);box-shadow:0 5px 0 #8f6a1a,0 12px 28px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.1);background:linear-gradient(135deg,#20262f,#0d1117)}
@@ -155,7 +161,7 @@ function inyectarEstilo() {
   #colmena-app .bot-foto img.nocarga{display:none}
   #colmena-app .bot-foto-cap{position:absolute;left:0;right:0;bottom:0;padding:28px 16px 14px;background:linear-gradient(180deg,transparent,rgba(3,5,7,.5) 42%,rgba(3,5,7,.9));display:flex;flex-direction:column;gap:3px}
   #colmena-app .bot-foto-cap b{font-family:var(--display);font-weight:800;font-size:19px;color:var(--gold);text-shadow:0 1px 3px rgba(0,0,0,.7),0 0 12px rgba(232,184,75,.3);letter-spacing:.3px}
-  #colmena-app .bot-foto-cap span{font-family:var(--sans);font-size:12.5px;color:var(--ink);text-shadow:0 1px 3px rgba(0,0,0,.85);line-height:1.35}
+  #colmena-app .bot-foto-cap span{font-family:var(--sans);font-size:12.5px;color:var(--gold);text-shadow:0 1px 3px rgba(0,0,0,.85);line-height:1.35}
   /* ===== Selector de moneda + modal ===== */
   #colmena-app .fila-coins{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   #colmena-app .coin-sel{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 13px;background:linear-gradient(180deg,#1b2027,#12161c);border:1.5px solid var(--line);border-radius:13px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);transition:border-color .14s,transform .08s}
@@ -1606,6 +1612,7 @@ function pintarTipo() {
   const tpsl = $('f-avz-tpsl'); if (tpsl) tpsl.style.display = noGrid ? 'none' : '';
   document.querySelectorAll(`#${APP} #f-tipo button`).forEach((b) => b.classList.toggle('on', b.dataset.tipo === t));
   { const meta = BOTMETA[t]; if (meta) { const img = $('f-foto-img'), tit = $('f-foto-tit'), des = $('f-foto-des'); if (img) { img.classList.remove('nocarga'); img.src = meta.img; } if (tit) tit.textContent = meta.nom; if (des) des.textContent = meta.des; } }
+  { const ac = { grid: 'var(--az)', acum: 'var(--mo)', cash: 'var(--gold)', dca: 'var(--ve)' }[t] || 'var(--gold)'; const h = $(APP); if (h) h.style.setProperty('--acento', ac); }
   if (t === 'cash') refrescarSaldoCash();
   if (t === 'dca') refrescarSaldoDCA();
   if (t === 'acum') previewAcum(); else if (t === 'cash') previewCash(); else if (t === 'dca') previewDCA(); else actualizarVista();
