@@ -630,10 +630,12 @@ export async function allowanceSwap(tokenAddr, duenio) {
   const t = new ethers.Contract(tokenAddr, ERC20, lector());
   return t.allowance(duenio, SWAP);
 }
-/** Aprueba el token para el contrato de SWAP (amplio y revocable). */
-export async function aprobarSwap(tokenAddr) {
+/** Aprueba el token para el contrato de SWAP con un límite concreto (revocable).
+ *  Se aprueba un monto finito (no ilimitado) para evitar el aviso de la wallet. */
+export async function aprobarSwap(tokenAddr, montoBI) {
   const t = new ethers.Contract(tokenAddr, ERC20, await firmante());
-  const tx = await t.approve(SWAP, ethers.MaxUint256, { gasLimit: 120000n });
+  const monto = (montoBI && montoBI > 0n) ? montoBI : ethers.parseUnits('200', 18);
+  const tx = await t.approve(SWAP, monto, { gasLimit: 120000n });
   return esperar(tx);
 }
 /** Revoca el permiso del token para el SWAP (allowance a 0). */

@@ -83,10 +83,10 @@ function inyectarEstilo() {
     gap:12px;padding:14px 22px;background:rgba(11,14,17,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
   #colmena-app .c-brand{font-family:var(--display);font-weight:700;font-size:20px;color:var(--gold);text-decoration:none;letter-spacing:.3px}
   #colmena-app .c-hdr-r{display:flex;align-items:center;gap:10px}
-  /* Botones del header: todos mismo alto (36px), rectangulares 3D */
-  #colmena-app .c-loteria{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 13px;border-radius:11px;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--gold);text-decoration:none;background:linear-gradient(180deg,rgba(232,184,75,.16),rgba(232,184,75,.05));border:1px solid var(--gold-soft);box-shadow:0 3px 0 rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.1);transition:transform .08s,box-shadow .08s,filter .14s}
-  #colmena-app .c-loteria:hover{filter:brightness(1.12)}
-  #colmena-app .c-loteria:active{transform:translateY(3px);box-shadow:0 0 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.1)}
+  /* Botones del header: todos mismo alto (36px), rectangulares, 3D dorado relleno */
+  #colmena-app .c-loteria{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 13px;border-radius:11px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;text-decoration:none;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3);transition:transform .08s,box-shadow .08s,filter .14s}
+  #colmena-app .c-loteria:hover{filter:brightness(1.06)}
+  #colmena-app .c-loteria:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
   #colmena-app .c-swap{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 14px;border-radius:11px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;cursor:pointer;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3);transition:transform .08s,box-shadow .08s,filter .14s}
   #colmena-app .c-swap:hover{filter:brightness(1.06)}
   #colmena-app .c-swap:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
@@ -420,7 +420,7 @@ function inyectarEstilo() {
   #colmena-app .rej:hover{transform:translateY(-2px);border-color:rgba(46,232,106,.4);box-shadow:0 20px 50px rgba(0,0,0,.5)}
   #colmena-app .rej>*{position:relative;z-index:1}
   /* indicador En vivo */
-  #colmena-app .live{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 13px;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--gold);background:linear-gradient(180deg,rgba(232,184,75,.16),rgba(232,184,75,.05));border:1px solid var(--gold-soft);border-radius:11px;box-shadow:0 3px 0 rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.1)}
+  #colmena-app .live{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 13px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;border-radius:11px;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .live i{width:7px;height:7px;border-radius:50%;background:var(--neon-lit);box-shadow:0 0 8px var(--neon-lit);animation:cpulse 1.2s ease-in-out infinite}
   /* esqueleto de carga */
   #colmena-app .skel{display:inline-block;min-width:70px;height:1em;border-radius:8px;color:transparent;
@@ -516,6 +516,7 @@ function inyectarEstilo() {
   #colmena-modal.show{display:flex;animation:fade .2s ease}
   #colmena-modal .m-card{max-width:430px;width:100%;background:linear-gradient(180deg,#1b2027,#12161c);border:1px solid var(--gold-soft);border-radius:18px;padding:26px;box-shadow:0 30px 90px rgba(0,0,0,.7);animation:rise .25s ease}
   #colmena-modal h4{font-family:var(--display);color:var(--gold);font-size:19px;margin:0 0 12px}
+  #colmena-modal h4:empty{display:none;margin:0}
   #colmena-modal p{font-size:14px;color:var(--ink-2);line-height:1.55;margin:0 0 20px}
   #colmena-modal .m-btns{display:flex;gap:10px}
   #colmena-modal .m-btns .btn{margin:0;flex:1}
@@ -2376,10 +2377,16 @@ async function arrancar() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
 else arrancar();
 
+
 /* ================================================================== */
 /* SWAP — panel de intercambio (estilo PancakeSwap, estética propia)   */
 /* ================================================================== */
-const SWAP_IDS = [...new Set(['BNB', 'USDT', 'USDC', ...BASES])];
+const WBNB_ADDR = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
+const WBNB_TOKEN = { id: 'WBNB', simbolo: 'WBNB', nombre: 'Wrapped BNB', address: WBNB_ADDR, decimals: 18, icono: 'W', color: '#F0B90B', cg: 'wbnb' };
+function swMon(id) { return id === 'WBNB' ? WBNB_TOKEN : moneda(id); }
+function swSyncWbnbLogo() { if (LOGOS['BNB'] && !LOGOS['WBNB']) LOGOS['WBNB'] = { img: LOGOS['BNB'].img, price: LOGOS['BNB'].price, chg: LOGOS['BNB'].chg }; }
+
+const SWAP_IDS = [...new Set(['BNB', 'WBNB', 'USDT', 'USDC', ...BASES])];
 const S = { fromId: 'BNB', toId: 'USDT', amount: '', out: 0n, minOut: 0n, fee: 0, feeWei: 0n, allow: 0n, balFromWei: 0n, quoting: false, accion: 'swap' };
 let _swT = null, _swToken = 0;
 const SW_GAS_BUF = 3000000000000000n; // 0.003 BNB de colchón de gas al usar Máx con BNB
@@ -2389,17 +2396,19 @@ function swInjectCSS() {
   if (_swCssOk) return; _swCssOk = true;
   const css = `
   #swap-modal{position:fixed;inset:0;z-index:230;display:flex;align-items:center;justify-content:center;padding:16px}
+  #swap-modal *{-webkit-tap-highlight-color:transparent}
   #swap-modal .sw-bg{position:absolute;inset:0;background:rgba(3,5,7,.66);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
   #swap-modal .sw-box{position:relative;width:100%;max-width:436px;background:linear-gradient(180deg,#171d25,#0d1117);border:1px solid var(--line);border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.65),0 0 0 1px rgba(232,184,75,.06),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden;animation:cmPop .22s cubic-bezier(.2,.9,.3,1.2)}
   #swap-modal .sw-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.5}
   #swap-modal .sw-body{padding:2px 18px 20px}
-  #swap-modal .sw-card{background:#0b0e11;border:1px solid var(--line);border-radius:16px;padding:13px 15px;transition:border-color .14s}
-  #swap-modal .sw-card:focus-within{border-color:var(--gold-soft)}
+  #swap-modal .sw-cards{position:relative}
+  #swap-modal .sw-card{background:#0b0e11;border:1px solid var(--line);border-radius:16px;padding:13px 15px}
+  #swap-modal .sw-card+.sw-card{margin-top:10px}
   #swap-modal .sw-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
   #swap-modal .sw-lbl{font-family:var(--mono);font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
   #swap-modal .sw-bal{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
   #swap-modal .sw-card-mid{display:flex;align-items:center;gap:10px}
-  #swap-modal .sw-amt{flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--ink);font-family:var(--display);font-weight:700;font-size:26px;padding:0}
+  #swap-modal .sw-amt{flex:1;min-width:0;background:transparent;border:none;outline:none;box-shadow:none;-webkit-appearance:none;appearance:none;color:var(--ink);font-family:var(--display);font-weight:700;font-size:26px;padding:0}
   #swap-modal .sw-amt::placeholder{color:var(--ink-3);opacity:.5}
   #swap-modal .sw-out{flex:1;min-width:0;color:var(--ink);font-family:var(--display);font-weight:700;font-size:26px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #swap-modal .sw-tok{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;background:linear-gradient(180deg,#1b2027,#12161c);border:1px solid var(--gold-soft);border-radius:100px;padding:6px 12px 6px 7px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.06);transition:filter .12s,transform .08s}
@@ -2411,13 +2420,14 @@ function swInjectCSS() {
   #swap-modal .sw-usd{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
   #swap-modal .sw-max{font-family:var(--mono);font-size:11px;font-weight:700;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:1px solid #c79426;border-radius:8px;padding:3px 9px;cursor:pointer;box-shadow:0 2px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.4);letter-spacing:.5px}
   #swap-modal .sw-max:active{transform:translateY(2px);box-shadow:0 0 0 #8f6a1a}
-  #swap-modal .sw-flip-wrap{display:flex;justify-content:center;height:0;position:relative;z-index:2}
-  #swap-modal .sw-flip{width:38px;height:38px;margin:-11px 0;border-radius:12px;background:linear-gradient(180deg,#1b2027,#12161c);border:1px solid var(--gold-soft);color:var(--gold);cursor:pointer;display:grid;place-items:center;box-shadow:0 3px 0 rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.07);transition:transform .18s,filter .12s}
-  #swap-modal .sw-flip:hover{filter:brightness(1.15)}
-  #swap-modal .sw-flip:active{transform:rotate(180deg)}
-  #swap-modal .sw-info{margin:14px 2px 16px;display:flex;flex-direction:column;gap:6px}
+  #swap-modal .sw-flip{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:12px;background:linear-gradient(180deg,#232a33,#141a20);border:2px solid #0d1117;color:var(--gold);cursor:pointer;display:grid;place-items:center;box-shadow:0 3px 8px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08);transition:transform .22s ease,filter .12s;z-index:3}
+  #swap-modal .sw-flip:hover{filter:brightness(1.2)}
+  #swap-modal .sw-flip:active{transform:translate(-50%,-50%) rotate(180deg)}
+  #swap-modal .sw-info{margin:15px 2px 16px;display:flex;flex-direction:column;gap:6px}
+  #swap-modal .sw-info:empty{display:none}
   #swap-modal .sw-info .r{display:flex;justify-content:space-between;gap:10px;font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
   #swap-modal .sw-info .r span:first-child{color:var(--ink-3)}
+  #swap-modal .sw-go{margin-top:2px}
   #swap-modal .sw-go:disabled{opacity:.5;cursor:not-allowed;filter:grayscale(.3)}
   #swap-modal .sw-go:not(:disabled):active{transform:translateY(4px);box-shadow:0 1px 0 #8f6a1a,0 3px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.5)}
   @media(max-width:560px){#swap-modal .sw-amt,#swap-modal .sw-out{font-size:22px}}
@@ -2437,40 +2447,49 @@ function swFmt(wei, dec, max = 6) {
   } catch (_) { return '0'; }
 }
 function swUsdVal(id, wei) {
-  const p = LOGOS[id]?.price; if (!p || !(wei > 0n)) return '';
-  const v = Number(gb.fmt(wei, moneda(id).decimals)) * p;
+  const p = (LOGOS[id]?.price) || (id === 'WBNB' ? LOGOS['BNB']?.price : null);
+  if (!p || !(wei > 0n)) return '';
+  const v = Number(gb.fmt(wei, swMon(id).decimals)) * p;
   if (!isFinite(v) || v <= 0) return '';
   return '≈ $' + (v >= 1 ? v.toLocaleString('en-US', { maximumFractionDigits: 2 }) : v.toFixed(4));
 }
 function swAmountBI() {
-  const from = moneda(S.fromId); const s = String(S.amount || '').replace(',', '.');
+  const from = swMon(S.fromId); const s = String(S.amount || '').replace(',', '.');
   if (!s || !(Number(s) > 0)) return 0n;
   try { return gb.parse(Number(s).toFixed(Math.min(from.decimals, 18)), from.decimals); } catch (_) { return 0n; }
 }
+// 'wrap' (BNB->WBNB) o 'unwrap' (WBNB->BNB) o null (swap normal)
+function swEsWrap() {
+  if (S.fromId === 'BNB' && S.toId === 'WBNB') return 'wrap';
+  if (S.fromId === 'WBNB' && S.toId === 'BNB') return 'unwrap';
+  return null;
+}
 
 function abrirSwap() {
-  swInjectCSS();
+  swInjectCSS(); swSyncWbnbLogo();
   const host = $(APP) || document.body;
   const v = $('swap-modal'); if (v) v.remove();
-  const from = moneda(S.fromId), to = moneda(S.toId);
+  const from = swMon(S.fromId), to = swMon(S.toId);
   const x = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
-  const flip = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v18"/><path d="m4 7 4-4 4 4"/><path d="M16 21V3"/><path d="m20 17-4 4-4-4"/></svg>`;
+  const flip = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v13"/><path d="m3 13 4 4 4-4"/><path d="M17 20V7"/><path d="m21 11-4-4-4 4"/></svg>`;
   const el = document.createElement('div');
   el.innerHTML = `<div id="swap-modal">
     <div class="sw-bg" id="sw-bg"></div>
     <div class="sw-box">
       <div class="cm-head"><span class="cm-title">Intercambio</span><button class="cm-x" id="sw-x" aria-label="Cerrar">${x}</button></div>
       <div class="sw-body">
-        <div class="sw-card">
-          <div class="sw-card-top"><span class="sw-lbl">Pagas</span><span class="sw-bal" id="sw-bal-from">—</span></div>
-          <div class="sw-card-mid"><input class="sw-amt" id="sw-amt" inputmode="decimal" placeholder="0.0" autocomplete="off"><button class="sw-tok" id="sw-tok-from" type="button">${swTokInner(from)}</button></div>
-          <div class="sw-card-bot"><span class="sw-usd" id="sw-usd-from"></span><button class="sw-max" id="sw-max" type="button">MÁX</button></div>
-        </div>
-        <div class="sw-flip-wrap"><button class="sw-flip" id="sw-flip" type="button" aria-label="Invertir">${flip}</button></div>
-        <div class="sw-card">
-          <div class="sw-card-top"><span class="sw-lbl">Recibes (estimado)</span><span class="sw-bal" id="sw-bal-to">—</span></div>
-          <div class="sw-card-mid"><div class="sw-out" id="sw-out">0.0</div><button class="sw-tok" id="sw-tok-to" type="button">${swTokInner(to)}</button></div>
-          <div class="sw-card-bot"><span class="sw-usd" id="sw-usd-to"></span></div>
+        <div class="sw-cards">
+          <div class="sw-card">
+            <div class="sw-card-top"><span class="sw-lbl">Pagas</span><span class="sw-bal" id="sw-bal-from">—</span></div>
+            <div class="sw-card-mid"><input class="sw-amt" id="sw-amt" inputmode="decimal" placeholder="0.0" autocomplete="off"><button class="sw-tok" id="sw-tok-from" type="button">${swTokInner(from)}</button></div>
+            <div class="sw-card-bot"><span class="sw-usd" id="sw-usd-from"></span><button class="sw-max" id="sw-max" type="button">MÁX</button></div>
+          </div>
+          <div class="sw-card">
+            <div class="sw-card-top"><span class="sw-lbl">Recibes (estimado)</span><span class="sw-bal" id="sw-bal-to">—</span></div>
+            <div class="sw-card-mid"><div class="sw-out" id="sw-out">0.0</div><button class="sw-tok" id="sw-tok-to" type="button">${swTokInner(to)}</button></div>
+            <div class="sw-card-bot"><span class="sw-usd" id="sw-usd-to"></span></div>
+          </div>
+          <button class="sw-flip" id="sw-flip" type="button" aria-label="Invertir">${flip}</button>
         </div>
         <div class="sw-info" id="sw-info"></div>
         <button class="btn-oro3d sw-go" id="sw-go" type="button">Intercambiar</button>
@@ -2501,10 +2520,10 @@ function swInput(e) {
 }
 function swCotizarDebounced() { clearTimeout(_swT); _swT = setTimeout(swCotizar, 350); }
 
-async function swCargarTarifa() { try { S.feeWei = await gb.tarifaSwap(); } catch (_) {} swRenderInfo(); }
+async function swCargarTarifa() { try { S.feeWei = await gb.tarifaSwap(); } catch (_) {} }
 async function swCargarBalances() {
   const cuenta = wallet.cuentaActual();
-  const from = moneda(S.fromId), to = moneda(S.toId);
+  const from = swMon(S.fromId), to = swMon(S.toId);
   const set = (id, mo, wei) => { const e = $(id); if (e) e.textContent = (wei == null) ? '—' : (swFmt(wei, mo.decimals) + ' ' + mo.simbolo); };
   if (!cuenta) { S.balFromWei = 0n; set('sw-bal-from', from, null); set('sw-bal-to', to, null); swRenderBtn(); return; }
   try {
@@ -2515,9 +2534,11 @@ async function swCargarBalances() {
 }
 
 async function swCotizar() {
-  const from = moneda(S.fromId), to = moneda(S.toId);
+  const from = swMon(S.fromId), to = swMon(S.toId);
   const amtBI = swAmountBI();
   if (!(amtBI > 0n)) { S.out = 0n; S.minOut = 0n; S.fee = 0; setOut(); swRenderInfo(); swRenderBtn(); return; }
+  // WBNB <-> BNB es conversión 1:1 (envolver/desenvolver), sin cotización ni permiso
+  if (swEsWrap()) { S.out = amtBI; S.minOut = amtBI; S.fee = 0; S.allow = 0n; S.quoting = false; setOut(); swRenderInfo(); swRenderBtn(); return; }
   S.quoting = true; swRenderBtn();
   const token = ++_swToken;
   const cuenta = wallet.cuentaActual();
@@ -2535,45 +2556,43 @@ async function swCotizar() {
   setOut(); swRenderInfo(); swRenderBtn();
 }
 
-function setOut() { const to = moneda(S.toId); const e = $('sw-out'); if (e) e.textContent = S.out > 0n ? swFmt(S.out, to.decimals) : '0.0'; }
+function setOut() { const to = swMon(S.toId); const e = $('sw-out'); if (e) e.textContent = S.out > 0n ? swFmt(S.out, to.decimals) : '0.0'; }
 function swRenderInfo() {
   const el = $('sw-info'); if (!el) return;
-  const from = moneda(S.fromId), to = moneda(S.toId);
+  const from = swMon(S.fromId), to = swMon(S.toId);
   const uf = $('sw-usd-from'); if (uf) uf.textContent = swUsdVal(S.fromId, swAmountBI());
   const ut = $('sw-usd-to'); if (ut) ut.textContent = swUsdVal(S.toId, S.out);
   const rows = [];
   if (S.out > 0n) {
     const inH = Number(gb.fmt(swAmountBI(), from.decimals));
     const outH = Number(gb.fmt(S.out, to.decimals));
-    if (inH > 0) { const rate = outH / inH; rows.push(['Precio', `1 ${from.simbolo} ≈ ${num(rate, rate >= 1 ? 4 : 8)} ${to.simbolo}`]); }
-    rows.push(['Mínimo que recibes', `${swFmt(S.minOut, to.decimals)} ${to.simbolo}`]);
+    if (swEsWrap()) { rows.push(['Conversión', `1 ${from.simbolo} = 1 ${to.simbolo}`]); }
+    else if (inH > 0) { const rate = outH / inH; rows.push(['Precio', `1 ${from.simbolo} ≈ ${num(rate, rate >= 1 ? 4 : 8)} ${to.simbolo}`]); rows.push(['Mínimo que recibes', `${swFmt(S.minOut, to.decimals)} ${to.simbolo}`]); }
   }
-  const feeBNB = Number(gb.fmtBNB(S.feeWei || 0n));
-  const bnbP = LOGOS['BNB']?.price;
-  const feeUsd = bnbP ? ` (~$${(feeBNB * bnbP).toFixed(2)})` : '';
-  rows.push(['Tarifa de servicio', `${num(feeBNB, 6)} BNB${feeUsd}`]);
   el.innerHTML = rows.map(([a, b]) => `<div class="r"><span>${a}</span><span>${b}</span></div>`).join('');
 }
 function swRenderBtn() {
   const b = $('sw-go'); if (!b) return;
-  const from = moneda(S.fromId);
+  const from = swMon(S.fromId);
   const cuenta = wallet.cuentaActual();
   const amt = Number(String(S.amount || '').replace(',', '.'));
   const amtBI = swAmountBI();
+  const wrap = swEsWrap();
   let label = 'Intercambiar', dis = false, act = 'swap';
   if (!cuenta) { label = 'Conecta tu wallet'; act = 'connect'; }
   else if (!wallet.esRedCorrecta()) { label = 'Cambia a BNB Chain'; act = 'net'; }
   else if (!(amt > 0)) { label = 'Ingresa un monto'; dis = true; }
   else if (amtBI > S.balFromWei) { label = 'Saldo insuficiente'; dis = true; }
+  else if (wrap) { label = 'Convertir'; act = wrap; }
   else if (S.quoting) { label = 'Calculando…'; dis = true; }
   else if (S.out === 0n) { label = 'Sin ruta para este par'; dis = true; }
-  else if (from.address != null && S.allow < amtBI) { label = 'Aprobar ' + from.simbolo; act = 'approve'; }
+  else if (from.address != null && S.allow < amtBI) { label = 'Aprobar y cambiar'; act = 'approve'; }
   else { label = 'Intercambiar'; act = 'swap'; }
   b.textContent = label; b.disabled = dis; S.accion = act;
 }
 
 function swMax() {
-  const from = moneda(S.fromId);
+  const from = swMon(S.fromId);
   if (!(S.balFromWei > 0n)) return;
   let maxWei = S.balFromWei;
   if (from.address == null) { const buf = (S.feeWei || 0n) + SW_GAS_BUF; maxWei = S.balFromWei > buf ? (S.balFromWei - buf) : 0n; }
@@ -2589,12 +2608,14 @@ function swFlip() {
   swPintarToks(); swCargarBalances(); setOut(); swRenderInfo(); swRenderBtn();
 }
 function swPintarToks() {
+  swSyncWbnbLogo();
   const tf = $('sw-tok-from'), tt = $('sw-tok-to');
-  if (tf) tf.innerHTML = swTokInner(moneda(S.fromId));
-  if (tt) tt.innerHTML = swTokInner(moneda(S.toId));
+  if (tf) tf.innerHTML = swTokInner(swMon(S.fromId));
+  if (tt) tt.innerHTML = swTokInner(swMon(S.toId));
 }
 
 function abrirSwapCoinModal(lado) {
+  swSyncWbnbLogo();
   const host = $(APP) || document.body;
   const viejo = $('coin-modal'); if (viejo) viejo.remove();
   const searchIco = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>`;
@@ -2612,8 +2633,9 @@ function abrirSwapCoinModal(lado) {
   let ftxt = '';
   const sel = lado === 'from' ? S.fromId : S.toId;
   const pintar = () => {
+    swSyncWbnbLogo();
     const q = ftxt.trim().toLowerCase();
-    const monedas = SWAP_IDS.map((id) => moneda(id)).filter(Boolean).filter((mo) =>
+    const monedas = SWAP_IDS.map((id) => swMon(id)).filter(Boolean).filter((mo) =>
       !q || (mo.simbolo || '').toLowerCase().includes(q) || (mo.nombre || '').toLowerCase().includes(q));
     const list = $('scm-list');
     if (!monedas.length) { list.innerHTML = `<div class="cm-empty">Sin resultados para "${ftxt}"</div>`; return; }
@@ -2645,26 +2667,63 @@ function swElegir(lado, id) {
   swPintarToks(); swCargarBalances(); setOut(); swRenderInfo(); swRenderBtn(); swCotizar();
 }
 
+function swExito(from, to, inWei, outWei) {
+  const m = $('colmena-modal'); if (!m) return;
+  limpiarBusy();
+  const check = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#3a2800" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+  $('cm-title').textContent = '';
+  $('cm-body').innerHTML = `<div style="text-align:center;padding:4px 2px 2px">
+    <div style="width:60px;height:60px;margin:0 auto 15px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,#f7db8d,#E8B84B 55%,#c79426);box-shadow:0 8px 22px rgba(232,184,75,.38),inset 0 1px 0 rgba(255,255,255,.6)">${check}</div>
+    <div style="font-family:var(--display);font-weight:800;font-size:21px;color:var(--gold);margin-bottom:12px;text-shadow:0 1px 2px rgba(0,0,0,.4)">¡Intercambio hecho!</div>
+    <div style="font-family:var(--sans);font-size:14.5px;color:var(--ink-2);line-height:1.65">Cambiaste <b style="color:var(--ink)">${swFmt(inWei, from.decimals)} ${from.simbolo}</b><br>por <b style="color:var(--ink)">~${swFmt(outWei, to.decimals)} ${to.simbolo}</b>.<br><span style="color:var(--ink-3);font-size:13px">Ya está en tu wallet.</span></div>
+  </div>`;
+  const btns = m.querySelector('.m-btns'); btns.style.display = 'flex';
+  $('cm-cancel').style.display = 'none';
+  const ok = $('cm-ok'); ok.textContent = '¡Listo!'; ok.className = 'btn btn-oro'; ok.onclick = () => m.classList.remove('show');
+  m.classList.add('show');
+}
+
 async function swEjecutar() {
   const act = S.accion;
   if (act === 'connect') { conectarWallet(); return; }
   if (act === 'net') { wallet.cambiarARedCorrecta().catch(() => {}); return; }
-  const from = moneda(S.fromId), to = moneda(S.toId);
+  const from = swMon(S.fromId), to = swMon(S.toId);
   const amtBI = swAmountBI();
   if (!(amtBI > 0n)) return;
   try {
-    if (act === 'approve') {
-      modalBusy(`<b>Permiso de ${from.simbolo}.</b><br>Autorizas al intercambio a usar tus ${from.simbolo} (puedes revocarlo cuando quieras).<br><br>Confirma en tu wallet.`);
-      await gb.aprobarSwap(from.address);
-      modalClose();
-      await swCotizar();
+    // Conversión WBNB <-> BNB (una sola firma, sin permiso, 1:1)
+    if (act === 'wrap' || act === 'unwrap') {
+      modalBusy(act === 'wrap'
+        ? 'Convertir BNB en WBNB.<br>Es una sola firma.<br><br>Confirma en tu wallet.'
+        : 'Convertir WBNB en BNB.<br>Es una sola firma.<br><br>Confirma en tu wallet.');
+      if (act === 'wrap') await gb.envolverBNB(amtBI); else await gb.desenvolverBNB(amtBI);
+      swExito(from, to, amtBI, amtBI);
+      S.amount = ''; S.out = 0n; S.minOut = 0n; const a1 = $('sw-amt'); if (a1) a1.value = '';
+      swCargarBalances(); setOut(); swRenderInfo(); swRenderBtn();
       return;
     }
     if (!(S.out > 0n)) { modalError('No hay ruta para este par ahora mismo. Prueba otra moneda o monto.'); return; }
-    modalBusy('Confirma el intercambio en tu wallet…');
+    // Si hace falta permiso, son DOS firmas: permiso + intercambio
+    const necesitaPermiso = (act === 'approve');
+    if (necesitaPermiso) {
+      // Límite de gasto acotado (~$200) para no disparar el aviso de "ilimitado"
+      let capBI = amtBI;
+      const price = (LOGOS[from.id]?.price) || (from.id === 'WBNB' ? LOGOS['BNB']?.price : null);
+      if (price && price > 0) { try { const cb = gb.parse((200 / price).toFixed(Math.min(from.decimals, 18)), from.decimals); if (cb > capBI) capBI = cb; } catch (_) {} }
+      modalBusy(`<b>Paso 1 de 2 — Permiso de ${from.simbolo}.</b><br>Autorizas un límite de gasto (puedes cambiarlo o revocarlo cuando quieras). Después confirmarás el intercambio.<br><br>Confirma en tu wallet.`);
+      await gb.aprobarSwap(from.address, capBI);
+      // refrescar cotización/permiso antes del segundo paso
+      const cuenta = wallet.cuentaActual();
+      try { S.allow = await gb.allowanceSwap(from.address, cuenta); } catch (_) {}
+      const r = await gb.cotizarSwap({ inAddr: from.address, outAddr: to.address, amountInBI: amtBI, slippageBps: 50 });
+      if (r) { S.out = r.amountOut; S.minOut = r.minOut; S.fee = r.fee; }
+      modalBusy('<b>Paso 2 de 2 — Confirma el intercambio.</b><br>Última firma para completar.<br><br>Confirma en tu wallet.');
+    } else {
+      modalBusy('Confirma el intercambio en tu wallet…');
+    }
     await gb.ejecutarSwap({ inAddr: from.address, outAddr: to.address, amountInBI: amtBI, minOut: S.minOut, fee: S.fee });
-    modalDone('¡Intercambio hecho!', `Cambiaste ${swFmt(amtBI, from.decimals)} ${from.simbolo} por ~${swFmt(S.out, to.decimals)} ${to.simbolo}. Ya está en tu wallet.`);
-    S.amount = ''; S.out = 0n; S.minOut = 0n; const a = $('sw-amt'); if (a) a.value = '';
+    swExito(from, to, amtBI, S.out);
+    S.amount = ''; S.out = 0n; S.minOut = 0n; const a2 = $('sw-amt'); if (a2) a2.value = '';
     swCargarBalances(); setOut(); swRenderInfo(); swRenderBtn();
   } catch (e) {
     const msg = e?.shortMessage || e?.reason || e?.message || String(e);
