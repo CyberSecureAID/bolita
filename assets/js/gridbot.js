@@ -105,6 +105,11 @@ async function firmante() {
 
 function cLee()  { return new ethers.Contract(GRIDBOT, ABI, lector()); }
 async function cEscribe() { return new ethers.Contract(GRIDBOT, ABI, await firmante()); }
+/** Espera el recibo con nuestro RPC fiable; el de MetaMask a veces no lo devuelve. */
+async function esperar(tx) {
+  try { const rec = await lector().waitForTransaction(tx.hash, 1, 90000); if (rec) return rec; } catch (_) {}
+  return esperar(tx);
+}
 
 /** Dirección de un token; si es BNB nativo (address null), usa WBNB. */
 export function dirDe(moneda) {
@@ -182,14 +187,14 @@ export async function envolverBNB(montoWei) {
   const abi = ['function deposit() payable'];
   const c = new ethers.Contract(WBNB, abi, await firmante());
   const tx = await c.deposit({ value: montoWei });
-  return tx.wait();
+  return esperar(tx);
 }
 /** Desenvuelve WBNB -> BNB nativo (al suspender, devuelve el BNB tal cual). */
 export async function desenvolverBNB(montoWei) {
   const abi = ['function withdraw(uint256) external'];
   const c = new ethers.Contract(WBNB, abi, await firmante());
   const tx = await c.withdraw(montoWei);
-  return tx.wait();
+  return esperar(tx);
 }
 
 /* ================================================================== */
@@ -418,7 +423,7 @@ export async function aprobarToken(tokenAddr, montoBI) {
   const t = new ethers.Contract(tokenAddr, ERC20, s);
   const monto = (typeof montoBI === 'bigint') ? montoBI : ethers.MaxUint256;
   const tx = await t.approve(GRIDBOT, monto);
-  return tx.wait();
+  return esperar(tx);
 }
 
 /** Revoca el permiso: pone el allowance del token a 0 para el GridBot. */
@@ -426,7 +431,7 @@ export async function revocarToken(tokenAddr) {
   const s = await firmante();
   const t = new ethers.Contract(tokenAddr, ERC20, s);
   const tx = await t.approve(GRIDBOT, 0n);
-  return tx.wait();
+  return esperar(tx);
 }
 
 export async function estaActivo(cuenta) {
@@ -439,7 +444,7 @@ export async function suscribir() {
   const precio = await cLee().precioSuscripcion();
   const bot = await cEscribe();
   const tx = await bot.suscribir({ value: precio });
-  return tx.wait();
+  return esperar(tx);
 }
 
 /** Config del BOT CASH OUT (modo 2): vende una cantidad que YA tienes, al objetivo. */
@@ -498,46 +503,46 @@ export async function crearRejilla(config) {
     botId: config.botId ?? 0
   };
   const bot = await cEscribe();
-  const tx = await bot.crearRejilla(c);
-  return tx.wait();
+  const tx = await bot.crearRejilla(c, { gasLimit: 2500000n });
+  return esperar(tx);
 }
 
 export async function cerrarAhora(base, quote) {
-  const bot = await cEscribe(); const tx = await bot.cerrarAhora(base, quote); return tx.wait();
+  const bot = await cEscribe(); const tx = await bot.cerrarAhora(base, quote); return esperar(tx);
 }
 export async function resumenK(clave) { return cLee()['resumen(bytes32)'](clave); }
 export async function cerrarAhoraK(clave) {
-  const bot = await cEscribe(); const tx = await bot['cerrarAhora(bytes32)'](clave); return tx.wait();
+  const bot = await cEscribe(); const tx = await bot['cerrarAhora(bytes32)'](clave); return esperar(tx);
 }
 export async function cancelarRejillaK(clave) {
-  const bot = await cEscribe(); const tx = await bot['cancelarRejilla(bytes32)'](clave); return tx.wait();
+  const bot = await cEscribe(); const tx = await bot['cancelarRejilla(bytes32)'](clave); return esperar(tx);
 }
 export async function cancelarRejilla(base, quote) {
-  const bot = await cEscribe(); const tx = await bot.cancelarRejilla(base, quote); return tx.wait();
+  const bot = await cEscribe(); const tx = await bot.cancelarRejilla(base, quote); return esperar(tx);
 }
 export async function activarRejilla(base, quote, activa) {
-  const bot = await cEscribe(); const tx = await bot.activarRejilla(base, quote, activa); return tx.wait();
+  const bot = await cEscribe(); const tx = await bot.activarRejilla(base, quote, activa); return esperar(tx);
 }
 export async function setTPSL(base, quote, tpUnitOut, slUnitOut) {
-  const bot = await cEscribe(); const tx = await bot.setTPSL(base, quote, tpUnitOut, slUnitOut); return tx.wait();
+  const bot = await cEscribe(); const tx = await bot.setTPSL(base, quote, tpUnitOut, slUnitOut); return esperar(tx);
 }
 export async function ajustarSlippage(base, quote, bps) {
-  const bot = await cEscribe(); const tx = await bot.ajustarSlippage(base, quote, bps); return tx.wait();
+  const bot = await cEscribe(); const tx = await bot.ajustarSlippage(base, quote, bps); return esperar(tx);
 }
 export async function ajustarCooldown(base, quote, seg) {
-  const bot = await cEscribe(); const tx = await bot.ajustarCooldown(base, quote, seg); return tx.wait();
+  const bot = await cEscribe(); const tx = await bot.ajustarCooldown(base, quote, seg); return esperar(tx);
 }
 
 /** Recarga el tanque de gas (BNB) del usuario. */
 export async function depositarGas(bnbHumano) {
   const bot = await cEscribe();
   const tx = await bot.depositarGas({ value: ethers.parseEther(String(bnbHumano)) });
-  return tx.wait();
+  return esperar(tx);
 }
 export async function retirarGas(bnbHumano) {
   const bot = await cEscribe();
   const tx = await bot.retirarGas(ethers.parseEther(String(bnbHumano)));
-  return tx.wait();
+  return esperar(tx);
 }
 
 /* ================================================================== */

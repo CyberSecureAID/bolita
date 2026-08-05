@@ -939,11 +939,6 @@ function render() {
             </div>
           </div>
           <div id="c-cash-side" style="display:none">
-            <div class="cash-price">
-              <div class="cp-lab" id="cash-price-pair">BNB / USDT</div>
-              <div class="cp-val" id="cash-price-val">—</div>
-              <div class="cp-src">precio ahora · PancakeSwap</div>
-            </div>
             <div class="acum-hero">
               <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.5"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
               <h4>Cash Out</h4>
@@ -975,6 +970,11 @@ function render() {
             <div class="gas-row">${campoNum('f-gas',{placeholder:'0.01 BNB',step:0.005,min:0})}<button class="btn btn-oro" id="f-gasdep">Recargar</button></div>
             <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret">Retirar todo el gas</button></div>
             <div id="c-gasmsg"></div>
+          </div>
+          <div id="c-cash-price" class="cash-price" style="display:none;margin-top:16px;margin-bottom:0">
+            <div class="cp-lab" id="cash-price-pair">BNB / USDT</div>
+            <div class="cp-val" id="cash-price-val">—</div>
+            <div class="cp-src">precio ahora</div>
           </div>
         </div>
       </div>
@@ -1356,6 +1356,7 @@ function pintarTipo() {
   ['c-chart', 'c-hint', 'c-asesor'].forEach((id) => { const e = $(id); if (e) e.style.display = noGrid ? 'none' : ''; });
   { const as = $('c-acum-side'); if (as) as.style.display = t === 'acum' ? '' : 'none'; }
   { const cs = $('c-cash-side'); if (cs) cs.style.display = t === 'cash' ? '' : 'none'; }
+  { const cp = $('c-cash-price'); if (cp) cp.style.display = t === 'cash' ? '' : 'none'; }
   const prev = document.querySelector(`#${APP} .prev`); if (prev) prev.style.display = noGrid ? 'none' : '';
   const tpsl = $('f-avz-tpsl'); if (tpsl) tpsl.style.display = noGrid ? 'none' : '';
   document.querySelectorAll(`#${APP} #f-tipo button`).forEach((b) => b.classList.toggle('on', b.dataset.tipo === t));
@@ -1753,7 +1754,7 @@ async function tarjeta(cuenta, clave, par) {
   if (tipo === 'cash') _boxes = _boxEntrada + _boxObjetivo;
   else if (tipo === 'acum') _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxMedio + _boxVueltas + _boxGas;
   else _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxRango + _boxVueltas + _boxGas;
-  const _panel = tipo === 'cash' ? '' : `<button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
+  const _panel = (tipo === 'cash' || tipo === 'acum') ? '' : `<button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
     <div class="pio-panel" data-clave="${clave}">
       <div class="pio-tabs"><button data-tab="grafica" class="on">Gráfica</button><button data-tab="ordenes">Órdenes (${ps.length})</button></div>
       <div class="tab-grafica"><div class="trail-chart">${chart}</div>
