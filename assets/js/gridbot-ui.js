@@ -139,17 +139,20 @@ function inyectarEstilo() {
   #colmena-app .acum-flow .af{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;color:var(--ink-2);background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:10px;padding:9px 12px}
   #colmena-app .acum-flow .af span{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,#5cf58c,#1ea34a);color:#03210f;font-weight:800;font-size:12px}
   /* ===== Cash Out ===== */
-  #colmena-app .cash-note{font-family:var(--sans);font-size:12.5px;color:var(--ink-2);line-height:1.5;background:rgba(232,184,75,.06);border:1px solid var(--gold-soft);border-radius:11px;padding:11px 13px;margin-bottom:14px}
+  #colmena-app .cash-note{font-family:var(--sans);font-size:13px;color:var(--ink-2);text-align:center;background:linear-gradient(180deg,#12161c,#0d1117);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:18px 0 6px;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04)}
   #colmena-app .cash-note b{color:var(--gold)}
-  #colmena-app .cash-amt{position:relative}
-  #colmena-app .cash-usd{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:12px;color:var(--ink-3);pointer-events:none}
-  #colmena-app .cash-slider{width:100%;margin:12px 0 6px;-webkit-appearance:none;appearance:none;height:6px;border-radius:100px;background:var(--line);outline:none}
-  #colmena-app .cash-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:linear-gradient(180deg,#f7db8d,var(--gold) 60%,#c79426);border:2px solid #8f6a1a;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4)}
-  #colmena-app .cash-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--gold);border:2px solid #8f6a1a;cursor:pointer}
-  #colmena-app .cash-resumen{margin-top:16px;background:linear-gradient(180deg,rgba(232,184,75,.07),rgba(255,255,255,.015));border:1px solid var(--gold-soft);border-radius:16px;padding:16px 18px;box-shadow:0 8px 24px rgba(0,0,0,.32)}
+  #colmena-app .cash-bal{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+  #colmena-app .cash-bal #fc-saldo{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  #colmena-app .cash-max{flex:0 0 auto;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);color:#3a2800;border:1px solid #c79426;border-radius:8px;padding:5px 13px;font-family:var(--mono);font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 2px 0 #8f6a1a;text-shadow:0 1px 0 rgba(255,255,255,.3);transition:transform .08s,box-shadow .08s}
+  #colmena-app .cash-max:active{transform:translateY(2px);box-shadow:0 0 0 #8f6a1a}
+  #colmena-app .cash-usd{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:7px;padding-left:3px}
+  #colmena-app .cash-slider{width:100%;margin:14px 0 6px;-webkit-appearance:none;appearance:none;height:7px;border-radius:100px;background:var(--line);outline:none}
+  #colmena-app .cash-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:19px;height:19px;border-radius:50%;background:linear-gradient(180deg,#f7db8d,var(--gold) 60%,#c79426);border:2px solid #8f6a1a;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.45)}
+  #colmena-app .cash-slider::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:var(--gold);border:2px solid #8f6a1a;cursor:pointer}
+  #colmena-app .cash-resumen{margin-top:16px;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:0 8px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.03)}
   #colmena-app .cash-resumen .cr-top{font-family:var(--display);color:var(--gold);font-size:14px;font-weight:700;text-align:center;margin-bottom:12px;text-shadow:0 1px 1px rgba(0,0,0,.4);letter-spacing:.3px}
   #colmena-app .cash-resumen .cr-rows{display:flex;flex-direction:column;gap:1px;background:var(--line-soft);border-radius:11px;overflow:hidden}
-  #colmena-app .cash-resumen .cr-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:rgba(0,0,0,.22);font-family:var(--mono);font-size:12.5px}
+  #colmena-app .cash-resumen .cr-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:rgba(0,0,0,.28);font-family:var(--mono);font-size:12.5px}
   #colmena-app .cash-resumen .cr-row span{color:var(--ink-3)}
   #colmena-app .cash-resumen .cr-row b{color:var(--ink);font-family:var(--display);font-size:15px}
   #colmena-app .cash-resumen .cr-gan b{font-size:18px}
@@ -860,9 +863,11 @@ function render() {
           </div>
         </div>
         <div id="f-cash" style="${F.tipo==='cash'?'':'display:none'}">
-          <div class="cash-note">Vendes la <b>primera moneda</b> (la que ya tienes) y recibes la <b>segunda</b> (tu estable) en tu wallet.</div>
-          <div class="lab" style="justify-content:space-between;gap:8px"><span style="display:flex;align-items:center;gap:6px">Cantidad a vender ${iBtn('cashcant')}</span><span id="fc-saldo" class="saldo-chip">—</span></div>
-          <div class="cash-amt">${campoNum('fc-cant',{placeholder:'0.00',step:0.01,min:0})}<div class="cash-usd" id="fc-cant-usd">≈ $0.00</div></div>
+          <div class="cash-note">Vendes <b id="cn-b">${moneda(F.baseId).simbolo}</b> y recibes <b id="cn-q">${moneda(F.quoteId).simbolo}</b> en tu wallet.</div>
+          <div class="lab">Cantidad a vender ${iBtn('cashcant')}</div>
+          <div class="cash-bal"><span id="fc-saldo">—</span><button type="button" class="cash-max" id="fc-max">Máx</button></div>
+          ${campoNum('fc-cant',{placeholder:'0.00',step:0.01,min:0})}
+          <div class="cash-usd" id="fc-cant-usd">≈ $0.00</div>
           <input type="range" id="fc-slider" class="cash-slider" min="0" max="100" value="0" step="1">
           <div class="seg presets" id="fc-pctamt" style="grid-template-columns:repeat(6,1fr);margin-top:2px">
             <button type="button" data-pa="5">5%</button><button type="button" data-pa="10">10%</button><button type="button" data-pa="25">25%</button><button type="button" data-pa="50">50%</button><button type="button" data-pa="75">75%</button><button type="button" data-pa="100">100%</button>
@@ -1010,6 +1015,7 @@ function render() {
   });
   ['fc-cant', 'fc-pct', 'fc-precio'].forEach((id) => { const e = $(id); if (e) e.oninput = previewCash; });
   if ($('fc-slider')) $('fc-slider').oninput = () => { const pct = parseFloat($('fc-slider').value) || 0; setCantCash((F.saldoBase || 0) * pct / 100); };
+  if ($('fc-max')) $('fc-max').onclick = () => setCantCash(F.saldoBase || 0);
   document.querySelectorAll(`#${APP} #fc-pctamt button`).forEach((b) => b.onclick = () => setCantCash((F.saldoBase || 0) * (parseFloat(b.dataset.pa) || 0) / 100));
   refrescarSaldoCash();
   pintarTipo();
@@ -1216,8 +1222,7 @@ async function refrescarSaldoCash() {
     const balH = Number(gb.fmt(bal, base.decimals));
     F.saldoBase = balH;
     const usd = F.precio ? ' · $' + num(balH * F.precio, 2) : '';
-    el.innerHTML = `Tienes ${num(balH, 6)} ${base.simbolo}${usd} · <b>Máx</b>`;
-    el.onclick = () => setCantCash(balH);
+    el.textContent = `Tienes ${num(balH, 4)} ${base.simbolo}${usd}`;
     const inp = $('fc-cant'); if (inp && !inp.value && balH > 0) setCantCash(balH);
     else previewCash();
   } catch { el.textContent = ''; }
@@ -1421,6 +1426,12 @@ async function onCrearAcum() {
     if (esRechazo(e)) { modalClose(); } else modalError(e?.shortMessage || e?.message || String(e));
   }
 }
+function pintarSlider(pct) {
+  const sl = $('fc-slider'); if (!sl) return;
+  const p = Math.max(0, Math.min(100, pct));
+  sl.value = p;
+  sl.style.background = `linear-gradient(90deg, var(--gold) 0%, var(--gold) ${p}%, var(--line) ${p}%, var(--line) 100%)`;
+}
 function setCantCash(v) {
   const inp = $('fc-cant'); if (!inp) return;
   inp.value = v > 0 ? Number(v.toPrecision(8)) : '';
@@ -1434,8 +1445,9 @@ function previewCash() {
   else { const pct = parseFloat($('fc-pct')?.value) || 0; if (F.precio && pct > 0) targetPrice = F.precio * (1 + pct / 100); }
   const simB = moneda(F.baseId).simbolo, simQ = moneda(F.quoteId).simbolo;
   const est = $('fc-p-est'); if (est) est.textContent = simQ;
+  const cnb = $('cn-b'), cnq = $('cn-q'); if (cnb) cnb.textContent = simB; if (cnq) cnq.textContent = simQ;
   const usd = $('fc-cant-usd'); if (usd) usd.textContent = (cant > 0 && F.precio) ? '≈ $' + num(cant * F.precio, 2) : '≈ $0.00';
-  const sl = $('fc-slider'); if (sl && F.saldoBase > 0) sl.value = Math.max(0, Math.min(100, Math.round(cant / F.saldoBase * 100)));
+  pintarSlider(F.saldoBase > 0 ? (cant / F.saldoBase * 100) : 0);
   const setT = (id, v) => { const e = $(id); if (e) e.textContent = v; };
   if (cant > 0 && targetPrice > 0 && F.precio) {
     const valor = cant * F.precio, proceeds = cant * targetPrice, g = proceeds - valor;
