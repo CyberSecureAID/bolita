@@ -145,44 +145,53 @@ function inyectarEstilo() {
   #colmena-app .acum-flow .af span{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,#5cf58c,#1ea34a);color:#03210f;font-weight:800;font-size:12px}
   /* ===== Selector de moneda + modal ===== */
   #colmena-app .fila-coins{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  #colmena-app .coin-sel{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 13px;background:linear-gradient(180deg,#1b2027,#12161c);border:1.5px solid var(--line);border-radius:12px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);transition:border-color .14s,transform .08s}
+  #colmena-app .coin-sel{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 13px;background:linear-gradient(180deg,#1b2027,#12161c);border:1.5px solid var(--line);border-radius:13px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);transition:border-color .14s,transform .08s}
   #colmena-app .coin-sel:hover{border-color:var(--gold-soft)}
   #colmena-app .coin-sel:active{transform:translateY(1px)}
   #colmena-app .coin-sel-l{display:flex;align-items:center;gap:10px;min-width:0}
-  #colmena-app .coin-sel-ico{width:32px;height:32px;border-radius:50%;background:#0d1117;border:1px solid var(--line);display:grid;place-items:center;font-size:16px;font-weight:700;flex:0 0 auto}
+  #colmena-app .coin-sel-ico,#colmena-app .cm-coin-ico{position:relative;overflow:hidden;border-radius:50%;background:#0d1117;border:1px solid var(--line);display:grid;place-items:center;font-weight:700;flex:0 0 auto}
+  #colmena-app .coin-sel-ico{width:32px;height:32px;font-size:14px}
+  #colmena-app .cm-coin-ico{width:38px;height:38px;font-size:17px}
+  #colmena-app .coin-sel-ico img,#colmena-app .cm-coin-ico img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;background:#0d1117}
   #colmena-app .coin-sel-tx{display:flex;flex-direction:column;gap:1px;min-width:0;text-align:left}
   #colmena-app .coin-sel-tx b{font-family:var(--display);font-size:15px;color:var(--ink);line-height:1.15}
   #colmena-app .coin-sel-tx i{font-family:var(--mono);font-size:10px;color:var(--ink-3);font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
   #colmena-app .coin-chev{color:var(--ink-3);flex:0 0 auto;display:grid}
   #colmena-app .coin-modal{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
-  #colmena-app .coin-modal-bg{position:absolute;inset:0;background:rgba(3,5,7,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);animation:cmFade .18s ease}
-  #colmena-app .coin-modal-box{position:relative;width:100%;max-width:440px;max-height:82vh;display:flex;flex-direction:column;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid var(--line);border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden;animation:cmPop .2s cubic-bezier(.2,.9,.3,1.2)}
+  #colmena-app .coin-modal-bg{position:absolute;inset:0;background:rgba(3,5,7,.66);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);animation:cmFade .18s ease}
+  #colmena-app .coin-modal-box{position:relative;width:100%;max-width:460px;max-height:84vh;display:flex;flex-direction:column;background:linear-gradient(180deg,#171d25,#0d1117);border:1px solid var(--line);border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.65),0 0 0 1px rgba(232,184,75,.06),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden;animation:cmPop .22s cubic-bezier(.2,.9,.3,1.2)}
+  #colmena-app .coin-modal-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.5}
   @keyframes cmFade{from{opacity:0}to{opacity:1}}
-  @keyframes cmPop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
-  #colmena-app .cm-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px}
-  #colmena-app .cm-title{font-family:var(--display);font-weight:700;font-size:17px;color:var(--gold)}
-  #colmena-app .cm-x{width:32px;height:32px;border-radius:50%;background:transparent;border:1px solid var(--line);color:var(--ink-3);cursor:pointer;display:grid;place-items:center;padding:0}
-  #colmena-app .cm-x:hover{border-color:var(--rojo);color:var(--rojo)}
-  #colmena-app .cm-search{display:flex;align-items:center;gap:9px;margin:0 18px 12px;padding:11px 14px;background:#0b0e11;border:1px solid var(--line);border-radius:12px;color:var(--ink-3)}
-  #colmena-app .cm-search input{flex:1;background:transparent;border:none;outline:none;color:var(--ink);font-family:var(--sans);font-size:14px}
+  @keyframes cmPop{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+  #colmena-app .cm-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px}
+  #colmena-app .cm-title{font-family:var(--display);font-weight:700;font-size:18px;color:var(--ink)}
+  #colmena-app .cm-x{width:34px;height:34px;border-radius:50%;background:#12161c;border:1px solid var(--line);color:var(--ink-3);cursor:pointer;display:grid;place-items:center;padding:0;transition:all .14s}
+  #colmena-app .cm-x:hover{border-color:var(--rojo);color:var(--rojo);background:rgba(255,90,90,.06)}
+  #colmena-app .cm-search{display:flex;align-items:center;gap:10px;margin:0 20px 14px;padding:13px 15px;background:#0b0e11;border:1px solid var(--line);border-radius:14px;color:var(--ink-3);transition:border-color .14s,box-shadow .14s}
+  #colmena-app .cm-search:focus-within{border-color:var(--gold-soft);box-shadow:0 0 0 3px rgba(232,184,75,.08)}
+  #colmena-app .cm-search input{flex:1;background:transparent;border:none;outline:none;color:var(--ink);font-family:var(--sans);font-size:14.5px}
   #colmena-app .cm-search input::placeholder{color:var(--ink-3)}
-  #colmena-app .cm-cats{display:flex;gap:7px;padding:0 18px 12px;flex-wrap:wrap}
-  #colmena-app .cm-cats button{font-family:var(--mono);font-size:12px;color:var(--ink-3);background:#12161c;border:1px solid var(--line);border-radius:100px;padding:6px 14px;cursor:pointer;transition:all .14s}
-  #colmena-app .cm-cats button.on{color:#1a1200;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border-color:#c79426;font-weight:700;box-shadow:0 2px 0 #8f6a1a}
-  #colmena-app .cm-list{overflow-y:auto;padding:4px 12px 14px;display:flex;flex-direction:column;gap:3px}
-  #colmena-app .cm-coin{display:flex;align-items:center;gap:12px;padding:11px 12px;background:transparent;border:1px solid transparent;border-radius:12px;cursor:pointer;text-align:left;transition:background .12s,border-color .12s}
-  #colmena-app .cm-coin:hover{background:#171d25;border-color:var(--line)}
-  #colmena-app .cm-coin.on{background:rgba(232,184,75,.08);border-color:var(--gold-soft)}
-  #colmena-app .cm-coin-ico{width:38px;height:38px;border-radius:50%;background:#0d1117;border:1px solid var(--line);display:grid;place-items:center;font-size:18px;font-weight:700;flex:0 0 auto}
-  #colmena-app .cm-coin-tx{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
-  #colmena-app .cm-coin-tx b{font-family:var(--display);font-size:15px;color:var(--ink)}
+  #colmena-app .cm-cats{display:flex;gap:8px;padding:0 20px 14px;flex-wrap:wrap}
+  #colmena-app .cm-cats button{font-family:var(--mono);font-size:12px;color:var(--ink-2);background:linear-gradient(180deg,#1b2027,#12161c);border:1px solid var(--line);border-radius:100px;padding:7px 15px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.3);transition:all .12s}
+  #colmena-app .cm-cats button:hover{border-color:var(--gold-soft)}
+  #colmena-app .cm-cats button:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.3)}
+  #colmena-app .cm-cats button.on{color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border-color:#c79426;font-weight:800;box-shadow:0 2px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.4);text-shadow:0 1px 0 rgba(255,255,255,.3)}
+  #colmena-app .cm-list{overflow-y:auto;padding:2px 12px 16px;display:flex;flex-direction:column;gap:2px}
+  #colmena-app .cm-list::-webkit-scrollbar{width:8px}
+  #colmena-app .cm-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+  #colmena-app .cm-coin{display:flex;align-items:center;gap:13px;padding:10px 13px;background:transparent;border:1px solid transparent;border-radius:13px;cursor:pointer;text-align:left;transition:background .12s,border-color .12s}
+  #colmena-app .cm-coin:hover{background:#1b222c;border-color:var(--line)}
+  #colmena-app .cm-coin.on{background:linear-gradient(90deg,rgba(232,184,75,.12),rgba(232,184,75,.04));border-color:var(--gold-soft)}
+  #colmena-app .cm-coin-tx{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+  #colmena-app .cm-coin-tx b{font-family:var(--display);font-size:15.5px;color:var(--ink)}
   #colmena-app .cm-coin-tx i{font-family:var(--mono);font-size:11px;color:var(--ink-3);font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #colmena-app .cm-tag{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:100px;flex:0 0 auto;border:1px solid var(--line)}
-  #colmena-app .cm-tag-l1{color:#7db8ff;background:rgba(125,184,255,.08)}
-  #colmena-app .cm-tag-defi{color:var(--neon-lit);background:rgba(46,232,106,.08)}
-  #colmena-app .cm-tag-meme{color:#ffb84d;background:rgba(255,184,77,.08)}
-  #colmena-app .cm-check{color:var(--gold);flex:0 0 auto;display:grid}
-  #colmena-app .cm-empty{text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:13px;padding:30px}
+  #colmena-app .cm-coin-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:0 0 auto}
+  #colmena-app .cm-coin-price{font-family:var(--display);font-size:14.5px;font-weight:700;color:var(--ink)}
+  #colmena-app .cm-coin-chg{font-family:var(--mono);font-size:11px}
+  #colmena-app .cm-coin-chg.pos{color:var(--neon-lit)}
+  #colmena-app .cm-coin-chg.neg{color:var(--rojo)}
+  #colmena-app .cm-price-skel{display:inline-block;width:56px;height:12px;border-radius:6px;background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.12),rgba(255,255,255,.04));background-size:200% 100%;animation:shimmer 1.3s linear infinite}
+  #colmena-app .cm-empty{text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:13px;padding:34px}
   /* ===== Cash Out ===== */
   #colmena-app .cash-note{font-family:var(--sans);font-size:13px;color:var(--ink-2);text-align:center;background:linear-gradient(180deg,#12161c,#0d1117);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:18px 0 6px;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04)}
   #colmena-app .cash-note b{color:var(--gold)}
@@ -1102,6 +1111,7 @@ function render() {
   if ($('f-base-btn')) $('f-base-btn').onclick = () => abrirCoinModal('base');
   if ($('f-quote-btn')) $('f-quote-btn').onclick = () => abrirCoinModal('quote');
   actualizarBotonesCoin();
+  cargarLogosPrecios();
   $('f-toggleavz').onclick = () => {
     F.avanzado = !F.avanzado; const a = $('f-avz'); if (a) a.style.display = F.avanzado ? '' : 'none';
     $('f-toggleavz').textContent = F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas';
@@ -1464,13 +1474,43 @@ async function onCrear() {
 /* ================================================================== */
 /* Panel                                                               */
 /* ================================================================== */
+const LOGOS = {};   // id -> { img, price, chg }  (CoinGecko)
+function fmtPrecioUSD(p) {
+  if (p == null || !isFinite(p)) return '—';
+  if (p >= 1000) return '$' + p.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (p >= 1) return '$' + p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (p >= 0.01) return '$' + p.toFixed(4);
+  if (p >= 0.0001) return '$' + p.toFixed(6);
+  return '$' + Number(p.toPrecision(2)).toString();
+}
+function icoInner(mo) {
+  const letra = mo.icono || (mo.simbolo || '?')[0];
+  const L = LOGOS[mo.id];
+  return letra + (L && L.img ? `<img src="${L.img}" alt="" onerror="this.style.display='none'">` : '');
+}
+let _logosCargando = false, _logosOk = false;
+async function cargarLogosPrecios() {
+  if (_logosCargando) return; _logosCargando = true;
+  try {
+    const ids = [...new Set([...BASES, ...QUOTES].map((id) => moneda(id)?.cg).filter(Boolean))];
+    const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids.join(',')}&per_page=250&price_change_percentage=24h`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('cg ' + r.status);
+    const arr = await r.json();
+    const byCg = {}; arr.forEach((c) => { byCg[c.id] = c; });
+    [...BASES, ...QUOTES].forEach((id) => { const c = byCg[moneda(id)?.cg]; if (c) LOGOS[id] = { img: c.image, price: c.current_price, chg: c.price_change_percentage_24h }; });
+    _logosOk = true;
+    actualizarBotonesCoin();
+    if (window._cmRepintar) window._cmRepintar();
+  } catch (_) {} finally { _logosCargando = false; }
+}
 function actualizarBotonesCoin() {
   const b = moneda(F.baseId), q = moneda(F.quoteId);
   const set = (icoId, simId, nomId, mo) => {
     const ico = $(icoId), sim = $(simId), nom = $(nomId);
     if (sim) sim.textContent = mo.simbolo;
     if (nom) nom.textContent = mo.nombre;
-    if (ico) { ico.textContent = mo.icono || (mo.simbolo || '?')[0]; ico.style.color = mo.color || 'var(--gold)'; }
+    if (ico) { ico.innerHTML = icoInner(mo); ico.style.color = mo.color || 'var(--gold)'; }
   };
   set('fb-ico', 'fb-sim', 'fb-nom', b);
   set('fq-ico', 'fq-sim', 'fq-nom', q);
@@ -1507,20 +1547,26 @@ function abrirCoinModal(sel) {
     if (!monedas.length) { list.innerHTML = `<div class="cm-empty">Sin resultados para "${ftxt}"</div>`; return; }
     list.innerHTML = monedas.map((mo) => {
       const on = selId() === mo.id;
+      const L = LOGOS[mo.id];
+      const chg = L && L.chg != null ? L.chg : null;
       return `<button type="button" class="cm-coin${on ? ' on' : ''}" data-id="${mo.id}">
-        <span class="cm-coin-ico" style="color:${mo.color || '#e8b84b'}">${mo.icono || (mo.simbolo || '?')[0]}</span>
+        <span class="cm-coin-ico" style="color:${mo.color || '#e8b84b'}">${icoInner(mo)}</span>
         <span class="cm-coin-tx"><b>${mo.simbolo}</b><i>${mo.nombre}</i></span>
-        ${esBase && mo.categoria ? `<span class="cm-tag cm-tag-${mo.categoria}">${CAT_NOMBRES[mo.categoria] || ''}</span>` : ''}
-        ${on ? '<span class="cm-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>' : ''}
+        <span class="cm-coin-right">
+          <span class="cm-coin-price">${L ? fmtPrecioUSD(L.price) : '<span class="cm-price-skel"></span>'}</span>
+          ${chg != null ? `<span class="cm-coin-chg ${chg >= 0 ? 'pos' : 'neg'}">${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%</span>` : ''}
+        </span>
       </button>`;
     }).join('');
     list.querySelectorAll('.cm-coin').forEach((b) => b.onclick = () => elegirCoin(sel, b.dataset.id));
   };
+  window._cmRepintar = pintar;
   pintar();
+  if (!_logosOk) cargarLogosPrecios();
   $('cm-search').addEventListener('input', (e) => { ftxt = e.target.value; pintar(); });
   setTimeout(() => { const s = $('cm-search'); if (s) s.focus(); }, 60);
   document.querySelectorAll(`#${APP} #cm-cats button`).forEach((b) => b.onclick = () => { fcat = b.dataset.cat; document.querySelectorAll(`#${APP} #cm-cats button`).forEach((x) => x.classList.toggle('on', x === b)); pintar(); });
-  const cerrar = () => { const mm = $('coin-modal'); if (mm) mm.remove(); };
+  const cerrar = () => { window._cmRepintar = null; const mm = $('coin-modal'); if (mm) mm.remove(); };
   $('cm-x').onclick = cerrar; $('cm-bg').onclick = cerrar;
 }
 function elegirCoin(sel, id) {
