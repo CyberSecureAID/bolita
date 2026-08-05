@@ -292,6 +292,13 @@ function inyectarEstilo() {
   #colmena-app .p b{display:flex;align-items:center;justify-content:center;gap:4px;font-family:var(--mono);font-size:9px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
   #colmena-app .p span{font-family:var(--display);font-size:18px;font-weight:700;color:var(--ink);display:block;margin-top:6px;letter-spacing:-.3px}
   #colmena-app .p span.pos{color:var(--neon-lit)}
+  /* Casillas del Smart Grid con marco tecnológico (una sola imagen, proporción bloqueada) */
+  #colmena-app .prev{align-items:start}
+  #colmena-app .prev .p{background:url('assets/img/azul.webp') center/100% 100% no-repeat;border:none;border-radius:0;box-shadow:none;aspect-ratio:606/479;min-height:0;padding:15% 16%;overflow:hidden;justify-content:center}
+  #colmena-app .prev .p b{font-size:8px;letter-spacing:.2px}
+  #colmena-app .prev .p span{font-size:15px;margin-top:3px}
+  #colmena-app .prev .rep-wrap{gap:2px;margin-top:2px}
+  #colmena-app .prev .rep-pill{font-size:8.5px;padding:2px 6px;border-radius:5px}
   #colmena-app .gasbox{background:#12161c;border:1px solid var(--line-soft);border-radius:12px;padding:14px;margin-top:16px}
   #colmena-app .gasbox .top{display:flex;align-items:center;justify-content:space-between}
   #colmena-app .gasbox .v{font-family:var(--display);color:var(--gold);font-size:20px}
@@ -1126,7 +1133,7 @@ function render() {
             <div class="p"><b>Precio</b><span id="pv-precio">—</span></div>
             <div class="p"><b>Reparto ${iBtn('reparto')}</b><span id="pv-compras" class="rep-wrap">—</span></div>
             <div class="p"><b>Por compra</b><span id="pv-orden">—</span></div>
-            <div class="p"><b>Ganancia/vuelta ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
+            <div class="p"><b>Gan./vuelta ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
           </div>
           <div class="asesor" id="c-asesor" style="display:none">
             <div class="as-top"><b>Estimación</b> ${iBtn('asesor')}</div>
@@ -2410,6 +2417,7 @@ function swInjectCSS() {
   #swap-modal .sw-card-mid{display:flex;align-items:center;gap:10px}
   #swap-modal .sw-amt{flex:1;min-width:0;background:transparent;border:none;outline:none;box-shadow:none;-webkit-appearance:none;appearance:none;color:var(--ink);font-family:var(--display);font-weight:700;font-size:26px;padding:0}
   #swap-modal .sw-amt::placeholder{color:var(--ink-3);opacity:.5}
+  #swap-modal input.sw-amt:focus{outline:none;box-shadow:none;border:none;background:transparent}
   #swap-modal .sw-out{flex:1;min-width:0;color:var(--ink);font-family:var(--display);font-weight:700;font-size:26px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #swap-modal .sw-tok{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;background:linear-gradient(180deg,#1b2027,#12161c);border:1px solid var(--gold-soft);border-radius:100px;padding:6px 12px 6px 7px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.06);transition:filter .12s,transform .08s}
   #swap-modal .sw-tok:hover{filter:brightness(1.12)}
@@ -2423,11 +2431,11 @@ function swInjectCSS() {
   #swap-modal .sw-flip{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:12px;background:linear-gradient(180deg,#232a33,#141a20);border:2px solid #0d1117;color:var(--gold);cursor:pointer;display:grid;place-items:center;box-shadow:0 3px 8px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08);transition:transform .22s ease,filter .12s;z-index:3}
   #swap-modal .sw-flip:hover{filter:brightness(1.2)}
   #swap-modal .sw-flip:active{transform:translate(-50%,-50%) rotate(180deg)}
-  #swap-modal .sw-info{margin:15px 2px 16px;display:flex;flex-direction:column;gap:6px}
+  #swap-modal .sw-info{margin:14px 2px 0;display:flex;flex-direction:column;gap:6px}
   #swap-modal .sw-info:empty{display:none}
   #swap-modal .sw-info .r{display:flex;justify-content:space-between;gap:10px;font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
   #swap-modal .sw-info .r span:first-child{color:var(--ink-3)}
-  #swap-modal .sw-go{margin-top:2px}
+  #swap-modal .sw-go{margin-top:16px}
   #swap-modal .sw-go:disabled{opacity:.5;cursor:not-allowed;filter:grayscale(.3)}
   #swap-modal .sw-go:not(:disabled):active{transform:translateY(4px);box-shadow:0 1px 0 #8f6a1a,0 3px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.5)}
   @media(max-width:560px){#swap-modal .sw-amt,#swap-modal .sw-out{font-size:22px}}
