@@ -141,7 +141,8 @@ function inyectarEstilo() {
   /* ===== Cash Out ===== */
   #colmena-app .cash-note{font-family:var(--sans);font-size:13px;color:var(--ink-2);text-align:center;background:linear-gradient(180deg,#12161c,#0d1117);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:18px 0 6px;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04)}
   #colmena-app .cash-note b{color:var(--gold)}
-  #colmena-app .cash-bal{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:8px;font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+  #colmena-app .cash-cant-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin:18px 0 7px;flex-wrap:wrap}
+  #colmena-app .cash-bal{display:flex;justify-content:flex-end;align-items:center;gap:10px;font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
   #colmena-app .cash-bal #fc-saldo{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
   #colmena-app .cash-max{flex:0 0 auto;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);color:#3a2800;border:1px solid #c79426;border-radius:8px;padding:5px 13px;font-family:var(--mono);font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 2px 0 #8f6a1a;text-shadow:0 1px 0 rgba(255,255,255,.3);transition:transform .08s,box-shadow .08s}
   #colmena-app .cash-max:active{transform:translateY(2px);box-shadow:0 0 0 #8f6a1a}
@@ -866,8 +867,10 @@ function render() {
         </div>
         <div id="f-cash" style="${F.tipo==='cash'?'':'display:none'}">
           <div class="cash-note">Vendes <b id="cn-b">${moneda(F.baseId).simbolo}</b> y recibes <b id="cn-q">${moneda(F.quoteId).simbolo}</b> en tu wallet.</div>
-          <div class="lab" style="margin-top:18px">Cantidad a vender ${iBtn('cashcant')}</div>
-          <div class="cash-bal"><span id="fc-saldo">—</span><button type="button" class="cash-max" id="fc-max">Máx</button></div>
+          <div class="cash-cant-head">
+            <div class="lab" style="margin:0">Cantidad a vender ${iBtn('cashcant')}</div>
+            <div class="cash-bal"><span id="fc-saldo">—</span><button type="button" class="cash-max" id="fc-max">Máx</button></div>
+          </div>
           ${campoNum('fc-cant',{placeholder:'0.00',step:0.01,min:0,suffix:'fc-cant-usd'})}
           <input type="range" id="fc-slider" class="cash-slider" min="0" max="100" value="0" step="1">
           <div class="seg presets" id="fc-pctamt" style="grid-template-columns:repeat(6,1fr);margin-top:2px">
