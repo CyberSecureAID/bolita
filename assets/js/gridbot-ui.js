@@ -71,7 +71,7 @@ function inyectarEstilo() {
     --neon:#12d18e; --neon-lit:#2ee86a; --neon-dim:rgba(14,203,129,.38);
     --rojo:#f6465d;
     font-family:var(--sans);color:var(--ink);position:relative;isolation:isolate;
-    background:#0b0e11;min-height:100vh}
+    background:#0b0e11;min-height:100vh;overflow-x:hidden}
   #colmena-app .c-hdr{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
     gap:12px;padding:14px 22px;background:rgba(11,14,17,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
   #colmena-app .c-brand{font-family:var(--display);font-weight:700;font-size:20px;color:var(--gold);text-decoration:none;letter-spacing:.3px}
@@ -113,6 +113,21 @@ function inyectarEstilo() {
   #colmena-app .faq-search::placeholder{color:var(--ink-3)}
   #colmena-app .faq-search:focus{outline:none;border-color:var(--gold-soft);box-shadow:0 0 0 3px rgba(232,184,75,.12)}
   #colmena-app .faq-empty{text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:12px;padding:16px}
+  #colmena-app .conectar-box{max-width:440px;margin:44px auto;text-align:center;background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:18px;padding:40px 26px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+  #colmena-app .conectar-box h2{font-family:var(--display);color:var(--gold);font-size:28px;margin:0 0 12px;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+  #colmena-app .conectar-box p{font-family:var(--sans);color:var(--ink-2);font-size:15px;line-height:1.6;margin:0 auto 26px;max-width:340px}
+  #colmena-app .conectar-box .btn{max-width:300px;margin:0 auto;display:block}
+  #colmena-app .c-faq-wrap .faq-short{display:none}
+  @media(max-width:560px){
+    #colmena-app .conectar-box{margin:22px auto;padding:30px 20px}
+    #colmena-app .conectar-box h2{font-size:23px}
+    #colmena-app .conectar-box p{font-size:14px}
+    #colmena-app .c-faq-wrap .faq-long{display:none}
+    #colmena-app .c-faq-wrap .faq-short{display:inline}
+    #colmena-app .c-faq-wrap summary{font-size:14px}
+    #colmena-app .pio-band .l .v,#colmena-app .pio-band .r .v{word-break:break-all}
+    #colmena-app .pio-pair{font-size:18px}
+  }
   #colmena-app mark.faq-hl{background:transparent;color:var(--gold);font-weight:800;text-shadow:0 0 8px rgba(232,184,75,.3)}
   #colmena-app .acum-hero{text-align:center;padding:14px 12px 6px}
   #colmena-app .acum-hero .acum-ico{font-size:46px;line-height:1;filter:drop-shadow(0 0 16px rgba(232,184,75,.35))}
@@ -694,7 +709,7 @@ function footerHTML() {
   const card = ([q, a], i) => `<div class="c-faq" data-faq="${(q + ' ' + a).toLowerCase().replace(/["<>]/g, '')}" data-q="${q.replace(/"/g, '&quot;')}" data-a="${a.replace(/"/g, '&quot;')}"${i >= 6 ? ' style="display:none"' : ''}><h5>${q}</h5><p>${a}</p></div>`;
   return `<footer class="c-foot">
     <details class="c-faq-wrap">
-      <summary>¿Tienes dudas sobre cómo funciona la plataforma?</summary>
+      <summary><span class="faq-long">¿Tienes dudas sobre cómo funciona la plataforma?</span><span class="faq-short">¿Tienes dudas? Toca aquí</span></summary>
       <div style="padding:16px">
         <input class="faq-search" id="faq-search" type="text" autocomplete="off" placeholder="Escribe aquí sobre lo que quieres saber…">
         <div class="c-foot-grid" id="faq-grid">${faqs.map(card).join('')}</div>
@@ -738,13 +753,14 @@ function render() {
   const cuenta = wallet.cuentaActual();
 
   if (!cuenta) {
-    host.innerHTML = headerHTML() + `<div class="wrap"><div class="card hero">
-      <h1>Pon tu dinero a trabajar</h1>
-      <p class="lead" style="margin:0 auto 10px">El bot <b>compra barato y vende caro</b> por ti, día y noche, mientras duermes. Sin cuenta en ningún exchange, sin papeleo. Tú guardas tus monedas: nosotros nunca las tocamos.</p>
-      <div style="max-width:520px;margin:6px auto 22px">${animacionRecorrido()}</div>
-      <div style="text-align:center"><button class="btn btn-oro" id="c-conectar2" style="max-width:320px;margin:0 auto;display:block">Conectar wallet</button></div>
-      <div id="c-hero-msg" style="max-width:420px;margin:12px auto 0"></div>
-    </div>${footerHTML()}</div>`;
+    host.innerHTML = headerHTML() + `<div class="wrap">
+      <div class="conectar-box">
+        <h2>Bot Algorítmico</h2>
+        <p>Bots que compran barato y venden caro por ti, en tu propia wallet. Sin custodia y sin KYC.</p>
+        <button class="btn btn-oro" id="c-conectar2">Conectar wallet</button>
+        <div id="c-hero-msg" style="margin-top:12px"></div>
+      </div>
+      ${footerHTML()}</div>`;
     wireHeader(); wireFaq();
     if ($('c-conectar2')) $('c-conectar2').onclick = conectarWallet;
     return;
