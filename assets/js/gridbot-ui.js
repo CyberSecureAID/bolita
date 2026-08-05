@@ -2397,7 +2397,13 @@ else arrancar();
 /* ================================================================== */
 const WBNB_ADDR = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
 const WBNB_TOKEN = { id: 'WBNB', simbolo: 'WBNB', nombre: 'Wrapped BNB', address: WBNB_ADDR, decimals: 18, icono: 'W', color: '#F0B90B', cg: 'wbnb' };
-function swMon(id) { return id === 'WBNB' ? WBNB_TOKEN : moneda(id); }
+function swMon(id) {
+  if (id === 'WBNB') return WBNB_TOKEN;
+  if (typeof id === 'string' && id.startsWith('0x')) return CUSTOM[id.toLowerCase()] || null;
+  return moneda(id);
+}
+const CUSTOM = {};   // tokens importados por dirección: addrLower -> token
+let _impToken = 0;   // guarda de carrera para la importación
 function swSyncWbnbLogo() { if (LOGOS['BNB'] && !LOGOS['WBNB']) LOGOS['WBNB'] = { img: LOGOS['BNB'].img, price: LOGOS['BNB'].price, chg: LOGOS['BNB'].chg }; }
 
 const SWAP_IDS = [...new Set(['BNB', 'WBNB', 'USDT', 'USDC', ...BASES])];
@@ -2445,6 +2451,11 @@ function swInjectCSS() {
   #swap-modal .sw-go{margin-top:16px}
   #swap-modal .sw-go:disabled{opacity:.5;cursor:not-allowed;filter:grayscale(.3)}
   #swap-modal .sw-go:not(:disabled):active{transform:translateY(4px);box-shadow:0 1px 0 #8f6a1a,0 3px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.5)}
+  #coin-modal .cm-import{padding:11px 14px;font-family:var(--mono);font-size:12px;color:var(--ink-3);display:flex;align-items:center;justify-content:center;gap:8px}
+  #coin-modal .cm-import.err{color:#ff9090}
+  #coin-modal .cm-import.ok{display:block;padding:0}
+  #coin-modal .cm-imp-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(232,184,75,.25);border-top-color:var(--gold);animation:brspin .8s linear infinite;flex:0 0 auto}
+  #coin-modal .cm-imp-badge{font-family:var(--mono);font-size:11px;font-weight:700;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:1px solid #c79426;border-radius:8px;padding:4px 12px;box-shadow:0 2px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.4)}
   @media(max-width:560px){#swap-modal .sw-amt,#swap-modal .sw-out{font-size:22px}}
   `;
   const st = document.createElement('style'); st.id = 'sw-css'; st.textContent = css; document.head.appendChild(st);
@@ -2640,7 +2651,7 @@ function abrirSwapCoinModal(lado) {
     <div class="coin-modal-bg" id="scm-bg"></div>
     <div class="coin-modal-box">
       <div class="cm-head"><span class="cm-title">Elige la moneda</span><button class="cm-x" id="scm-x" aria-label="Cerrar">${x}</button></div>
-      <div class="cm-search">${searchIco}<input id="scm-search" placeholder="Buscar por nombre o símbolo…" autocomplete="off"></div>
+      <div class="cm-search">${searchIco}<input id="scm-search" placeholder="Nombre, símbolo o dirección del contrato…" autocomplete="off" spellcheck="false"></div>
       <div class="cm-list" id="scm-list"></div>
     </div>
   </div>`;
@@ -2649,22 +2660,31 @@ function abrirSwapCoinModal(lado) {
   const sel = lado === 'from' ? S.fromId : S.toId;
   const pintar = () => {
     swSyncWbnbLogo();
-    const q = ftxt.trim().toLowerCase();
+    const q = ftxt.trim();
+    const ql = q.toLowerCase();
     const monedas = SWAP_IDS.map((id) => swMon(id)).filter(Boolean).filter((mo) =>
-      !q || (mo.simbolo || '').toLowerCase().includes(q) || (mo.nombre || '').toLowerCase().includes(q));
+      !q || (mo.simbolo || '').toLowerCase().includes(ql) || (mo.nombre || '').toLowerCase().includes(ql) || (mo.address || '').toLowerCase() === ql);
     const list = $('scm-list');
-    if (!monedas.length) { list.innerHTML = `<div class="cm-empty">Sin resultados para "${ftxt}"</div>`; return; }
-    list.innerHTML = monedas.map((mo) => {
+    let html = monedas.map((mo) => {
       const on = sel === mo.id; const L = LOGOS[mo.id]; const chg = L && L.chg != null ? L.chg : null;
       return `<button type="button" class="cm-coin${on ? ' on' : ''}" data-id="${mo.id}">
         <span class="cm-coin-ico" style="color:${mo.color || '#e8b84b'}">${icoInner(mo)}</span>
         <span class="cm-coin-tx"><b>${mo.simbolo}</b><i>${mo.nombre}</i></span>
         <span class="cm-coin-right">
-          <span class="cm-coin-price">${L ? fmtPrecioUSD(L.price) : '<span class="cm-price-skel"></span>'}</span>
+          <span class="cm-coin-price">${L ? fmtPrecioUSD(L.price) : ''}</span>
           ${chg != null ? `<span class="cm-coin-chg ${chg >= 0 ? 'pos' : 'neg'}">${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%</span>` : ''}
         </span>
       </button>`;
     }).join('');
+    // Importar por dirección: si es una dirección válida y no está ya en la lista
+    const yaEsta = monedas.length && monedas.some((mo) => (mo.address || '').toLowerCase() === ql);
+    if (gb.esDireccion(q) && !yaEsta) {
+      html += `<div class="cm-import" id="cm-import"><span class="cm-imp-spin"></span>Buscando token en BNB Chain…</div>`;
+      swImportarToken(q, lado);
+    } else if (!html) {
+      html = `<div class="cm-empty">Sin resultados para "${q}". Pega la dirección del contrato para importar.</div>`;
+    }
+    list.innerHTML = html;
     list.querySelectorAll('.cm-coin').forEach((b) => b.onclick = () => swElegir(lado, b.dataset.id));
   };
   window._cmRepintar = pintar; pintar();
@@ -2680,6 +2700,34 @@ function swElegir(lado, id) {
   else { if (id === S.fromId) S.fromId = S.toId; S.toId = id; }
   S.allow = 0n;
   swPintarToks(); swCargarBalances(); setOut(); swRenderInfo(); swRenderBtn(); swCotizar();
+}
+
+// Importa un token por dirección de contrato (lee symbol/name/decimals en cadena)
+async function swImportarToken(addr, lado) {
+  const key = addr.trim().toLowerCase();
+  if (CUSTOM[key]) { swRenderImport(CUSTOM[key], lado); return; }
+  const tk = ++_impToken;
+  try {
+    const info = await gb.infoToken(addr);
+    if (tk !== _impToken) return;
+    const t = { id: key, simbolo: info.simbolo, nombre: info.nombre, address: info.address, decimals: info.decimals, icono: (info.simbolo || '?')[0], color: '#E8B84B', custom: true };
+    CUSTOM[key] = t;
+    if (!LOGOS[key]) LOGOS[key] = { img: `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/${info.address}/logo.png`, price: null, chg: null };
+    swRenderImport(t, lado);
+  } catch (_) {
+    if (tk !== _impToken) return;
+    const el = $('cm-import'); if (el) { el.className = 'cm-import err'; el.textContent = 'No es un token válido en BNB Chain.'; }
+  }
+}
+function swRenderImport(t, lado) {
+  const el = $('cm-import'); if (!el) return;
+  el.className = 'cm-import ok';
+  el.innerHTML = `<button type="button" class="cm-coin" data-id="${t.id}">
+    <span class="cm-coin-ico" style="color:${t.color}">${icoInner(t)}</span>
+    <span class="cm-coin-tx"><b>${t.simbolo}</b><i>${t.nombre}</i></span>
+    <span class="cm-coin-right"><span class="cm-imp-badge">Usar</span></span>
+  </button>`;
+  const b = el.querySelector('.cm-coin'); if (b) b.onclick = () => swElegir(lado, t.id);
 }
 
 function swExito(from, to, inWei, outWei) {

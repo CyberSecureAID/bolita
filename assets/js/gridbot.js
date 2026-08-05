@@ -676,3 +676,23 @@ export async function ejecutarSwap({ inAddr, outAddr, amountInBI, minOut, fee })
   const tx = await c.swap(tokenIn, tokenOut, amountInBI, minOut, fee, { value, gasLimit: 700000n });
   return esperar(tx);
 }
+
+/* ================================================================== */
+/* Importar cualquier token por dirección (estilo PancakeSwap)         */
+/* ================================================================== */
+const ERC20_META = [
+  'function symbol() view returns (string)',
+  'function name() view returns (string)',
+  'function decimals() view returns (uint8)'
+];
+/** ¿Es una dirección EVM válida? (tolerante a mayúsculas/minúsculas) */
+const RE_ADDR = /^0x[0-9a-fA-F]{40}$/;
+export function esDireccion(s) { return RE_ADDR.test((s || '').trim()); }
+/** Lee symbol/name/decimals de un token ERC20 en BSC. Lanza si no es válido. */
+export async function infoToken(addr) {
+  const a = ethers.getAddress(addr.trim().toLowerCase());
+  const t = new ethers.Contract(a, ERC20_META, lector());
+  const [sym, dec] = await Promise.all([t.symbol(), t.decimals()]);
+  let nom = sym; try { nom = await t.name(); } catch (_) {}
+  return { address: a, simbolo: String(sym), nombre: String(nom), decimals: Number(dec) };
+}
