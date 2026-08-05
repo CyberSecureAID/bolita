@@ -835,7 +835,7 @@ function headerHTML() {
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
   else right = `<span class="dir">${wallet.abreviar(cuenta)}</span><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
-    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/logo-samurai.webp" alt="" width="30" height="30"><span class="c-brand-tx">Bot Algorítmico</span></a>
+    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/logo-samurai.webp" alt="" width="30" height="30"><span class="c-brand-tx">Aurex</span></a>
     <div class="c-hdr-r">
       <span class="live"><i></i><span class="live-tx">En vivo</span></span>
       <button class="c-swap" id="c-swap" type="button" aria-label="Intercambiar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10 3 6l4-4"/><path d="M3 6h14"/><path d="m17 14 4 4-4 4"/><path d="M21 18H7"/></svg><span class="c-swap-tx">Swap</span></button>
@@ -899,7 +899,7 @@ function footerHTML() {
         <div class="faq-empty" id="faq-empty" style="display:none">No encontramos nada con esa palabra. Prueba con otra.</div>
       </div>
     </details>
-    <div class="c-foot-bottom">Bot Algorítmico · Opera bajo tu propio riesgo</div>
+    <div class="c-foot-bottom">Aurex Finance · Opera bajo tu propio riesgo</div>
   </footer>`;
 }
 function wireFaq() {
@@ -938,7 +938,7 @@ function render() {
   if (!cuenta) {
     host.innerHTML = headerHTML() + `<div class="wrap">
       <div class="conectar-box">
-        <h2>Bot Algorítmico</h2>
+        <h2>Aurex</h2>
         <p>Bots que compran barato y venden caro por ti, en tu propia wallet. Sin custodia y sin KYC.</p>
         <button class="btn btn-oro" id="c-conectar2">Conectar wallet</button>
         <div id="c-hero-msg" style="margin-top:12px"></div>
@@ -2308,7 +2308,7 @@ async function compartirBot(card) {
   // sello
   shadow(12, 2);
   g.fillStyle = 'rgba(232,184,75,.95)'; g.font = `700 25px ${MONO}`; g.textAlign = 'center';
-  g.fillText('BOT ALGORÍTMICO   ·   SIN CUSTODIA   ·   SIN KYC', W / 2, H - 32);
+  g.fillText('AUREX FINANCE   ·   SIN CUSTODIA   ·   SIN KYC', W / 2, H - 32);
   g.textAlign = 'left'; noShadow();
 
   cv.toBlob((blob) => {
