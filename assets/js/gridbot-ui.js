@@ -101,6 +101,21 @@ function inyectarEstilo() {
   #colmena-app .card h3{font-family:var(--display);color:var(--gold);margin:0 0 4px;font-size:18px}
   #colmena-app .card .sub{color:var(--ink-3);font-size:12.5px;margin:0 0 16px}
   #colmena-app .lab{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--acento);margin:16px 0 7px;padding-left:3px;text-transform:uppercase;letter-spacing:.6px}
+  /* Acento del bot en TODO el texto secundario de la sección (encabezados, párrafos, hints, saldos, botones no seleccionados) */
+  #colmena-app .cols .acum-hero p,
+  #colmena-app .cols .acum-flow .af,
+  #colmena-app .cols .cash-note,
+  #colmena-app .cols .cash-note b,
+  #colmena-app .cols .cash-bal,
+  #colmena-app .cols .cash-usd,
+  #colmena-app .cols .cash-eq,
+  #colmena-app .cols .cash-resumen .cr-note,
+  #colmena-app .cols .hint,
+  #colmena-app .cols .asesor .as-top,
+  #colmena-app .cols .asesor .as-nota,
+  #colmena-app .cols .seg button:not(.on),
+  #colmena-app .cols .btn-linea{color:var(--acento);text-shadow:0 1px 2px rgba(0,0,0,.32)}
+  #colmena-app .cols .stepper input::placeholder{color:var(--acento);opacity:.5}
   #colmena-app .i-btn{width:14px;height:14px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--ink-3);font-family:var(--display);font-size:9px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;opacity:.6;transition:opacity .15s,color .15s,border-color .15s}
   #colmena-app .i-btn:hover{opacity:1;color:var(--gold);border-color:var(--gold-soft)}
   #colmena-app .i-btn:hover{background:var(--gold);color:#1a1200;border-color:var(--gold)}
@@ -1044,7 +1059,7 @@ function render() {
             <div class="acum-hero">
               <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.6"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></div>
               <h4>Accumulator</h4>
-              <p>Compra en la caída — más volumen mientras más baja — y vende <b>todo junto</b> cuando el total gana el % que elijas. Menos operaciones, menos comisiones.</p>
+              <p>Compra en la caída (más volumen mientras más baja) y vende <b>todo junto</b> cuando el total gana el % que elijas. Menos operaciones, menos comisiones.</p>
               <div class="acum-flow">
                 <div class="af"><span>1</span> Compra inicial a mercado</div>
                 <div class="af"><span>2</span> Compra más en cada caída (progresivo)</div>
