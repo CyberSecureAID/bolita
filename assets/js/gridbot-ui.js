@@ -34,7 +34,9 @@ const INFO = {
   porcuad: 'Lo que ganas cada vez que el bot completa una vuelta (compra abajo y vende arriba), ya con la comisión descontada.',
   margenmodo: 'Cuando fijas "Ganancia por cuadrícula", elige qué prioriza el sistema. "Ajustar cuadrículas": mantiene tu rango y calcula cuántas cuadrículas caben. "Ampliar rango": mantiene tu número de cuadrículas y te ofrece ampliar el rango (el bot será menos sensible, pero cada cuadrícula gana ese %). Así puedes operar con poco capital sin que la comisión se coma la ganancia.',
   margen: 'Opcional. Si lo pones, cada cuadrícula se venderá SOLO cuando gane al menos ese % por encima de la comisión — nunca a pérdida. Y el sistema recalcula solo cuántas cuadrículas caben en tu rango para que la separación sea ese %. Déjalo en "auto" para el reparto normal.',
-  tipobot: 'Dos formas de trabajar. CUADRÍCULA: compra y vende en cada nivel, muchas operaciones pequeñas. ACUMULADOR: compra en la caída (más volumen mientras más baja, para promediar mejor) y vende TODO junto cuando el total gane el % que elijas — menos operaciones, menos comisiones.',
+  tipobot: 'Tres formas de trabajar. SMART GRID: compra y vende en cada nivel, muchas operaciones pequeñas. ACCUMULATOR: compra en la caída y vende TODO junto al ganar el % que elijas. CASH OUT: vende la cripto que YA tienes cuando suba al precio o % que elijas (sin compra, sin comisión de compra).',
+  cashcant: 'Cuánta cripto de la que YA tienes en tu wallet quieres vender. No la compra el bot: es tuya. Solo le das permiso para venderla cuando llegue tu objetivo. Toca "Máx" para vender todo tu saldo.',
+  cashobj: 'Cuándo vender. Por % : vende cuando el precio suba ese porcentaje desde ahora. Por precio: vende cuando llegue exactamente a ese precio. En ambos casos, recibes tu estable (USDT/USDC) en tu wallet.',
   acmin: 'El precio más bajo hasta donde el bot seguirá comprando. Cuanto más abajo, más aguanta una caída sin quedarse sin comprar. Pon un mínimo realista para tu moneda.',
   acniv: 'En cuántas compras separadas se reparte tu dinero desde el precio de ahora hasta el mínimo. Más compras = más suave el promediado.',
   acini: 'Qué parte de tu dinero se compra YA, a precio de mercado, al encender. El resto se reserva para comprar más barato si baja. Ej: 30% ahora, 70% esperando caídas.',
@@ -231,7 +233,8 @@ function inyectarEstilo() {
   #colmena-app .paso-box span{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px}
   #colmena-app .paso-box b{font-family:var(--display);font-size:17px;color:var(--ink)}
   #colmena-app .seg.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
-  #colmena-app .bot-tipos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  #colmena-app .bot-tipos{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+  @media(max-width:640px){#colmena-app .bot-tipos{grid-template-columns:1fr}}
   #colmena-app .bot-tipo{display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;padding:14px;border:1.5px solid var(--line);background:linear-gradient(180deg,#1b2027,#12161c);border-radius:14px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05);transition:transform .1s,box-shadow .1s,border-color .14s,background .14s}
   #colmena-app .bot-tipo:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05)}
   #colmena-app .bot-tipo:hover{border-color:var(--gold-soft)}
@@ -774,20 +777,25 @@ function render() {
         <h3>Arma tu bot</h3>
         <div class="lab">¿Qué bot quieres armar? ${iBtn('tipobot')}</div>
         <div class="bot-tipos" id="f-tipo">
-          <button type="button" data-tipo="grid" class="bot-tipo ${F.tipo!=='acum'?'on':''}">
+          <button type="button" data-tipo="grid" class="bot-tipo ${F.tipo==='grid'?'on':''}">
             <div class="bot-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
             <div class="bot-nom">Smart Grid</div>
-            <div class="bot-des">Compra y vende en niveles, pero solo cierra cada cuadrícula en ganancia (cubre comisión + gas).</div>
+            <div class="bot-des">Compra y vende en niveles, pero solo cierra cada cuadrícula en ganancia.</div>
           </button>
           <button type="button" data-tipo="acum" class="bot-tipo ${F.tipo==='acum'?'on':''}">
             <div class="bot-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.8"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></div>
             <div class="bot-nom">Accumulator</div>
             <div class="bot-des">Compra en la caída y vende todo junto en ganancia.</div>
           </button>
+          <button type="button" data-tipo="cash" class="bot-tipo ${F.tipo==='cash'?'on':''}">
+            <div class="bot-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.8"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+            <div class="bot-nom">Cash Out</div>
+            <div class="bot-des">Vende la cripto que ya tienes, solo cuando suba al precio o % que elijas.</div>
+          </button>
         </div>
         <div class="lab">Moneda ${iBtn('par')}</div>
         <div class="fila"><select id="f-base">${optHTML(BASES, F.baseId)}</select><select id="f-quote">${optHTML(QUOTES, F.quoteId)}</select></div>
-        <div id="f-grid" style="${F.tipo==='acum'?'display:none':''}">
+        <div id="f-grid" style="${F.tipo!=='grid'?'display:none':''}">
           <div class="lab">Estrategia ${iBtn('estrategia')}</div>
           <div class="seg presets" id="f-preset">
             <button type="button" data-preset="tranquilo" class="${F.preset==='tranquilo'?'on':''}">Tranquilo</button>
@@ -832,6 +840,31 @@ function render() {
             <div class="as-nota">Compra en la caída (más volumen mientras más baja) y vende TODO junto cuando el total gane el % que elijas. Luego repite. Menos comisiones.</div>
           </div>
         </div>
+        <div id="f-cash" style="${F.tipo==='cash'?'':'display:none'}">
+          <div class="hint" style="margin-bottom:8px">Arriba: la <b>primera moneda</b> es la que ya tienes y vas a vender; la <b>segunda</b> es la estable donde recibirás.</div>
+          <div class="lab" style="justify-content:space-between;gap:8px"><span style="display:flex;align-items:center;gap:6px">Cantidad a vender <span id="fc-sim">(${moneda(F.baseId).simbolo})</span> ${iBtn('cashcant')}</span><span id="fc-saldo" class="saldo-chip">—</span></div>
+          ${campoNum('fc-cant',{placeholder:'0.00',step:0.01,min:0})}
+          <div class="lab">Vender cuando ${iBtn('cashobj')}</div>
+          <div class="seg presets" id="fc-modo" style="grid-template-columns:1fr 1fr">
+            <button type="button" data-cm="pct" class="on">Suba un %</button>
+            <button type="button" data-cm="precio">Llegue a un precio</button>
+          </div>
+          <div id="fc-pct-wrap">
+            <div class="seg presets" id="fc-pctpreset" style="grid-template-columns:repeat(4,1fr);margin-top:8px">
+              <button type="button" data-p="5">+5%</button><button type="button" data-p="10" class="on">+10%</button><button type="button" data-p="20">+20%</button><button type="button" data-p="50">+50%</button>
+            </div>
+            ${campoNum('fc-pct',{value:10,min:0.5,max:2000,step:1})}
+          </div>
+          <div id="fc-precio-wrap" style="display:none;margin-top:8px">${campoNum('fc-precio',{placeholder:'precio objetivo',pct:0.05})}</div>
+          <div class="asesor" id="fc-prev" style="margin-top:12px">
+            <div class="as-top"><b>Resumen del Cash Out</b></div>
+            <div class="as-grid">
+              <div><span>Recibirás (aprox.)</span><b id="fc-p-recibe">—</b></div>
+              <div><span>Ganancia</span><b id="fc-p-gan" class="pos">—</b></div>
+            </div>
+            <div class="as-nota">Vendes solo cuando el precio llegue a tu objetivo, y recibes en <b id="fc-p-est">${moneda(F.quoteId).simbolo}</b> en tu wallet. <b>Ten esa moneda agregada</b> en tu wallet para verla (llega igual aunque no la tengas agregada).</div>
+          </div>
+        </div>
         <div style="text-align:right"><button class="btn-avz" id="f-toggleavz">${F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas'}</button></div>
         <div class="avz" id="f-avz" style="${F.avanzado ? '' : 'display:none'}">
           <div class="fila">
@@ -867,6 +900,19 @@ function render() {
               </div>
             </div>
           </div>
+          <div id="c-cash-side" style="display:none">
+            <div class="acum-hero">
+              <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.5"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+              <h4>Cash Out</h4>
+              <p>Ya tienes la cripto. Dices <b>cuánto</b> vender y <b>a qué objetivo</b> (precio o %). El bot vende solo cuando llega, y te paga en tu estable.</p>
+              <div class="acum-flow">
+                <div class="af"><span>1</span> Eliges la moneda que ya tienes</div>
+                <div class="af"><span>2</span> Cuánto vender y a qué objetivo</div>
+                <div class="af"><span>3</span> Vende solo al llegar el precio</div>
+                <div class="af"><span>4</span> Recibes en USDT/USDC en tu wallet</div>
+              </div>
+            </div>
+          </div>
           <div id="c-hint"></div>
           <div class="prev">
             <div class="p"><b>Precio</b><span id="pv-precio">—</span></div>
@@ -895,11 +941,11 @@ function render() {
   </div>`;
 
   wireHeader(); wireFaq();
-  $('f-base').onchange = async (e) => { F.baseId = e.target.value; F.precio = null; F.rutas = null; await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado'); };
+  $('f-base').onchange = async (e) => { F.baseId = e.target.value; F.precio = null; F.rutas = null; await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado'); refrescarSaldoCash(); if (F.tipo === 'cash') previewCash(); };
   $('f-quote').onchange = async (e) => {
     F.quoteId = e.target.value; F.precio = null; F.rutas = null;
     const sy = $('f-total-sym'); if (sy) sy.textContent = '(' + moneda(F.quoteId).simbolo + ')';
-    refrescarSaldoInversion(); await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado');
+    refrescarSaldoInversion(); await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado'); if (F.tipo === 'cash') previewCash();
   };
   $('f-toggleavz').onclick = () => {
     F.avanzado = !F.avanzado; const a = $('f-avz'); if (a) a.style.display = F.avanzado ? '' : 'none';
@@ -922,6 +968,23 @@ function render() {
   });
   ['fa-min','fa-niv','fa-total','fa-ini','fa-factor','fa-obj-val'].forEach((id) => { const e = $(id); if (e) e.oninput = previewAcum; });
   if ($('fa-sug')) $('fa-sug').onclick = sugerirAcum;
+  // Cash Out
+  if (!F.cashModo) F.cashModo = 'pct';
+  document.querySelectorAll(`#${APP} #fc-modo button`).forEach((b) => b.onclick = () => {
+    document.querySelectorAll(`#${APP} #fc-modo button`).forEach((x) => x.classList.remove('on')); b.classList.add('on');
+    F.cashModo = b.dataset.cm;
+    const pw = $('fc-pct-wrap'), rw = $('fc-precio-wrap');
+    if (pw) pw.style.display = F.cashModo === 'pct' ? '' : 'none';
+    if (rw) rw.style.display = F.cashModo === 'precio' ? '' : 'none';
+    if (F.cashModo === 'precio' && $('fc-precio') && !$('fc-precio').value && F.precio) $('fc-precio').value = Number((F.precio * 1.1).toPrecision(6));
+    previewCash();
+  });
+  document.querySelectorAll(`#${APP} #fc-pctpreset button`).forEach((b) => b.onclick = () => {
+    document.querySelectorAll(`#${APP} #fc-pctpreset button`).forEach((x) => x.classList.remove('on')); b.classList.add('on');
+    const v = $('fc-pct'); if (v) { v.value = b.dataset.p; previewCash(); }
+  });
+  ['fc-cant', 'fc-pct', 'fc-precio'].forEach((id) => { const e = $(id); if (e) e.oninput = previewCash; });
+  refrescarSaldoCash();
   pintarTipo();
   $('f-crear').onclick = onCrear;
   $('f-gasdep').onclick = onDepositarGas;
@@ -1117,6 +1180,17 @@ async function refrescarSaldoInversion() {
     el.onclick = () => { if (F.saldoQuote > 0 && inp) { inp.value = Number(F.saldoQuote.toPrecision(8)); inp.dispatchEvent(new Event('input', { bubbles: true })); } };
   } catch { el.textContent = ''; F.saldoQuote = null; }
 }
+async function refrescarSaldoCash() {
+  const el = $('fc-saldo'); const cuenta = wallet.cuentaActual(); if (!el || !cuenta) return;
+  el.textContent = '…';
+  try {
+    const base = moneda(F.baseId);
+    const bal = await gb.balanceToken(gb.dirDe(base), cuenta);
+    const balH = Number(gb.fmt(bal, base.decimals));
+    el.innerHTML = `Tienes ${num(balH, 6)} · <b>Máx</b>`;
+    el.onclick = () => { const inp = $('fc-cant'); if (inp && balH > 0) { inp.value = Number(balH.toPrecision(8)); previewCash(); } };
+  } catch { el.textContent = ''; }
+}
 async function onDepositarGas() {
   const v = parseFloat($('f-gas').value); const m = $('c-gasmsg');
   if (!(v > 0)) { aviso(m, 'err', 'Escribe cuánto BNB quieres poner.'); return; }
@@ -1156,6 +1230,7 @@ async function asegurarSuscripcion(cuenta) {
 }
 async function onCrear() {
   if (F.tipo === 'acum') return onCrearAcum();
+  if (F.tipo === 'cash') return onCrearCashOut();
   const m = $('c-msg'); const base = moneda(F.baseId), quote = moneda(F.quoteId);
   const cuenta = wallet.cuentaActual();
   const p = {
@@ -1223,18 +1298,19 @@ async function onCrear() {
 /* Panel                                                               */
 /* ================================================================== */
 function pintarTipo() {
-  const acum = F.tipo === 'acum';
-  const g = $('f-grid'), a = $('f-acum');
-  if (g) g.style.display = acum ? 'none' : '';
-  if (a) a.style.display = acum ? '' : 'none';
-  // Panel derecho (gráfica/reparto/neto) es solo del bot de cuadrícula.
-  ['c-chart', 'c-hint', 'c-asesor'].forEach((id) => { const e = $(id); if (e) e.style.display = acum ? 'none' : ''; });
-  { const as = $('c-acum-side'); if (as) as.style.display = acum ? '' : 'none'; }
-  const prev = document.querySelector(`#${APP} .prev`); if (prev) prev.style.display = acum ? 'none' : '';
-  // TP/SL no aplican al acumulador (usa su % objetivo).
-  const tpsl = $('f-avz-tpsl'); if (tpsl) tpsl.style.display = acum ? 'none' : '';
-  document.querySelectorAll(`#${APP} #f-tipo button`).forEach((b) => b.classList.toggle('on', (b.dataset.tipo === 'acum') === acum));
-  if (acum) previewAcum(); else actualizarVista();
+  const t = F.tipo, noGrid = t !== 'grid';
+  if ($('f-grid')) $('f-grid').style.display = t === 'grid' ? '' : 'none';
+  if ($('f-acum')) $('f-acum').style.display = t === 'acum' ? '' : 'none';
+  if ($('f-cash')) $('f-cash').style.display = t === 'cash' ? '' : 'none';
+  // Panel derecho (gráfica/reparto/neto) es solo del Smart Grid.
+  ['c-chart', 'c-hint', 'c-asesor'].forEach((id) => { const e = $(id); if (e) e.style.display = noGrid ? 'none' : ''; });
+  { const as = $('c-acum-side'); if (as) as.style.display = t === 'acum' ? '' : 'none'; }
+  { const cs = $('c-cash-side'); if (cs) cs.style.display = t === 'cash' ? '' : 'none'; }
+  const prev = document.querySelector(`#${APP} .prev`); if (prev) prev.style.display = noGrid ? 'none' : '';
+  const tpsl = $('f-avz-tpsl'); if (tpsl) tpsl.style.display = noGrid ? 'none' : '';
+  document.querySelectorAll(`#${APP} #f-tipo button`).forEach((b) => b.classList.toggle('on', b.dataset.tipo === t));
+  if (t === 'cash') refrescarSaldoCash();
+  if (t === 'acum') previewAcum(); else if (t === 'cash') previewCash(); else actualizarVista();
 }
 function sugerirAcum() {
   if (!F.precio) { aviso($('c-msg'), 'err', 'Espera a que cargue el precio y vuelve a intentar.'); return; }
@@ -1310,6 +1386,71 @@ async function onCrearAcum() {
     recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'acum', objetivo: p.objetivoPct });
     modalDone('¡Acumulador encendido!', `Ya está comprando en la caída en ${base.simbolo}. Venderá todo al llegar a <b>+${num(p.objetivoPct * 100, 1)}%</b>. Ten <b>gas</b> cargado para que opere. Lo verás en "Mis bots".`);
     refrescarRejillas(); refrescarSaldoInversion();
+  } catch (e) {
+    if (esRechazo(e)) { modalClose(); } else modalError(e?.shortMessage || e?.message || String(e));
+  }
+}
+function previewCash() {
+  const cant = parseFloat($('fc-cant')?.value) || 0;
+  const modoObj = F.cashModo || 'pct';
+  let targetPrice = 0;
+  if (modoObj === 'precio') targetPrice = parseFloat($('fc-precio')?.value) || 0;
+  else { const pct = parseFloat($('fc-pct')?.value) || 0; if (F.precio && pct > 0) targetPrice = F.precio * (1 + pct / 100); }
+  const rec = $('fc-p-recibe'), gan = $('fc-p-gan'), est = $('fc-p-est'), sim = $('fc-sim');
+  if (sim) sim.textContent = '(' + moneda(F.baseId).simbolo + ')';
+  if (est) est.textContent = moneda(F.quoteId).simbolo;
+  if (cant > 0 && targetPrice > 0 && F.precio) {
+    const proceeds = cant * targetPrice, g = cant * (targetPrice - F.precio);
+    if (rec) rec.textContent = num(proceeds, 2) + ' ' + moneda(F.quoteId).simbolo;
+    if (gan) { gan.textContent = (g >= 0 ? '+' : '') + num(g, 2) + ' ' + moneda(F.quoteId).simbolo; gan.className = g >= 0 ? 'pos' : 'neg'; }
+  } else { if (rec) rec.textContent = '—'; if (gan) { gan.textContent = '—'; gan.className = ''; } }
+}
+async function onCrearCashOut() {
+  const m = $('c-msg'); const base = moneda(F.baseId), quote = moneda(F.quoteId);
+  const cuenta = wallet.cuentaActual();
+  const cantidad = parseFloat($('fc-cant')?.value) || 0;
+  if (!(cantidad > 0)) { aviso(m, 'err', '¿Cuánto quieres vender?'); return; }
+  if (!F.precio) { aviso(m, 'err', 'Espera a que cargue el precio y vuelve a intentar.'); return; }
+  const modoObj = F.cashModo || 'pct';
+  let targetPrice;
+  if (modoObj === 'precio') {
+    targetPrice = parseFloat($('fc-precio')?.value) || 0;
+    if (!(targetPrice > F.precio)) { aviso(m, 'err', `El precio objetivo debe estar por encima del precio actual (${precioFmt(F.precio)}).`); return; }
+  } else {
+    const pct = parseFloat($('fc-pct')?.value) || 0;
+    if (!(pct > 0)) { aviso(m, 'err', 'Elige a qué % quieres vender.'); return; }
+    targetPrice = F.precio * (1 + pct / 100);
+  }
+  const p = {
+    base: gb.dirDe(base), quote: gb.dirDe(quote), decBase: base.decimals, decQuote: quote.decimals,
+    cantidadBase: cantidad, targetPrice,
+    slippageBps: Math.round((parseFloat($('f-slip')?.value) || 1) * 100), rutas: F.rutas
+  };
+  const proceeds = cantidad * targetPrice, gan = cantidad * (targetPrice - F.precio);
+  const ok = await modalConfirm({
+    titulo: 'Encender Cash Out',
+    cuerpo: `Cuando <b>${base.simbolo}</b> llegue a <b>${precioFmt(targetPrice)} ${quote.simbolo}</b>, el bot venderá tus <b>${num(cantidad, 6)} ${base.simbolo}</b> y recibirás <b>~${num(proceeds, 2)} ${quote.simbolo}</b> (ganancia ~${num(gan, 2)}).<br><br>Tu cripto sigue en tu wallet; solo le das permiso para venderla al llegar el objetivo. Ten <b>${quote.simbolo}</b> agregada en tu wallet para verla.`,
+    ok: 'Sí, encender'
+  });
+  if (!ok) return;
+  try {
+    modalBusy('Comprobando tu saldo…');
+    const balBI = await gb.balanceToken(p.base, cuenta);
+    const balH = Number(gb.fmt(balBI, base.decimals));
+    if (cantidad > balH + 1e-9) { modalError(`No tienes suficiente ${base.simbolo}. En tu wallet hay ${num(balH, 6)} ${base.simbolo} y quieres vender ${num(cantidad, 6)}.`); return; }
+    if (!(await asegurarSuscripcion(cuenta))) { modalClose(); return; }
+    modalBusy('Preparando tu Cash Out con el precio real…');
+    const config = await gb.construirConfigCashOut(p);
+    const topeBase = cantidad * 3;
+    const baseNeed = mBI(topeBase, base.decimals);
+    const aB = await gb.allowance(p.base, cuenta);
+    const pasos = (aB < baseNeed ? 1 : 0) + 1; let i = 0;
+    if (aB < baseNeed) { i++; modalBusy(`<b>Paso ${i} de ${pasos} — Permiso de ${base.simbolo}.</b><br>Le das permiso al bot para vender tus ${base.simbolo} cuando llegue el objetivo (puedes revocarlo cuando quieras).<br><br>Confirma en tu wallet.`); await gb.aprobarToken(p.base, baseNeed); }
+    i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu Cash Out y queda vigilando el precio.<br><br>Confirma en tu wallet.`);
+    await gb.crearRejilla(config);
+    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total: config._valorActual, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'cash', targetPrice });
+    modalDone('¡Cash Out encendido!', `Cuando ${base.simbolo} llegue a <b>${precioFmt(targetPrice)}</b>, venderá y recibirás ${quote.simbolo} en tu wallet. Ten <b>gas</b> cargado para que pueda operar. Lo verás en "Mis bots".`);
+    refrescarRejillas();
   } catch (e) {
     if (esRechazo(e)) { modalClose(); } else modalError(e?.shortMessage || e?.message || String(e));
   }

@@ -403,6 +403,45 @@ export async function suscribir() {
   return tx.wait();
 }
 
+/** Config del BOT CASH OUT (modo 2): vende una cantidad que YA tienes, al objetivo. */
+export async function construirConfigCashOut(p) {
+  const rutas = p.rutas || await resolverRutas(p.base, p.quote, p.decBase, p.decQuote);
+  const { precio: Pnow } = await precioPar(p.base, p.quote, p.decBase, p.decQuote, rutas);
+  if (!(Pnow > 0)) throw new Error('No se pudo leer el precio del par');
+
+  const cantidad = Number(p.cantidadBase);          // cantidad de la cripto a vender (humano)
+  if (!(cantidad > 0)) throw new Error('Indica cuánto quieres vender');
+  const targetPrice = Number(p.targetPrice);        // precio objetivo (humano)
+  if (!(targetPrice > Pnow)) throw new Error('El objetivo debe estar por encima del precio actual');
+
+  const valorActual = cantidad * Pnow;              // valor de referencia (quote) para calcular la ganancia
+  const proceeds = cantidad * targetPrice;          // lo que recibirá al vender (quote)
+
+  const feeTier = await mejorFeeTier(p.base, p.quote, aBI(cantidad, p.decBase));
+  if (!feeTier) throw new Error('Esta moneda no tiene pool en PancakeSwap V3. Prueba con otra.');
+
+  // Un solo nivel de VENTA al precio objetivo.
+  const niveles = [{ minOutCompra: 0n, minOutVenta: aBI(proceeds, p.decQuote), estado: 2 }];
+
+  let ordenBase = aBI(cantidad, p.decBase); if (ordenBase <= 0n) ordenBase = 1n;
+  let ordenQuote = aBI(valorActual, p.decQuote); if (ordenQuote <= 0n) ordenQuote = 1n;
+
+  return {
+    base: p.base, quote: p.quote,
+    pathCompra: rutas.compra, pathVenta: rutas.venta,
+    ordenQuote, ordenBase,
+    niveles,
+    slippageBps: p.slippageBps || 0, cooldownSeg: 0,
+    tpUnitOut: 0n, slUnitOut: 0n,
+    feeTier,
+    modo: 2,
+    objetivoBps: 0, factorBps: 0,
+    compraInicialQuote: aBI(valorActual, p.decQuote),   // valor declarado (para la ganancia)
+    margenBps: 0,
+    _Pnow: Pnow, _valorActual: valorActual, _proceeds: proceeds, _ganancia: proceeds - valorActual, _targetPrice: targetPrice
+  };
+}
+
 export async function crearRejilla(config) {
   const c = {
     base: config.base, quote: config.quote,
