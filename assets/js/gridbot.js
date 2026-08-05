@@ -26,8 +26,8 @@ const RPCS = [
 ];
 
 const ABI = [
-  'function resumen(address,address,address) view returns (tuple(address base,address quote,bool activa,uint256 niveles,uint256 armados,uint256 creadaEn,uint256 ultimaOpEn,uint256 comprasHechas,uint256 ventasHechas,uint256 ciclos,uint256 totalOps,uint256 posicionBase,uint256 costeQuote,uint256 volumenQuote,int256 gananciaQuote,uint256 gasSaldoWei,uint256 gasGastadoWei,uint256 ordenQuote,uint256 ordenBase,uint128 tpUnitOut,uint128 slUnitOut,uint16 slippageBps,uint32 cooldownSeg,uint24 feeTier))',
-  'function resumen(bytes32) view returns (tuple(address base,address quote,bool activa,uint256 niveles,uint256 armados,uint256 creadaEn,uint256 ultimaOpEn,uint256 comprasHechas,uint256 ventasHechas,uint256 ciclos,uint256 totalOps,uint256 posicionBase,uint256 costeQuote,uint256 volumenQuote,int256 gananciaQuote,uint256 gasSaldoWei,uint256 gasGastadoWei,uint256 ordenQuote,uint256 ordenBase,uint128 tpUnitOut,uint128 slUnitOut,uint16 slippageBps,uint32 cooldownSeg,uint24 feeTier))',
+  'function resumen(address,address,address) view returns (tuple(address base,address quote,bool activa,uint256 niveles,uint256 armados,uint256 creadaEn,uint256 ultimaOpEn,uint256 comprasHechas,uint256 ventasHechas,uint256 ciclos,uint256 totalOps,uint256 posicionBase,uint256 costeQuote,uint256 volumenQuote,int256 gananciaQuote,uint256 gasSaldoWei,uint256 gasGastadoWei,uint256 ordenQuote,uint256 ordenBase,uint128 tpUnitOut,uint128 slUnitOut,uint16 slippageBps,uint32 cooldownSeg,uint24 feeTier,uint256 intervalo,uint32 comprasMax))',
+  'function resumen(bytes32) view returns (tuple(address base,address quote,bool activa,uint256 niveles,uint256 armados,uint256 creadaEn,uint256 ultimaOpEn,uint256 comprasHechas,uint256 ventasHechas,uint256 ciclos,uint256 totalOps,uint256 posicionBase,uint256 costeQuote,uint256 volumenQuote,int256 gananciaQuote,uint256 gasSaldoWei,uint256 gasGastadoWei,uint256 ordenQuote,uint256 ordenBase,uint128 tpUnitOut,uint128 slUnitOut,uint16 slippageBps,uint32 cooldownSeg,uint24 feeTier,uint256 intervalo,uint32 comprasMax))',
   'function modoDe(bytes32) view returns (uint8,uint16)',
   'function cerrarAhora(bytes32)',
   'function cancelarRejilla(bytes32)',
@@ -41,7 +41,8 @@ const ABI = [
   'function activo(address usuario) view returns (bool)',
   'function precioSuscripcion() view returns (uint256)',
   'function suscribir() payable',
-  'function crearRejilla((address base,address quote,address[] pathCompra,address[] pathVenta,uint256 ordenQuote,uint256 ordenBase,(uint128 minOutCompra,uint128 minOutVenta,uint8 estado)[] niveles,uint16 slippageBps,uint32 cooldownSeg,uint128 tpUnitOut,uint128 slUnitOut,uint24 feeTier,uint8 modo,uint16 objetivoBps,uint16 factorBps,uint256 compraInicialQuote,uint16 margenBps,uint256 botId))',
+  'function crearRejilla((address base,address quote,address[] pathCompra,address[] pathVenta,uint256 ordenQuote,uint256 ordenBase,(uint128 minOutCompra,uint128 minOutVenta,uint8 estado)[] niveles,uint16 slippageBps,uint32 cooldownSeg,uint128 tpUnitOut,uint128 slUnitOut,uint24 feeTier,uint8 modo,uint16 objetivoBps,uint16 factorBps,uint256 compraInicialQuote,uint16 margenBps,uint256 botId,uint256 intervalo,uint32 comprasMax))',
+  'function comprarDCA(bytes32)',
   'function activarRejilla(address,address,bool)',
   'function cancelarRejilla(address,address)',
   'function cerrarAhora(address,address)',
@@ -448,6 +449,39 @@ export async function suscribir() {
 }
 
 /** Config del BOT CASH OUT (modo 2): vende una cantidad que YA tienes, al objetivo. */
+export async function construirConfigDCA(p) {
+  const rutas = p.rutas || await resolverRutas(p.base, p.quote, p.decBase, p.decQuote);
+  const { precio: Pnow } = await precioPar(p.base, p.quote, p.decBase, p.decQuote, rutas);
+  if (!(Pnow > 0)) throw new Error('No se pudo leer el precio del par');
+
+  const montoQuote = Number(p.montoQuote);          // $ (quote) por compra
+  if (!(montoQuote > 0)) throw new Error('Indica cuánto comprar en cada compra');
+  const intervalo = Math.floor(Number(p.intervalo));// segundos entre compras
+  if (!(intervalo > 0)) throw new Error('Indica cada cuánto comprar');
+  const comprasMax = Math.floor(Number(p.comprasMax) || 0);   // 0 = infinito
+
+  const feeTier = await mejorFeeTier(p.quote, p.base, aBI(montoQuote, p.decQuote));
+  if (!feeTier) throw new Error('Esta moneda no tiene pool en PancakeSwap V3. Prueba con otra.');
+
+  let ordenQuote = aBI(montoQuote, p.decQuote); if (ordenQuote <= 0n) ordenQuote = 1n;
+
+  return {
+    base: p.base, quote: p.quote,
+    pathCompra: rutas.compra, pathVenta: rutas.venta,
+    ordenQuote, ordenBase: 0n,
+    niveles: [],
+    slippageBps: p.slippageBps || 0, cooldownSeg: 0,
+    tpUnitOut: 0n, slUnitOut: 0n,
+    feeTier,
+    modo: 3,
+    objetivoBps: 0, factorBps: 0,
+    compraInicialQuote: 0n,
+    margenBps: 0,
+    intervalo, comprasMax,
+    _Pnow: Pnow, _montoQuote: montoQuote, _intervalo: intervalo, _comprasMax: comprasMax
+  };
+}
+
 export async function construirConfigCashOut(p) {
   const rutas = p.rutas || await resolverRutas(p.base, p.quote, p.decBase, p.decQuote);
   const { precio: Pnow } = await precioPar(p.base, p.quote, p.decBase, p.decQuote, rutas);
@@ -500,7 +534,9 @@ export async function crearRejilla(config) {
     factorBps: config.factorBps ?? 0,
     compraInicialQuote: config.compraInicialQuote ?? 0n,
     margenBps: config.margenBps ?? 0,
-    botId: config.botId ?? 0
+    botId: config.botId ?? 0,
+    intervalo: config.intervalo ?? 0,
+    comprasMax: config.comprasMax ?? 0
   };
   const bot = await cEscribe();
   const tx = await bot.crearRejilla(c, { gasLimit: 2500000n });

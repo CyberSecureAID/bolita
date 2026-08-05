@@ -34,7 +34,10 @@ const INFO = {
   porcuad: 'Lo que ganas cada vez que el bot completa una vuelta (compra abajo y vende arriba), ya con la comisión descontada.',
   margenmodo: 'Cuando fijas "Ganancia por cuadrícula", elige qué prioriza el sistema. "Ajustar cuadrículas": mantiene tu rango y calcula cuántas cuadrículas caben. "Ampliar rango": mantiene tu número de cuadrículas y te ofrece ampliar el rango (el bot será menos sensible, pero cada cuadrícula gana ese %). Así puedes operar con poco capital sin que la comisión se coma la ganancia.',
   margen: 'Opcional. Si lo pones, cada cuadrícula se venderá SOLO cuando gane al menos ese % por encima de la comisión — nunca a pérdida. Y el sistema recalcula solo cuántas cuadrículas caben en tu rango para que la separación sea ese %. Déjalo en "auto" para el reparto normal.',
-  tipobot: 'Tres formas de trabajar. SMART GRID: compra y vende en cada nivel, muchas operaciones pequeñas. ACCUMULATOR: compra en la caída y vende TODO junto al ganar el % que elijas. CASH OUT: vende la cripto que YA tienes cuando suba al precio o % que elijas (sin compra, sin comisión de compra).',
+  tipobot: 'Cuatro formas de trabajar. SMART GRID: compra y vende en cada nivel, muchas operaciones pequeñas. ACCUMULATOR: compra en la caída y vende TODO junto al ganar el % que elijas. CASH OUT: vende la cripto que YA tienes cuando suba al precio o % que elijas. DCA: compra un monto fijo cada cierto tiempo, sin mirar el precio.',
+  dcamonto: 'Cuánto de tu estable (USDT/USDC) se gasta en CADA compra. Por ejemplo, 10 USDT: el bot comprará 10 USDT de tu moneda en cada ciclo. Ten esa estable cargada y aprobada en tu wallet.',
+  dcafrec: 'Cada cuánto compra el bot. Semanal o mensual rinden mejor que diario con montos chicos, porque el gas pesa menos por compra. La primera compra se hace al encender.',
+  dcanum: 'Cuántas compras hará en total. Elige un número (ej. 52 = un año comprando cada semana) o "Infinito" para que siga hasta que lo suspendas o se acabe tu estable.',
   cashcant: 'Cuánta cripto de la que YA tienes en tu wallet quieres vender. No la compra el bot: es tuya. Solo le das permiso para venderla cuando llegue tu objetivo. Toca "Máx" para vender todo tu saldo.',
   cashobj: 'Cuándo vender. Por % : vende cuando el precio suba ese porcentaje desde ahora. Por precio: vende cuando llegue exactamente a ese precio. En ambos casos, recibes tu estable (USDT/USDC) en tu wallet.',
   acmin: 'El precio más bajo hasta donde el bot seguirá comprando. Cuanto más abajo, más aguanta una caída sin quedarse sin comprar. Pon un mínimo realista para tu moneda.',
@@ -264,7 +267,7 @@ function inyectarEstilo() {
   #colmena-app .paso-box span{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px}
   #colmena-app .paso-box b{font-family:var(--display);font-size:17px;color:var(--ink)}
   #colmena-app .seg.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
-  #colmena-app .bot-tipos{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+  #colmena-app .bot-tipos{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:10px}
   @media(max-width:640px){#colmena-app .bot-tipos{grid-template-columns:1fr}}
   #colmena-app .bot-tipo{display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;padding:14px;border:1.5px solid var(--line);background:linear-gradient(180deg,#1b2027,#12161c);border-radius:14px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05);transition:transform .1s,box-shadow .1s,border-color .14s,background .14s}
   #colmena-app .bot-tipo:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05)}
@@ -824,6 +827,11 @@ function render() {
             <div class="bot-nom">Cash Out</div>
             <div class="bot-des">Vende la cripto que ya tienes, solo cuando suba al precio o % que elijas.</div>
           </button>
+          <button type="button" data-tipo="dca" class="bot-tipo ${F.tipo==='dca'?'on':''}">
+            <div class="bot-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div>
+            <div class="bot-nom">DCA</div>
+            <div class="bot-des">Compra un poquito cada cierto tiempo, sin estar pendiente del precio.</div>
+          </button>
         </div>
         <div class="lab">Moneda ${iBtn('par')}</div>
         <div class="fila"><select id="f-base">${optHTML(BASES, F.baseId)}</select><select id="f-quote">${optHTML(QUOTES, F.quoteId)}</select></div>
@@ -906,6 +914,38 @@ function render() {
             <div class="cr-note">Vende solo cuando el precio llegue a tu objetivo y recibe <b id="fc-p-est">${moneda(F.quoteId).simbolo}</b> en tu wallet.<br><span style="opacity:.75">Ten esa moneda agregada en tu wallet para verla — llega igual.</span></div>
           </div>
         </div>
+        <div id="f-dca" style="${F.tipo==='dca'?'':'display:none'}">
+          <div class="cash-note">Compras <b id="dn-b">${moneda(F.baseId).simbolo}</b> con tu <b id="dn-q">${moneda(F.quoteId).simbolo}</b>, un poco cada cierto tiempo.</div>
+          <div class="cash-cant-head">
+            <div class="lab" style="margin:0">Monto por compra ${iBtn('dcamonto')}</div>
+            <div class="cash-bal"><span id="fd-saldo">—</span></div>
+          </div>
+          ${campoNum('fd-monto',{placeholder:'0.00',step:1,min:0,suffix:'fd-monto-eq'})}
+          <div class="lab" style="margin-top:16px">¿Cada cuánto compra? ${iBtn('dcafrec')}</div>
+          <div class="seg presets" id="fd-frec" style="grid-template-columns:repeat(4,1fr)">
+            <button type="button" data-int="86400">Diario</button>
+            <button type="button" data-int="604800" class="on">Semanal</button>
+            <button type="button" data-int="1209600">Quincenal</button>
+            <button type="button" data-int="2592000">Mensual</button>
+          </div>
+          <div class="lab" style="margin-top:16px">¿Cuántas compras? ${iBtn('dcanum')}</div>
+          <div class="seg presets" id="fd-num" style="grid-template-columns:repeat(4,1fr)">
+            <button type="button" data-n="10">10</button>
+            <button type="button" data-n="25">25</button>
+            <button type="button" data-n="52">52</button>
+            <button type="button" data-n="0" class="on">Infinito</button>
+          </div>
+          <div class="cash-resumen" id="fd-prev">
+            <div class="cr-top">Resumen del DCA</div>
+            <div class="cr-rows">
+              <div class="cr-row"><span>Compras</span><b id="fd-p-cada">—</b></div>
+              <div class="cr-row"><span>Primera compra</span><b id="fd-p-primera">ahora mismo</b></div>
+              <div class="cr-row"><span>Total a invertir</span><b id="fd-p-total">—</b></div>
+              <div class="cr-row"><span>Precio ahora</span><b id="fd-p-precio">—</b></div>
+            </div>
+            <div class="cr-note">La primera compra se hace al encender. Ten <b id="fd-p-est">${moneda(F.quoteId).simbolo}</b> cargado en tu wallet para las siguientes.</div>
+          </div>
+        </div>
         <div style="text-align:right"><button class="btn-avz" id="f-toggleavz">${F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas'}</button></div>
         <div class="avz" id="f-avz" style="${F.avanzado ? '' : 'display:none'}">
           <div class="fila">
@@ -954,6 +994,19 @@ function render() {
               </div>
             </div>
           </div>
+          <div id="c-dca-side" style="display:none">
+            <div class="acum-hero">
+              <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div>
+              <h4>DCA — Compra Automática</h4>
+              <p>Compra un monto fijo de tu moneda <b>cada cierto tiempo</b>, pase lo que pase con el precio. La forma más tranquila de ir armando posición sin estar pendiente del mercado.</p>
+              <div class="acum-flow">
+                <div class="af"><span>1</span> Eliges la moneda y con qué pagar</div>
+                <div class="af"><span>2</span> Cuánto comprar y cada cuánto</div>
+                <div class="af"><span>3</span> El bot compra solo, en cada ciclo</div>
+                <div class="af"><span>4</span> Tu cripto llega a tu wallet</div>
+              </div>
+            </div>
+          </div>
           <div id="c-hint"></div>
           <div class="prev">
             <div class="p"><b>Precio</b><span id="pv-precio">—</span></div>
@@ -987,11 +1040,11 @@ function render() {
   </div>`;
 
   wireHeader(); wireFaq();
-  $('f-base').onchange = async (e) => { F.baseId = e.target.value; F.precio = null; F.rutas = null; await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado'); refrescarSaldoCash(); if (F.tipo === 'cash') previewCash(); };
+  $('f-base').onchange = async (e) => { F.baseId = e.target.value; F.precio = null; F.rutas = null; await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado'); refrescarSaldoCash(); if (F.tipo === 'cash') previewCash(); if (F.tipo === 'dca') refrescarSaldoDCA(); };
   $('f-quote').onchange = async (e) => {
     F.quoteId = e.target.value; F.precio = null; F.rutas = null;
     const sy = $('f-total-sym'); if (sy) sy.textContent = '(' + moneda(F.quoteId).simbolo + ')';
-    refrescarSaldoInversion(); await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado'); if (F.tipo === 'cash') previewCash();
+    refrescarSaldoInversion(); await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado'); if (F.tipo === 'cash') previewCash(); if (F.tipo === 'dca') refrescarSaldoDCA();
   };
   $('f-toggleavz').onclick = () => {
     F.avanzado = !F.avanzado; const a = $('f-avz'); if (a) a.style.display = F.avanzado ? '' : 'none';
@@ -1033,6 +1086,9 @@ function render() {
   if ($('fc-slider')) $('fc-slider').oninput = () => { const pct = parseFloat($('fc-slider').value) || 0; setCantCash(maxCash() * pct / 100); };
   if ($('fc-max')) $('fc-max').onclick = () => setCantCash(maxCash());
   document.querySelectorAll(`#${APP} #fc-pctamt button`).forEach((b) => b.onclick = () => setCantCash(maxCash() * (parseFloat(b.dataset.pa) || 0) / 100));
+  if ($('fd-monto')) $('fd-monto').addEventListener('input', previewDCA);
+  document.querySelectorAll(`#${APP} #fd-frec button`).forEach((b) => b.onclick = () => { F.dcaFrec = parseInt(b.dataset.int, 10); document.querySelectorAll(`#${APP} #fd-frec button`).forEach((x) => x.classList.toggle('on', x === b)); previewDCA(); });
+  document.querySelectorAll(`#${APP} #fd-num button`).forEach((b) => b.onclick = () => { F.dcaNum = parseInt(b.dataset.n, 10); document.querySelectorAll(`#${APP} #fd-num button`).forEach((x) => x.classList.toggle('on', x === b)); previewDCA(); });
   refrescarSaldoCash();
   pintarTipo();
   $('f-crear').onclick = onCrear;
@@ -1052,6 +1108,7 @@ async function cargarPrecio() {
   try { const r = await gb.precioPar(gb.dirDe(base), gb.dirDe(quote), base.decimals, quote.decimals); F.precio = r.precio; F.rutas = r.rutas; }
   catch { F.precio = null; }
   if (F.tipo === 'cash') previewCash();
+  if (F.tipo === 'dca') previewDCA();
   actualizarVista();
 }
 function actualizarVista() {
@@ -1283,6 +1340,7 @@ async function asegurarSuscripcion(cuenta) {
 async function onCrear() {
   if (F.tipo === 'acum') return onCrearAcum();
   if (F.tipo === 'cash') return onCrearCashOut();
+  if (F.tipo === 'dca') return onCrearDCA();
   const m = $('c-msg'); const base = moneda(F.baseId), quote = moneda(F.quoteId);
   const cuenta = wallet.cuentaActual();
   const p = {
@@ -1355,16 +1413,20 @@ function pintarTipo() {
   if ($('f-grid')) $('f-grid').style.display = t === 'grid' ? '' : 'none';
   if ($('f-acum')) $('f-acum').style.display = t === 'acum' ? '' : 'none';
   if ($('f-cash')) $('f-cash').style.display = t === 'cash' ? '' : 'none';
+  if ($('f-dca')) $('f-dca').style.display = t === 'dca' ? '' : 'none';
   // Panel derecho (gráfica/reparto/neto) es solo del Smart Grid.
   ['c-chart', 'c-hint', 'c-asesor'].forEach((id) => { const e = $(id); if (e) e.style.display = noGrid ? 'none' : ''; });
   { const as = $('c-acum-side'); if (as) as.style.display = t === 'acum' ? '' : 'none'; }
   { const cs = $('c-cash-side'); if (cs) cs.style.display = t === 'cash' ? '' : 'none'; }
-  { const cp = $('c-cash-price'); if (cp) cp.style.display = t === 'cash' ? '' : 'none'; }
+  { const ds = $('c-dca-side'); if (ds) ds.style.display = t === 'dca' ? '' : 'none'; }
+  { const cp = $('c-cash-price'); if (cp) cp.style.display = (t === 'cash' || t === 'dca') ? '' : 'none'; }
+  { const av = $('f-toggleavz'); if (av && av.parentElement) av.parentElement.style.display = t === 'dca' ? 'none' : ''; }
   const prev = document.querySelector(`#${APP} .prev`); if (prev) prev.style.display = noGrid ? 'none' : '';
   const tpsl = $('f-avz-tpsl'); if (tpsl) tpsl.style.display = noGrid ? 'none' : '';
   document.querySelectorAll(`#${APP} #f-tipo button`).forEach((b) => b.classList.toggle('on', b.dataset.tipo === t));
   if (t === 'cash') refrescarSaldoCash();
-  if (t === 'acum') previewAcum(); else if (t === 'cash') previewCash(); else actualizarVista();
+  if (t === 'dca') refrescarSaldoDCA();
+  if (t === 'acum') previewAcum(); else if (t === 'cash') previewCash(); else if (t === 'dca') previewDCA(); else actualizarVista();
 }
 function sugerirAcum() {
   if (!F.precio) { aviso($('c-msg'), 'err', 'Espera a que cargue el precio y vuelve a intentar.'); return; }
@@ -1546,6 +1608,73 @@ async function onCrearCashOut() {
     await gb.crearRejilla(config);
     recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total: config._valorActual, cantBase: cantidad, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'cash', targetPrice, botId });
     modalDone('¡Cash Out encendido!', `Cuando ${base.simbolo} llegue a <b>${precioFmt(targetPrice)}</b>, venderá y recibirás ${quote.simbolo} en tu wallet. Ten <b>gas</b> cargado para que pueda operar. Lo verás en "Mis bots".`);
+    refrescarRejillas();
+  } catch (e) {
+    if (esRechazo(e)) { modalClose(); } else modalError(e?.shortMessage || e?.message || String(e));
+  }
+}
+function frecNombre(s) {
+  return s <= 86400 ? 'cada día' : s <= 604800 ? 'cada semana' : s <= 1209600 ? 'cada 15 días' : 'cada mes';
+}
+async function refrescarSaldoDCA() {
+  const el = $('fd-saldo'); if (!el) return;
+  const cuenta = wallet.cuentaActual(); if (!cuenta) { el.textContent = ''; return; }
+  const quote = moneda(F.quoteId);
+  try {
+    const bal = await gb.balanceToken(gb.dirDe(quote), cuenta);
+    el.textContent = `Tienes ${num(Number(gb.fmt(bal, quote.decimals)), 2)} ${quote.simbolo}`;
+  } catch { el.textContent = ''; }
+  previewDCA();
+}
+function previewDCA() {
+  const simB = moneda(F.baseId).simbolo, simQ = moneda(F.quoteId).simbolo;
+  const dnb = $('dn-b'), dnq = $('dn-q'); if (dnb) dnb.textContent = simB; if (dnq) dnq.textContent = simQ;
+  const est = $('fd-p-est'); if (est) est.textContent = simQ;
+  const monto = parseFloat($('fd-monto')?.value) || 0;
+  const intervalo = F.dcaFrec || 604800, comprasMax = F.dcaNum || 0;
+  const eq = $('fd-monto-eq'); if (eq) eq.textContent = (monto > 0 && F.precio) ? '≈ ' + num(monto / F.precio, 6) + ' ' + simB : '';
+  const cada = $('fd-p-cada'); if (cada) cada.textContent = monto > 0 ? `${num(monto, 2)} ${simQ} ${frecNombre(intervalo)}` : '—';
+  const tot = $('fd-p-total'); if (tot) tot.textContent = monto > 0 ? (comprasMax > 0 ? `${num(monto * comprasMax, 2)} ${simQ} (${comprasMax} compras)` : 'Sin límite') : '—';
+  const pr = $('fd-p-precio'); if (pr) pr.textContent = F.precio ? precioFmt(F.precio) + ' ' + simQ : '—';
+  const cpv = $('cash-price-val'), cpp = $('cash-price-pair');
+  if (cpp) cpp.textContent = simB + ' / ' + simQ;
+  if (cpv) cpv.textContent = F.precio ? precioFmt(F.precio) + ' ' + simQ : '—';
+}
+async function onCrearDCA() {
+  const m = $('c-msg'); const base = moneda(F.baseId), quote = moneda(F.quoteId);
+  const cuenta = wallet.cuentaActual();
+  const monto = parseFloat($('fd-monto')?.value) || 0;
+  if (!(monto > 0)) { aviso(m, 'err', '¿Cuánto quieres comprar en cada compra?'); return; }
+  if (!F.precio) { aviso(m, 'err', 'Espera a que cargue el precio y vuelve a intentar.'); return; }
+  const intervalo = F.dcaFrec || 604800, comprasMax = F.dcaNum || 0;
+  const p = {
+    base: gb.dirDe(base), quote: gb.dirDe(quote), decBase: base.decimals, decQuote: quote.decimals,
+    montoQuote: monto, intervalo, comprasMax, slippageBps: 0, rutas: F.rutas
+  };
+  const totalTxt = comprasMax > 0 ? `${num(monto * comprasMax, 2)} ${quote.simbolo} en ${comprasMax} compras` : `sin límite (según el ${quote.simbolo} que tengas)`;
+  const ok = await modalConfirm({
+    titulo: 'Encender DCA',
+    cuerpo: `El bot comprará <b>${num(monto, 2)} ${quote.simbolo}</b> de <b>${base.simbolo}</b> <b>${frecNombre(intervalo)}</b>. La primera compra se hace ahora mismo.<br><br>Total: <b>${totalTxt}</b>. Ten <b>${quote.simbolo}</b> cargado en tu wallet para las siguientes.`,
+    ok: 'Sí, encender'
+  });
+  if (!ok) return;
+  try {
+    modalBusy('Comprobando tu saldo…');
+    const balH = Number(gb.fmt(await gb.balanceToken(p.quote, cuenta), quote.decimals));
+    if (monto > balH + 1e-9) { modalError(`No tienes suficiente ${quote.simbolo} para la primera compra. En tu wallet hay ${num(balH, 2)} ${quote.simbolo}.`); return; }
+    if (!(await asegurarSuscripcion(cuenta))) { modalClose(); return; }
+    modalBusy('Preparando tu DCA con el precio real…');
+    const botId = Date.now();
+    const config = await gb.construirConfigDCA(p); config.botId = botId;
+    const nAprob = comprasMax > 0 ? comprasMax : 1000;
+    const quoteNeed = mBI(monto * nAprob, quote.decimals);
+    const aQ = await gb.allowance(p.quote, cuenta);
+    const pasos = (aQ < quoteNeed ? 1 : 0) + 1; let i = 0;
+    if (aQ < quoteNeed) { i++; modalBusy(`<b>Paso ${i} de ${pasos} — Permiso de ${quote.simbolo}.</b><br>Le das permiso al bot para comprar con tus ${quote.simbolo} en cada ciclo (puedes revocarlo cuando quieras).<br><br>Confirma en tu wallet.`); await gb.aprobarToken(p.quote, quoteNeed); }
+    i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu DCA y hace la primera compra ahora.<br><br>Confirma en tu wallet.`);
+    await gb.crearRejilla(config);
+    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total: monto, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'dca', intervalo, comprasMax, botId });
+    modalDone('¡DCA encendido!', `Comprará ${num(monto, 2)} ${quote.simbolo} de ${base.simbolo} ${frecNombre(intervalo)}. La primera compra ya se hizo. Ten <b>gas</b> cargado y <b>${quote.simbolo}</b> en tu wallet. Lo verás en "Mis bots".`);
     refrescarRejillas();
   } catch (e) {
     if (esRechazo(e)) { modalClose(); } else modalError(e?.shortMessage || e?.message || String(e));
@@ -1742,7 +1871,7 @@ async function tarjeta(cuenta, clave, par) {
     <div class="ob-side ob-buys">${obBuys.map((o) => obRow(o, 'compra')).join('') || '<div class="ob-empty">sin compras armadas</div>'}</div>`;
 
   const tipo = par.tipo || 'grid';
-  const nombreBot = tipo === 'cash' ? 'Bot Cash Out' : tipo === 'acum' ? 'Bot Accumulator' : 'Bot Smart Grid';
+  const nombreBot = tipo === 'cash' ? 'Bot Cash Out' : tipo === 'acum' ? 'Bot Accumulator' : tipo === 'dca' ? 'Bot DCA' : 'Bot Smart Grid';
   const invLabel = tipo === 'cash' ? simB : simQ;
   const invValue = tipo === 'cash' ? num((par.cantBase != null ? Number(par.cantBase) : posBase), 6) : num(invertido, 2);
   const _boxEntrada = `<div class="pio-box" data-box="entrada"><div class="k">Entrada → Ahora</div><div class="v" style="font-size:14px">${par.entry ? precioFmt(par.entry) : '—'} → ${precioFmt(precio)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}">${mkt == null ? simQ : sg(mkt) + num(Math.abs(mkt), 2) + '% mercado'}</div></div>`;
@@ -1753,11 +1882,19 @@ async function tarjeta(cuenta, clave, par) {
   const _boxVueltas = `<div class="pio-box" data-box="vueltas"><div class="k">Vueltas / Ops ${iBtn('vueltas')}</div><div class="v numgo" data-to="${Number(R.ciclos)}" data-dec="0">${R.ciclos}</div><div class="v2" style="color:var(--ink-3)">${R.totalOps} operaciones</div></div>`;
   const _boxMedio = `<div class="pio-box" data-box="medio"><div class="k">Precio medio ${iBtn('promedio')}</div><div class="v" style="font-size:14px">${posBase > 0 ? precioFmt(costeQ / posBase) : '—'}</div><div class="v2" style="color:var(--ink-3)">tu coste</div></div>`;
   const _boxObjetivo = `<div class="pio-box"><div class="k">Objetivo</div><div class="v" style="font-size:14px">${par.targetPrice ? precioFmt(Number(par.targetPrice)) : '—'}</div><div class="v2" style="color:var(--ink-3)">precio de venta</div></div>`;
+  const _interv = Number(par.intervalo || R.intervalo || 0);
+  const _restante = (Number(R.ultimaOpEn) || 0) + _interv - Math.floor(Date.now() / 1000);
+  const _proxTxt = _interv <= 0 ? '—' : _restante <= 0 ? 'pronto' : _restante < 3600 ? 'en ' + Math.ceil(_restante / 60) + ' min' : _restante < 86400 ? 'en ' + Math.ceil(_restante / 3600) + ' h' : 'en ' + Math.ceil(_restante / 86400) + ' días';
+  const _cmax = Number(par.comprasMax || R.comprasMax || 0);
+  const _boxProxima = `<div class="pio-box"><div class="k">Próxima compra</div><div class="v" style="font-size:15px">${_proxTxt}</div><div class="v2" style="color:var(--ink-3)">${frecNombre(_interv)}</div></div>`;
+  const _boxCompras = `<div class="pio-box"><div class="k">Compras hechas</div><div class="v">${Number(R.comprasHechas)}${_cmax > 0 ? ' / ' + _cmax : ''}</div><div class="v2" style="color:var(--ink-3)">${_cmax > 0 ? 'de tu plan' : 'sin límite'}</div></div>`;
+  const _boxPosicion = `<div class="pio-box"><div class="k">Posición (${simB})</div><div class="v" style="font-size:15px">${num(posBase, 6)}</div><div class="v2" style="color:var(--ink-3)">acumulado</div></div>`;
   let _boxes;
   if (tipo === 'cash') _boxes = _boxEntrada + _boxObjetivo;
+  else if (tipo === 'dca') _boxes = _boxProxima + _boxCompras + _boxMedio + _boxPosicion + _boxFlotante + _boxGas;
   else if (tipo === 'acum') _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxMedio + _boxVueltas + _boxGas;
   else _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxRango + _boxVueltas + _boxGas;
-  const _panel = (tipo === 'cash' || tipo === 'acum') ? '' : `<button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
+  const _panel = (tipo === 'cash' || tipo === 'acum' || tipo === 'dca') ? '' : `<button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
     <div class="pio-panel" data-clave="${clave}">
       <div class="pio-tabs"><button data-tab="grafica" class="on">Gráfica</button><button data-tab="ordenes">Órdenes (${ps.length})</button></div>
       <div class="tab-grafica"><div class="trail-chart">${chart}</div>
@@ -1792,7 +1929,7 @@ async function tarjeta(cuenta, clave, par) {
     ${_panel}
 
     <div class="rej-btns" style="grid-template-columns:1fr">
-      <button class="btn-oro3d" data-acc="terminar">${tipo === 'cash' ? 'Suspender' : 'Cerrar y vender'}</button>
+      <button class="btn-oro3d" data-acc="terminar">${(tipo === 'cash' || tipo === 'dca') ? 'Suspender' : 'Cerrar y vender'}</button>
     </div>
     <div class="rej-msg"></div>
   </div>`;
@@ -1887,14 +2024,16 @@ function enganchar(cuenta) {
       if (acc === 'editar') { editarBot(el); return; }
       if (acc === 'terminar') {
         const esCash = el.dataset.tipo === 'cash';
+        const esDca = el.dataset.tipo === 'dca';
+        const soloCancelar = esCash || esDca;   // no vende: solo detiene
         const ok = await modalConfirm({
-          titulo: esCash ? 'Cerrar Cash Out' : 'Cerrar y vender',
-          cuerpo: esCash ? `Se cancelará este Cash Out y se quita el permiso. <b>Tu cripto se queda en tu wallet</b>, no se vende nada.` : `Se venderá todo a <b>${sq}</b> y el bot se cerrará. El dinero queda en tu wallet.`,
-          ok: 'Sí, cerrar'
+          titulo: esDca ? 'Suspender DCA' : (esCash ? 'Cerrar Cash Out' : 'Cerrar y vender'),
+          cuerpo: esDca ? `Se detiene el DCA y se quita el permiso. <b>La cripto que ya compraste se queda en tu wallet.</b>` : (esCash ? `Se cancelará este Cash Out y se quita el permiso. <b>Tu cripto se queda en tu wallet</b>, no se vende nada.` : `Se venderá todo a <b>${sq}</b> y el bot se cerrará. El dinero queda en tu wallet.`),
+          ok: soloCancelar ? 'Sí, suspender' : 'Sí, cerrar'
         });
         if (!ok) return;
         try {
-          if (!esCash) {
+          if (!soloCancelar) {
             try { modalBusy('Vendiendo a estable… confirma en tu wallet.'); await gb.cerrarAhoraK(el.dataset.clave); }
             catch (e) { if (esRechazo(e)) { modalError('Cancelaste la firma. No se hizo ningún cambio.'); return; } }
           }
