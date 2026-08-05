@@ -148,9 +148,13 @@ function inyectarEstilo() {
   #colmena-app .cash-max:active{transform:translateY(2px);box-shadow:0 0 0 #8f6a1a}
   #colmena-app .stepper.has-suffix input{padding-right:132px}
   #colmena-app .cash-eq{position:absolute;right:42px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:12px;color:var(--ink-3);pointer-events:none;max-width:86px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
-  #colmena-app .cash-slider{-webkit-appearance:none;appearance:none;width:100%;height:3px;border-radius:100px;background:var(--line);outline:none;margin:16px 0 8px;cursor:pointer}
-  #colmena-app .cash-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:15px;height:15px;border-radius:50%;background:#eaecef;border:2px solid var(--gold);cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.5);margin-top:-6px}
-  #colmena-app .cash-slider::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:#eaecef;border:2px solid var(--gold);cursor:pointer}
+  #colmena-app .cash-slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:100px;background:var(--line);outline:none;margin:16px 0 8px;cursor:pointer}
+  #colmena-app .cash-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:2px solid #8f6a1a;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.5);margin-top:-7px}
+  #colmena-app .cash-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:2px solid #8f6a1a;cursor:pointer}
+  #colmena-app .cash-price{text-align:center;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--gold-soft);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 6px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)}
+  #colmena-app .cash-price .cp-lab{font-family:var(--mono);font-size:12px;color:var(--ink-2);letter-spacing:.5px}
+  #colmena-app .cash-price .cp-val{font-family:var(--display);font-weight:800;font-size:30px;color:var(--gold);margin:6px 0 3px;text-shadow:0 1px 2px rgba(0,0,0,.5),0 2px 12px rgba(232,184,75,.25);letter-spacing:-.5px}
+  #colmena-app .cash-price .cp-src{font-family:var(--mono);font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
   #colmena-app .cash-resumen{margin-top:16px;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:0 8px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.03)}
   #colmena-app .cash-resumen .cr-top{font-family:var(--display);color:var(--gold);font-size:14px;font-weight:700;text-align:center;margin-bottom:12px;text-shadow:0 1px 1px rgba(0,0,0,.4);letter-spacing:.3px}
   #colmena-app .cash-resumen .cr-rows{display:flex;flex-direction:column;gap:1px;background:var(--line-soft);border-radius:11px;overflow:hidden}
@@ -935,6 +939,11 @@ function render() {
             </div>
           </div>
           <div id="c-cash-side" style="display:none">
+            <div class="cash-price">
+              <div class="cp-lab" id="cash-price-pair">BNB / USDT</div>
+              <div class="cp-val" id="cash-price-val">—</div>
+              <div class="cp-src">precio ahora · PancakeSwap</div>
+            </div>
             <div class="acum-hero">
               <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.5"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
               <h4>Cash Out</h4>
@@ -1039,6 +1048,7 @@ async function cargarPrecio() {
   const base = moneda(F.baseId), quote = moneda(F.quoteId);
   try { const r = await gb.precioPar(gb.dirDe(base), gb.dirDe(quote), base.decimals, quote.decimals); F.precio = r.precio; F.rutas = r.rutas; }
   catch { F.precio = null; }
+  if (F.tipo === 'cash') previewCash();
   actualizarVista();
 }
 function actualizarVista() {
@@ -1455,6 +1465,9 @@ function previewCash() {
   const simB = moneda(F.baseId).simbolo, simQ = moneda(F.quoteId).simbolo;
   const est = $('fc-p-est'); if (est) est.textContent = simQ;
   const cnb = $('cn-b'), cnq = $('cn-q'); if (cnb) cnb.textContent = simB; if (cnq) cnq.textContent = simQ;
+  const cpv = $('cash-price-val'), cpp = $('cash-price-pair');
+  if (cpp) cpp.textContent = simB + ' / ' + simQ;
+  if (cpv) cpv.textContent = F.precio ? precioFmt(F.precio) + ' ' + simQ : '—';
   const usd = $('fc-cant-usd'); if (usd) usd.textContent = (cant > 0 && F.precio) ? '≈ ' + num(cant * F.precio, 2) + ' ' + simQ : '';
   const mx = maxCash(); pintarSlider(mx > 0 ? (cant / mx * 100) : 0);
   const setT = (id, v) => { const e = $(id); if (e) e.textContent = v; };
