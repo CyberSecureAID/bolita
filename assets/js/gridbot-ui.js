@@ -296,9 +296,16 @@ function inyectarEstilo() {
   #colmena-app .prev{align-items:start}
   #colmena-app .prev .p{background:url('assets/img/azul.webp') center/100% 100% no-repeat;border:none;border-radius:0;box-shadow:none;aspect-ratio:606/479;min-height:0;padding:15% 16%;overflow:hidden;justify-content:center}
   #colmena-app .prev .p b{font-size:8px;letter-spacing:.2px}
-  #colmena-app .prev .p span{font-size:15px;margin-top:3px}
-  #colmena-app .prev .rep-wrap{gap:2px;margin-top:2px}
-  #colmena-app .prev .rep-pill{font-size:8.5px;padding:2px 6px;border-radius:5px}
+  /* valores y guiones: chapados en el metal de la pizarra (relieve visible) */
+  #colmena-app .prev .p span{font-size:16px;margin-top:3px;text-shadow:0 1px 1px rgba(0,0,0,.9),0 2px 3px rgba(0,0,0,.55),0 -1px 0 rgba(255,255,255,.18)}
+  #colmena-app .prev .p span.pos{color:#4dff8a}
+  #colmena-app .prev .p span.neg{color:#ff7a7a}
+  /* reparto: sin título, solo las cápsulas centradas */
+  #colmena-app .prev .prep{padding:14% 12%}
+  #colmena-app .prev .p .rep-wrap{gap:4px;margin-top:0}
+  #colmena-app .prev .p .rep-pill{font-size:9px;padding:3px 8px;border-radius:6px;margin-top:0}
+  /* ícono de info visible sobre el metal */
+  #colmena-app .prev .p .i-btn{opacity:1;color:var(--gold);border-color:var(--gold-soft);background:rgba(4,7,10,.6);box-shadow:0 1px 2px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.12)}
   #colmena-app .gasbox{background:#12161c;border:1px solid var(--line-soft);border-radius:12px;padding:14px;margin-top:16px}
   #colmena-app .gasbox .top{display:flex;align-items:center;justify-content:space-between}
   #colmena-app .gasbox .v{font-family:var(--display);color:var(--gold);font-size:20px}
@@ -387,8 +394,8 @@ function inyectarEstilo() {
   #colmena-app .bot-tipo .bot-des{font-family:var(--sans);font-size:11px;line-height:1.4;color:var(--ink-3)}
   #colmena-app .rep-wrap{display:flex;flex-direction:column;gap:4px;align-items:center;margin-top:4px}
   #colmena-app .rep-pill{font-family:var(--mono);font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:7px;white-space:nowrap}
-  #colmena-app .rep-v{background:rgba(46,232,106,.14);color:var(--neon-lit);border:1px solid var(--neon-dim)}
-  #colmena-app .rep-c{background:rgba(232,80,80,.14);color:#ff9090;border:1px solid rgba(232,80,80,.3)}
+  #colmena-app .rep-v{background:linear-gradient(180deg,rgba(246,70,93,.30),rgba(246,70,93,.12));color:#ffb0b0;border:1px solid rgba(246,70,93,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 1px 2px rgba(0,0,0,.55);text-shadow:0 1px 1px rgba(0,0,0,.75)}
+  #colmena-app .rep-c{background:linear-gradient(180deg,rgba(46,232,106,.30),rgba(46,232,106,.1));color:#96ffbe;border:1px solid rgba(46,232,106,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 1px 2px rgba(0,0,0,.55);text-shadow:0 1px 1px rgba(0,0,0,.75)}
   #colmena-app .seg.presets button{padding:10px 6px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));color:var(--ink-2);border-radius:9px;font-family:var(--mono);font-size:12px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);transition:transform .08s,box-shadow .08s,background .12s,color .12s}
   #colmena-app .seg.presets button:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.35)}
   #colmena-app .seg.presets button:hover{border-color:var(--gold-soft);color:var(--ink)}
@@ -1131,9 +1138,9 @@ function render() {
           <div id="c-hint"></div>
           <div class="prev">
             <div class="p"><b>Precio</b><span id="pv-precio">—</span></div>
-            <div class="p"><b>Reparto ${iBtn('reparto')}</b><span id="pv-compras" class="rep-wrap">—</span></div>
+            <div class="p prep"><span id="pv-compras" class="rep-wrap">—</span></div>
             <div class="p"><b>Por compra</b><span id="pv-orden">—</span></div>
-            <div class="p"><b>Gan./vuelta ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
+            <div class="p"><b>Ganancia ${iBtn('porcuad')}</b><span id="pv-gan" class="pos">—</span></div>
           </div>
           <div class="asesor" id="c-asesor" style="display:none">
             <div class="as-top"><b>Estimación</b> ${iBtn('asesor')}</div>
