@@ -167,6 +167,13 @@ export async function envolverBNB(montoWei) {
   const tx = await c.deposit({ value: montoWei });
   return tx.wait();
 }
+/** Desenvuelve WBNB -> BNB nativo (al suspender, devuelve el BNB tal cual). */
+export async function desenvolverBNB(montoWei) {
+  const abi = ['function withdraw(uint256) external'];
+  const c = new ethers.Contract(WBNB, abi, await firmante());
+  const tx = await c.withdraw(montoWei);
+  return tx.wait();
+}
 
 /* ================================================================== */
 /* Rutas de swap (directa o vía WBNB)                                  */
