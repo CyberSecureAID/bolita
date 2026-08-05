@@ -2155,11 +2155,12 @@ function editarBot(el) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 async function compartirBot(card) {
+  try { await document.fonts.ready; } catch (_) {}
   const tipo = card.dataset.tipo || 'grid';
   const meta = BOTMETA[tipo] || BOTMETA.grid;
   const txt = (sel) => card.querySelector(sel)?.textContent?.trim() || '';
   const sb = card.dataset.sb || '', sq = card.dataset.sq || '';
-  const pair = (sb && sq) ? `${sb}/${sq}` : (txt('.pio-pair') || 'MI BOT');
+  const pair = (sb && sq) ? `${sb}/${sq}` : 'MI BOT';
   const nombre = txt('.pio-nombre') || meta.nom;
   const invLab = txt('.pio-band .l .k') || 'Inversión';
   const inv = txt('.pio-band .l .v') || '—';
@@ -2168,64 +2169,78 @@ async function compartirBot(card) {
   const pct = ganEl?.querySelector('.pct')?.textContent?.trim() || '';
   const neg = ganEl?.classList.contains('neg');
   const bid = card.dataset.bid || '';
-  const logoUrl = (LOGOS[bid] && LOGOS[bid].img) || '';
   const fecha = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
   const acento = { grid: '#4d9fff', acum: '#b47cff', cash: '#e8b84b', dca: '#34d97b' }[tipo] || '#e8b84b';
-  const rgb = neg ? '246,70,93' : '46,232,106', tint = neg ? '#f6465d' : '#2ee86a';
+  const DISPLAY = '"Chakra Petch", "Trebuchet MS", sans-serif', MONO = '"IBM Plex Mono", ui-monospace, monospace';
 
   const loadImg = (src, cross) => new Promise((res) => { if (!src) return res(null); const im = new Image(); if (cross) im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
-  const [botImg, coinImg] = await Promise.all([loadImg(meta.img, false), loadImg(logoUrl, true)]);
+  // Logo oficial: Trust Wallet (permite CORS -> dibujable en canvas); si falla, CoinGecko.
+  const addr = moneda(bid)?.address;
+  const twBase = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain';
+  const twUrl = addr ? `${twBase}/assets/${addr}/logo.png` : `${twBase}/info/logo.png`;
+  let coinImg = await loadImg(twUrl, true);
+  if (!coinImg && LOGOS[bid]?.img) coinImg = await loadImg(LOGOS[bid].img, true);
+  const botImg = await loadImg(meta.img, false);
 
   const W = 1080, H = 1080, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const g = cv.getContext('2d');
   const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
-  const shadow = (b = 16) => { g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = b; g.shadowOffsetY = 3; };
+  const shadow = (b = 16, oy = 3) => { g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = b; g.shadowOffsetY = oy; };
   const noShadow = () => { g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetY = 0; };
 
-  // Fondo: la foto del bot (cover) o un degradado si aún no está subida.
+  rr(0, 0, W, H, 48); g.clip();   // esquinas redondeadas de TODA la imagen
+
   if (botImg) {
     const ir = botImg.width / botImg.height, cr = W / H; let dw, dh, dx, dy;
     if (ir > cr) { dh = H; dw = H * ir; dx = (W - dw) / 2; dy = 0; } else { dw = W; dh = W / ir; dx = 0; dy = (H - dh) / 2; }
     g.drawImage(botImg, dx, dy, dw, dh);
-  } else {
-    const bgg = g.createLinearGradient(0, 0, W, H); bgg.addColorStop(0, '#20262f'); bgg.addColorStop(1, '#0b0e11'); g.fillStyle = bgg; g.fillRect(0, 0, W, H);
-  }
-  // Velo para que el texto no se pierda (más oscuro arriba y abajo).
+  } else { const bgg = g.createLinearGradient(0, 0, W, H); bgg.addColorStop(0, '#20262f'); bgg.addColorStop(1, '#0b0e11'); g.fillStyle = bgg; g.fillRect(0, 0, W, H); }
   const ov = g.createLinearGradient(0, 0, 0, H);
-  ov.addColorStop(0, 'rgba(4,6,9,.64)'); ov.addColorStop(.34, 'rgba(4,6,9,.12)'); ov.addColorStop(.6, 'rgba(4,6,9,.32)'); ov.addColorStop(1, 'rgba(4,6,9,.93)');
+  ov.addColorStop(0, 'rgba(4,6,9,.62)'); ov.addColorStop(.34, 'rgba(4,6,9,.1)'); ov.addColorStop(.58, 'rgba(4,6,9,.34)'); ov.addColorStop(1, 'rgba(4,6,9,.94)');
   g.fillStyle = ov; g.fillRect(0, 0, W, H);
-  g.strokeStyle = 'rgba(232,184,75,.5)'; g.lineWidth = 4; rr(22, 22, W - 44, H - 44, 46); g.stroke();
+  g.strokeStyle = 'rgba(232,184,75,.6)'; g.lineWidth = 5; rr(16, 16, W - 32, H - 32, 38); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1.5; rr(20, 20, W - 40, H - 40, 34); g.stroke();
   g.textBaseline = 'alphabetic';
 
-  // ── Arriba-izquierda: logo de la moneda + nombre + par · fecha ──
-  const lx = 70, ly = 66, lr = 42;
-  if (coinImg) { g.save(); g.beginPath(); g.arc(lx + lr, ly + lr, lr, 0, 7); g.closePath(); g.clip(); g.drawImage(coinImg, lx, ly, lr * 2, lr * 2); g.restore(); }
-  else { shadow(14); g.fillStyle = acento; g.beginPath(); g.arc(lx + lr, ly + lr, lr, 0, 7); g.fill(); noShadow(); g.fillStyle = '#08121f'; g.font = '800 36px Arial'; g.textAlign = 'center'; g.fillText(sb[0] || '?', lx + lr, ly + lr + 13); g.textAlign = 'left'; }
-  shadow(18);
-  g.fillStyle = acento; g.font = '800 50px Georgia, serif'; g.fillText(nombre, lx + lr * 2 + 26, ly + 38);
-  g.fillStyle = '#eaecef'; g.font = '600 27px Arial'; g.fillText(`${pair}   ·   ${fecha}`, lx + lr * 2 + 27, ly + 77);
+  // ── Arriba-izquierda: logo + nombre + par · fecha ──
+  const lx = 66, ly = 62, lr = 44;
+  shadow(18, 4);
+  if (coinImg) { g.beginPath(); g.arc(lx + lr, ly + lr, lr, 0, 7); g.fillStyle = '#fff'; g.fill(); noShadow(); g.save(); g.beginPath(); g.arc(lx + lr, ly + lr, lr, 0, 7); g.closePath(); g.clip(); g.drawImage(coinImg, lx, ly, lr * 2, lr * 2); g.restore(); g.strokeStyle = 'rgba(232,184,75,.55)'; g.lineWidth = 2; g.beginPath(); g.arc(lx + lr, ly + lr, lr, 0, 7); g.stroke(); }
+  else { g.fillStyle = acento; g.beginPath(); g.arc(lx + lr, ly + lr, lr, 0, 7); g.fill(); noShadow(); g.fillStyle = '#08121f'; g.font = `800 38px ${DISPLAY}`; g.textAlign = 'center'; g.fillText(sb[0] || '?', lx + lr, ly + lr + 14); g.textAlign = 'left'; }
+  noShadow();
+  shadow(18, 3);
+  g.fillStyle = acento; g.font = `700 52px ${DISPLAY}`; g.fillText(nombre, lx + lr * 2 + 28, ly + 40);
+  g.fillStyle = '#eaecef'; g.font = `500 27px ${MONO}`; g.fillText(`${pair}    ·    ${fecha}`, lx + lr * 2 + 30, ly + 80);
   noShadow();
 
-  // ── Abajo: banda Inversión ↔ Ganancia total, con chaflán diagonal ──
-  const bX = 56, bW = W - 112, bY = H - 272, bH = 170, split = bX + bW * 0.5;
-  shadow(28); g.fillStyle = 'rgba(11,15,20,.94)'; rr(bX, bY, bW, bH, 30); g.fill(); noShadow();
-  g.save(); rr(bX, bY, bW, bH, 30); g.clip();
-  const grd = g.createLinearGradient(split - 40, 0, bX + bW, 0);
-  grd.addColorStop(0, `rgba(${rgb},0)`); grd.addColorStop(1, `rgba(${rgb},.22)`);
-  g.fillStyle = grd; g.beginPath(); g.moveTo(split + 44, bY); g.lineTo(bX + bW, bY); g.lineTo(bX + bW, bY + bH); g.lineTo(split - 44, bY + bH); g.closePath(); g.fill();
-  g.strokeStyle = tint; g.lineWidth = 3; g.globalAlpha = .55; g.beginPath(); g.moveTo(split + 44, bY - 4); g.lineTo(split - 44, bY + bH + 4); g.stroke(); g.globalAlpha = 1;
+  // ── Abajo: banda Inversión ↔ Ganancia (chaflán + verde de la página + 3D dorado) ──
+  const bX = 54, bW = W - 108, bH = 172, bY = H - 66 - bH;
+  g.fillStyle = '#8a6518'; rr(bX, bY + 8, bW, bH, 28); g.fill();                 // borde inferior 3D dorado
+  g.fillStyle = 'rgba(9,12,17,.96)'; rr(bX, bY, bW, bH, 28); g.fill();           // cuerpo oscuro
+  g.save(); rr(bX, bY, bW, bH, 28); g.clip();
+  const grW = bW * 0.58, grX = bX + bW - grW, topOff = grW * 0.20;
+  const gg = g.createLinearGradient(grX, bY, bX + bW, bY);
+  if (neg) { gg.addColorStop(0, '#a83636'); gg.addColorStop(1, '#f6465d'); }
+  else { gg.addColorStop(0, 'rgba(14,203,129,.5)'); gg.addColorStop(1, '#12d18e'); }
+  g.fillStyle = gg; g.beginPath(); g.moveTo(grX + topOff, bY); g.lineTo(bX + bW, bY); g.lineTo(bX + bW, bY + bH); g.lineTo(grX, bY + bH); g.closePath(); g.fill();
   g.restore();
-  g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1.5; rr(bX, bY, bW, bH, 30); g.stroke();
-  g.fillStyle = '#8b95a1'; g.font = '600 25px Arial'; g.fillText(invLab, bX + 40, bY + 60);
-  g.fillStyle = '#eaecef'; g.font = '800 56px Georgia, serif'; g.fillText(inv, bX + 38, bY + 124);
+  g.strokeStyle = '#e8b84b'; g.lineWidth = 2.5; rr(bX, bY, bW, bH, 28); g.stroke();                    // borde dorado
+  g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 1; rr(bX + 2.5, bY + 2.5, bW - 5, bH - 5, 26); g.stroke();
+  // izquierda: Inversión (etiqueta dorada, valor blanco)
+  g.fillStyle = '#e8b84b'; g.font = `600 22px ${MONO}`; g.fillText(('Inversión (' + sq + ')').toUpperCase(), bX + 36, bY + 60);
+  g.fillStyle = '#eaecef'; g.font = `700 50px ${DISPLAY}`; g.fillText(inv, bX + 34, bY + 120);
+  // derecha: Ganancia total (texto OSCURO sobre verde, como la página)
   g.textAlign = 'right';
-  g.fillStyle = '#8b95a1'; g.font = '600 25px Arial'; g.fillText('Ganancia total', bX + bW - 40, bY + 58);
-  g.fillStyle = tint; g.font = '800 54px Georgia, serif'; g.fillText(gan, bX + bW - 40, bY + 116);
-  if (pct) { g.fillStyle = tint; g.font = '700 27px Arial'; g.fillText(pct, bX + bW - 40, bY + 150); }
+  const gtxt = neg ? '#2a0808' : '#03210f';
+  g.globalAlpha = .82; g.fillStyle = gtxt; g.font = `600 22px ${MONO}`; g.fillText('GANANCIA TOTAL', bX + bW - 36, bY + 56); g.globalAlpha = 1;
+  g.fillStyle = gtxt; g.font = `800 50px ${DISPLAY}`; g.fillText(gan, bX + bW - 36, bY + 112);
+  if (pct) { g.font = `800 27px ${MONO}`; g.fillText(pct, bX + bW - 36, bY + 148); }
   g.textAlign = 'left';
 
-  shadow(14); g.fillStyle = 'rgba(232,184,75,.95)'; g.font = '700 27px Arial'; g.textAlign = 'center';
-  g.fillText('Bot Algorítmico   ·   sin custodia   ·   sin KYC', W / 2, H - 50);
+  // sello
+  shadow(12, 2);
+  g.fillStyle = 'rgba(232,184,75,.95)'; g.font = `700 25px ${MONO}`; g.textAlign = 'center';
+  g.fillText('BOT ALGORÍTMICO   ·   SIN CUSTODIA   ·   SIN KYC', W / 2, H - 32);
   g.textAlign = 'left'; noShadow();
 
   cv.toBlob((blob) => {
