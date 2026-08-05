@@ -12,7 +12,7 @@ import { MONEDAS, LISTA_TODAS } from './tokens.js';
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
 // Lo que se OPERA (base). Las estables no pueden ser base.
-const BASES  = ['BNB', 'BTCB', 'ETH', 'SOL', 'DOGE', 'XRP', 'CAKE', 'LINK', 'ADA'];
+const BASES  = ['BNB', 'BTCB', 'ETH', 'SOL', 'XRP', 'ADA', 'DOT', 'LTC', 'AVAX', 'MATIC', 'ATOM', 'NEAR', 'FIL', 'BCH', 'ETC', 'EOS', 'LINK', 'CAKE', 'UNI', 'AAVE', 'XVS', 'INJ', 'TWT', 'DOGE', 'SHIB', 'FLOKI'];
 // Contra qué se mide (quote): estables.
 const QUOTES = ['USDT', 'USDC'];
 
@@ -143,6 +143,46 @@ function inyectarEstilo() {
   #colmena-app .acum-flow{display:flex;flex-direction:column;gap:8px;text-align:left;max-width:320px;margin:0 auto}
   #colmena-app .acum-flow .af{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;color:var(--ink-2);background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:10px;padding:9px 12px}
   #colmena-app .acum-flow .af span{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,#5cf58c,#1ea34a);color:#03210f;font-weight:800;font-size:12px}
+  /* ===== Selector de moneda + modal ===== */
+  #colmena-app .fila-coins{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #colmena-app .coin-sel{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 13px;background:linear-gradient(180deg,#1b2027,#12161c);border:1.5px solid var(--line);border-radius:12px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);transition:border-color .14s,transform .08s}
+  #colmena-app .coin-sel:hover{border-color:var(--gold-soft)}
+  #colmena-app .coin-sel:active{transform:translateY(1px)}
+  #colmena-app .coin-sel-l{display:flex;align-items:center;gap:10px;min-width:0}
+  #colmena-app .coin-sel-ico{width:32px;height:32px;border-radius:50%;background:#0d1117;border:1px solid var(--line);display:grid;place-items:center;font-size:16px;font-weight:700;flex:0 0 auto}
+  #colmena-app .coin-sel-tx{display:flex;flex-direction:column;gap:1px;min-width:0;text-align:left}
+  #colmena-app .coin-sel-tx b{font-family:var(--display);font-size:15px;color:var(--ink);line-height:1.15}
+  #colmena-app .coin-sel-tx i{font-family:var(--mono);font-size:10px;color:var(--ink-3);font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+  #colmena-app .coin-chev{color:var(--ink-3);flex:0 0 auto;display:grid}
+  #colmena-app .coin-modal{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+  #colmena-app .coin-modal-bg{position:absolute;inset:0;background:rgba(3,5,7,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);animation:cmFade .18s ease}
+  #colmena-app .coin-modal-box{position:relative;width:100%;max-width:440px;max-height:82vh;display:flex;flex-direction:column;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid var(--line);border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden;animation:cmPop .2s cubic-bezier(.2,.9,.3,1.2)}
+  @keyframes cmFade{from{opacity:0}to{opacity:1}}
+  @keyframes cmPop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+  #colmena-app .cm-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px}
+  #colmena-app .cm-title{font-family:var(--display);font-weight:700;font-size:17px;color:var(--gold)}
+  #colmena-app .cm-x{width:32px;height:32px;border-radius:50%;background:transparent;border:1px solid var(--line);color:var(--ink-3);cursor:pointer;display:grid;place-items:center;padding:0}
+  #colmena-app .cm-x:hover{border-color:var(--rojo);color:var(--rojo)}
+  #colmena-app .cm-search{display:flex;align-items:center;gap:9px;margin:0 18px 12px;padding:11px 14px;background:#0b0e11;border:1px solid var(--line);border-radius:12px;color:var(--ink-3)}
+  #colmena-app .cm-search input{flex:1;background:transparent;border:none;outline:none;color:var(--ink);font-family:var(--sans);font-size:14px}
+  #colmena-app .cm-search input::placeholder{color:var(--ink-3)}
+  #colmena-app .cm-cats{display:flex;gap:7px;padding:0 18px 12px;flex-wrap:wrap}
+  #colmena-app .cm-cats button{font-family:var(--mono);font-size:12px;color:var(--ink-3);background:#12161c;border:1px solid var(--line);border-radius:100px;padding:6px 14px;cursor:pointer;transition:all .14s}
+  #colmena-app .cm-cats button.on{color:#1a1200;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border-color:#c79426;font-weight:700;box-shadow:0 2px 0 #8f6a1a}
+  #colmena-app .cm-list{overflow-y:auto;padding:4px 12px 14px;display:flex;flex-direction:column;gap:3px}
+  #colmena-app .cm-coin{display:flex;align-items:center;gap:12px;padding:11px 12px;background:transparent;border:1px solid transparent;border-radius:12px;cursor:pointer;text-align:left;transition:background .12s,border-color .12s}
+  #colmena-app .cm-coin:hover{background:#171d25;border-color:var(--line)}
+  #colmena-app .cm-coin.on{background:rgba(232,184,75,.08);border-color:var(--gold-soft)}
+  #colmena-app .cm-coin-ico{width:38px;height:38px;border-radius:50%;background:#0d1117;border:1px solid var(--line);display:grid;place-items:center;font-size:18px;font-weight:700;flex:0 0 auto}
+  #colmena-app .cm-coin-tx{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+  #colmena-app .cm-coin-tx b{font-family:var(--display);font-size:15px;color:var(--ink)}
+  #colmena-app .cm-coin-tx i{font-family:var(--mono);font-size:11px;color:var(--ink-3);font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #colmena-app .cm-tag{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:100px;flex:0 0 auto;border:1px solid var(--line)}
+  #colmena-app .cm-tag-l1{color:#7db8ff;background:rgba(125,184,255,.08)}
+  #colmena-app .cm-tag-defi{color:var(--neon-lit);background:rgba(46,232,106,.08)}
+  #colmena-app .cm-tag-meme{color:#ffb84d;background:rgba(255,184,77,.08)}
+  #colmena-app .cm-check{color:var(--gold);flex:0 0 auto;display:grid}
+  #colmena-app .cm-empty{text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:13px;padding:30px}
   /* ===== Cash Out ===== */
   #colmena-app .cash-note{font-family:var(--sans);font-size:13px;color:var(--ink-2);text-align:center;background:linear-gradient(180deg,#12161c,#0d1117);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:18px 0 6px;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04)}
   #colmena-app .cash-note b{color:var(--gold)}
@@ -844,7 +884,16 @@ function render() {
           </button>
         </div>
         <div class="lab">Moneda ${iBtn('par')}</div>
-        <div class="fila"><select id="f-base">${optHTML(BASES, F.baseId)}</select><select id="f-quote">${optHTML(QUOTES, F.quoteId)}</select></div>
+        <div class="fila fila-coins">
+          <button type="button" class="coin-sel" id="f-base-btn">
+            <span class="coin-sel-l"><span class="coin-sel-ico" id="fb-ico"></span><span class="coin-sel-tx"><b id="fb-sim">—</b><i id="fb-nom"></i></span></span>
+            <span class="coin-chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+          <button type="button" class="coin-sel" id="f-quote-btn">
+            <span class="coin-sel-l"><span class="coin-sel-ico" id="fq-ico"></span><span class="coin-sel-tx"><b id="fq-sim">—</b><i id="fq-nom"></i></span></span>
+            <span class="coin-chev"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+        </div>
         <div id="f-grid" style="${F.tipo!=='grid'?'display:none':''}">
           <div class="lab">Estrategia ${iBtn('estrategia')}</div>
           <div class="seg presets" id="f-preset">
@@ -1050,12 +1099,9 @@ function render() {
   </div>`;
 
   wireHeader(); wireFaq();
-  $('f-base').onchange = async (e) => { F.baseId = e.target.value; F.precio = null; F.rutas = null; await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado'); refrescarSaldoCash(); if (F.tipo === 'cash') previewCash(); if (F.tipo === 'dca') refrescarSaldoDCA(); };
-  $('f-quote').onchange = async (e) => {
-    F.quoteId = e.target.value; F.precio = null; F.rutas = null;
-    const sy = $('f-total-sym'); if (sy) sy.textContent = '(' + moneda(F.quoteId).simbolo + ')';
-    refrescarSaldoInversion(); await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado'); if (F.tipo === 'cash') previewCash(); if (F.tipo === 'dca') refrescarSaldoDCA();
-  };
+  if ($('f-base-btn')) $('f-base-btn').onclick = () => abrirCoinModal('base');
+  if ($('f-quote-btn')) $('f-quote-btn').onclick = () => abrirCoinModal('quote');
+  actualizarBotonesCoin();
   $('f-toggleavz').onclick = () => {
     F.avanzado = !F.avanzado; const a = $('f-avz'); if (a) a.style.display = F.avanzado ? '' : 'none';
     $('f-toggleavz').textContent = F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas';
@@ -1418,6 +1464,81 @@ async function onCrear() {
 /* ================================================================== */
 /* Panel                                                               */
 /* ================================================================== */
+function actualizarBotonesCoin() {
+  const b = moneda(F.baseId), q = moneda(F.quoteId);
+  const set = (icoId, simId, nomId, mo) => {
+    const ico = $(icoId), sim = $(simId), nom = $(nomId);
+    if (sim) sim.textContent = mo.simbolo;
+    if (nom) nom.textContent = mo.nombre;
+    if (ico) { ico.textContent = mo.icono || (mo.simbolo || '?')[0]; ico.style.color = mo.color || 'var(--gold)'; }
+  };
+  set('fb-ico', 'fb-sim', 'fb-nom', b);
+  set('fq-ico', 'fq-sim', 'fq-nom', q);
+}
+const CAT_NOMBRES = { l1: 'Layer 1', defi: 'DeFi', meme: 'Memes' };
+function abrirCoinModal(sel) {
+  const esBase = sel === 'base';
+  const ids = esBase ? BASES : QUOTES;
+  const host = $(APP) || document.body;
+  const viejo = $('coin-modal'); if (viejo) viejo.remove();
+  const cats = esBase ? [['todas', 'Todas'], ['l1', 'Layer 1'], ['defi', 'DeFi'], ['meme', 'Memes']] : [];
+  const el = document.createElement('div');
+  el.innerHTML = `<div class="coin-modal" id="coin-modal">
+    <div class="coin-modal-bg" id="cm-bg"></div>
+    <div class="coin-modal-box">
+      <div class="cm-head"><span class="cm-title">${esBase ? 'Elige la moneda' : 'Elige tu estable'}</span><button class="cm-x" id="cm-x" aria-label="Cerrar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <div class="cm-search"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="cm-search" placeholder="Buscar por nombre o símbolo…" autocomplete="off"></div>
+      ${esBase ? `<div class="cm-cats" id="cm-cats">${cats.map(([c, n], i) => `<button type="button" data-cat="${c}" class="${i === 0 ? 'on' : ''}">${n}</button>`).join('')}</div>` : ''}
+      <div class="cm-list" id="cm-list"></div>
+    </div>
+  </div>`;
+  host.appendChild(el.firstElementChild);
+  let fcat = 'todas', ftxt = '';
+  const selId = () => esBase ? F.baseId : F.quoteId;
+  const pintar = () => {
+    const q = ftxt.trim().toLowerCase();
+    const monedas = ids.map((id) => MONEDAS[id]).filter(Boolean).filter((mo) => {
+      const cat = mo.categoria || 'l1';
+      if (esBase && fcat !== 'todas' && cat !== fcat) return false;
+      if (q && !((mo.simbolo || '').toLowerCase().includes(q) || (mo.nombre || '').toLowerCase().includes(q))) return false;
+      return true;
+    });
+    const list = $('cm-list');
+    if (!monedas.length) { list.innerHTML = `<div class="cm-empty">Sin resultados para "${ftxt}"</div>`; return; }
+    list.innerHTML = monedas.map((mo) => {
+      const on = selId() === mo.id;
+      return `<button type="button" class="cm-coin${on ? ' on' : ''}" data-id="${mo.id}">
+        <span class="cm-coin-ico" style="color:${mo.color || '#e8b84b'}">${mo.icono || (mo.simbolo || '?')[0]}</span>
+        <span class="cm-coin-tx"><b>${mo.simbolo}</b><i>${mo.nombre}</i></span>
+        ${esBase && mo.categoria ? `<span class="cm-tag cm-tag-${mo.categoria}">${CAT_NOMBRES[mo.categoria] || ''}</span>` : ''}
+        ${on ? '<span class="cm-check"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>' : ''}
+      </button>`;
+    }).join('');
+    list.querySelectorAll('.cm-coin').forEach((b) => b.onclick = () => elegirCoin(sel, b.dataset.id));
+  };
+  pintar();
+  $('cm-search').addEventListener('input', (e) => { ftxt = e.target.value; pintar(); });
+  setTimeout(() => { const s = $('cm-search'); if (s) s.focus(); }, 60);
+  document.querySelectorAll(`#${APP} #cm-cats button`).forEach((b) => b.onclick = () => { fcat = b.dataset.cat; document.querySelectorAll(`#${APP} #cm-cats button`).forEach((x) => x.classList.toggle('on', x === b)); pintar(); });
+  const cerrar = () => { const mm = $('coin-modal'); if (mm) mm.remove(); };
+  $('cm-x').onclick = cerrar; $('cm-bg').onclick = cerrar;
+}
+function elegirCoin(sel, id) {
+  const mm = $('coin-modal'); if (mm) mm.remove();
+  if (sel === 'base') { if (id === F.quoteId) return; F.baseId = id; }
+  else { if (id === F.baseId) return; F.quoteId = id; }
+  actualizarBotonesCoin();
+  F.precio = null; F.rutas = null;
+  (async () => {
+    const sy = $('f-total-sym'); if (sy) sy.textContent = '(' + moneda(F.quoteId).simbolo + ')';
+    await cargarPrecio();
+    if (F.precio) aplicarPreset(F.preset || 'equilibrado');
+    refrescarSaldoInversion(); refrescarSaldoCash();
+    if (F.tipo === 'cash') previewCash();
+    else if (F.tipo === 'dca') refrescarSaldoDCA();
+    else if (F.tipo === 'acum') previewAcum();
+  })();
+}
 function pintarTipo() {
   const t = F.tipo, noGrid = t !== 'grid';
   if ($('f-grid')) $('f-grid').style.display = t === 'grid' ? '' : 'none';

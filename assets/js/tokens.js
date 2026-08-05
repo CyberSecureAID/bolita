@@ -74,7 +74,7 @@ export const MONEDAS = {
   },
 
   BTCB: {
-    id: 'BTCB',
+    id: 'BTCB', categoria: 'l1',
     simbolo: 'BTCB',
     nombre: 'Bitcoin BEP20',
     address: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
@@ -91,7 +91,7 @@ export const MONEDAS = {
   },
 
   ETH: {
-    id: 'ETH',
+    id: 'ETH', categoria: 'l1',
     simbolo: 'ETH',
     nombre: 'Ethereum BEP20',
     address: '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',
@@ -159,47 +159,64 @@ export const MONEDAS = {
 
   // ---- Volátiles operables por el bot (estándar, sin impuesto de transferencia) ----
   SOL: {
-    id: 'SOL', soloBot: true, simbolo: 'SOL', nombre: 'Solana (Binance-Peg)',
+    id: 'SOL', soloBot: true, categoria: 'l1', simbolo: 'SOL', nombre: 'Solana (Binance-Peg)',
     address: '0x570A5D26f7765Ecb712C0924E4De545B89fD43dF', decimals: 18,
     icono: '◎', color: '#14F195',
     minApuesta: 0.0008, maxPorJugada: 0.015, maxPorPersona: 0.04, maxPago: 0.1,
     decimalesVista: 4, unidadPequena: { nombre: '', factor: 1 }
   },
   DOGE: {
-    id: 'DOGE', soloBot: true, simbolo: 'DOGE', nombre: 'Dogecoin (Binance-Peg)',
+    id: 'DOGE', soloBot: true, categoria: 'meme', simbolo: 'DOGE', nombre: 'Dogecoin (Binance-Peg)',
     address: '0xbA2aE424d960c26247Dd6c32edC70B295c744C43', decimals: 8,
     icono: 'Ð', color: '#C2A633',
     minApuesta: 0.6, maxPorJugada: 12, maxPorPersona: 30, maxPago: 75,
     decimalesVista: 2, unidadPequena: { nombre: '', factor: 1 }
   },
   XRP: {
-    id: 'XRP', soloBot: true, simbolo: 'XRP', nombre: 'XRP (Binance-Peg)',
+    id: 'XRP', soloBot: true, categoria: 'l1', simbolo: 'XRP', nombre: 'XRP (Binance-Peg)',
     address: '0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE', decimals: 18,
     icono: '✕', color: '#25A768',
     minApuesta: 0.05, maxPorJugada: 1, maxPorPersona: 2.5, maxPago: 6,
     decimalesVista: 3, unidadPequena: { nombre: '', factor: 1 }
   },
   CAKE: {
-    id: 'CAKE', soloBot: true, simbolo: 'CAKE', nombre: 'PancakeSwap',
+    id: 'CAKE', soloBot: true, categoria: 'defi', simbolo: 'CAKE', nombre: 'PancakeSwap',
     address: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', decimals: 18,
     icono: '🥞', color: '#D1884F',
     minApuesta: 0.04, maxPorJugada: 0.8, maxPorPersona: 2, maxPago: 5,
     decimalesVista: 3, unidadPequena: { nombre: '', factor: 1 }
   },
   LINK: {
-    id: 'LINK', soloBot: true, simbolo: 'LINK', nombre: 'Chainlink (Binance-Peg)',
+    id: 'LINK', soloBot: true, categoria: 'defi', simbolo: 'LINK', nombre: 'Chainlink (Binance-Peg)',
     address: '0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD', decimals: 18,
     icono: '⬡', color: '#2A5ADA',
     minApuesta: 0.005, maxPorJugada: 0.1, maxPorPersona: 0.25, maxPago: 0.6,
     decimalesVista: 4, unidadPequena: { nombre: '', factor: 1 }
   },
   ADA: {
-    id: 'ADA', soloBot: true, simbolo: 'ADA', nombre: 'Cardano (Binance-Peg)',
+    id: 'ADA', soloBot: true, categoria: 'l1', simbolo: 'ADA', nombre: 'Cardano (Binance-Peg)',
     address: '0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47', decimals: 18,
     icono: '₳', color: '#0033AD',
     minApuesta: 0.13, maxPorJugada: 2.6, maxPorPersona: 6.6, maxPago: 16,
     decimalesVista: 3, unidadPequena: { nombre: '', factor: 1 }
-  }
+  },
+  DOT:   { id:'DOT',   soloBot:true, categoria:'l1',   simbolo:'DOT',   nombre:'Polkadot (Binance-Peg)',   address:'0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402', decimals:18, icono:'●', color:'#E6007A', decimalesVista:3, minApuesta:0.01, maxPorJugada:0.2, maxPorPersona:0.5, maxPago:1.2, unidadPequena:{nombre:'',factor:1} },
+  LTC:   { id:'LTC',   soloBot:true, categoria:'l1',   simbolo:'LTC',   nombre:'Litecoin (Binance-Peg)',   address:'0x4338665CBB7B2485A8855A139b75D5e34AB0DB94', decimals:18, icono:'Ł', color:'#345D9D', decimalesVista:4, minApuesta:0.002, maxPorJugada:0.04, maxPorPersona:0.1, maxPago:0.25, unidadPequena:{nombre:'',factor:1} },
+  AVAX:  { id:'AVAX',  soloBot:true, categoria:'l1',   simbolo:'AVAX',  nombre:'Avalanche (Binance-Peg)',  address:'0x1CE0c2827e2eF14D5C4f29a091d735A204794041', decimals:18, icono:'▲', color:'#E84142', decimalesVista:3, minApuesta:0.01, maxPorJugada:0.2, maxPorPersona:0.5, maxPago:1.2, unidadPequena:{nombre:'',factor:1} },
+  MATIC: { id:'MATIC', soloBot:true, categoria:'l1',   simbolo:'POL',   nombre:'Polygon (Binance-Peg)',    address:'0xCC42724C6683B7E57334c4E856f4c9965ED682bD', decimals:18, icono:'⬢', color:'#8247E5', decimalesVista:3, minApuesta:0.5, maxPorJugada:10, maxPorPersona:25, maxPago:60, unidadPequena:{nombre:'',factor:1} },
+  ATOM:  { id:'ATOM',  soloBot:true, categoria:'l1',   simbolo:'ATOM',  nombre:'Cosmos (Binance-Peg)',     address:'0x0Eb3a705fc54725037CC9e008bDede697f62F335', decimals:18, icono:'⚛', color:'#2E3148', decimalesVista:3, minApuesta:0.02, maxPorJugada:0.4, maxPorPersona:1, maxPago:2.5, unidadPequena:{nombre:'',factor:1} },
+  NEAR:  { id:'NEAR',  soloBot:true, categoria:'l1',   simbolo:'NEAR',  nombre:'NEAR Protocol (Binance-Peg)', address:'0x1Fa4a73a3F0133f0025378af00236f3aBDEE5D63', decimals:18, icono:'Ⓝ', color:'#00EC97', decimalesVista:3, minApuesta:0.05, maxPorJugada:1, maxPorPersona:2.5, maxPago:6, unidadPequena:{nombre:'',factor:1} },
+  FIL:   { id:'FIL',   soloBot:true, categoria:'l1',   simbolo:'FIL',   nombre:'Filecoin (Binance-Peg)',   address:'0x0D8Ce2A99Bb6e3B7Db580eD848240e4a0F9aE153', decimals:18, icono:'⨎', color:'#0090FF', decimalesVista:3, minApuesta:0.02, maxPorJugada:0.4, maxPorPersona:1, maxPago:2.5, unidadPequena:{nombre:'',factor:1} },
+  BCH:   { id:'BCH',   soloBot:true, categoria:'l1',   simbolo:'BCH',   nombre:'Bitcoin Cash (Binance-Peg)', address:'0x8fF795a6F4D97E7887C79beA79aba5cc76444aDf', decimals:18, icono:'Ƀ', color:'#0AC18E', decimalesVista:5, minApuesta:0.0005, maxPorJugada:0.01, maxPorPersona:0.025, maxPago:0.06, unidadPequena:{nombre:'',factor:1} },
+  ETC:   { id:'ETC',   soloBot:true, categoria:'l1',   simbolo:'ETC',   nombre:'Ethereum Classic (Binance-Peg)', address:'0x3d6545b08693daE087E957cb1180ee38B9e3c25E', decimals:18, icono:'ξ', color:'#328332', decimalesVista:4, minApuesta:0.005, maxPorJugada:0.1, maxPorPersona:0.25, maxPago:0.6, unidadPequena:{nombre:'',factor:1} },
+  EOS:   { id:'EOS',   soloBot:true, categoria:'l1',   simbolo:'EOS',   nombre:'EOS (Binance-Peg)',        address:'0x56b6fB708fC5732DEC1Afc8D8556423A2EDcCbD6', decimals:18, icono:'Ⓔ', color:'#443F54', decimalesVista:3, minApuesta:0.1, maxPorJugada:2, maxPorPersona:5, maxPago:12, unidadPequena:{nombre:'',factor:1} },
+  UNI:   { id:'UNI',   soloBot:true, categoria:'defi', simbolo:'UNI',   nombre:'Uniswap (Binance-Peg)',    address:'0xBf5140A22578168FD562DCcF235E5D43A02ce9B1', decimals:18, icono:'🦄', color:'#FF007A', decimalesVista:3, minApuesta:0.02, maxPorJugada:0.4, maxPorPersona:1, maxPago:2.5, unidadPequena:{nombre:'',factor:1} },
+  AAVE:  { id:'AAVE',  soloBot:true, categoria:'defi', simbolo:'AAVE',  nombre:'Aave (Binance-Peg)',       address:'0xfb6115445Bff7b52FeB98650C87f44907E58f802', decimals:18, icono:'👻', color:'#B6509E', decimalesVista:4, minApuesta:0.001, maxPorJugada:0.02, maxPorPersona:0.05, maxPago:0.12, unidadPequena:{nombre:'',factor:1} },
+  XVS:   { id:'XVS',   soloBot:true, categoria:'defi', simbolo:'XVS',   nombre:'Venus',                   address:'0xcF6BB5389c92Bdda8a3747Ddb454cB7a64626C63', decimals:18, icono:'V', color:'#F4B731', decimalesVista:3, minApuesta:0.01, maxPorJugada:0.2, maxPorPersona:0.5, maxPago:1.2, unidadPequena:{nombre:'',factor:1} },
+  INJ:   { id:'INJ',   soloBot:true, categoria:'defi', simbolo:'INJ',   nombre:'Injective (Binance-Peg)',  address:'0xa2B726B1145A4773F68593CF171187d8EBe4d495', decimals:18, icono:'🥷', color:'#00A6FB', decimalesVista:3, minApuesta:0.02, maxPorJugada:0.4, maxPorPersona:1, maxPago:2.5, unidadPequena:{nombre:'',factor:1} },
+  TWT:   { id:'TWT',   soloBot:true, categoria:'defi', simbolo:'TWT',   nombre:'Trust Wallet Token',      address:'0x4B0F1812e5Df2A09796481Ff14017e6005508003', decimals:18, icono:'🛡', color:'#3375BB', decimalesVista:3, minApuesta:0.1, maxPorJugada:2, maxPorPersona:5, maxPago:12, unidadPequena:{nombre:'',factor:1} },
+  SHIB:  { id:'SHIB',  soloBot:true, categoria:'meme', simbolo:'SHIB',  nombre:'Shiba Inu (Binance-Peg)',  address:'0x2859e4544C4bB03966803b044A93563Bd2D0DD4D', decimals:18, icono:'🐕', color:'#FFA409', decimalesVista:0, minApuesta:100000, maxPorJugada:2000000, maxPorPersona:5000000, maxPago:12000000, unidadPequena:{nombre:'',factor:1} },
+  FLOKI: { id:'FLOKI', soloBot:true, categoria:'meme', simbolo:'FLOKI', nombre:'Floki',                   address:'0xfb5B838b6cfEEdC2873aB27866079AC55363D37E', decimals:9,  icono:'🐶', color:'#F0841E', decimalesVista:0, minApuesta:1000, maxPorJugada:20000, maxPorPersona:50000, maxPago:120000, unidadPequena:{nombre:'',factor:1} }
 };
 
 // Enlaces para comprar cada moneda (plataformas seguras y reconocidas).
