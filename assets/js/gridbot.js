@@ -422,7 +422,7 @@ export async function aprobarToken(tokenAddr, montoBI) {
   const s = await firmante();
   const t = new ethers.Contract(tokenAddr, ERC20, s);
   const monto = (typeof montoBI === 'bigint') ? montoBI : ethers.MaxUint256;
-  const tx = await t.approve(GRIDBOT, monto);
+  const tx = await t.approve(GRIDBOT, monto, { gasLimit: 120000n });
   return esperar(tx);
 }
 
@@ -430,7 +430,7 @@ export async function aprobarToken(tokenAddr, montoBI) {
 export async function revocarToken(tokenAddr) {
   const s = await firmante();
   const t = new ethers.Contract(tokenAddr, ERC20, s);
-  const tx = await t.approve(GRIDBOT, 0n);
+  const tx = await t.approve(GRIDBOT, 0n, { gasLimit: 120000n });
   return esperar(tx);
 }
 
@@ -443,7 +443,7 @@ export async function precioSub() {
 export async function suscribir() {
   const precio = await cLee().precioSuscripcion();
   const bot = await cEscribe();
-  const tx = await bot.suscribir({ value: precio });
+  const tx = await bot.suscribir({ value: precio, gasLimit: 220000n });
   return esperar(tx);
 }
 
@@ -508,20 +508,20 @@ export async function crearRejilla(config) {
 }
 
 export async function cerrarAhora(base, quote) {
-  const bot = await cEscribe(); const tx = await bot.cerrarAhora(base, quote); return esperar(tx);
+  const bot = await cEscribe(); const tx = await bot.cerrarAhora(base, quote, { gasLimit: 900000n }); return esperar(tx);
 }
 export async function resumenK(clave) { return cLee()['resumen(bytes32)'](clave); }
 export async function cerrarAhoraK(clave) {
-  const bot = await cEscribe(); const tx = await bot['cerrarAhora(bytes32)'](clave); return esperar(tx);
+  const bot = await cEscribe(); const tx = await bot['cerrarAhora(bytes32)'](clave, { gasLimit: 900000n }); return esperar(tx);
 }
 export async function cancelarRejillaK(clave) {
-  const bot = await cEscribe(); const tx = await bot['cancelarRejilla(bytes32)'](clave); return esperar(tx);
+  const bot = await cEscribe(); const tx = await bot['cancelarRejilla(bytes32)'](clave, { gasLimit: 900000n }); return esperar(tx);
 }
 export async function cancelarRejilla(base, quote) {
-  const bot = await cEscribe(); const tx = await bot.cancelarRejilla(base, quote); return esperar(tx);
+  const bot = await cEscribe(); const tx = await bot.cancelarRejilla(base, quote, { gasLimit: 900000n }); return esperar(tx);
 }
 export async function activarRejilla(base, quote, activa) {
-  const bot = await cEscribe(); const tx = await bot.activarRejilla(base, quote, activa); return esperar(tx);
+  const bot = await cEscribe(); const tx = await bot.activarRejilla(base, quote, activa, { gasLimit: 300000n }); return esperar(tx);
 }
 export async function setTPSL(base, quote, tpUnitOut, slUnitOut) {
   const bot = await cEscribe(); const tx = await bot.setTPSL(base, quote, tpUnitOut, slUnitOut); return esperar(tx);
@@ -536,12 +536,12 @@ export async function ajustarCooldown(base, quote, seg) {
 /** Recarga el tanque de gas (BNB) del usuario. */
 export async function depositarGas(bnbHumano) {
   const bot = await cEscribe();
-  const tx = await bot.depositarGas({ value: ethers.parseEther(String(bnbHumano)) });
+  const tx = await bot.depositarGas({ value: ethers.parseEther(String(bnbHumano)), gasLimit: 160000n });
   return esperar(tx);
 }
 export async function retirarGas(bnbHumano) {
   const bot = await cEscribe();
-  const tx = await bot.retirarGas(ethers.parseEther(String(bnbHumano)));
+  const tx = await bot.retirarGas(ethers.parseEther(String(bnbHumano)), { gasLimit: 200000n });
   return esperar(tx);
 }
 

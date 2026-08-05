@@ -179,11 +179,11 @@ function inyectarEstilo() {
   #colmena-app .seg button.on{background:var(--gold);color:#1a1200;border-color:var(--gold);font-weight:700}
   #colmena-app .avz{border-top:1px solid var(--line-soft);margin-top:18px;padding-top:4px}
   #colmena-app .chart{width:100%;height:auto;display:block;border-radius:14px;background:#0d1117;border:1px solid var(--line-soft)}
-  #colmena-app .hint{font-family:var(--mono);font-size:11px;color:var(--gold-soft);margin-top:8px}
+  #colmena-app .hint{font-family:var(--sans);font-size:12px;line-height:1.5;color:var(--ink-2);background:rgba(232,184,75,.05);border:1px solid var(--line-soft);border-left:2px solid var(--gold-soft);border-radius:8px;padding:9px 12px;margin:12px 0 4px}
   #colmena-app .prev{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
-  #colmena-app .p{background:#12161c;border:1px solid var(--line-soft);border-radius:11px;padding:11px;text-align:center}
-  #colmena-app .p b{display:flex;align-items:center;justify-content:center;gap:4px;font-family:var(--mono);font-size:9px;color:var(--ink-3);text-transform:uppercase}
-  #colmena-app .p span{font-family:var(--display);font-size:16px;color:var(--ink);display:block;margin-top:3px}
+  #colmena-app .p{background:linear-gradient(180deg,#12161c,#0d1117);border:1px solid var(--line-soft);border-radius:11px;padding:13px 8px;text-align:center;display:flex;flex-direction:column;justify-content:center;min-height:66px}
+  #colmena-app .p b{display:flex;align-items:center;justify-content:center;gap:4px;font-family:var(--mono);font-size:9px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
+  #colmena-app .p span{font-family:var(--display);font-size:18px;font-weight:700;color:var(--ink);display:block;margin-top:6px;letter-spacing:-.3px}
   #colmena-app .p span.pos{color:var(--neon-lit)}
   #colmena-app .gasbox{background:#12161c;border:1px solid var(--line-soft);border-radius:12px;padding:14px;margin-top:16px}
   #colmena-app .gasbox .top{display:flex;align-items:center;justify-content:space-between}
@@ -279,13 +279,13 @@ function inyectarEstilo() {
   #colmena-app .seg.presets button:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.35)}
   #colmena-app .seg.presets button:hover{border-color:var(--gold-soft);color:var(--ink)}
   #colmena-app .seg.presets button.on{background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);color:#3a2800;border-color:var(--gold);font-weight:800;box-shadow:0 2px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.4);text-shadow:0 1px 0 rgba(255,255,255,.3)}
-  #colmena-app .asesor{margin-top:10px;background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:12px;padding:13px 14px}
+  #colmena-app .asesor{margin-top:12px;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:0 6px 18px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.03)}
   #colmena-app .asesor .as-top{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
   #colmena-app .asesor .as-top b{color:var(--gold)}
   #colmena-app .asesor .as-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  #colmena-app .asesor .as-grid>div{display:flex;flex-direction:column;gap:3px}
+  #colmena-app .asesor .as-grid>div{display:flex;flex-direction:column;gap:4px;background:rgba(0,0,0,.28);border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px}
   #colmena-app .asesor .as-grid span{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
-  #colmena-app .asesor .as-grid b{font-family:var(--display);font-size:17px;color:var(--ink)}
+  #colmena-app .asesor .as-grid b{font-family:var(--display);font-size:19px;font-weight:700;color:var(--gold)}
   #colmena-app .asesor .as-grid b.pos{color:var(--neon-lit)} #colmena-app .asesor .as-grid b.neg{color:var(--rojo)}
   #colmena-app .asesor .as-nota{margin-top:10px;font-family:var(--sans);font-size:11.5px;line-height:1.5;color:var(--ink-2)}
   #colmena-app .c-foot{max-width:1180px;margin:40px auto 0;padding:28px 22px 40px;border-top:1px solid var(--line)}
@@ -301,7 +301,7 @@ function inyectarEstilo() {
   #colmena-app .c-faq-wrap[open] summary{border-bottom:1px solid var(--line-soft)}
   #colmena-app .c-faq-wrap .c-foot-grid{padding:16px}
   /* botón Compartir tornasol */
-  #colmena-app .pio-tag.share{cursor:pointer;color:#3a2800;font-weight:800;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);box-shadow:0 3px 0 #8f6a1a,0 5px 12px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.55);display:inline-flex;align-items:center;gap:5px;transition:transform .08s,box-shadow .08s;text-shadow:0 1px 0 rgba(255,255,255,.3)}
+  #colmena-app .pio-tag.share{cursor:pointer;color:#3a2800;font-weight:800;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);box-shadow:0 2px 0 #8f6a1a,0 5px 12px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.55);transition:transform .08s,box-shadow .08s;text-shadow:0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .pio-tag.share:hover{filter:brightness(1.06)}
   #colmena-app .pio-tag.share:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,0 2px 8px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.4)}
   #colmena-app .c-faq h5{font-family:var(--display);color:var(--ink);font-size:13.5px;margin:0 0 7px}
@@ -331,7 +331,7 @@ function inyectarEstilo() {
   #colmena-app .pio-sub{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:4px}
   #colmena-app .pio-nombre{text-align:center;font-family:var(--display);font-weight:800;font-size:19px;color:var(--gold);margin:6px 0 2px;letter-spacing:.3px;text-shadow:0 1px 0 rgba(0,0,0,.55),0 2px 10px rgba(232,184,75,.28)}
   #colmena-app .pio-tags{display:flex;gap:6px;flex:0 0 auto}
-  #colmena-app .pio-tag{font-family:var(--mono);font-size:11px;padding:5px 11px;border-radius:8px;background:linear-gradient(180deg,rgba(46,232,106,.2),rgba(46,232,106,.08));color:var(--neon-lit);border:1px solid var(--neon-dim);font-weight:700;box-shadow:0 2px 0 rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.14);text-shadow:0 1px 1px rgba(0,0,0,.4)}
+  #colmena-app .pio-tag{font-family:var(--mono);font-size:11px;height:28px;padding:0 12px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:8px;background:linear-gradient(180deg,rgba(46,232,106,.2),rgba(46,232,106,.08));color:var(--neon-lit);border:1px solid var(--neon-dim);font-weight:700;box-shadow:0 2px 0 rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.14);text-shadow:0 1px 1px rgba(0,0,0,.4)}
   #colmena-app .pio-tag.grey{background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.03));color:var(--ink-2);border-color:var(--line);box-shadow:0 2px 0 rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.1)}
   #colmena-app .pio-band{position:relative;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);min-height:90px;display:flex;align-items:center;margin:16px 0}
   #colmena-app .pio-band .l{position:relative;z-index:2;padding:16px 20px;flex:1}
@@ -1131,7 +1131,7 @@ function asegurarRentable() {
   if (!(total > 0 && pMin > 0 && pMax > pMin && niv)) return;
   const maxN = maxGridsRentable(pMin, pMax, total);
   const cur = parseInt(niv.value, 10) || 0;
-  if (cur > maxN) { niv.value = maxN; NOTA_GAS = `Ajusté a ${maxN} cuadrículas para que cada vuelta deje ganancia con tu capital (con más, el gas se la comería).`; }
+  if (cur > maxN) { niv.value = maxN; NOTA_GAS = `Ajustado a ${maxN} cuadrículas: así cada vuelta te deja ganancia neta con tu capital.`; }
 }
 function rangoNecesario(n, margen) {
   const s = margen / 100 + FEE_CICLO;
