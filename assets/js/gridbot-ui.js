@@ -83,14 +83,20 @@ function inyectarEstilo() {
     gap:12px;padding:14px 22px;background:rgba(11,14,17,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
   #colmena-app .c-brand{font-family:var(--display);font-weight:700;font-size:20px;color:var(--gold);text-decoration:none;letter-spacing:.3px}
   #colmena-app .c-hdr-r{display:flex;align-items:center;gap:10px}
-  #colmena-app .c-loteria{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--gold);text-decoration:none;background:linear-gradient(180deg,rgba(232,184,75,.14),rgba(232,184,75,.05));border:1px solid var(--gold-soft);border-radius:100px;padding:7px 14px;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.08);transition:transform .08s,box-shadow .08s,filter .14s}
+  /* Botones del header: todos mismo alto (36px), rectangulares 3D */
+  #colmena-app .c-loteria{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 13px;border-radius:11px;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--gold);text-decoration:none;background:linear-gradient(180deg,rgba(232,184,75,.16),rgba(232,184,75,.05));border:1px solid var(--gold-soft);box-shadow:0 3px 0 rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.1);transition:transform .08s,box-shadow .08s,filter .14s}
   #colmena-app .c-loteria:hover{filter:brightness(1.12)}
-  #colmena-app .c-loteria:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.3)}
-  #colmena-app .dir{font-family:var(--mono);font-size:12px;font-weight:700;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;border-radius:100px;padding:8px 14px;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3)}
-  #colmena-app .hdr-off{width:34px;height:34px;border-radius:50%;background:transparent;border:1px solid var(--line);color:var(--ink-3);cursor:pointer;display:inline-grid;place-items:center;padding:0;line-height:0}
+  #colmena-app .c-loteria:active{transform:translateY(3px);box-shadow:0 0 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.1)}
+  #colmena-app .c-swap{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 14px;border-radius:11px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;cursor:pointer;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3);transition:transform .08s,box-shadow .08s,filter .14s}
+  #colmena-app .c-swap:hover{filter:brightness(1.06)}
+  #colmena-app .c-swap:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
+  #colmena-app .c-swap svg{display:block}
+  #colmena-app .dir{display:inline-flex;align-items:center;height:36px;box-sizing:border-box;font-family:var(--mono);font-size:12px;font-weight:700;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;border-radius:11px;padding:0 13px;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3)}
+  #colmena-app .hdr-off{width:36px;height:36px;box-sizing:border-box;border-radius:11px;background:linear-gradient(180deg,#1b2027,#12161c);border:1px solid var(--line);color:var(--ink-3);cursor:pointer;display:inline-grid;place-items:center;padding:0;line-height:0;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05);transition:transform .08s,box-shadow .08s,filter .14s}
   #colmena-app .hdr-off svg{display:block}
-  #colmena-app .hdr-off:hover{border-color:var(--rojo);color:var(--rojo)}
-  #colmena-app .hdr-btn{margin:0;width:auto;padding:10px 18px}
+  #colmena-app .hdr-off:hover{color:var(--ink);border-color:var(--line-soft)}
+  #colmena-app .hdr-off:active{transform:translateY(3px);box-shadow:0 0 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05)}
+  #colmena-app .hdr-btn{margin:0;width:auto;height:36px;box-sizing:border-box;padding:0 16px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center}
   #colmena-app .wrap{max-width:1180px;margin:0 auto;padding:26px 22px 60px}
   #colmena-app .lead{font-size:15px;color:var(--ink-2);margin:0 0 22px;max-width:660px}
   #colmena-app .lead b{color:var(--gold)}
@@ -414,7 +420,7 @@ function inyectarEstilo() {
   #colmena-app .rej:hover{transform:translateY(-2px);border-color:rgba(46,232,106,.4);box-shadow:0 20px 50px rgba(0,0,0,.5)}
   #colmena-app .rej>*{position:relative;z-index:1}
   /* indicador En vivo */
-  #colmena-app .live{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--gold);background:linear-gradient(180deg,rgba(232,184,75,.14),rgba(232,184,75,.05));border:1px solid var(--gold-soft);border-radius:100px;padding:6px 11px;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.1)}
+  #colmena-app .live{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 13px;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--gold);background:linear-gradient(180deg,rgba(232,184,75,.16),rgba(232,184,75,.05));border:1px solid var(--gold-soft);border-radius:11px;box-shadow:0 3px 0 rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.1)}
   #colmena-app .live i{width:7px;height:7px;border-radius:50%;background:var(--neon-lit);box-shadow:0 0 8px var(--neon-lit);animation:cpulse 1.2s ease-in-out infinite}
   /* esqueleto de carga */
   #colmena-app .skel{display:inline-block;min-width:70px;height:1em;border-radius:8px;color:transparent;
@@ -521,10 +527,10 @@ function inyectarEstilo() {
   @media(max-width:560px){
     #colmena-app .c-hdr{padding:10px 14px}
     #colmena-app .c-hdr-r{gap:8px}
-    #colmena-app .c-lot-tx,#colmena-app .live{display:none}
-    #colmena-app .c-loteria{padding:8px}
+    #colmena-app .c-lot-tx,#colmena-app .c-swap-tx,#colmena-app .live{display:none}
+    #colmena-app .c-loteria,#colmena-app .c-swap{padding:0;width:36px;justify-content:center}
     #colmena-app .c-brand{font-size:17px}
-    #colmena-app .hdr-btn{padding:9px 14px;font-size:13px}
+    #colmena-app .hdr-btn{padding:0 12px;font-size:13px}
     #colmena-app .wrap{padding:18px 14px 50px}
     #colmena-app .hero{padding:44px 16px}
     #colmena-app .hero h1{font-size:26px}
@@ -804,6 +810,7 @@ function headerHTML() {
     <a class="c-brand" href="index.html">Bot Algorítmico</a>
     <div class="c-hdr-r">
       <span class="live"><i></i>En vivo</span>
+      <button class="c-swap" id="c-swap" type="button" aria-label="Intercambiar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10 3 6l4-4"/><path d="M3 6h14"/><path d="m17 14 4 4-4 4"/><path d="M21 18H7"/></svg><span class="c-swap-tx">Swap</span></button>
       <a class="c-loteria" href="loteria.html"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/></svg><span class="c-lot-tx">Lotería</span></a>
       ${right}
     </div>
@@ -817,6 +824,7 @@ function conectarWallet() {
   });
 }
 function wireHeader() {
+  if ($('c-swap')) $('c-swap').onclick = abrirSwap;
   if ($('c-conectar')) $('c-conectar').onclick = conectarWallet;
   if ($('c-red')) $('c-red').onclick = () => wallet.cambiarARedCorrecta().catch(() => {});
   if ($('c-off')) $('c-off').onclick = () => wallet.desconectar().catch(() => {});
@@ -2367,3 +2375,299 @@ async function arrancar() {
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
 else arrancar();
+
+/* ================================================================== */
+/* SWAP — panel de intercambio (estilo PancakeSwap, estética propia)   */
+/* ================================================================== */
+const SWAP_IDS = [...new Set(['BNB', 'USDT', 'USDC', ...BASES])];
+const S = { fromId: 'BNB', toId: 'USDT', amount: '', out: 0n, minOut: 0n, fee: 0, feeWei: 0n, allow: 0n, balFromWei: 0n, quoting: false, accion: 'swap' };
+let _swT = null, _swToken = 0;
+const SW_GAS_BUF = 3000000000000000n; // 0.003 BNB de colchón de gas al usar Máx con BNB
+
+let _swCssOk = false;
+function swInjectCSS() {
+  if (_swCssOk) return; _swCssOk = true;
+  const css = `
+  #swap-modal{position:fixed;inset:0;z-index:230;display:flex;align-items:center;justify-content:center;padding:16px}
+  #swap-modal .sw-bg{position:absolute;inset:0;background:rgba(3,5,7,.66);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  #swap-modal .sw-box{position:relative;width:100%;max-width:436px;background:linear-gradient(180deg,#171d25,#0d1117);border:1px solid var(--line);border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.65),0 0 0 1px rgba(232,184,75,.06),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden;animation:cmPop .22s cubic-bezier(.2,.9,.3,1.2)}
+  #swap-modal .sw-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.5}
+  #swap-modal .sw-body{padding:2px 18px 20px}
+  #swap-modal .sw-card{background:#0b0e11;border:1px solid var(--line);border-radius:16px;padding:13px 15px;transition:border-color .14s}
+  #swap-modal .sw-card:focus-within{border-color:var(--gold-soft)}
+  #swap-modal .sw-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  #swap-modal .sw-lbl{font-family:var(--mono);font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
+  #swap-modal .sw-bal{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+  #swap-modal .sw-card-mid{display:flex;align-items:center;gap:10px}
+  #swap-modal .sw-amt{flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--ink);font-family:var(--display);font-weight:700;font-size:26px;padding:0}
+  #swap-modal .sw-amt::placeholder{color:var(--ink-3);opacity:.5}
+  #swap-modal .sw-out{flex:1;min-width:0;color:var(--ink);font-family:var(--display);font-weight:700;font-size:26px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #swap-modal .sw-tok{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;background:linear-gradient(180deg,#1b2027,#12161c);border:1px solid var(--gold-soft);border-radius:100px;padding:6px 12px 6px 7px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.06);transition:filter .12s,transform .08s}
+  #swap-modal .sw-tok:hover{filter:brightness(1.12)}
+  #swap-modal .sw-tok:active{transform:translateY(2px)}
+  #swap-modal .sw-tok b{font-family:var(--display);font-size:15px;color:var(--ink);font-weight:700}
+  #swap-modal .sw-tok .sw-chev{color:var(--gold);display:block;flex:0 0 auto}
+  #swap-modal .sw-card-bot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;min-height:17px}
+  #swap-modal .sw-usd{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+  #swap-modal .sw-max{font-family:var(--mono);font-size:11px;font-weight:700;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:1px solid #c79426;border-radius:8px;padding:3px 9px;cursor:pointer;box-shadow:0 2px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.4);letter-spacing:.5px}
+  #swap-modal .sw-max:active{transform:translateY(2px);box-shadow:0 0 0 #8f6a1a}
+  #swap-modal .sw-flip-wrap{display:flex;justify-content:center;height:0;position:relative;z-index:2}
+  #swap-modal .sw-flip{width:38px;height:38px;margin:-11px 0;border-radius:12px;background:linear-gradient(180deg,#1b2027,#12161c);border:1px solid var(--gold-soft);color:var(--gold);cursor:pointer;display:grid;place-items:center;box-shadow:0 3px 0 rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.07);transition:transform .18s,filter .12s}
+  #swap-modal .sw-flip:hover{filter:brightness(1.15)}
+  #swap-modal .sw-flip:active{transform:rotate(180deg)}
+  #swap-modal .sw-info{margin:14px 2px 16px;display:flex;flex-direction:column;gap:6px}
+  #swap-modal .sw-info .r{display:flex;justify-content:space-between;gap:10px;font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+  #swap-modal .sw-info .r span:first-child{color:var(--ink-3)}
+  #swap-modal .sw-go:disabled{opacity:.5;cursor:not-allowed;filter:grayscale(.3)}
+  #swap-modal .sw-go:not(:disabled):active{transform:translateY(4px);box-shadow:0 1px 0 #8f6a1a,0 3px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.5)}
+  @media(max-width:560px){#swap-modal .sw-amt,#swap-modal .sw-out{font-size:22px}}
+  `;
+  const st = document.createElement('style'); st.id = 'sw-css'; st.textContent = css; document.head.appendChild(st);
+}
+
+function swTokInner(mo) {
+  return `<span class="coin-sel-ico" style="color:${mo.color || '#e8b84b'}">${icoInner(mo)}</span><b>${mo.simbolo}</b><svg class="sw-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
+}
+function swBal(mo, cuenta) { return (mo.address == null) ? gb.saldoNativoBNB(cuenta) : gb.balanceToken(mo.address, cuenta); }
+function swFmt(wei, dec, max = 6) {
+  try { const n = Number(gb.fmt(wei, dec)); if (!isFinite(n) || n === 0) return '0';
+    if (n >= 1) return n.toLocaleString('en-US', { maximumFractionDigits: Math.min(max, 6) });
+    if (n >= 0.0001) return n.toLocaleString('en-US', { maximumFractionDigits: 8 });
+    return Number(n.toPrecision(2)).toString();
+  } catch (_) { return '0'; }
+}
+function swUsdVal(id, wei) {
+  const p = LOGOS[id]?.price; if (!p || !(wei > 0n)) return '';
+  const v = Number(gb.fmt(wei, moneda(id).decimals)) * p;
+  if (!isFinite(v) || v <= 0) return '';
+  return '≈ $' + (v >= 1 ? v.toLocaleString('en-US', { maximumFractionDigits: 2 }) : v.toFixed(4));
+}
+function swAmountBI() {
+  const from = moneda(S.fromId); const s = String(S.amount || '').replace(',', '.');
+  if (!s || !(Number(s) > 0)) return 0n;
+  try { return gb.parse(Number(s).toFixed(Math.min(from.decimals, 18)), from.decimals); } catch (_) { return 0n; }
+}
+
+function abrirSwap() {
+  swInjectCSS();
+  const host = $(APP) || document.body;
+  const v = $('swap-modal'); if (v) v.remove();
+  const from = moneda(S.fromId), to = moneda(S.toId);
+  const x = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+  const flip = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v18"/><path d="m4 7 4-4 4 4"/><path d="M16 21V3"/><path d="m20 17-4 4-4-4"/></svg>`;
+  const el = document.createElement('div');
+  el.innerHTML = `<div id="swap-modal">
+    <div class="sw-bg" id="sw-bg"></div>
+    <div class="sw-box">
+      <div class="cm-head"><span class="cm-title">Intercambio</span><button class="cm-x" id="sw-x" aria-label="Cerrar">${x}</button></div>
+      <div class="sw-body">
+        <div class="sw-card">
+          <div class="sw-card-top"><span class="sw-lbl">Pagas</span><span class="sw-bal" id="sw-bal-from">—</span></div>
+          <div class="sw-card-mid"><input class="sw-amt" id="sw-amt" inputmode="decimal" placeholder="0.0" autocomplete="off"><button class="sw-tok" id="sw-tok-from" type="button">${swTokInner(from)}</button></div>
+          <div class="sw-card-bot"><span class="sw-usd" id="sw-usd-from"></span><button class="sw-max" id="sw-max" type="button">MÁX</button></div>
+        </div>
+        <div class="sw-flip-wrap"><button class="sw-flip" id="sw-flip" type="button" aria-label="Invertir">${flip}</button></div>
+        <div class="sw-card">
+          <div class="sw-card-top"><span class="sw-lbl">Recibes (estimado)</span><span class="sw-bal" id="sw-bal-to">—</span></div>
+          <div class="sw-card-mid"><div class="sw-out" id="sw-out">0.0</div><button class="sw-tok" id="sw-tok-to" type="button">${swTokInner(to)}</button></div>
+          <div class="sw-card-bot"><span class="sw-usd" id="sw-usd-to"></span></div>
+        </div>
+        <div class="sw-info" id="sw-info"></div>
+        <button class="btn-oro3d sw-go" id="sw-go" type="button">Intercambiar</button>
+      </div>
+    </div>
+  </div>`;
+  host.appendChild(el.firstElementChild);
+  $('sw-x').onclick = cerrarSwap; $('sw-bg').onclick = cerrarSwap;
+  $('sw-amt').addEventListener('input', swInput);
+  $('sw-max').onclick = swMax;
+  $('sw-flip').onclick = swFlip;
+  $('sw-tok-from').onclick = () => abrirSwapCoinModal('from');
+  $('sw-tok-to').onclick = () => abrirSwapCoinModal('to');
+  $('sw-go').onclick = swEjecutar;
+  $('sw-amt').value = S.amount || '';
+  if (!_logosOk) cargarLogosPrecios();
+  swCargarTarifa(); swCargarBalances(); swRenderInfo(); swRenderBtn(); setOut();
+  if (S.amount) swCotizar();
+  setTimeout(() => { const a = $('sw-amt'); if (a) a.focus(); }, 60);
+}
+function cerrarSwap() { const p = $('coin-modal'); if (p && $('scm-list')) { window._cmRepintar = null; p.remove(); } const m = $('swap-modal'); if (m) m.remove(); }
+
+function swInput(e) {
+  let val = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+  const parts = val.split('.'); if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+  e.target.value = val; S.amount = val;
+  swRenderInfo(); swRenderBtn(); swCotizarDebounced();
+}
+function swCotizarDebounced() { clearTimeout(_swT); _swT = setTimeout(swCotizar, 350); }
+
+async function swCargarTarifa() { try { S.feeWei = await gb.tarifaSwap(); } catch (_) {} swRenderInfo(); }
+async function swCargarBalances() {
+  const cuenta = wallet.cuentaActual();
+  const from = moneda(S.fromId), to = moneda(S.toId);
+  const set = (id, mo, wei) => { const e = $(id); if (e) e.textContent = (wei == null) ? '—' : (swFmt(wei, mo.decimals) + ' ' + mo.simbolo); };
+  if (!cuenta) { S.balFromWei = 0n; set('sw-bal-from', from, null); set('sw-bal-to', to, null); swRenderBtn(); return; }
+  try {
+    const [bf, bt] = await Promise.all([swBal(from, cuenta), swBal(to, cuenta)]);
+    S.balFromWei = bf; set('sw-bal-from', from, bf); set('sw-bal-to', to, bt);
+  } catch (_) {}
+  swRenderBtn();
+}
+
+async function swCotizar() {
+  const from = moneda(S.fromId), to = moneda(S.toId);
+  const amtBI = swAmountBI();
+  if (!(amtBI > 0n)) { S.out = 0n; S.minOut = 0n; S.fee = 0; setOut(); swRenderInfo(); swRenderBtn(); return; }
+  S.quoting = true; swRenderBtn();
+  const token = ++_swToken;
+  const cuenta = wallet.cuentaActual();
+  try {
+    const [r, allow] = await Promise.all([
+      gb.cotizarSwap({ inAddr: from.address, outAddr: to.address, amountInBI: amtBI, slippageBps: 50 }),
+      (from.address == null || !cuenta) ? Promise.resolve(0n) : gb.allowanceSwap(from.address, cuenta)
+    ]);
+    if (token !== _swToken) return;
+    S.allow = allow;
+    if (!r) { S.out = 0n; S.minOut = 0n; S.fee = 0; }
+    else { S.out = r.amountOut; S.minOut = r.minOut; S.fee = r.fee; }
+  } catch (_) { if (token !== _swToken) return; S.out = 0n; S.minOut = 0n; S.fee = 0; }
+  S.quoting = false;
+  setOut(); swRenderInfo(); swRenderBtn();
+}
+
+function setOut() { const to = moneda(S.toId); const e = $('sw-out'); if (e) e.textContent = S.out > 0n ? swFmt(S.out, to.decimals) : '0.0'; }
+function swRenderInfo() {
+  const el = $('sw-info'); if (!el) return;
+  const from = moneda(S.fromId), to = moneda(S.toId);
+  const uf = $('sw-usd-from'); if (uf) uf.textContent = swUsdVal(S.fromId, swAmountBI());
+  const ut = $('sw-usd-to'); if (ut) ut.textContent = swUsdVal(S.toId, S.out);
+  const rows = [];
+  if (S.out > 0n) {
+    const inH = Number(gb.fmt(swAmountBI(), from.decimals));
+    const outH = Number(gb.fmt(S.out, to.decimals));
+    if (inH > 0) { const rate = outH / inH; rows.push(['Precio', `1 ${from.simbolo} ≈ ${num(rate, rate >= 1 ? 4 : 8)} ${to.simbolo}`]); }
+    rows.push(['Mínimo que recibes', `${swFmt(S.minOut, to.decimals)} ${to.simbolo}`]);
+  }
+  const feeBNB = Number(gb.fmtBNB(S.feeWei || 0n));
+  const bnbP = LOGOS['BNB']?.price;
+  const feeUsd = bnbP ? ` (~$${(feeBNB * bnbP).toFixed(2)})` : '';
+  rows.push(['Tarifa de servicio', `${num(feeBNB, 6)} BNB${feeUsd}`]);
+  el.innerHTML = rows.map(([a, b]) => `<div class="r"><span>${a}</span><span>${b}</span></div>`).join('');
+}
+function swRenderBtn() {
+  const b = $('sw-go'); if (!b) return;
+  const from = moneda(S.fromId);
+  const cuenta = wallet.cuentaActual();
+  const amt = Number(String(S.amount || '').replace(',', '.'));
+  const amtBI = swAmountBI();
+  let label = 'Intercambiar', dis = false, act = 'swap';
+  if (!cuenta) { label = 'Conecta tu wallet'; act = 'connect'; }
+  else if (!wallet.esRedCorrecta()) { label = 'Cambia a BNB Chain'; act = 'net'; }
+  else if (!(amt > 0)) { label = 'Ingresa un monto'; dis = true; }
+  else if (amtBI > S.balFromWei) { label = 'Saldo insuficiente'; dis = true; }
+  else if (S.quoting) { label = 'Calculando…'; dis = true; }
+  else if (S.out === 0n) { label = 'Sin ruta para este par'; dis = true; }
+  else if (from.address != null && S.allow < amtBI) { label = 'Aprobar ' + from.simbolo; act = 'approve'; }
+  else { label = 'Intercambiar'; act = 'swap'; }
+  b.textContent = label; b.disabled = dis; S.accion = act;
+}
+
+function swMax() {
+  const from = moneda(S.fromId);
+  if (!(S.balFromWei > 0n)) return;
+  let maxWei = S.balFromWei;
+  if (from.address == null) { const buf = (S.feeWei || 0n) + SW_GAS_BUF; maxWei = S.balFromWei > buf ? (S.balFromWei - buf) : 0n; }
+  const v = Number(gb.fmt(maxWei, from.decimals));
+  S.amount = v > 0 ? String(v) : '';
+  const a = $('sw-amt'); if (a) a.value = S.amount;
+  swRenderInfo(); swRenderBtn(); swCotizar();
+}
+function swFlip() {
+  const f = S.fromId; S.fromId = S.toId; S.toId = f;
+  S.amount = ''; S.out = 0n; S.minOut = 0n; S.allow = 0n;
+  const a = $('sw-amt'); if (a) a.value = '';
+  swPintarToks(); swCargarBalances(); setOut(); swRenderInfo(); swRenderBtn();
+}
+function swPintarToks() {
+  const tf = $('sw-tok-from'), tt = $('sw-tok-to');
+  if (tf) tf.innerHTML = swTokInner(moneda(S.fromId));
+  if (tt) tt.innerHTML = swTokInner(moneda(S.toId));
+}
+
+function abrirSwapCoinModal(lado) {
+  const host = $(APP) || document.body;
+  const viejo = $('coin-modal'); if (viejo) viejo.remove();
+  const searchIco = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>`;
+  const x = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+  const el = document.createElement('div');
+  el.innerHTML = `<div class="coin-modal" id="coin-modal" style="z-index:260">
+    <div class="coin-modal-bg" id="scm-bg"></div>
+    <div class="coin-modal-box">
+      <div class="cm-head"><span class="cm-title">Elige la moneda</span><button class="cm-x" id="scm-x" aria-label="Cerrar">${x}</button></div>
+      <div class="cm-search">${searchIco}<input id="scm-search" placeholder="Buscar por nombre o símbolo…" autocomplete="off"></div>
+      <div class="cm-list" id="scm-list"></div>
+    </div>
+  </div>`;
+  host.appendChild(el.firstElementChild);
+  let ftxt = '';
+  const sel = lado === 'from' ? S.fromId : S.toId;
+  const pintar = () => {
+    const q = ftxt.trim().toLowerCase();
+    const monedas = SWAP_IDS.map((id) => moneda(id)).filter(Boolean).filter((mo) =>
+      !q || (mo.simbolo || '').toLowerCase().includes(q) || (mo.nombre || '').toLowerCase().includes(q));
+    const list = $('scm-list');
+    if (!monedas.length) { list.innerHTML = `<div class="cm-empty">Sin resultados para "${ftxt}"</div>`; return; }
+    list.innerHTML = monedas.map((mo) => {
+      const on = sel === mo.id; const L = LOGOS[mo.id]; const chg = L && L.chg != null ? L.chg : null;
+      return `<button type="button" class="cm-coin${on ? ' on' : ''}" data-id="${mo.id}">
+        <span class="cm-coin-ico" style="color:${mo.color || '#e8b84b'}">${icoInner(mo)}</span>
+        <span class="cm-coin-tx"><b>${mo.simbolo}</b><i>${mo.nombre}</i></span>
+        <span class="cm-coin-right">
+          <span class="cm-coin-price">${L ? fmtPrecioUSD(L.price) : '<span class="cm-price-skel"></span>'}</span>
+          ${chg != null ? `<span class="cm-coin-chg ${chg >= 0 ? 'pos' : 'neg'}">${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%</span>` : ''}
+        </span>
+      </button>`;
+    }).join('');
+    list.querySelectorAll('.cm-coin').forEach((b) => b.onclick = () => swElegir(lado, b.dataset.id));
+  };
+  window._cmRepintar = pintar; pintar();
+  if (!_logosOk) cargarLogosPrecios();
+  $('scm-search').addEventListener('input', (e) => { ftxt = e.target.value; pintar(); });
+  setTimeout(() => { const s = $('scm-search'); if (s) s.focus(); }, 60);
+  const cerrar = () => { window._cmRepintar = null; const m = $('coin-modal'); if (m) m.remove(); };
+  $('scm-x').onclick = cerrar; $('scm-bg').onclick = cerrar;
+}
+function swElegir(lado, id) {
+  const m = $('coin-modal'); if (m) m.remove(); window._cmRepintar = null;
+  if (lado === 'from') { if (id === S.toId) S.toId = S.fromId; S.fromId = id; }
+  else { if (id === S.fromId) S.fromId = S.toId; S.toId = id; }
+  S.allow = 0n;
+  swPintarToks(); swCargarBalances(); setOut(); swRenderInfo(); swRenderBtn(); swCotizar();
+}
+
+async function swEjecutar() {
+  const act = S.accion;
+  if (act === 'connect') { conectarWallet(); return; }
+  if (act === 'net') { wallet.cambiarARedCorrecta().catch(() => {}); return; }
+  const from = moneda(S.fromId), to = moneda(S.toId);
+  const amtBI = swAmountBI();
+  if (!(amtBI > 0n)) return;
+  try {
+    if (act === 'approve') {
+      modalBusy(`<b>Permiso de ${from.simbolo}.</b><br>Autorizas al intercambio a usar tus ${from.simbolo} (puedes revocarlo cuando quieras).<br><br>Confirma en tu wallet.`);
+      await gb.aprobarSwap(from.address);
+      modalClose();
+      await swCotizar();
+      return;
+    }
+    if (!(S.out > 0n)) { modalError('No hay ruta para este par ahora mismo. Prueba otra moneda o monto.'); return; }
+    modalBusy('Confirma el intercambio en tu wallet…');
+    await gb.ejecutarSwap({ inAddr: from.address, outAddr: to.address, amountInBI: amtBI, minOut: S.minOut, fee: S.fee });
+    modalDone('¡Intercambio hecho!', `Cambiaste ${swFmt(amtBI, from.decimals)} ${from.simbolo} por ~${swFmt(S.out, to.decimals)} ${to.simbolo}. Ya está en tu wallet.`);
+    S.amount = ''; S.out = 0n; S.minOut = 0n; const a = $('sw-amt'); if (a) a.value = '';
+    swCargarBalances(); setOut(); swRenderInfo(); swRenderBtn();
+  } catch (e) {
+    const msg = e?.shortMessage || e?.reason || e?.message || String(e);
+    modalError('No se pudo completar: ' + msg);
+  }
+}

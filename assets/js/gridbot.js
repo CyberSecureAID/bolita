@@ -604,3 +604,73 @@ export const fmt = ethers.formatUnits;
 export const parse = ethers.parseUnits;
 export const fmtBNB = ethers.formatEther;
 export const checksum = ethers.getAddress;
+
+/* ================================================================== */
+/* SWAP — contrato independiente de intercambio (tarifa fija al owner) */
+/* ================================================================== */
+export const SWAP = '0xa15794D9c313F3E2726ED1D45A1B6CC72BFA2a0c';
+const SWAP_ABI = [
+  'function tarifaSwap() view returns (uint256)',
+  'function owner() view returns (address)',
+  'function swap(address tokenIn,address tokenOut,uint256 amountIn,uint256 minOut,uint24 fee) payable returns (uint256)'
+];
+const NATIVO = '0x0000000000000000000000000000000000000000';
+
+/** ¿Es BNB nativo para el swap? (null o address(0)). */
+export function esNativoSwap(addr) { return !addr || addr.toLowerCase() === NATIVO; }
+
+/** Tarifa fija del swap (en wei de BNB). */
+export async function tarifaSwap() {
+  const c = new ethers.Contract(SWAP, SWAP_ABI, lector());
+  try { return await c.tarifaSwap(); } catch { return 0n; }
+}
+
+/** Permiso del token hacia el contrato de SWAP (distinto al del bot). */
+export async function allowanceSwap(tokenAddr, duenio) {
+  const t = new ethers.Contract(tokenAddr, ERC20, lector());
+  return t.allowance(duenio, SWAP);
+}
+/** Aprueba el token para el contrato de SWAP (amplio y revocable). */
+export async function aprobarSwap(tokenAddr) {
+  const t = new ethers.Contract(tokenAddr, ERC20, await firmante());
+  const tx = await t.approve(SWAP, ethers.MaxUint256, { gasLimit: 120000n });
+  return esperar(tx);
+}
+/** Revoca el permiso del token para el SWAP (allowance a 0). */
+export async function revocarSwap(tokenAddr) {
+  const t = new ethers.Contract(tokenAddr, ERC20, await firmante());
+  const tx = await t.approve(SWAP, 0n, { gasLimit: 120000n });
+  return esperar(tx);
+}
+
+/** Cotiza el swap por V3 (elige el mejor feeTier). null si no hay pool.
+ *  inAddr/outAddr: null o address(0) = BNB nativo (se cotiza con WBNB). */
+export async function cotizarSwap({ inAddr, outAddr, amountInBI, slippageBps = 50 }) {
+  if (!(amountInBI > 0n)) return null;
+  const qIn  = esNativoSwap(inAddr)  ? WBNB : inAddr;
+  const qOut = esNativoSwap(outAddr) ? WBNB : outAddr;
+  if (qIn.toLowerCase() === qOut.toLowerCase()) return null;
+  const q = new ethers.Contract(QUOTER_V3, QUOTER_ABI, lector());
+  let best = 0, bestOut = 0n;
+  for (const fee of FEE_TIERS) {
+    try {
+      const r = await q.quoteExactInputSingle.staticCall({ tokenIn: qIn, tokenOut: qOut, amountIn: amountInBI, fee, sqrtPriceLimitX96: 0 });
+      if (r[0] > bestOut) { bestOut = r[0]; best = fee; }
+    } catch (_) {}
+  }
+  if (!best || bestOut === 0n) return null;
+  const minOut = bestOut - (bestOut * BigInt(slippageBps) / 10000n);
+  return { amountOut: bestOut, minOut, fee: best };
+}
+
+/** Ejecuta el swap. inAddr/outAddr: null o address(0) = BNB nativo.
+ *  El contrato cobra la tarifa fija en BNB al owner y hace el intercambio. */
+export async function ejecutarSwap({ inAddr, outAddr, amountInBI, minOut, fee }) {
+  const c = new ethers.Contract(SWAP, SWAP_ABI, await firmante());
+  const tarifa = await tarifaSwap();
+  const tokenIn  = esNativoSwap(inAddr)  ? NATIVO : inAddr;
+  const tokenOut = esNativoSwap(outAddr) ? NATIVO : outAddr;
+  const value = esNativoSwap(inAddr) ? (tarifa + amountInBI) : tarifa;
+  const tx = await c.swap(tokenIn, tokenOut, amountInBI, minOut, fee, { value, gasLimit: 700000n });
+  return esperar(tx);
+}
