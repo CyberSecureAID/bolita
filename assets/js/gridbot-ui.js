@@ -81,8 +81,8 @@ function inyectarEstilo() {
     background:#0b0e11;min-height:100vh;overflow-x:hidden}
   #colmena-app .c-hdr{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
     gap:12px;padding:14px 22px;background:rgba(11,14,17,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-  #colmena-app .c-brand{font-family:var(--display);font-weight:700;font-size:20px;color:var(--gold);text-decoration:none;letter-spacing:.3px}
-  #colmena-app .c-hdr-r{display:flex;align-items:center;gap:10px}
+  #colmena-app .c-brand{font-family:var(--display);font-weight:700;font-size:20px;color:var(--gold);text-decoration:none;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  #colmena-app .c-hdr-r{display:flex;align-items:center;gap:10px;flex:0 0 auto}
   /* Botones del header: todos mismo alto (36px), rectangulares, 3D dorado relleno */
   #colmena-app .c-loteria{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 13px;border-radius:11px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;text-decoration:none;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3);transition:transform .08s,box-shadow .08s,filter .14s}
   #colmena-app .c-loteria:hover{filter:brightness(1.06)}
@@ -91,7 +91,7 @@ function inyectarEstilo() {
   #colmena-app .c-swap:hover{filter:brightness(1.06)}
   #colmena-app .c-swap:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
   #colmena-app .c-swap svg{display:block}
-  #colmena-app .dir{display:inline-flex;align-items:center;height:36px;box-sizing:border-box;font-family:var(--mono);font-size:12px;font-weight:700;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;border-radius:11px;padding:0 13px;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3)}
+  #colmena-app .dir{display:inline-flex;align-items:center;height:36px;box-sizing:border-box;white-space:nowrap;font-family:var(--mono);font-size:12px;font-weight:700;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;border-radius:11px;padding:0 13px;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .hdr-off{width:36px;height:36px;box-sizing:border-box;border-radius:11px;background:linear-gradient(180deg,#1b2027,#12161c);border:1px solid var(--line);color:var(--ink-3);cursor:pointer;display:inline-grid;place-items:center;padding:0;line-height:0;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05);transition:transform .08s,box-shadow .08s,filter .14s}
   #colmena-app .hdr-off svg{display:block}
   #colmena-app .hdr-off:hover{color:var(--ink);border-color:var(--line-soft)}
@@ -301,9 +301,9 @@ function inyectarEstilo() {
   #colmena-app .prev .p span.pos{color:#4dff8a}
   #colmena-app .prev .p span.neg{color:#ff7a7a}
   /* reparto: sin título, solo las cápsulas centradas */
-  #colmena-app .prev .prep{padding:14% 12%}
-  #colmena-app .prev .p .rep-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:0}
-  #colmena-app .prev .p .rep-pill{display:inline-block;width:auto;font-size:10px;padding:3px 11px;border-radius:7px;margin-top:0}
+  #colmena-app .prev .prep{padding:14% 12%;align-items:center}
+  #colmena-app .prev .p .rep-wrap{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-top:0}
+  #colmena-app .prev .p .rep-pill{display:block;width:auto;text-align:center;font-size:10px;padding:3px 11px;border-radius:7px;margin-top:0}
   /* ícono de info visible sobre el metal */
   #colmena-app .prev .p .i-btn{opacity:1;color:var(--gold);border-color:var(--gold-soft);background:rgba(4,7,10,.6);box-shadow:0 1px 2px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.12)}
   /* En móvil/tableta (2 columnas): casillas más grandes -> texto e info interiores más grandes */
@@ -441,7 +441,7 @@ function inyectarEstilo() {
   #colmena-app .rej:hover{transform:translateY(-2px);border-color:rgba(46,232,106,.4);box-shadow:0 20px 50px rgba(0,0,0,.5)}
   #colmena-app .rej>*{position:relative;z-index:1}
   /* indicador En vivo */
-  #colmena-app .live{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 13px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;border-radius:11px;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3)}
+  #colmena-app .live{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;white-space:nowrap;padding:0 13px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;border-radius:11px;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .live i{width:7px;height:7px;border-radius:50%;background:var(--neon-lit);box-shadow:0 0 8px var(--neon-lit);animation:cpulse 1.2s ease-in-out infinite}
   /* esqueleto de carga */
   #colmena-app .skel{display:inline-block;min-width:70px;height:1em;border-radius:8px;color:transparent;
@@ -548,10 +548,13 @@ function inyectarEstilo() {
   @media(max-width:860px){#colmena-app .cols{grid-template-columns:1fr}#colmena-app .rej-grid{grid-template-columns:1fr}#colmena-app .prev{grid-template-columns:repeat(2,1fr)}#colmena-app .pio-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){
     #colmena-app .c-hdr{padding:10px 14px}
-    #colmena-app .c-hdr-r{gap:8px}
-    #colmena-app .c-lot-tx,#colmena-app .c-swap-tx,#colmena-app .live{display:none}
+    #colmena-app .c-hdr-r{gap:6px}
+    #colmena-app .c-lot-tx,#colmena-app .c-swap-tx,#colmena-app .live-tx{display:none}
     #colmena-app .c-loteria,#colmena-app .c-swap{padding:0;width:36px;justify-content:center}
-    #colmena-app .c-brand{font-size:17px}
+    #colmena-app .live{background:none;border:none;box-shadow:none;padding:0 2px;gap:0}
+    #colmena-app .dir{font-size:10.5px;padding:0 8px}
+    #colmena-app .c-brand{font-size:16px}
+    #colmena-app .prev .p{max-width:150px;margin:0 auto}
     #colmena-app .hdr-btn{padding:0 12px;font-size:13px}
     #colmena-app .wrap{padding:18px 14px 50px}
     #colmena-app .hero{padding:44px 16px}
@@ -831,7 +834,7 @@ function headerHTML() {
   return `<header class="c-hdr">
     <a class="c-brand" href="index.html">Bot Algorítmico</a>
     <div class="c-hdr-r">
-      <span class="live"><i></i>En vivo</span>
+      <span class="live"><i></i><span class="live-tx">En vivo</span></span>
       <button class="c-swap" id="c-swap" type="button" aria-label="Intercambiar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10 3 6l4-4"/><path d="M3 6h14"/><path d="m17 14 4 4-4 4"/><path d="M21 18H7"/></svg><span class="c-swap-tx">Swap</span></button>
       <a class="c-loteria" href="loteria.html"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/></svg><span class="c-lot-tx">Lotería</span></a>
       ${right}
@@ -2466,6 +2469,7 @@ function swInjectCSS() {
   #swap-modal .sw-find{margin:0 18px 6px}
   #swap-modal .sw-find-bar{display:flex;align-items:center;gap:9px;padding:9px 12px;background:#0b0e11;border:1px solid var(--line);border-radius:12px;color:var(--ink-3);transition:border-color .14s,box-shadow .14s}
   #swap-modal .sw-find-bar:focus-within{border-color:var(--gold-soft);box-shadow:0 0 0 3px rgba(232,184,75,.08)}
+  #swap-modal .sw-find-bar:focus-within svg{display:none}
   #swap-modal .sw-find-bar svg{flex:0 0 auto;opacity:.75}
   #swap-modal input.sw-find-inp{flex:1;min-width:0;background:transparent;border:none;outline:none;box-shadow:none;-webkit-appearance:none;appearance:none;color:var(--ink);font-family:var(--sans);font-size:12.5px}
   #swap-modal input.sw-find-inp:focus{outline:none;box-shadow:none}
