@@ -86,7 +86,8 @@ function inyectarEstilo() {
   #colmena-app .card h3{font-family:var(--display);color:var(--gold);margin:0 0 4px;font-size:18px}
   #colmena-app .card .sub{color:var(--ink-3);font-size:12.5px;margin:0 0 16px}
   #colmena-app .lab{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--ink-2);margin:16px 0 6px;text-transform:uppercase;letter-spacing:.6px}
-  #colmena-app .i-btn{width:16px;height:16px;border-radius:50%;border:1px solid var(--gold-soft);background:transparent;color:var(--gold-soft);font-family:var(--display);font-size:10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+  #colmena-app .i-btn{width:14px;height:14px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--ink-3);font-family:var(--display);font-size:9px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;opacity:.45;transition:opacity .15s,color .15s,border-color .15s}
+  #colmena-app .i-btn:hover{opacity:1;color:var(--gold);border-color:var(--gold-soft)}
   #colmena-app .i-btn:hover{background:var(--gold);color:#1a1200;border-color:var(--gold)}
   #colmena-app input,#colmena-app select{width:100%;box-sizing:border-box;background:#03110C;color:var(--ink);border:1px solid var(--line);border-radius:11px;padding:13px 14px;font-family:var(--mono);font-size:15px}
   #colmena-app select{-webkit-appearance:none;appearance:none;padding-right:40px;background-image:url("${CARET}");background-repeat:no-repeat;background-position:right 14px center;background-size:12px}
@@ -95,6 +96,13 @@ function inyectarEstilo() {
   #colmena-app .btn,#colmena-modal .btn{width:100%;box-sizing:border-box;border:none;border-radius:12px;padding:14px;font-family:var(--display);font-weight:700;font-size:15px;cursor:pointer;transition:filter .15s}
   #colmena-app .btn:hover,#colmena-modal .btn:hover{filter:brightness(1.1)} #colmena-app .btn:disabled{opacity:.5;cursor:not-allowed}
   #colmena-app .btn-oro,#colmena-modal .btn-oro{background:var(--gold);color:#1a1200}
+  #colmena-app .btn-oro3d{width:100%;border:none;border-radius:13px;padding:16px;font-family:var(--display);font-weight:800;font-size:16px;cursor:pointer;color:#3a2800;letter-spacing:.3px;background:linear-gradient(180deg,#f7db8d,var(--gold) 45%,#c79426);box-shadow:0 5px 0 #8f6a1a,0 11px 24px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.55);transition:transform .09s,box-shadow .09s,filter .12s;text-shadow:0 1px 0 rgba(255,255,255,.3)}
+  #colmena-app .btn-oro3d:hover{filter:brightness(1.05)}
+  #colmena-app .btn-oro3d:active{transform:translateY(5px);box-shadow:0 0 0 #8f6a1a,0 4px 12px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.4)}
+  #colmena-app .faq-search{width:100%;box-sizing:border-box;margin:0 0 14px;padding:13px 16px;border-radius:11px;border:1px solid var(--line);background:rgba(2,13,9,.6);color:var(--ink);font-family:var(--sans);font-size:14px}
+  #colmena-app .faq-search::placeholder{color:var(--ink-3)}
+  #colmena-app .faq-search:focus{outline:none;border-color:var(--gold-soft);box-shadow:0 0 0 3px rgba(232,184,75,.12)}
+  #colmena-app .faq-empty{text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:12px;padding:16px}
   #colmena-app .btn-verde,#colmena-modal .btn-verde{background:var(--neon);color:#03210f}
   #colmena-app .btn-linea,#colmena-modal .btn-linea{background:transparent;border:1px solid var(--line);color:var(--ink)}
   #colmena-app .btn-rojo,#colmena-modal .btn-rojo{background:transparent;border:1px solid var(--rojo);color:var(--rojo)}
@@ -228,9 +236,9 @@ function inyectarEstilo() {
   #colmena-app .c-faq-wrap[open] summary{border-bottom:1px solid var(--line-soft)}
   #colmena-app .c-faq-wrap .c-foot-grid{padding:16px}
   /* botón Compartir tornasol */
-  #colmena-app .pio-tag.share{cursor:pointer;color:#eafff2;border:1px solid rgba(46,232,106,.55);background:linear-gradient(120deg,rgba(46,232,106,.28),rgba(56,209,255,.22),rgba(232,184,75,.26));background-size:200% 100%;animation:tornasol 4s linear infinite;box-shadow:0 0 14px rgba(46,232,106,.25);display:inline-flex;align-items:center;gap:5px}
-  #colmena-app .pio-tag.share:hover{filter:brightness(1.15)}
-  @keyframes tornasol{from{background-position:0 0}to{background-position:200% 0}}
+  #colmena-app .pio-tag.share{cursor:pointer;color:#3a2800;font-weight:800;border:1px solid rgba(46,232,106,.6);background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);box-shadow:0 3px 0 #8f6a1a,0 5px 12px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.55);display:inline-flex;align-items:center;gap:5px;transition:transform .08s,box-shadow .08s;text-shadow:0 1px 0 rgba(255,255,255,.3)}
+  #colmena-app .pio-tag.share:hover{filter:brightness(1.06)}
+  #colmena-app .pio-tag.share:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,0 2px 8px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.4)}
   #colmena-app .c-faq h5{font-family:var(--display);color:var(--ink);font-size:13.5px;margin:0 0 7px}
   #colmena-app .c-faq p{font-family:var(--sans);color:var(--ink-2);font-size:12.5px;line-height:1.55;margin:0}
   #colmena-app .c-foot-bottom{margin-top:22px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
@@ -258,7 +266,7 @@ function inyectarEstilo() {
   #colmena-app .pio-sub{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:4px}
   #colmena-app .pio-tags{display:flex;gap:6px;flex:0 0 auto}
   #colmena-app .pio-tag{font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:8px;background:rgba(46,232,106,.12);color:var(--neon-lit);border:1px solid var(--neon-dim);font-weight:700}
-  #colmena-app .pio-tag.grey{background:rgba(157,189,178,.1);color:var(--ink-2);border-color:var(--line)}
+  #colmena-app .pio-tag.grey{background:rgba(46,232,106,.07);color:var(--ink-2);border-color:var(--neon-dim)}
   #colmena-app .pio-band{position:relative;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:rgba(2,13,9,.65);min-height:90px;display:flex;align-items:center;margin:16px 0}
   #colmena-app .pio-band .l{position:relative;z-index:2;padding:16px 20px;flex:1}
   #colmena-app .pio-band .r{position:absolute;top:0;right:0;bottom:0;width:58%;z-index:1;padding:14px 22px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;text-align:right;background:linear-gradient(120deg,var(--neon-dim),var(--neon));color:#03210f;clip-path:polygon(22% 0,100% 0,100% 100%,0 100%)}
@@ -284,7 +292,7 @@ function inyectarEstilo() {
   #colmena-app .gaswarn{background:rgba(255,107,107,.08);border:1px solid var(--rojo);color:var(--rojo);border-radius:10px;padding:9px 12px;font-family:var(--mono);font-size:11.5px;margin-top:12px}
   #colmena-app .pio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   #colmena-app .pio-box{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:11px 12px}
-  #colmena-app .pio-box .k{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.3px}
+  #colmena-app .pio-box .k{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9.5px;color:var(--gold);font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-shadow:0 1px 1px rgba(0,0,0,.5)}
   #colmena-app .pio-box .v{font-family:var(--display);font-size:16px;color:var(--ink);margin-top:5px}
   #colmena-app .pio-box .v.pos{color:var(--neon-lit)} #colmena-app .pio-box .v.neg{color:var(--rojo)}
   #colmena-app .pio-box .v2{font-family:var(--mono);font-size:11.5px;margin-top:2px}
@@ -316,7 +324,8 @@ function inyectarEstilo() {
   #colmena-app .pio-box:hover{border-color:rgba(232,184,75,.4);transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.4);background:linear-gradient(160deg,rgba(255,255,255,.1),rgba(255,255,255,.03))}
   #colmena-app .pio-box .v{font-weight:700;letter-spacing:-.2px;font-size:16.5px}
   #colmena-app .pio-box .v.pos{text-shadow:0 0 14px rgba(46,232,106,.35)}
-  #colmena-app .pio-toggle{background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.02));transition:.18s}
+  #colmena-app .pio-toggle{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));box-shadow:0 3px 0 rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.06);transition:transform .08s,box-shadow .08s,color .15s,border-color .15s;font-weight:700}
+  #colmena-app .pio-toggle:active{transform:translateY(3px);box-shadow:0 0 0 rgba(0,0,0,.28)}
   /* ====== Modal de la página ====== */
   #colmena-modal{position:fixed;inset:0;z-index:2000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(2,8,6,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
   #colmena-modal.show{display:flex;animation:fade .2s ease}
@@ -622,20 +631,61 @@ function wireHeader() {
 function footerHTML() {
   const faqs = [
     ['¿Cómo retiro mis ganancias?', 'No hay nada que retirar. Tus ganancias caen solas en tu wallet cada vez que el bot vende. El dinero siempre está en tu poder, nunca en el nuestro.'],
-    ['¿Qué hace el bot?', 'Compra barato y vende caro por ti, solo, mientras el precio sube y baja dentro del rango que elijas.'],
-    ['¿Es seguro mi dinero?', 'Sí. Tus monedas nunca salen de tu wallet a manos de nadie. Le das un permiso limitado que puedes quitar cuando quieras con "Desconectar".'],
+    ['¿Qué hace el bot exactamente?', 'Compra barato y vende caro por ti, solo, mientras el precio sube y baja dentro del rango que elijas. Repite ese ciclo una y otra vez.'],
+    ['¿Qué es un bot de cuadrícula?', 'Divide un rango de precios en niveles (cuadrículas). Cuando el precio baja a un nivel compra, cuando sube al siguiente vende. Gana con cada subida y bajada.'],
+    ['¿Qué es el Bot Acumulador?', 'Compra en la caída (más volumen mientras más baja) y vende TODO junto cuando el total gana el porcentaje que elijas. Hace menos operaciones, ideal para acumular.'],
+    ['¿Es seguro mi dinero?', 'Sí. Tus monedas nunca salen de tu wallet a manos de nadie. Le das un permiso limitado que puedes quitar cuando quieras.'],
     ['¿Necesito cuenta o KYC?', 'No. Solo tu wallet. Sin registros, sin papeleo y sin exchange.'],
-    ['¿Qué cuesta?', 'Una comisión pequeña por operación más el gas de la red (unos centavos), que sale del tanque de gas del bot.'],
+    ['¿Cuánto cuesta usar la plataforma?', 'Una activación de aproximadamente 1 dólar al mes, que te deja crear todos los bots que quieras. Aparte pagas el gas de la red (unos centavos por operación).'],
+    ['¿Qué es el gas?', 'Es el costo que cobra la red BNB por cada operación (comprar o vender). Es de unos centavos y sale del tanque de gas que cargas en cada bot.'],
+    ['¿Por qué tengo que cargar gas?', 'Porque el bot paga a la red cada vez que compra o vende. Sin gas, el bot no puede operar. Cárgale un poco de BNB en la sección de gas del bot.'],
     ['¿Puedo perder dinero?', 'Sí. El trading tiene riesgo. Si el precio se sale del rango, el bot espera. Invierte solo lo que puedas permitirte perder. Esto no es consejo financiero.'],
-    ['¿Y el aviso de mi wallet?', 'Tu wallet puede mostrar un aviso porque el contrato es nuevo y aún no tiene reputación. El permiso que otorgas es limitado y revocable.']
+    ['¿Qué pasa si el precio se sale del rango?', 'El bot deja de operar y espera a que el precio vuelva a entrar. Por eso conviene elegir un rango amplio.'],
+    ['¿Qué es la Ganancia por cuadrícula?', 'El beneficio mínimo que exiges por cada cuadrícula, por encima de la comisión. El sistema ajusta las cuadrículas para que cada venta deje ganancia limpia.'],
+    ['¿Qué es la separación entre cuadrículas?', 'La distancia de precio entre un nivel y el siguiente. Más separación significa menos operaciones pero cada una más rentable.'],
+    ['¿Por qué con poco capital gano poco?', 'Porque el gas por operación es fijo. Con poco dinero cada cuadrícula es pequeña y la ganancia por vuelta es de centavos. La ganancia escala con el capital.'],
+    ['¿Cuánto capital me conviene poner?', 'Cuanto más, mejor rinde en proporción. Con más capital cada cuadrícula es mayor y la ganancia por vuelta crece.'],
+    ['¿Qué es Grid profit?', 'La ganancia ya realizada: dinero que el bot ya ganó cerrando cuadrículas completas y que ya está en tu wallet.'],
+    ['¿Qué es el Flotante?', 'La ganancia o pérdida no realizada: cuánto vale ahora lo que el bot tiene comprado, comparado con lo que pagó. Sube y baja con el mercado.'],
+    ['¿Qué son las Vueltas?', 'Una vuelta entera es una operación completa: el bot compró y luego vendió. Ahí se concreta la ganancia de rejilla.'],
+    ['¿Qué es el precio medio?', 'El precio promedio al que compraste. Si el mercado sube por encima de ese precio, tu posición está en ganancia.'],
+    ['¿Cómo activo un bot?', 'Elige el tipo de bot, la moneda, el rango y cuánto inviertes. Firma la activación y la creación en tu wallet, y listo.'],
+    ['¿Puedo tener varios bots a la vez?', 'Sí. Con la activación mensual puedes crear todos los bots que quieras, en distintas monedas.'],
+    ['¿Cómo cierro un bot?', 'Con el botón Cerrar y vender. Vende todo a estable y el dinero queda en tu wallet.'],
+    ['¿Qué monedas puedo usar?', 'Pares con buena liquidez en PancakeSwap: BNB, BTCB, ETH y varias más, contra USDT o USDC.'],
+    ['¿En qué red funciona?', 'En BNB Smart Chain (BSC), donde hay liquidez profunda y el gas es barato.'],
+    ['¿Quién ejecuta las operaciones?', 'Un servicio automático vigila el precio y dispara las compras y ventas por ti, sin que tengas que hacer nada.'],
+    ['¿Por qué mi wallet muestra un aviso?', 'Porque el contrato es nuevo y aún no tiene reputación. El permiso que otorgas es limitado y revocable.'],
+    ['¿El bot trabaja si cierro la página?', 'Sí. El bot vive en la blockchain y se opera solo las 24 horas, aunque cierres el navegador.'],
+    ['¿Qué es el slippage?', 'La pequeña diferencia entre el precio esperado y el real al operar. En pares líquidos es mínimo.'],
+    ['¿Puedo confiar en los números que veo?', 'Sí. Todo lo que ves (ganancia, vueltas, precio medio) sale directo del contrato en la blockchain. No hay datos inventados.']
   ];
+  const card = ([q, a], i) => `<div class="c-faq" data-faq="${(q + ' ' + a).toLowerCase().replace(/["<>]/g, '')}"${i >= 6 ? ' style="display:none"' : ''}><h5>${q}</h5><p>${a}</p></div>`;
   return `<footer class="c-foot">
     <details class="c-faq-wrap">
       <summary>¿Tienes dudas sobre cómo funciona la plataforma?</summary>
-      <div class="c-foot-grid">${faqs.map(([q, a]) => `<div class="c-faq"><h5>${q}</h5><p>${a}</p></div>`).join('')}</div>
+      <div style="padding:16px">
+        <input class="faq-search" id="faq-search" type="text" autocomplete="off" placeholder="🔍  Escribe aquí sobre lo que quieres saber…">
+        <div class="c-foot-grid" id="faq-grid">${faqs.map(card).join('')}</div>
+        <div class="faq-empty" id="faq-empty" style="display:none">No encontramos nada con esa palabra. Prueba con otra.</div>
+      </div>
     </details>
     <div class="c-foot-bottom">Bot Algorítmico · Opera bajo tu propio riesgo · <a href="index.html">Volver a La Bolita</a></div>
   </footer>`;
+}
+function wireFaq() {
+  const inp = document.getElementById('faq-search'); if (!inp) return;
+  const grid = document.getElementById('faq-grid'), empty = document.getElementById('faq-empty');
+  if (!grid) return;
+  inp.oninput = () => {
+    const q = inp.value.trim().toLowerCase();
+    let shown = 0;
+    grid.querySelectorAll('.c-faq').forEach((c, i) => {
+      const show = q ? c.dataset.faq.includes(q) : i < 6;
+      c.style.display = show ? '' : 'none'; if (show) shown++;
+    });
+    if (empty) empty.style.display = (q && shown === 0) ? '' : 'none';
+  };
 }
 
 /* ================================================================== */
@@ -654,7 +704,7 @@ function render() {
       <div style="text-align:center"><button class="btn btn-oro" id="c-conectar2" style="max-width:320px;margin:0 auto;display:block">Conectar wallet</button></div>
       <div id="c-hero-msg" style="max-width:420px;margin:12px auto 0"></div>
     </div>${footerHTML()}</div>`;
-    wireHeader();
+    wireHeader(); wireFaq();
     if ($('c-conectar2')) $('c-conectar2').onclick = conectarWallet;
     return;
   }
@@ -775,7 +825,7 @@ function render() {
     ${footerHTML()}
   </div>`;
 
-  wireHeader();
+  wireHeader(); wireFaq();
   $('f-base').onchange = async (e) => { F.baseId = e.target.value; F.precio = null; F.rutas = null; await cargarPrecio(); if (F.precio) aplicarPreset(F.preset || 'equilibrado'); };
   $('f-quote').onchange = async (e) => {
     F.quoteId = e.target.value; F.precio = null; F.rutas = null;
@@ -1384,7 +1434,7 @@ async function tarjeta(cuenta, clave, par) {
       <div class="pio-box"><div class="k">Grid profit ${iBtn('porcuad')}</div>
         <div class="v ${cls(realizado)} numgo" data-to="${Math.abs(realizado)}" data-dec="4" data-pre="${sg(realizado)}">${sg(realizado)}${num(Math.abs(realizado), 4)}</div>
         <div class="v2 ${cls(realizado)}">${sg(pct(realizado))}${num(Math.abs(pct(realizado)), 2)}%</div></div>
-      <div class="pio-box"><div class="k">No realizado ${iBtn('ganancia')}</div>
+      <div class="pio-box"><div class="k">Flotante ${iBtn('ganancia')}</div>
         <div class="v ${cls(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div>
         <div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>
       <div class="pio-box"><div class="k">Entrada → Ahora</div><div class="v" style="font-size:14px">${par.entry ? precioFmt(par.entry) : '—'} → ${precioFmt(precio)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}">${mkt == null ? simQ : sg(mkt) + num(Math.abs(mkt), 2) + '% mercado'}</div></div>
@@ -1404,10 +1454,8 @@ async function tarjeta(cuenta, clave, par) {
       <div class="tab-ordenes" style="display:none"><div class="ord-list">${ordRows}</div></div>
     </div>
 
-    <div class="rej-btns" style="grid-template-columns:1fr 1fr 1fr">
-      <button class="btn btn-linea" data-acc="editar">Editar</button>
-      <button class="btn btn-oro" data-acc="terminar">Cerrar y vender</button>
-      <button class="btn btn-rojo" data-acc="desconectar">Desconectar</button>
+    <div class="rej-btns" style="grid-template-columns:1fr">
+      <button class="btn-oro3d" data-acc="terminar">Cerrar y vender</button>
     </div>
     <div class="rej-msg"></div>
   </div>`;
