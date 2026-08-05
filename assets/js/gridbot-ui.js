@@ -106,7 +106,7 @@ function inyectarEstilo() {
   #colmena-modal .busy-ring{position:relative;width:58px;height:58px;flex:0 0 auto}
   #colmena-modal .busy-ring svg{width:58px;height:58px;transform:rotate(-90deg)}
   #colmena-modal .busy-ring .br-bg{fill:none;stroke:rgba(255,255,255,.1);stroke-width:3}
-  #colmena-modal .busy-ring .br-fg{fill:none;stroke:#e8b84b;stroke-width:3.5;stroke-linecap:round;stroke-dasharray:88 120;transform-origin:22px 22px;animation:brspin .95s linear infinite}
+  #colmena-modal .busy-ring .br-fg{fill:none;stroke:#e8b84b;stroke-width:3.5;stroke-linecap:round;stroke-dasharray:88 120;transform-origin:22px 22px;animation:brspin 1.8s linear infinite}
   @keyframes brspin{to{transform:rotate(360deg)}}
   #colmena-modal .busy-num{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display),Georgia,serif;font-size:22px;font-weight:700;color:rgba(255,255,255,.82)}
   /* Acento del bot en TODO el texto secundario de la sección (encabezados, párrafos, hints, saldos, botones no seleccionados) */
@@ -600,14 +600,14 @@ function modalConfirm(o) {
 function limpiarBusy() { if (window._busyTimer) { clearInterval(window._busyTimer); window._busyTimer = null; } }
 function modalBusy(txt) {
   const m = $('colmena-modal'); if (!m) return;
-  $('cm-body').innerHTML = `<div class="busy-wrap"><div class="busy-tx" id="busy-tx">${txt}</div><div class="busy-ring"><svg viewBox="0 0 44 44"><circle class="br-bg" cx="22" cy="22" r="19"/><circle class="br-fg" cx="22" cy="22" r="19"/></svg><span class="busy-num" id="busy-num">10</span></div></div>`;
+  $('cm-body').innerHTML = `<div class="busy-wrap"><div class="busy-tx" id="busy-tx">${txt}</div><div class="busy-ring"><svg viewBox="0 0 44 44"><circle class="br-bg" cx="22" cy="22" r="19"/><circle class="br-fg" cx="22" cy="22" r="19"/></svg><span class="busy-num" id="busy-num">1</span></div></div>`;
   m.querySelector('.m-btns').style.display = 'none'; m.onclick = null; m.classList.add('show');
   limpiarBusy();
-  let n = 10;
+  let n = 1;
   window._busyTimer = setInterval(() => {
     const el = $('busy-num'); if (!el) { limpiarBusy(); return; }
-    n--; if (n <= 0) n = 10; el.textContent = n;
-  }, 1000);
+    if (n < 99) n++; el.textContent = n;
+  }, 2500);
 }
 function modalBusyTexto(txt) { const el = $('busy-tx'); if (el) el.innerHTML = txt; }
 window._onTxProcesando = function () { const el = document.getElementById('busy-tx'); if (el) el.innerHTML = 'Procesando en la red… <span style="opacity:.6">ya casi</span>'; };
