@@ -160,6 +160,14 @@ export async function saldoNativoBNB(duenio) { return lector().getBalance(duenio
 export async function saldoParaMostrar(tokenAddr, duenio) {
   return esBNB(tokenAddr) ? saldoNativoBNB(duenio) : balanceToken(tokenAddr, duenio);
 }
+/** Para Cash Out: si es BNB, cuenta NATIVO + WBNB juntos (todo lo que puedes vender). */
+export async function saldoCashDisponible(tokenAddr, duenio) {
+  if (esBNB(tokenAddr)) {
+    const [nat, wr] = await Promise.all([saldoNativoBNB(duenio), balanceToken(WBNB, duenio)]);
+    return nat + wr;
+  }
+  return balanceToken(tokenAddr, duenio);
+}
 /** Envuelve BNB nativo -> WBNB (para que el bot pueda venderlo). */
 export async function envolverBNB(montoWei) {
   const abi = ['function deposit() payable'];

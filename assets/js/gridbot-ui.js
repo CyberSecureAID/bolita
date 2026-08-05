@@ -866,7 +866,7 @@ function render() {
         </div>
         <div id="f-cash" style="${F.tipo==='cash'?'':'display:none'}">
           <div class="cash-note">Vendes <b id="cn-b">${moneda(F.baseId).simbolo}</b> y recibes <b id="cn-q">${moneda(F.quoteId).simbolo}</b> en tu wallet.</div>
-          <div class="lab">Cantidad a vender ${iBtn('cashcant')}</div>
+          <div class="lab" style="margin-top:18px">Cantidad a vender ${iBtn('cashcant')}</div>
           <div class="cash-bal"><span id="fc-saldo">—</span><button type="button" class="cash-max" id="fc-max">Máx</button></div>
           ${campoNum('fc-cant',{placeholder:'0.00',step:0.01,min:0,suffix:'fc-cant-usd'})}
           <input type="range" id="fc-slider" class="cash-slider" min="0" max="100" value="0" step="1">
@@ -1219,7 +1219,7 @@ async function refrescarSaldoCash() {
   el.textContent = '…';
   try {
     const base = moneda(F.baseId);
-    const bal = await gb.saldoParaMostrar(gb.dirDe(base), cuenta);
+    const bal = await gb.saldoCashDisponible(gb.dirDe(base), cuenta);
     const balH = Number(gb.fmt(bal, base.decimals));
     F.saldoBase = balH;
     el.textContent = `Tienes ${num(balH, 4)} ${base.simbolo}`;
@@ -1426,7 +1426,7 @@ async function onCrearAcum() {
     if (esRechazo(e)) { modalClose(); } else modalError(e?.shortMessage || e?.message || String(e));
   }
 }
-const RESERVA_BNB = 0.006;   // se deja para pagar el gas de envolver + crear el bot
+const RESERVA_BNB = 0.0015;  // se deja un poco de BNB nativo para el gas de las firmas (~$1)
 function maxCash() {
   const bal = F.saldoBase || 0;
   return gb.esBNB(gb.dirDe(moneda(F.baseId))) ? Math.max(0, bal - RESERVA_BNB) : bal;
@@ -1498,7 +1498,7 @@ async function onCrearCashOut() {
   if (!ok) return;
   try {
     modalBusy('Comprobando tu saldo…');
-    const balBI = await gb.saldoParaMostrar(p.base, cuenta);
+    const balBI = await gb.saldoCashDisponible(p.base, cuenta);
     const balH = Number(gb.fmt(balBI, base.decimals));
     if (cantidad > balH + 1e-9) { modalError(`No tienes suficiente ${base.simbolo}. En tu wallet hay ${num(balH, 6)} ${base.simbolo} y quieres vender ${num(cantidad, 6)}.`); return; }
     if (!(await asegurarSuscripcion(cuenta))) { modalClose(); return; }
@@ -1731,7 +1731,7 @@ async function tarjeta(cuenta, clave, par) {
   const _boxMedio = `<div class="pio-box" data-box="medio"><div class="k">Precio medio ${iBtn('promedio')}</div><div class="v" style="font-size:14px">${posBase > 0 ? precioFmt(costeQ / posBase) : '—'}</div><div class="v2" style="color:var(--ink-3)">tu coste</div></div>`;
   const _boxObjetivo = `<div class="pio-box"><div class="k">Objetivo</div><div class="v" style="font-size:14px">${par.targetPrice ? precioFmt(Number(par.targetPrice)) : '—'}</div><div class="v2" style="color:var(--ink-3)">precio de venta</div></div>`;
   let _boxes;
-  if (tipo === 'cash') _boxes = _boxEntrada + _boxObjetivo + _boxFlotante + _boxGas;
+  if (tipo === 'cash') _boxes = _boxEntrada + _boxObjetivo;
   else if (tipo === 'acum') _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxMedio + _boxVueltas + _boxGas;
   else _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxRango + _boxVueltas + _boxGas;
   const _panel = tipo === 'cash' ? '' : `<button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
@@ -1762,7 +1762,7 @@ async function tarjeta(cuenta, clave, par) {
         <div class="pct">(${sg(pct(totalG))}${num(Math.abs(pct(totalG)), 2)}%)</div></div>
     </div>
 
-    <div class="pio-grid">${_boxes}</div>
+    <div class="pio-grid"${tipo === 'cash' ? ' style="grid-template-columns:repeat(2,1fr)"' : ''}>${_boxes}</div>
     ${gasLow ? `<div class="gaswarn">⚠ Gas insuficiente: el bot no puede operar. Recarga BNB en el gas (arriba) para que empiece a comprar y vender.</div>` : ''}
     ${sinPos && !gasLow ? `<div class="gaswarn" style="background:rgba(232,184,75,.08);border-color:var(--gold-soft);color:var(--gold)">⏳ Tomando posición inicial… El bot está comprando su primera parte a mercado (el keeper la ejecuta en 1–2 min). En cuanto compre, verás aquí la ganancia moverse con el mercado.</div>` : ''}
 
