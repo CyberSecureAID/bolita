@@ -108,6 +108,7 @@ function cLee()  { return new ethers.Contract(GRIDBOT, ABI, lector()); }
 async function cEscribe() { return new ethers.Contract(GRIDBOT, ABI, await firmante()); }
 /** Espera el recibo con nuestro RPC fiable; el de MetaMask a veces no lo devuelve. */
 async function esperar(tx) {
+  try { if (typeof window !== 'undefined' && window._onTxProcesando) window._onTxProcesando(); } catch (_) {}
   try { const rec = await lector().waitForTransaction(tx.hash, 1, 90000); if (rec) return rec; } catch (_) {}
   return esperar(tx);
 }
@@ -539,7 +540,7 @@ export async function crearRejilla(config) {
     comprasMax: config.comprasMax ?? 0
   };
   const bot = await cEscribe();
-  const tx = await bot.crearRejilla(c, { gasLimit: 2500000n });
+  const tx = await bot.crearRejilla(c, { gasLimit: 3000000n });
   return esperar(tx);
 }
 

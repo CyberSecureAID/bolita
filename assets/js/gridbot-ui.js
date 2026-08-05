@@ -101,6 +101,14 @@ function inyectarEstilo() {
   #colmena-app .card h3{font-family:var(--display);color:var(--gold);margin:0 0 4px;font-size:18px}
   #colmena-app .card .sub{color:var(--ink-3);font-size:12.5px;margin:0 0 16px}
   #colmena-app .lab{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--acento);margin:16px 0 7px;padding-left:3px;text-transform:uppercase;letter-spacing:.6px}
+  #colmena-modal .busy-wrap{display:flex;align-items:center;justify-content:space-between;gap:18px}
+  #colmena-modal .busy-tx{flex:1;line-height:1.55;font-size:14px}
+  #colmena-modal .busy-ring{position:relative;width:58px;height:58px;flex:0 0 auto}
+  #colmena-modal .busy-ring svg{width:58px;height:58px;transform:rotate(-90deg)}
+  #colmena-modal .busy-ring .br-bg{fill:none;stroke:rgba(255,255,255,.1);stroke-width:3}
+  #colmena-modal .busy-ring .br-fg{fill:none;stroke:#e8b84b;stroke-width:3.5;stroke-linecap:round;stroke-dasharray:88 120;transform-origin:22px 22px;animation:brspin .95s linear infinite;filter:drop-shadow(0 0 4px rgba(232,184,75,.4))}
+  @keyframes brspin{to{transform:rotate(360deg)}}
+  #colmena-modal .busy-num{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display),Georgia,serif;font-size:22px;font-weight:700;color:rgba(255,255,255,.82)}
   /* Acento del bot en TODO el texto secundario de la sección (encabezados, párrafos, hints, saldos, botones no seleccionados) */
   #colmena-app .cols .acum-hero p,
   #colmena-app .cols .acum-flow .af,
@@ -589,22 +597,31 @@ function modalConfirm(o) {
     m.onclick = (e) => { if (e.target === m) { m.classList.remove('show'); fin(false); } };
   });
 }
+function limpiarBusy() { if (window._busyTimer) { clearInterval(window._busyTimer); window._busyTimer = null; } }
 function modalBusy(txt) {
   const m = $('colmena-modal'); if (!m) return;
-  $('cm-body').innerHTML = `<span class="skel" style="width:14px;height:14px;min-width:14px;border-radius:50%;vertical-align:middle;margin-right:9px"></span>${txt}`;
+  $('cm-body').innerHTML = `<div class="busy-wrap"><div class="busy-tx" id="busy-tx">${txt}</div><div class="busy-ring"><svg viewBox="0 0 44 44"><circle class="br-bg" cx="22" cy="22" r="19"/><circle class="br-fg" cx="22" cy="22" r="19"/></svg><span class="busy-num" id="busy-num">10</span></div></div>`;
   m.querySelector('.m-btns').style.display = 'none'; m.onclick = null; m.classList.add('show');
+  limpiarBusy();
+  let n = 10;
+  window._busyTimer = setInterval(() => {
+    const el = $('busy-num'); if (!el) { limpiarBusy(); return; }
+    n--; if (n > 0) el.textContent = n; else { el.textContent = ''; el.classList.add('busy-done'); limpiarBusy(); }
+  }, 1000);
 }
+function modalBusyTexto(txt) { const el = $('busy-tx'); if (el) el.innerHTML = txt; }
+window._onTxProcesando = function () { const el = document.getElementById('busy-tx'); if (el) el.innerHTML = 'Procesando en la red… <span style="opacity:.6">ya casi</span>'; };
 function modalError(txt) {
   const m = $('colmena-modal'); if (!m) return;
-  $('cm-title').textContent = 'No se pudo completar'; $('cm-body').textContent = txt;
+  limpiarBusy(); $('cm-title').textContent = 'No se pudo completar'; $('cm-body').textContent = txt;
   const btns = m.querySelector('.m-btns'); btns.style.display = 'flex';
   $('cm-cancel').style.display = 'none'; const ok = $('cm-ok');
   ok.textContent = 'Entendido'; ok.className = 'btn btn-linea'; ok.onclick = () => m.classList.remove('show');
 }
-function modalClose() { const m = $('colmena-modal'); if (m) m.classList.remove('show'); }
+function modalClose() { limpiarBusy(); const m = $('colmena-modal'); if (m) m.classList.remove('show'); }
 function modalDone(titulo, txt) {
   const m = $('colmena-modal'); if (!m) return;
-  $('cm-title').textContent = titulo; $('cm-body').innerHTML = txt;
+  limpiarBusy(); $('cm-title').textContent = titulo; $('cm-body').innerHTML = txt;
   const btns = m.querySelector('.m-btns'); btns.style.display = 'flex';
   $('cm-cancel').style.display = 'none'; const ok = $('cm-ok');
   ok.textContent = '¡Listo!'; ok.className = 'btn btn-oro'; ok.onclick = () => m.classList.remove('show');
@@ -1871,7 +1888,7 @@ async function onCrearDCA() {
     modalBusy('Preparando tu DCA con el precio real…');
     const botId = Date.now();
     const config = await gb.construirConfigDCA(p); config.botId = botId;
-    const nAprob = comprasMax > 0 ? comprasMax : 1000;
+    const nAprob = comprasMax > 0 ? comprasMax : 60;
     const quoteNeed = mBI(monto * nAprob, quote.decimals);
     const aQ = await gb.allowance(p.quote, cuenta);
     const pasos = (aQ < quoteNeed ? 1 : 0) + 1; let i = 0;
