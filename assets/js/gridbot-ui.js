@@ -148,8 +148,11 @@ function inyectarEstilo() {
   #colmena-app .cash-max:active{transform:translateY(2px);box-shadow:0 0 0 #8f6a1a}
   #colmena-app .stepper.has-suffix input{padding-right:132px}
   #colmena-app .cash-eq{position:absolute;right:42px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:12px;color:var(--ink-3);pointer-events:none;max-width:86px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
-  #colmena-app .cash-slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:100px;background:var(--line);outline:none;margin:16px 0 8px;cursor:pointer}
+  #colmena-app .cash-slider{-webkit-appearance:none;appearance:none;width:100%;background:transparent;outline:none;margin:16px 0 8px;cursor:pointer;--fill:0%}
+  #colmena-app .cash-slider::-webkit-slider-runnable-track{height:6px;border-radius:100px;background:linear-gradient(90deg,var(--gold) var(--fill),var(--line) var(--fill))}
   #colmena-app .cash-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;border-radius:50%;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:2px solid #8f6a1a;cursor:pointer;box-shadow:0 2px 5px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.5);margin-top:-7px}
+  #colmena-app .cash-slider::-moz-range-track{height:6px;border-radius:100px;background:var(--line)}
+  #colmena-app .cash-slider::-moz-range-progress{height:6px;border-radius:100px;background:var(--gold)}
   #colmena-app .cash-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:2px solid #8f6a1a;cursor:pointer}
   #colmena-app .cash-price{text-align:center;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--gold-soft);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 6px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)}
   #colmena-app .cash-price .cp-lab{font-family:var(--mono);font-size:12px;color:var(--ink-2);letter-spacing:.5px}
@@ -1451,7 +1454,7 @@ function pintarSlider(pct) {
   const sl = $('fc-slider'); if (!sl) return;
   const p = Math.max(0, Math.min(100, pct));
   sl.value = p;
-  sl.style.background = `linear-gradient(90deg, var(--gold) 0%, var(--gold) ${p}%, var(--line) ${p}%, var(--line) 100%)`;
+  sl.style.setProperty('--fill', p + '%');
 }
 function setCantCash(v) {
   const inp = $('fc-cant'); if (!inp) return;
