@@ -79,11 +79,10 @@ function inyectarEstilo() {
     background:#0b0e11;min-height:100vh;overflow-x:hidden}
   #colmena-app .c-hdr{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
     gap:12px;padding:14px 22px;background:rgba(11,14,17,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-  #colmena-app .c-brand{display:inline-flex;align-items:center;gap:9px;font-family:var(--display);font-weight:700;font-size:18px;color:var(--gold);text-decoration:none;letter-spacing:.3px}
-  #colmena-app .c-logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);display:inline-grid;place-items:center;box-shadow:0 2px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);flex:0 0 auto}
+  #colmena-app .c-brand{font-family:var(--display);font-weight:700;font-size:20px;color:var(--gold);text-decoration:none;letter-spacing:.3px}
   #colmena-app .c-hdr-r{display:flex;align-items:center;gap:10px}
-  #colmena-app .c-loteria{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ink-2);text-decoration:none;background:linear-gradient(180deg,#1b2027,#12161c);border:1px solid var(--line);border-radius:100px;padding:7px 14px;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05);transition:transform .08s,box-shadow .08s,border-color .14s,color .14s}
-  #colmena-app .c-loteria:hover{color:var(--gold);border-color:var(--gold-soft)}
+  #colmena-app .c-loteria{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--gold);text-decoration:none;background:linear-gradient(180deg,rgba(232,184,75,.14),rgba(232,184,75,.05));border:1px solid var(--gold-soft);border-radius:100px;padding:7px 14px;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.08);transition:transform .08s,box-shadow .08s,filter .14s}
+  #colmena-app .c-loteria:hover{filter:brightness(1.12)}
   #colmena-app .c-loteria:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.3)}
   #colmena-app .dir{font-family:var(--mono);font-size:12px;font-weight:700;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;border-radius:100px;padding:8px 14px;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .hdr-off{width:34px;height:34px;border-radius:50%;background:transparent;border:1px solid var(--line);color:var(--ink-3);cursor:pointer;display:inline-grid;place-items:center;padding:0;line-height:0}
@@ -152,7 +151,7 @@ function inyectarEstilo() {
   #colmena-app .coin-sel-ico,#colmena-app .cm-coin-ico{position:relative;overflow:hidden;border-radius:50%;background:#0d1117;border:1px solid var(--line);display:grid;place-items:center;font-weight:700;flex:0 0 auto}
   #colmena-app .coin-sel-ico{width:32px;height:32px;font-size:14px}
   #colmena-app .cm-coin-ico{width:38px;height:38px;font-size:17px}
-  #colmena-app .coin-sel-ico img,#colmena-app .cm-coin-ico img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;background:#0d1117}
+  #colmena-app .coin-sel-ico img,#colmena-app .cm-coin-ico img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:transparent}
   #colmena-app .coin-sel-tx{display:flex;flex-direction:column;gap:1px;min-width:0;text-align:left}
   #colmena-app .coin-sel-tx b{font-family:var(--display);font-size:15px;color:var(--ink);line-height:1.15}
   #colmena-app .coin-sel-tx i{font-family:var(--mono);font-size:10px;color:var(--ink-3);font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
@@ -370,7 +369,7 @@ function inyectarEstilo() {
   #colmena-app .rej:hover{transform:translateY(-2px);border-color:rgba(46,232,106,.4);box-shadow:0 20px 50px rgba(0,0,0,.5)}
   #colmena-app .rej>*{position:relative;z-index:1}
   /* indicador En vivo */
-  #colmena-app .live{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--ink-2);background:linear-gradient(180deg,#1b2027,#12161c);border:1px solid var(--line);border-radius:100px;padding:6px 11px;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05)}
+  #colmena-app .live{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--gold);background:linear-gradient(180deg,rgba(232,184,75,.14),rgba(232,184,75,.05));border:1px solid var(--gold-soft);border-radius:100px;padding:6px 11px;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.1)}
   #colmena-app .live i{width:7px;height:7px;border-radius:50%;background:var(--neon-lit);box-shadow:0 0 8px var(--neon-lit);animation:cpulse 1.2s ease-in-out infinite}
   /* esqueleto de carga */
   #colmena-app .skel{display:inline-block;min-width:70px;height:1em;border-radius:8px;color:transparent;
@@ -479,7 +478,7 @@ function inyectarEstilo() {
     #colmena-app .c-hdr-r{gap:8px}
     #colmena-app .c-lot-tx,#colmena-app .live{display:none}
     #colmena-app .c-loteria{padding:8px}
-    #colmena-app .c-brand-tx{font-size:16px}
+    #colmena-app .c-brand{font-size:17px}
     #colmena-app .hdr-btn{padding:9px 14px;font-size:13px}
     #colmena-app .wrap{padding:18px 14px 50px}
     #colmena-app .hero{padding:44px 16px}
@@ -748,10 +747,7 @@ function headerHTML() {
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
   else right = `<span class="dir">${wallet.abreviar(cuenta)}</span><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
-    <a class="c-brand" href="index.html">
-      <span class="c-logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a1200" stroke-width="2.2"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></span>
-      <span class="c-brand-tx">Bot Algorítmico</span>
-    </a>
+    <a class="c-brand" href="index.html">Bot Algorítmico</a>
     <div class="c-hdr-r">
       <span class="live"><i></i>En vivo</span>
       <a class="c-loteria" href="loteria.html"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/></svg><span class="c-lot-tx">Lotería</span></a>
