@@ -1313,7 +1313,8 @@ async function onCrear() {
     if (!(await asegurarSuscripcion(cuenta))) { modalClose(); return; }
 
     modalBusy('Calculando tu rejilla con el precio real…');
-    const config = await gb.construirConfig(p);
+    const botId = Date.now();
+    const config = await gb.construirConfig(p); config.botId = botId;
     const netV = (config._ordenQuoteHumano || 0) * ((config._pasoPct || 0) - FEE_CICLO) - 2 * GAS_OP_USD;
     if (netV < 0) { modalError('Con esta configuración el gas se comería la ganancia de cada vuelta (daría pérdida). Sube el capital, sube la "ganancia por cuadrícula" o usa menos cuadrículas.'); return; }
     const price = config._Pnow || F.precio || 1;
@@ -1334,7 +1335,7 @@ async function onCrear() {
     i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu bot con tu configuración y empieza a vigilar el mercado.<br><br>Confirma en tu wallet.`);
     await gb.crearRejilla(config);
 
-    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, entry: config._Pnow, creadoLocal: Date.now() });
+    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, entry: config._Pnow, creadoLocal: Date.now(), botId });
     modalDone('¡Bot encendido!', `Tu bot ya está trabajando en ${simboloDe(p.base)}/${quote.simbolo}. Recuerda tener <b>gas</b> cargado para que pueda operar. Lo verás abajo en "Mis bots".`);
     refrescarRejillas(); refrescarSaldoInversion();
   } catch (e) {
@@ -1422,7 +1423,8 @@ async function onCrearAcum() {
     if (total > balH + 1e-9) { modalError(`No tienes suficiente ${quote.simbolo}. Hay ${num(balH, 4)} y quieres invertir ${num(total, 2)}.`); return; }
     if (!(await asegurarSuscripcion(cuenta))) { modalClose(); return; }
     modalBusy('Calculando tu acumulador con el precio real…');
-    const config = await gb.construirConfigAcumulador(p);
+    const botId = Date.now();
+    const config = await gb.construirConfigAcumulador(p); config.botId = botId;
     const price = config._Pnow || F.precio || 1;
     const topeQuote = total * 20, topeBase = (total / price) * 20;
     const quoteNeed = mBI(topeQuote, quote.decimals), baseNeed = mBI(topeBase, base.decimals);
@@ -1432,7 +1434,7 @@ async function onCrearAcum() {
     if (aB < baseNeed) { i++; modalBusy(`<b>Paso ${i} de ${pasos} — Permiso de ${base.simbolo}.</b><br>Para que pueda vender todo lo acumulado.<br><br>Confirma en tu wallet.`); await gb.aprobarToken(p.base, baseNeed); }
     i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu acumulador y hace la compra inicial.<br><br>Confirma en tu wallet.`);
     await gb.crearRejilla(config);
-    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'acum', objetivo: p.objetivoPct });
+    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'acum', objetivo: p.objetivoPct, botId });
     modalDone('¡Acumulador encendido!', `Ya está comprando en la caída en ${base.simbolo}. Venderá todo al llegar a <b>+${num(p.objetivoPct * 100, 1)}%</b>. Ten <b>gas</b> cargado para que opere. Lo verás en "Mis bots".`);
     refrescarRejillas(); refrescarSaldoInversion();
   } catch (e) {
@@ -1529,7 +1531,8 @@ async function onCrearCashOut() {
       }
     }
     modalBusy('Preparando tu Cash Out con el precio real…');
-    const config = await gb.construirConfigCashOut(p);
+    const botId = Date.now();
+    const config = await gb.construirConfigCashOut(p); config.botId = botId;
     const topeBase = cantidad * 3;
     const baseNeed = mBI(topeBase, base.decimals);
     const aB = await gb.allowance(p.base, cuenta);
@@ -1537,7 +1540,7 @@ async function onCrearCashOut() {
     if (aB < baseNeed) { i++; modalBusy(`<b>Paso ${i} de ${pasos} — Permiso de ${base.simbolo}.</b><br>Le das permiso al bot para vender tus ${base.simbolo} cuando llegue el objetivo (puedes revocarlo cuando quieras).<br><br>Confirma en tu wallet.`); await gb.aprobarToken(p.base, baseNeed); }
     i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu Cash Out y queda vigilando el precio.<br><br>Confirma en tu wallet.`);
     await gb.crearRejilla(config);
-    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total: config._valorActual, cantBase: cantidad, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'cash', targetPrice });
+    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total: config._valorActual, cantBase: cantidad, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'cash', targetPrice, botId });
     modalDone('¡Cash Out encendido!', `Cuando ${base.simbolo} llegue a <b>${precioFmt(targetPrice)}</b>, venderá y recibirás ${quote.simbolo} en tu wallet. Ten <b>gas</b> cargado para que pueda operar. Lo verás en "Mis bots".`);
     refrescarRejillas();
   } catch (e) {
@@ -1546,19 +1549,18 @@ async function onCrearCashOut() {
 }
 function ccl(cuenta, base, quote) { return `${(cuenta || '').toLowerCase()}|${base.toLowerCase()}|${quote.toLowerCase()}`; }
 function recordarPar(cuenta, base, quote, extra) {
-  const k = gb.claveDe(cuenta, base, quote);
+  const botId = (extra && extra.botId) || 0;
+  const k = gb.claveBot(cuenta, base, quote, botId);
   const m = JSON.parse(localStorage.getItem('bot-pares') || '{}');
   m[k] = { base, quote, ...(extra || {}) }; localStorage.setItem('bot-pares', JSON.stringify(m));
-  // al (re)crear, quitar de la lista de cerradas para que vuelva a mostrarse
-  const c = JSON.parse(localStorage.getItem('bot-cerradas') || '{}'); delete c[ccl(cuenta, base, quote)]; localStorage.setItem('bot-cerradas', JSON.stringify(c));
+  // al (re)crear, quitar ESTA clave de las cerradas para que se muestre
+  const c = JSON.parse(localStorage.getItem('bot-cerradas') || '{}'); delete c[k]; localStorage.setItem('bot-cerradas', JSON.stringify(c));
 }
-function olvidarPar(cuenta, base, quote) {
-  // borrar de bot-pares por VALOR (por si la clave no coincide)
+function olvidarPar(cuenta, clave) {
   const m = JSON.parse(localStorage.getItem('bot-pares') || '{}');
-  for (const k of Object.keys(m)) { const p = m[k]; if (p && (p.base || '').toLowerCase() === base.toLowerCase() && (p.quote || '').toLowerCase() === quote.toLowerCase()) delete m[k]; }
-  localStorage.setItem('bot-pares', JSON.stringify(m));
-  // marcar como cerrada (blindaje: aunque el contrato la siga listando, no se muestra)
-  const c = JSON.parse(localStorage.getItem('bot-cerradas') || '{}'); c[ccl(cuenta, base, quote)] = 1; localStorage.setItem('bot-cerradas', JSON.stringify(c));
+  delete m[clave]; localStorage.setItem('bot-pares', JSON.stringify(m));
+  // marcar ESA clave como cerrada (no toca los demás bots del mismo par)
+  const c = JSON.parse(localStorage.getItem('bot-cerradas') || '{}'); c[clave] = 1; localStorage.setItem('bot-cerradas', JSON.stringify(c));
 }
 function simboloDe(addr) {
   if (addr.toLowerCase() === gb.WBNB.toLowerCase()) return 'BNB';
@@ -1614,7 +1616,7 @@ async function refrescarRejillas() {
           par = { base: bAddr, quote: qAddr, decBase: mb?.decimals ?? 18, decQuote: mq?.decimals ?? 18, simBase: mb?.simbolo || simboloDe(bAddr), simQuote: mq?.simbolo || simboloDe(qAddr) };
         } catch { continue; }
       }
-      if (cerradas[ccl(cuenta, par.base, par.quote)]) continue; // cerrado por el usuario → oculto
+      if (cerradas[clave]) continue; // este bot lo cerró el usuario → oculto
       par.__cuenta = cuenta;
       try { cards.push(await tarjeta(cuenta, clave, par)); } catch {}
     }
@@ -1635,10 +1637,11 @@ async function refrescarPnls() {
   for (const card of cards) {
     const base = card.dataset.b, quote = card.dataset.q;
     if (!base || !quote) continue;
+    const clave = card.dataset.clave;
     const decB = Number(card.dataset.decb) || 18, decQ = Number(card.dataset.decq) || 18;
     const invertido = Number(card.dataset.total) || 0;
     try {
-      const R = await gb.resumen(cuenta, base, quote);
+      const R = await gb.resumenK(clave);
       let precio = null; try { const pr = await gb.precioPar(base, quote, decB, decQ); precio = pr.precio; } catch {}
       const costeQ = Number(gb.fmt(R.costeQuote, decQ));
       const posBase = Number(gb.fmt(R.posicionBase, decB));
@@ -1686,7 +1689,7 @@ function idDe(addr) {
   return e ? e[0] : null;
 }
 async function tarjeta(cuenta, clave, par) {
-  const R = await gb.resumen(cuenta, par.base, par.quote);
+  const R = await gb.resumenK(clave);
   const decQ = par.decQuote ?? 18, decB = par.decBase ?? 18;
   const simB = par.simBase ?? simboloDe(par.base), simQ = par.simQuote ?? simboloDe(par.quote);
   if (GASMIN === null) { try { GASMIN = await gb.gasMinOp(); } catch { GASMIN = 0n; } }
@@ -1760,7 +1763,7 @@ async function tarjeta(cuenta, clave, par) {
 
   return `<div class="rej" data-b="${par.base}" data-q="${par.quote}" data-sq="${simQ}" data-sb="${simB}"
      data-bid="${idDe(par.base) || ''}" data-qid="${idDe(par.quote) || ''}" data-pmin="${pmin}" data-pmax="${pmax}"
-     data-niv="${R.niveles}" data-total="${invertido}" data-decb="${decB}" data-decq="${decQ}" data-entry="${par.entry || ''}" data-tipo="${par.tipo || 'grid'}" data-cant="${par.cantBase != null ? par.cantBase : ''}">
+     data-niv="${R.niveles}" data-total="${invertido}" data-decb="${decB}" data-decq="${decQ}" data-entry="${par.entry || ''}" data-tipo="${par.tipo || 'grid'}" data-cant="${par.cantBase != null ? par.cantBase : ''}" data-clave="${clave}">
     <div class="pio-head">
       ${logoDe(par.base, simB)}
       <div class="pio-titles">
@@ -1888,10 +1891,10 @@ function enganchar(cuenta) {
         if (!ok) return;
         try {
           if (!esCash) {
-            try { modalBusy('Vendiendo a estable… confirma en tu wallet.'); await gb.cerrarAhora(b, q); }
+            try { modalBusy('Vendiendo a estable… confirma en tu wallet.'); await gb.cerrarAhoraK(el.dataset.clave); }
             catch (e) { if (esRechazo(e)) { modalError('Cancelaste la firma. No se hizo ningún cambio.'); return; } }
           }
-          modalBusy('Cerrando el bot… confirma en tu wallet.'); await gb.cancelarRejilla(b, q);
+          modalBusy('Cerrando el bot… confirma en tu wallet.'); await gb.cancelarRejillaK(el.dataset.clave);
           if (esCash && gb.esBNB(b)) {
             try {
               const wbnbBal = await gb.balanceToken(b, cuenta);
@@ -1901,21 +1904,21 @@ function enganchar(cuenta) {
               if (unwrap > 0n) { modalBusy('Devolviendo tu BNB… confirma en tu wallet.'); await gb.desenvolverBNB(unwrap); }
             } catch (_) {}
           }
-          olvidarPar(cuenta, b, q); modalClose(); refrescarRejillas();
+          olvidarPar(cuenta, el.dataset.clave); modalClose(); refrescarRejillas();
         } catch (e) {
-          if (!esRechazo(e)) { olvidarPar(cuenta, b, q); refrescarRejillas(); }
+          if (!esRechazo(e)) { olvidarPar(cuenta, el.dataset.clave); refrescarRejillas(); }
           modalError(esRechazo(e) ? 'Cancelaste la firma.' : (e?.shortMessage || e?.message || String(e)));
         }
       } else if (acc === 'desconectar') {
         const ok = await modalConfirm({ titulo: 'Desconectar bot', cuerpo: `Se cerrará este bot y se <b>quitará el permiso</b> que le diste sobre tu ${sq} y ${sb}. No podrá operar hasta que lo actives de nuevo.`, ok: 'Desconectar', peligro: true });
         if (!ok) return;
         try {
-          modalBusy('Cerrando el bot… confirma en tu wallet.'); await gb.cancelarRejilla(b, q);
+          modalBusy('Cerrando el bot… confirma en tu wallet.'); await gb.cancelarRejillaK(el.dataset.clave);
           modalBusy(`Quitando el permiso de ${sq}… confirma.`); await gb.revocarToken(q);
           modalBusy(`Quitando el permiso de ${sb}… confirma.`); await gb.revocarToken(b);
-          olvidarPar(cuenta, b, q); modalClose(); refrescarRejillas();
+          olvidarPar(cuenta, el.dataset.clave); modalClose(); refrescarRejillas();
         } catch (e) {
-          if (!esRechazo(e)) { olvidarPar(cuenta, b, q); refrescarRejillas(); }
+          if (!esRechazo(e)) { olvidarPar(cuenta, el.dataset.clave); refrescarRejillas(); }
           modalError(esRechazo(e) ? 'Cancelaste una firma.' : (e?.shortMessage || e?.message || String(e)));
         }
       }

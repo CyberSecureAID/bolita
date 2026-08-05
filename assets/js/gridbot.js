@@ -26,7 +26,12 @@ const RPCS = [
 ];
 
 const ABI = [
-  'function resumen(address,address,address) view returns (tuple(address base,address quote,bool activa,uint256 niveles,uint256 armados,uint256 creadaEn,uint256 ultimaOpEn,uint256 comprasHechas,uint256 ventasHechas,uint256 ciclos,uint256 totalOps,uint256 posicionBase,uint256 costeQuote,uint256 volumenQuote,int256 gananciaQuote,uint256 gasSaldoWei,uint256 gasGastadoWei,uint256 ordenQuote,uint256 ordenBase,uint128 tpUnitOut,uint128 slUnitOut,uint16 slippageBps,uint32 cooldownSeg))',
+  'function resumen(address,address,address) view returns (tuple(address base,address quote,bool activa,uint256 niveles,uint256 armados,uint256 creadaEn,uint256 ultimaOpEn,uint256 comprasHechas,uint256 ventasHechas,uint256 ciclos,uint256 totalOps,uint256 posicionBase,uint256 costeQuote,uint256 volumenQuote,int256 gananciaQuote,uint256 gasSaldoWei,uint256 gasGastadoWei,uint256 ordenQuote,uint256 ordenBase,uint128 tpUnitOut,uint128 slUnitOut,uint16 slippageBps,uint32 cooldownSeg,uint24 feeTier))',
+  'function resumen(bytes32) view returns (tuple(address base,address quote,bool activa,uint256 niveles,uint256 armados,uint256 creadaEn,uint256 ultimaOpEn,uint256 comprasHechas,uint256 ventasHechas,uint256 ciclos,uint256 totalOps,uint256 posicionBase,uint256 costeQuote,uint256 volumenQuote,int256 gananciaQuote,uint256 gasSaldoWei,uint256 gasGastadoWei,uint256 ordenQuote,uint256 ordenBase,uint128 tpUnitOut,uint128 slUnitOut,uint16 slippageBps,uint32 cooldownSeg,uint24 feeTier))',
+  'function modoDe(bytes32) view returns (uint8,uint16)',
+  'function cerrarAhora(bytes32)',
+  'function cancelarRejilla(bytes32)',
+  'function claveBot(address,address,address,uint256) pure returns (bytes32)',
   'function nivelesDe(bytes32) view returns (tuple(uint128 minOutCompra,uint128 minOutVenta,uint8 estado)[])',
   'function pathsDe(bytes32) view returns (address[] compra,address[] venta)',
   'function cotizar(uint256,address[]) view returns (uint256)',
@@ -36,7 +41,7 @@ const ABI = [
   'function activo(address usuario) view returns (bool)',
   'function precioSuscripcion() view returns (uint256)',
   'function suscribir() payable',
-  'function crearRejilla((address base,address quote,address[] pathCompra,address[] pathVenta,uint256 ordenQuote,uint256 ordenBase,(uint128 minOutCompra,uint128 minOutVenta,uint8 estado)[] niveles,uint16 slippageBps,uint32 cooldownSeg,uint128 tpUnitOut,uint128 slUnitOut,uint24 feeTier,uint8 modo,uint16 objetivoBps,uint16 factorBps,uint256 compraInicialQuote,uint16 margenBps))',
+  'function crearRejilla((address base,address quote,address[] pathCompra,address[] pathVenta,uint256 ordenQuote,uint256 ordenBase,(uint128 minOutCompra,uint128 minOutVenta,uint8 estado)[] niveles,uint16 slippageBps,uint32 cooldownSeg,uint128 tpUnitOut,uint128 slUnitOut,uint24 feeTier,uint8 modo,uint16 objetivoBps,uint16 factorBps,uint256 compraInicialQuote,uint16 margenBps,uint256 botId))',
   'function activarRejilla(address,address,bool)',
   'function cancelarRejilla(address,address)',
   'function cerrarAhora(address,address)',
@@ -106,6 +111,10 @@ export function dirDe(moneda) {
   return moneda.address ?? WBNB;
 }
 
+export function claveBot(usuario, base, quote, botId) {
+  if (!botId || botId === 0n || botId === 0) return claveDe(usuario, base, quote);
+  return ethers.solidityPackedKeccak256(['address', 'address', 'address', 'uint256'], [usuario, base, quote, BigInt(botId)]);
+}
 export function claveDe(usuario, base, quote) {
   return ethers.solidityPackedKeccak256(['address', 'address', 'address'], [usuario, base, quote]);
 }
@@ -485,7 +494,8 @@ export async function crearRejilla(config) {
     objetivoBps: config.objetivoBps ?? 0,
     factorBps: config.factorBps ?? 0,
     compraInicialQuote: config.compraInicialQuote ?? 0n,
-    margenBps: config.margenBps ?? 0
+    margenBps: config.margenBps ?? 0,
+    botId: config.botId ?? 0
   };
   const bot = await cEscribe();
   const tx = await bot.crearRejilla(c);
@@ -494,6 +504,13 @@ export async function crearRejilla(config) {
 
 export async function cerrarAhora(base, quote) {
   const bot = await cEscribe(); const tx = await bot.cerrarAhora(base, quote); return tx.wait();
+}
+export async function resumenK(clave) { return cLee()['resumen(bytes32)'](clave); }
+export async function cerrarAhoraK(clave) {
+  const bot = await cEscribe(); const tx = await bot['cerrarAhora(bytes32)'](clave); return tx.wait();
+}
+export async function cancelarRejillaK(clave) {
+  const bot = await cEscribe(); const tx = await bot['cancelarRejilla(bytes32)'](clave); return tx.wait();
 }
 export async function cancelarRejilla(base, quote) {
   const bot = await cEscribe(); const tx = await bot.cancelarRejilla(base, quote); return tx.wait();
