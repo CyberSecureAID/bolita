@@ -142,6 +142,20 @@ function inyectarEstilo() {
   #colmena-app .acum-flow{display:flex;flex-direction:column;gap:8px;text-align:left;max-width:320px;margin:0 auto}
   #colmena-app .acum-flow .af{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;color:var(--ink-2);background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:10px;padding:9px 12px}
   #colmena-app .acum-flow .af span{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,#5cf58c,#1ea34a);color:#03210f;font-weight:800;font-size:12px}
+  /* ===== Pestañas de bot (tipo carpeta) + foto ===== */
+  #colmena-app .bot-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+  #colmena-app .bot-tab{display:flex;flex-direction:column;align-items:center;gap:5px;padding:11px 5px;background:linear-gradient(180deg,#1b2027,#12161c);border:1.5px solid var(--line);border-radius:12px;cursor:pointer;color:var(--ink-3);box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);transition:transform .1s,box-shadow .1s,border-color .14s,color .14s,background .14s}
+  #colmena-app .bot-tab:hover{border-color:var(--gold-soft);color:var(--ink-2)}
+  #colmena-app .bot-tab .bt-ico{display:grid}
+  #colmena-app .bot-tab .bt-nom{font-family:var(--mono);font-size:10.5px;font-weight:700;text-align:center;line-height:1.05}
+  #colmena-app .bot-tab.on{color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border-color:#c79426;box-shadow:0 4px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.45);text-shadow:0 1px 0 rgba(255,255,255,.3)}
+  #colmena-app .bot-tab.on:active{transform:translateY(2px);box-shadow:0 2px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.45)}
+  #colmena-app .bot-foto{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin-bottom:16px;border:2px solid var(--gold);box-shadow:0 5px 0 #8f6a1a,0 12px 28px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.1);background:linear-gradient(135deg,#20262f,#0d1117)}
+  #colmena-app .bot-foto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+  #colmena-app .bot-foto img.nocarga{display:none}
+  #colmena-app .bot-foto-cap{position:absolute;left:0;right:0;bottom:0;padding:28px 16px 14px;background:linear-gradient(180deg,transparent,rgba(3,5,7,.5) 42%,rgba(3,5,7,.9));display:flex;flex-direction:column;gap:3px}
+  #colmena-app .bot-foto-cap b{font-family:var(--display);font-weight:800;font-size:19px;color:var(--gold);text-shadow:0 1px 3px rgba(0,0,0,.7),0 0 12px rgba(232,184,75,.3);letter-spacing:.3px}
+  #colmena-app .bot-foto-cap span{font-family:var(--sans);font-size:12.5px;color:var(--ink);text-shadow:0 1px 3px rgba(0,0,0,.85);line-height:1.35}
   /* ===== Selector de moneda + modal ===== */
   #colmena-app .fila-coins{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   #colmena-app .coin-sel{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 13px;background:linear-gradient(180deg,#1b2027,#12161c);border:1.5px solid var(--line);border-radius:13px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);transition:border-color .14s,transform .08s}
@@ -152,6 +166,7 @@ function inyectarEstilo() {
   #colmena-app .coin-sel-ico{width:32px;height:32px;font-size:14px}
   #colmena-app .cm-coin-ico{width:38px;height:38px;font-size:17px}
   #colmena-app .coin-sel-ico img,#colmena-app .cm-coin-ico img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:transparent}
+  #colmena-app .coin-sel-ico:has(img),#colmena-app .cm-coin-ico:has(img){background:transparent;border:none}
   #colmena-app .coin-sel-tx{display:flex;flex-direction:column;gap:1px;min-width:0;text-align:left}
   #colmena-app .coin-sel-tx b{font-family:var(--display);font-size:15px;color:var(--ink);line-height:1.15}
   #colmena-app .coin-sel-tx i{font-family:var(--mono);font-size:10px;color:var(--ink-3);font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
@@ -865,28 +880,15 @@ function render() {
     <div class="cols">
       <div class="card">
         <h3>Arma tu bot</h3>
-        <div class="lab">¿Qué bot quieres armar? ${iBtn('tipobot')}</div>
-        <div class="bot-tipos" id="f-tipo">
-          <button type="button" data-tipo="grid" class="bot-tipo ${F.tipo==='grid'?'on':''}">
-            <div class="bot-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
-            <div class="bot-nom">Smart Grid</div>
-            <div class="bot-des">Compra y vende en niveles, pero solo cierra cada cuadrícula en ganancia.</div>
-          </button>
-          <button type="button" data-tipo="acum" class="bot-tipo ${F.tipo==='acum'?'on':''}">
-            <div class="bot-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.8"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></div>
-            <div class="bot-nom">Accumulator</div>
-            <div class="bot-des">Compra en la caída y vende todo junto en ganancia.</div>
-          </button>
-          <button type="button" data-tipo="cash" class="bot-tipo ${F.tipo==='cash'?'on':''}">
-            <div class="bot-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.8"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-            <div class="bot-nom">Cash Out</div>
-            <div class="bot-des">Vende la cripto que ya tienes, solo cuando suba al precio o % que elijas.</div>
-          </button>
-          <button type="button" data-tipo="dca" class="bot-tipo ${F.tipo==='dca'?'on':''}">
-            <div class="bot-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div>
-            <div class="bot-nom">DCA</div>
-            <div class="bot-des">Compra un poquito cada cierto tiempo, sin estar pendiente del precio.</div>
-          </button>
+        <div class="bot-tabs" id="f-tipo">
+          <button type="button" data-tipo="grid" class="bot-tab ${F.tipo==='grid'?'on':''}"><span class="bt-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="bt-nom">Smart Grid</span></button>
+          <button type="button" data-tipo="acum" class="bot-tab ${F.tipo==='acum'?'on':''}"><span class="bt-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></span><span class="bt-nom">Accumulator</span></button>
+          <button type="button" data-tipo="cash" class="bot-tab ${F.tipo==='cash'?'on':''}"><span class="bt-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="bt-nom">Cash Out</span></button>
+          <button type="button" data-tipo="dca" class="bot-tab ${F.tipo==='dca'?'on':''}"><span class="bt-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span><span class="bt-nom">DCA</span></button>
+        </div>
+        <div class="bot-foto" id="f-foto">
+          <img id="f-foto-img" alt="" src="${BOTMETA[F.tipo].img}" onerror="this.classList.add('nocarga')">
+          <div class="bot-foto-cap"><b id="f-foto-tit">${BOTMETA[F.tipo].nom}</b><span id="f-foto-des">${BOTMETA[F.tipo].des}</span></div>
         </div>
         <div class="lab">Moneda ${iBtn('par')}</div>
         <div class="fila fila-coins">
@@ -1581,6 +1583,12 @@ function elegirCoin(sel, id) {
     else if (F.tipo === 'acum') previewAcum();
   })();
 }
+const BOTMETA = {
+  grid: { nom: 'Smart Grid',  img: 'assets/img/bot-grid.webp',       des: 'Compra y vende en niveles; solo cierra cada cuadrícula en ganancia.' },
+  acum: { nom: 'Accumulator', img: 'assets/img/bot-acumulador.webp', des: 'Compra en la caída y vende todo junto al llegar a tu ganancia.' },
+  cash: { nom: 'Cash Out',    img: 'assets/img/bot-cashout.webp',    des: 'Vende la cripto que ya tienes, al precio o % que elijas.' },
+  dca:  { nom: 'DCA',         img: 'assets/img/bot-dca.webp',        des: 'Compra un poco cada cierto tiempo, sin estar pendiente del precio.' }
+};
 function pintarTipo() {
   const t = F.tipo, noGrid = t !== 'grid';
   if ($('f-grid')) $('f-grid').style.display = t === 'grid' ? '' : 'none';
@@ -1597,6 +1605,7 @@ function pintarTipo() {
   const prev = document.querySelector(`#${APP} .prev`); if (prev) prev.style.display = noGrid ? 'none' : '';
   const tpsl = $('f-avz-tpsl'); if (tpsl) tpsl.style.display = noGrid ? 'none' : '';
   document.querySelectorAll(`#${APP} #f-tipo button`).forEach((b) => b.classList.toggle('on', b.dataset.tipo === t));
+  { const meta = BOTMETA[t]; if (meta) { const img = $('f-foto-img'), tit = $('f-foto-tit'), des = $('f-foto-des'); if (img) { img.classList.remove('nocarga'); img.src = meta.img; } if (tit) tit.textContent = meta.nom; if (des) des.textContent = meta.des; } }
   if (t === 'cash') refrescarSaldoCash();
   if (t === 'dca') refrescarSaldoDCA();
   if (t === 'acum') previewAcum(); else if (t === 'cash') previewCash(); else if (t === 'dca') previewDCA(); else actualizarVista();
