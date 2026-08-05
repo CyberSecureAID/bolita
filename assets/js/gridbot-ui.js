@@ -113,6 +113,7 @@ function inyectarEstilo() {
   #colmena-app .faq-search::placeholder{color:var(--ink-3)}
   #colmena-app .faq-search:focus{outline:none;border-color:var(--gold-soft);box-shadow:0 0 0 3px rgba(232,184,75,.12)}
   #colmena-app .faq-empty{text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:12px;padding:16px}
+  #colmena-app mark.faq-hl{background:transparent;color:var(--gold);font-weight:800;text-shadow:0 0 8px rgba(232,184,75,.3)}
   #colmena-app .acum-hero{text-align:center;padding:14px 12px 6px}
   #colmena-app .acum-hero .acum-ico{font-size:46px;line-height:1;filter:drop-shadow(0 0 16px rgba(232,184,75,.35))}
   #colmena-app .acum-hero h4{font-family:var(--display);color:var(--gold);font-size:20px;margin:10px 0 8px;text-shadow:0 1px 2px rgba(0,0,0,.5)}
@@ -132,7 +133,7 @@ function inyectarEstilo() {
   #colmena-app .seg button{flex:1;padding:11px;border:1px solid var(--line);background:transparent;color:var(--ink-2);border-radius:9px;font-family:var(--mono);font-size:12px;cursor:pointer}
   #colmena-app .seg button.on{background:var(--gold);color:#1a1200;border-color:var(--gold);font-weight:700}
   #colmena-app .avz{border-top:1px solid var(--line-soft);margin-top:18px;padding-top:4px}
-  #colmena-app .chart{width:100%;height:auto;display:block;border-radius:14px;background:#020C08;border:1px solid var(--line-soft)}
+  #colmena-app .chart{width:100%;height:auto;display:block;border-radius:14px;background:#0d1117;border:1px solid var(--line-soft)}
   #colmena-app .hint{font-family:var(--mono);font-size:11px;color:var(--gold-soft);margin-top:8px}
   #colmena-app .prev{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
   #colmena-app .p{background:#12161c;border:1px solid var(--line-soft);border-radius:11px;padding:11px;text-align:center}
@@ -168,14 +169,14 @@ function inyectarEstilo() {
   #colmena-app .ganmsg{background:rgba(46,232,106,.06);border:1px solid var(--neon-dim);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--neon-lit);margin:12px 0}
   #colmena-app .rej-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;align-items:start}
   #colmena-app .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-  #colmena-app .stat{background:#020D09;border:1px solid var(--line-soft);border-radius:10px;padding:9px}
+  #colmena-app .stat{background:#12161c;border:1px solid var(--line-soft);border-radius:10px;padding:9px}
   #colmena-app .stat b{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;color:var(--ink-3);text-transform:uppercase}
   #colmena-app .stat span{font-family:var(--display);font-size:15px;color:var(--ink)}
   #colmena-app .stat span.pos{color:var(--neon-lit)} #colmena-app .stat span.neg{color:var(--rojo)}
   #colmena-app .rej-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
   #colmena-app .rej-btns .btn{font-size:12px;padding:10px}
   #colmena-app .leg{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:8px}
-  #colmena-pop{position:absolute;z-index:9999;max-width:280px;background:#0B2419;border:1px solid var(--gold-soft);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;line-height:1.5}
+  #colmena-pop{position:absolute;z-index:9999;max-width:280px;background:#12161c;border:1px solid var(--gold-soft);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;line-height:1.5}
   /* ============ VIDA: fondo, brillos y movimiento ============ */
   #colmena-app::before{content:"";position:fixed;inset:-25%;z-index:-2;pointer-events:none;
     background:radial-gradient(45% 35% at 50% -8%, rgba(232,184,75,.04), transparent 65%);
@@ -188,7 +189,7 @@ function inyectarEstilo() {
   @media(prefers-reduced-motion:reduce){#colmena-app::before,#colmena-app::after{animation:none}}
   /* botones vivos */
   #colmena-app .btn{transition:transform .12s ease,filter .15s,box-shadow .2s}
-  #colmena-app .btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  #colmena-app .btn-linea:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
   #colmena-app .btn:active{transform:translateY(0)}
   #colmena-app .btn-verde,#colmena-app .btn-oro{position:relative;overflow:hidden}
   #colmena-app .btn-verde::after,#colmena-app .btn-oro::after{content:"";position:absolute;top:0;left:-120%;width:55%;height:100%;
@@ -216,9 +217,10 @@ function inyectarEstilo() {
   #colmena-app .paso-box b{font-family:var(--display);font-size:17px;color:var(--ink)}
   #colmena-app .seg.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
   #colmena-app .bot-tipos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-  #colmena-app .bot-tipo{display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;padding:14px;border:1.5px solid var(--line);background:#12161c;border-radius:14px;cursor:pointer;transition:.14s}
+  #colmena-app .bot-tipo{display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;padding:14px;border:1.5px solid var(--line);background:linear-gradient(180deg,#1b2027,#12161c);border-radius:14px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05);transition:transform .1s,box-shadow .1s,border-color .14s,background .14s}
+  #colmena-app .bot-tipo:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05)}
   #colmena-app .bot-tipo:hover{border-color:var(--gold-soft)}
-  #colmena-app .bot-tipo.on{border-color:var(--gold);background:rgba(232,184,75,.07);box-shadow:0 0 0 1px var(--gold) inset}
+  #colmena-app .bot-tipo.on{border-color:var(--gold);background:linear-gradient(180deg,rgba(232,184,75,.13),rgba(232,184,75,.04));box-shadow:0 3px 0 #8f6a1a,0 0 0 1px var(--gold) inset,inset 0 1px 0 rgba(255,255,255,.14)}
   #colmena-app .bot-tipo .bot-ico{font-size:26px;line-height:1}
   #colmena-app .bot-tipo .bot-nom{font-family:var(--display);font-size:15px;font-weight:700;color:var(--ink)}
   #colmena-app .bot-tipo.on .bot-nom{color:var(--gold)}
@@ -258,7 +260,7 @@ function inyectarEstilo() {
   #colmena-app .pio-tag.share:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,0 2px 8px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.4)}
   #colmena-app .c-faq h5{font-family:var(--display);color:var(--ink);font-size:13.5px;margin:0 0 7px}
   #colmena-app .c-faq p{font-family:var(--sans);color:var(--ink-2);font-size:12.5px;line-height:1.55;margin:0}
-  #colmena-app .c-foot-bottom{margin-top:22px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+  #colmena-app .c-foot-bottom{max-width:520px;margin:24px auto 0;text-align:center;font-family:var(--mono);font-size:11px;color:var(--ink-3);border:1px solid var(--line-soft);border-radius:12px;padding:14px 20px;background:rgba(255,255,255,.02)}
   #colmena-app .c-foot-bottom a{color:var(--gold-soft);text-decoration:none} #colmena-app .c-foot-bottom a:hover{color:var(--gold)}
   @media(max-width:720px){#colmena-app .c-foot-grid{grid-template-columns:1fr}}
   #colmena-app .rej{position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s,border-color .25s}
@@ -306,6 +308,18 @@ function inyectarEstilo() {
   #colmena-app .ord-row:last-child{border-bottom:none}
   #colmena-app .ord-row .st{text-align:right}
   #colmena-app .ord-row .st.compra{color:var(--neon-lit)} #colmena-app .ord-row .st.venta{color:var(--rojo)} #colmena-app .ord-row .st.off{color:var(--ink-3)}
+  #colmena-app .ob-head{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--ink-3);padding:9px 13px;text-transform:uppercase;letter-spacing:.4px}
+  #colmena-app .ob-side{display:flex;flex-direction:column}
+  #colmena-app .ob-row{position:relative;display:flex;justify-content:space-between;align-items:center;padding:5px 13px;font-family:var(--mono);font-size:12.5px;overflow:hidden}
+  #colmena-app .ob-bar{position:absolute;right:0;top:1px;bottom:1px;z-index:0;border-radius:3px 0 0 3px;transition:width .5s ease}
+  #colmena-app .ob-venta .ob-bar{background:rgba(246,70,93,.14)}
+  #colmena-app .ob-compra .ob-bar{background:rgba(14,203,129,.14)}
+  #colmena-app .ob-row .ob-p,#colmena-app .ob-row .ob-a{position:relative;z-index:1}
+  #colmena-app .ob-venta .ob-p{color:var(--rojo)} #colmena-app .ob-compra .ob-p{color:var(--neon-lit)}
+  #colmena-app .ob-row .ob-a{color:var(--ink-2)}
+  #colmena-app .ob-mid{display:flex;justify-content:space-between;align-items:baseline;padding:9px 13px;font-family:var(--display);font-weight:800;font-size:17px;color:var(--gold);background:rgba(232,184,75,.07);border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft)}
+  #colmena-app .ob-mid .ob-mid-lbl{font-family:var(--mono);font-size:10px;color:var(--ink-3);font-weight:400}
+  #colmena-app .ob-empty{padding:14px;text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:11px}
   #colmena-app .gaswarn{background:rgba(255,107,107,.08);border:1px solid var(--rojo);color:var(--rojo);border-radius:10px;padding:9px 12px;font-family:var(--mono);font-size:11.5px;margin-top:12px}
   #colmena-app .pio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   #colmena-app .pio-box{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:11px 12px}
@@ -677,7 +691,7 @@ function footerHTML() {
     ['¿Qué es el slippage?', 'La pequeña diferencia entre el precio esperado y el real al operar. En pares líquidos es mínimo.'],
     ['¿Puedo confiar en los números que veo?', 'Sí. Todo lo que ves (ganancia, vueltas, precio medio) sale directo del contrato en la blockchain. No hay datos inventados.']
   ];
-  const card = ([q, a], i) => `<div class="c-faq" data-faq="${(q + ' ' + a).toLowerCase().replace(/["<>]/g, '')}"${i >= 6 ? ' style="display:none"' : ''}><h5>${q}</h5><p>${a}</p></div>`;
+  const card = ([q, a], i) => `<div class="c-faq" data-faq="${(q + ' ' + a).toLowerCase().replace(/["<>]/g, '')}" data-q="${q.replace(/"/g, '&quot;')}" data-a="${a.replace(/"/g, '&quot;')}"${i >= 6 ? ' style="display:none"' : ''}><h5>${q}</h5><p>${a}</p></div>`;
   return `<footer class="c-foot">
     <details class="c-faq-wrap">
       <summary>¿Tienes dudas sobre cómo funciona la plataforma?</summary>
@@ -687,19 +701,29 @@ function footerHTML() {
         <div class="faq-empty" id="faq-empty" style="display:none">No encontramos nada con esa palabra. Prueba con otra.</div>
       </div>
     </details>
-    <div class="c-foot-bottom">Bot Algorítmico · Opera bajo tu propio riesgo · <a href="index.html">Volver a La Bolita</a></div>
+    <div class="c-foot-bottom">Bot Algorítmico · Opera bajo tu propio riesgo</div>
   </footer>`;
 }
 function wireFaq() {
   const inp = document.getElementById('faq-search'); if (!inp) return;
   const grid = document.getElementById('faq-grid'), empty = document.getElementById('faq-empty');
   if (!grid) return;
+  const esc = (t) => t.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const hl = (t, q) => {
+    if (!q) return esc(t);
+    const low = t.toLowerCase(); let out = '', i = 0, idx;
+    while ((idx = low.indexOf(q, i)) >= 0) { out += esc(t.slice(i, idx)) + '<mark class="faq-hl">' + esc(t.slice(idx, idx + q.length)) + '</mark>'; i = idx + q.length; }
+    return out + esc(t.slice(i));
+  };
   inp.oninput = () => {
     const q = inp.value.trim().toLowerCase();
     let shown = 0;
     grid.querySelectorAll('.c-faq').forEach((c, i) => {
       const show = q ? c.dataset.faq.includes(q) : i < 6;
       c.style.display = show ? '' : 'none'; if (show) shown++;
+      const h5 = c.querySelector('h5'), p = c.querySelector('p');
+      if (h5) h5.innerHTML = hl(c.dataset.q || h5.textContent, q);
+      if (p) p.innerHTML = hl(c.dataset.a || p.textContent, q);
     });
     if (empty) empty.style.display = (q && shown === 0) ? '' : 'none';
   };
@@ -1436,10 +1460,17 @@ async function tarjeta(cuenta, clave, par) {
   const gasLow = R.gasSaldoWei < (GASMIN || 0n);
   const creadoSeg = par.creadoLocal ? Math.floor(par.creadoLocal / 1000) : Number(R.creadaEn);
 
-  const ordRows = ps.slice().sort((a, b) => b.p - a.p).map((o) => {
-    const et = o.tipo === 'compra' ? 'Esperando comprar' : o.tipo === 'venta' ? 'Comprado, esperando vender' : 'En espera';
-    return `<div class="ord-row"><span class="pr">${precioFmt(o.p)} ${simQ}</span><span class="st ${o.tipo}">${et}</span></div>`;
-  }).join('') || `<div class="ord-row"><span class="pr">—</span><span class="st off">sin órdenes</span></div>`;
+  const obMid = precio || pmin;
+  const obAmt = num(Number(gb.fmt(R.ordenBase, decB)), 4);
+  const obW = (p) => obMid > 0 ? Math.max(22, Math.min(94, 22 + Math.abs(p - obMid) / obMid * 700)) : 45;
+  const obRow = (o, side) => `<div class="ob-row ob-${side}"><span class="ob-bar" style="width:${obW(o.p).toFixed(0)}%"></span><span class="ob-p">${precioFmt(o.p)}</span><span class="ob-a">${obAmt}</span></div>`;
+  const obSells = ps.filter((o) => o.tipo === 'venta').sort((a, b) => b.p - a.p);
+  const obBuys = ps.filter((o) => o.tipo === 'compra').sort((a, b) => b.p - a.p);
+  const ordRows = `
+    <div class="ob-head"><span>Precio (${simQ})</span><span>Cantidad (${simB})</span></div>
+    <div class="ob-side ob-sells">${obSells.map((o) => obRow(o, 'venta')).join('') || '<div class="ob-empty">sin ventas armadas</div>'}</div>
+    <div class="ob-mid"><span>${precioFmt(obMid)}</span><span class="ob-mid-lbl">precio ahora</span></div>
+    <div class="ob-side ob-buys">${obBuys.map((o) => obRow(o, 'compra')).join('') || '<div class="ob-empty">sin compras armadas</div>'}</div>`;
 
   return `<div class="rej" data-b="${par.base}" data-q="${par.quote}" data-sq="${simQ}" data-sb="${simB}"
      data-bid="${idDe(par.base) || ''}" data-qid="${idDe(par.quote) || ''}" data-pmin="${pmin}" data-pmax="${pmax}"
