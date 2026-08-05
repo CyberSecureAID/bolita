@@ -2463,7 +2463,25 @@ function swInjectCSS() {
   #coin-modal .cm-import.ok{display:block;padding:0}
   #coin-modal .cm-imp-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(232,184,75,.25);border-top-color:var(--gold);animation:brspin .8s linear infinite;flex:0 0 auto}
   #coin-modal .cm-imp-badge{font-family:var(--mono);font-size:11px;font-weight:700;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:1px solid #c79426;border-radius:8px;padding:4px 12px;box-shadow:0 2px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.4)}
-  @media(max-width:560px){#swap-modal .sw-amt,#swap-modal .sw-out{font-size:22px}}
+  #swap-modal .sw-find{margin:0 18px 6px}
+  #swap-modal .sw-find-bar{display:flex;align-items:center;gap:9px;padding:9px 12px;background:#0b0e11;border:1px solid var(--line);border-radius:12px;color:var(--ink-3);transition:border-color .14s,box-shadow .14s}
+  #swap-modal .sw-find-bar:focus-within{border-color:var(--gold-soft);box-shadow:0 0 0 3px rgba(232,184,75,.08)}
+  #swap-modal .sw-find-bar svg{flex:0 0 auto;opacity:.75}
+  #swap-modal input.sw-find-inp{flex:1;min-width:0;background:transparent;border:none;outline:none;box-shadow:none;-webkit-appearance:none;appearance:none;color:var(--ink);font-family:var(--sans);font-size:12.5px}
+  #swap-modal input.sw-find-inp:focus{outline:none;box-shadow:none}
+  #swap-modal input.sw-find-inp::placeholder{color:var(--ink-3);opacity:.9}
+  #swap-modal .sw-find-res{display:none;margin-top:6px;max-height:214px;overflow-y:auto;background:#0d1117;border:1px solid var(--line);border-radius:12px;padding:4px}
+  #swap-modal .sw-find-res.open{display:block}
+  #swap-modal .sw-find-row{display:flex;align-items:center;gap:11px;width:100%;padding:8px 10px;background:transparent;border:1px solid transparent;border-radius:10px;cursor:pointer;text-align:left;transition:background .12s,border-color .12s}
+  #swap-modal .sw-find-row:hover{background:#1b222c;border-color:var(--line)}
+  #swap-modal .sw-find-tx{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+  #swap-modal .sw-find-tx b{font-family:var(--display);color:var(--ink);font-size:14px;font-weight:700}
+  #swap-modal .sw-find-tx i{font-style:normal;font-family:var(--mono);color:var(--ink-3);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #swap-modal .sw-find-usd{font-family:var(--mono);font-size:11px;color:var(--ink-3);flex:0 0 auto}
+  #swap-modal .sw-find-go{margin-left:2px;font-family:var(--mono);font-size:11px;font-weight:700;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:1px solid #c79426;border-radius:7px;padding:3px 10px;flex:0 0 auto}
+  #swap-modal .sw-find-msg{padding:10px 12px;font-family:var(--mono);font-size:12px;color:var(--ink-3);display:flex;align-items:center;justify-content:center;gap:8px}
+  #swap-modal .sw-find-msg.err{color:#ff9090}
+  @media(max-width:560px){#swap-modal .sw-amt,#swap-modal .sw-out{font-size:22px}#swap-modal input.sw-find-inp{font-size:12px}}
   `;
   const st = document.createElement('style'); st.id = 'sw-css'; st.textContent = css; document.head.appendChild(st);
 }
@@ -2510,6 +2528,13 @@ function abrirSwap() {
     <div class="sw-bg" id="sw-bg"></div>
     <div class="sw-box">
       <div class="cm-head"><span class="cm-title">Intercambio</span><button class="cm-x" id="sw-x" aria-label="Cerrar">${x}</button></div>
+      <div class="sw-find">
+        <div class="sw-find-bar">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="sw-find-inp" class="sw-find-inp" placeholder="Busca o pega el contrato de cualquier moneda" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="sw-find-res" id="sw-find-res"></div>
+      </div>
       <div class="sw-body">
         <div class="sw-cards">
           <div class="sw-card">
@@ -2531,6 +2556,7 @@ function abrirSwap() {
   </div>`;
   host.appendChild(el.firstElementChild);
   $('sw-x').onclick = cerrarSwap; $('sw-bg').onclick = cerrarSwap;
+  if ($('sw-find-inp')) $('sw-find-inp').addEventListener('input', swFindInput);
   $('sw-amt').addEventListener('input', swInput);
   $('sw-max').onclick = swMax;
   $('sw-flip').onclick = swFlip;
@@ -2735,6 +2761,60 @@ function swRenderImport(t, lado) {
     <span class="cm-coin-right"><span class="cm-imp-badge">Usar</span></span>
   </button>`;
   const b = el.querySelector('.cm-coin'); if (b) b.onclick = () => swElegir(lado, t.id);
+}
+
+/* ---- Barra de búsqueda universal (bajo el título del panel) ---- */
+function swFindQ() { const i = $('sw-find-inp'); return i ? i.value.trim() : ''; }
+function swFindInput() { swFindRender(swFindQ()); }
+function swFindRow(mo) {
+  const L = LOGOS[mo.id];
+  const precio = L && L.price != null ? `<span class="sw-find-usd">${fmtPrecioUSD(L.price)}</span>` : '';
+  return `<button type="button" class="sw-find-row" data-id="${mo.id}">
+    <span class="coin-sel-ico" style="color:${mo.color || '#e8b84b'}">${icoInner(mo)}</span>
+    <span class="sw-find-tx"><b>${mo.simbolo}</b><i>${mo.nombre}</i></span>
+    ${precio}<span class="sw-find-go">Usar</span>
+  </button>`;
+}
+function swFindRender(q) {
+  const res = $('sw-find-res'); if (!res) return;
+  if (!q) { res.innerHTML = ''; res.classList.remove('open'); return; }
+  swSyncWbnbLogo();
+  res.classList.add('open');
+  const ql = q.toLowerCase();
+  const monedas = SWAP_IDS.map((id) => swMon(id)).filter(Boolean).filter((mo) =>
+    (mo.simbolo || '').toLowerCase().includes(ql) || (mo.nombre || '').toLowerCase().includes(ql) || (mo.address || '').toLowerCase() === ql);
+  let html = monedas.slice(0, 6).map(swFindRow).join('');
+  const yaEsta = monedas.some((mo) => (mo.address || '').toLowerCase() === ql);
+  if (gb.esDireccion(q) && !yaEsta) {
+    if (CUSTOM[ql]) html += swFindRow(CUSTOM[ql]);
+    else { html += `<div class="sw-find-msg" id="sw-find-imp"><span class="cm-imp-spin"></span>Buscando en BNB Chain…</div>`; swFindImport(q); }
+  } else if (!html) {
+    html = `<div class="sw-find-msg">Sin resultados. Pega el contrato de la moneda.</div>`;
+  }
+  res.innerHTML = html;
+  res.querySelectorAll('.sw-find-row').forEach((b) => b.onclick = () => swFindPick(b.dataset.id));
+}
+async function swFindImport(q) {
+  const key = q.trim().toLowerCase();
+  if (CUSTOM[key]) { if (swFindQ().toLowerCase() === key) swFindRender(swFindQ()); return; }
+  const tk = ++_impToken;
+  try {
+    const info = await gb.infoToken(q);
+    if (tk !== _impToken) return;
+    CUSTOM[key] = { id: key, simbolo: info.simbolo, nombre: info.nombre, address: info.address, decimals: info.decimals, icono: (info.simbolo || '?')[0], color: '#E8B84B', custom: true };
+    if (!LOGOS[key]) LOGOS[key] = { img: `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/${info.address}/logo.png`, price: null, chg: null };
+    if (swFindQ().toLowerCase() === key) swFindRender(swFindQ());
+  } catch (_) {
+    if (tk !== _impToken) return;
+    const el = $('sw-find-imp'); if (el) { el.className = 'sw-find-msg err'; el.textContent = 'No es un token válido en BNB Chain.'; }
+  }
+}
+function swFindPick(id) {
+  if (id === S.fromId) S.fromId = S.toId;   // evita from=to
+  S.toId = id; S.allow = 0n;
+  const inp = $('sw-find-inp'); if (inp) inp.value = '';
+  const res = $('sw-find-res'); if (res) { res.innerHTML = ''; res.classList.remove('open'); }
+  swPintarToks(); swCargarBalances(); setOut(); swRenderInfo(); swRenderBtn(); swCotizar();
 }
 
 function swExito(from, to, inWei, outWei) {
