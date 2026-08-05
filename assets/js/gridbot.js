@@ -109,8 +109,19 @@ async function cEscribe() { return new ethers.Contract(GRIDBOT, ABI, await firma
 /** Espera el recibo con nuestro RPC fiable; el de MetaMask a veces no lo devuelve. */
 async function esperar(tx) {
   try { if (typeof window !== 'undefined' && window._onTxProcesando) window._onTxProcesando(); } catch (_) {}
-  try { const rec = await lector().waitForTransaction(tx.hash, 1, 90000); if (rec) return rec; } catch (_) {}
-  return esperar(tx);
+  const hash = tx.hash;
+  for (let intento = 0; intento < 6; intento++) {
+    const rpc = RPCS[intento % RPCS.length];
+    try {
+      const prov = new ethers.JsonRpcProvider(rpc, 56, { staticNetwork: true });
+      const rec = await prov.waitForTransaction(hash, 1, 20000);
+      if (rec) { if (rec.status === 0) throw new Error('La transacción se envió pero no se completó en la red (revirtió). Revisa el saldo y el gas, e inténtalo de nuevo.'); return rec; }
+    } catch (e) { if (e && /revirt/i.test(e.message || '')) throw e; }
+    await new Promise((r) => setTimeout(r, 1500));   // pausa entre reintentos (nunca bucle apretado)
+  }
+  // último recurso: el proveedor de la propia wallet
+  try { const rec = await tx.wait(); if (rec && rec.status === 0) throw new Error('La transacción no se completó en la red.'); return rec || null; }
+  catch (e) { if (e && /revirt|no se completó/i.test(e.message || '')) throw e; return null; }
 }
 
 /** Dirección de un token; si es BNB nativo (address null), usa WBNB. */

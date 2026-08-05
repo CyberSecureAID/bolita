@@ -106,7 +106,7 @@ function inyectarEstilo() {
   #colmena-modal .busy-ring{position:relative;width:58px;height:58px;flex:0 0 auto}
   #colmena-modal .busy-ring svg{width:58px;height:58px;transform:rotate(-90deg)}
   #colmena-modal .busy-ring .br-bg{fill:none;stroke:rgba(255,255,255,.1);stroke-width:3}
-  #colmena-modal .busy-ring .br-fg{fill:none;stroke:#e8b84b;stroke-width:3.5;stroke-linecap:round;stroke-dasharray:88 120;transform-origin:22px 22px;animation:brspin .95s linear infinite;filter:drop-shadow(0 0 4px rgba(232,184,75,.4))}
+  #colmena-modal .busy-ring .br-fg{fill:none;stroke:#e8b84b;stroke-width:3.5;stroke-linecap:round;stroke-dasharray:88 120;transform-origin:22px 22px;animation:brspin .95s linear infinite}
   @keyframes brspin{to{transform:rotate(360deg)}}
   #colmena-modal .busy-num{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display),Georgia,serif;font-size:22px;font-weight:700;color:rgba(255,255,255,.82)}
   /* Acento del bot en TODO el texto secundario de la sección (encabezados, párrafos, hints, saldos, botones no seleccionados) */
@@ -606,7 +606,7 @@ function modalBusy(txt) {
   let n = 10;
   window._busyTimer = setInterval(() => {
     const el = $('busy-num'); if (!el) { limpiarBusy(); return; }
-    n--; if (n > 0) el.textContent = n; else { el.textContent = ''; el.classList.add('busy-done'); limpiarBusy(); }
+    n--; if (n <= 0) n = 10; el.textContent = n;
   }, 1000);
 }
 function modalBusyTexto(txt) { const el = $('busy-tx'); if (el) el.innerHTML = txt; }
@@ -2205,11 +2205,16 @@ async function compartirBot(card) {
   const shadow = (b = 16, oy = 3) => { g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = b; g.shadowOffsetY = oy; };
   const noShadow = () => { g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetY = 0; };
 
-  // Puntas doradas: relleno TODO el lienzo con un dorado bicolor; se verá solo en las
-  // esquinas (detrás de la imagen redondeada), para que al compartir no se vean cuadradas.
-  const oroBg = g.createLinearGradient(0, 0, W, H);
-  oroBg.addColorStop(0, '#f9e3a0'); oroBg.addColorStop(.42, '#e8b84b'); oroBg.addColorStop(.72, '#c79426'); oroBg.addColorStop(1, '#7a5713');
-  g.fillStyle = oroBg; g.fillRect(0, 0, W, H);
+  // Puntas doradas con efecto biselado (bicolor, tipo punta de flecha): cada esquina se
+  // parte en diagonal — una cara clara y una oscura — para que no se vea plana.
+  g.fillStyle = '#c79426'; g.fillRect(0, 0, W, H);
+  const RB = 60, claro = '#fbe8a8', oscuro = '#9a6d18', filo = '#6f4f12';
+  const bisel = (cx, cy, dx, dy) => {
+    g.fillStyle = claro; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + dx * RB, cy); g.lineTo(cx + dx * RB, cy + dy * RB); g.closePath(); g.fill();
+    g.fillStyle = oscuro; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx, cy + dy * RB); g.lineTo(cx + dx * RB, cy + dy * RB); g.closePath(); g.fill();
+    g.strokeStyle = filo; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + dx * RB, cy + dy * RB); g.stroke();
+  };
+  bisel(0, 0, 1, 1); bisel(W, 0, -1, 1); bisel(0, H, 1, -1); bisel(W, H, -1, -1);
 
   rr(0, 0, W, H, 48); g.clip();   // esquinas redondeadas de TODA la imagen
 
