@@ -219,6 +219,18 @@ function inyectarEstilo() {
   #colmena-app .c-foot h4{font-family:var(--display);color:var(--gold);font-size:16px;margin:0 0 18px}
   #colmena-app .c-foot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
   #colmena-app .c-faq{background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:14px;padding:16px}
+  #colmena-app .c-faq-wrap{border:1px solid var(--line-soft);border-radius:14px;background:rgba(255,255,255,.02);overflow:hidden;max-width:640px;margin:0 auto}
+  #colmena-app .c-faq-wrap summary{list-style:none;cursor:pointer;text-align:center;font-family:var(--display);color:var(--gold);font-size:15.5px;font-weight:700;padding:16px 18px;user-select:none;transition:background .15s}
+  #colmena-app .c-faq-wrap summary:hover{background:rgba(232,184,75,.06)}
+  #colmena-app .c-faq-wrap summary::-webkit-details-marker{display:none}
+  #colmena-app .c-faq-wrap summary::after{content:'  ▾';color:var(--ink-3);font-size:12px}
+  #colmena-app .c-faq-wrap[open] summary::after{content:'  ▴'}
+  #colmena-app .c-faq-wrap[open] summary{border-bottom:1px solid var(--line-soft)}
+  #colmena-app .c-faq-wrap .c-foot-grid{padding:16px}
+  /* botón Compartir tornasol */
+  #colmena-app .pio-tag.share{cursor:pointer;color:#eafff2;border:1px solid rgba(46,232,106,.55);background:linear-gradient(120deg,rgba(46,232,106,.28),rgba(56,209,255,.22),rgba(232,184,75,.26));background-size:200% 100%;animation:tornasol 4s linear infinite;box-shadow:0 0 14px rgba(46,232,106,.25);display:inline-flex;align-items:center;gap:5px}
+  #colmena-app .pio-tag.share:hover{filter:brightness(1.15)}
+  @keyframes tornasol{from{background-position:0 0}to{background-position:200% 0}}
   #colmena-app .c-faq h5{font-family:var(--display);color:var(--ink);font-size:13.5px;margin:0 0 7px}
   #colmena-app .c-faq p{font-family:var(--sans);color:var(--ink-2);font-size:12.5px;line-height:1.55;margin:0}
   #colmena-app .c-foot-bottom{margin-top:22px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
@@ -279,7 +291,8 @@ function inyectarEstilo() {
   #colmena-app .pio-box .v2.pos{color:var(--neon-lit)} #colmena-app .pio-box .v2.neg{color:var(--rojo)}
   /* ====== Ficha PREMIUM ====== */
   #colmena-app .rej{background:linear-gradient(160deg,rgba(16,48,33,.92),rgba(4,14,10,.97));border:1px solid rgba(232,184,75,.24);box-shadow:0 18px 52px rgba(0,0,0,.52),inset 0 1px 0 rgba(255,255,255,.06)}
-  #colmena-app .rej::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon-lit) 28%,var(--gold) 50%,var(--neon-lit) 72%,transparent);background-size:220% 100%;box-shadow:0 0 16px rgba(46,232,106,.55);animation:flow 3s linear infinite;z-index:3}
+  #colmena-app .rej::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--neon-dim) 30%,var(--gold-soft) 50%,var(--neon-dim) 70%,transparent);opacity:.5;z-index:3}
+  #colmena-app .pio-band .r .k{font-weight:800;opacity:1;font-size:12px;letter-spacing:.5px}
   @keyframes flow{from{background-position:220% 0}to{background-position:-220% 0}}
   #colmena-app .rej::after{content:'';position:absolute;top:-42%;right:-14%;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(46,232,106,.17),transparent 66%);pointer-events:none;z-index:0}
   #colmena-app .rej:hover{transform:translateY(-3px);border-color:rgba(232,184,75,.55);box-shadow:0 30px 72px rgba(0,0,0,.62),0 0 34px rgba(232,184,75,.16)}
@@ -608,6 +621,7 @@ function wireHeader() {
 }
 function footerHTML() {
   const faqs = [
+    ['¿Cómo retiro mis ganancias?', 'No hay nada que retirar. Tus ganancias caen solas en tu wallet cada vez que el bot vende. El dinero siempre está en tu poder, nunca en el nuestro.'],
     ['¿Qué hace el bot?', 'Compra barato y vende caro por ti, solo, mientras el precio sube y baja dentro del rango que elijas.'],
     ['¿Es seguro mi dinero?', 'Sí. Tus monedas nunca salen de tu wallet a manos de nadie. Le das un permiso limitado que puedes quitar cuando quieras con "Desconectar".'],
     ['¿Necesito cuenta o KYC?', 'No. Solo tu wallet. Sin registros, sin papeleo y sin exchange.'],
@@ -616,8 +630,10 @@ function footerHTML() {
     ['¿Y el aviso de mi wallet?', 'Tu wallet puede mostrar un aviso porque el contrato es nuevo y aún no tiene reputación. El permiso que otorgas es limitado y revocable.']
   ];
   return `<footer class="c-foot">
-    <h4>Preguntas frecuentes</h4>
-    <div class="c-foot-grid">${faqs.map(([q, a]) => `<div class="c-faq"><h5>${q}</h5><p>${a}</p></div>`).join('')}</div>
+    <details class="c-faq-wrap">
+      <summary>¿Tienes dudas sobre cómo funciona la plataforma?</summary>
+      <div class="c-foot-grid">${faqs.map(([q, a]) => `<div class="c-faq"><h5>${q}</h5><p>${a}</p></div>`).join('')}</div>
+    </details>
     <div class="c-foot-bottom">Bot Algorítmico · Opera bajo tu propio riesgo · <a href="index.html">Volver a La Bolita</a></div>
   </footer>`;
 }
@@ -1354,7 +1370,7 @@ async function tarjeta(cuenta, clave, par) {
         <div class="pio-pair">${simB}/${simQ}</div>
         <div class="pio-sub">Activo <span class="pio-time" data-since="${creadoSeg}">${tiempoActivo(creadoSeg)}</span> · ${R.activa ? '<span class="dot"></span>operando' : 'detenido'}</div>
       </div>
-      <div class="pio-tags"><span class="pio-tag">LONG</span><span class="pio-tag grey">Spot</span></div>
+      <div class="pio-tags"><span class="pio-tag share" data-share>↗ Compartir</span><span class="pio-tag">LONG</span><span class="pio-tag grey">Spot</span></div>
     </div>
 
     <div class="pio-band">
@@ -1388,7 +1404,6 @@ async function tarjeta(cuenta, clave, par) {
       <div class="tab-ordenes" style="display:none"><div class="ord-list">${ordRows}</div></div>
     </div>
 
-    <div class="ganmsg">💰 Tus ganancias caen solas en tu wallet cada vez que el bot vende. No hay nada que retirar.</div>
     <div class="rej-btns" style="grid-template-columns:1fr 1fr 1fr">
       <button class="btn btn-linea" data-acc="editar">Editar</button>
       <button class="btn btn-oro" data-acc="terminar">Cerrar y vender</button>
@@ -1412,10 +1427,74 @@ function editarBot(el) {
   aviso($('c-msg'), 'info', `Editando ${el.dataset.sb}/${el.dataset.sq}: cambia lo que quieras (por ejemplo las cuadrículas) y pulsa "Encender el bot" para guardar los cambios.`);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+async function compartirBot(card) {
+  const get = (sel) => card.querySelector(sel)?.textContent?.trim() || '';
+  const pair = get('.pio-pair') || 'MI BOT';
+  const inv = get('.pio-band .l .v') || '—';
+  const ganEl = card.querySelector('.pio-band .r');
+  const gan = ganEl?.querySelector('.v')?.textContent?.trim() || '';
+  const pct = ganEl?.querySelector('.pct')?.textContent?.trim() || '';
+  const neg = ganEl?.classList.contains('neg');
+  const boxes = card.querySelectorAll('.pio-grid .pio-box');
+  const vueltas = boxes[4]?.querySelector('.v')?.textContent?.trim() || '0';
+
+  const W = 1080, H = 1080, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+  const verde = '#2ee86a', rojo = '#ff6b6b', oro = '#e8b84b', tint = neg ? rojo : verde;
+
+  const bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#0c2a1c'); bg.addColorStop(1, '#040f0b');
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  const halo = g.createRadialGradient(W * 0.5, 360, 40, W * 0.5, 360, 640);
+  halo.addColorStop(0, neg ? 'rgba(255,107,107,.16)' : 'rgba(46,232,106,.18)'); halo.addColorStop(1, 'transparent');
+  g.fillStyle = halo; g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(232,184,75,.35)'; g.lineWidth = 3; rr(40, 40, W - 80, H - 80, 40); g.stroke();
+
+  g.textBaseline = 'alphabetic';
+  g.fillStyle = oro; g.font = '700 44px Georgia, serif'; g.fillText('LA BOLITA', 90, 150);
+  g.fillStyle = '#9dbdb2'; g.font = '500 26px Arial'; g.fillText('Bot Algorítmico', 92, 190);
+
+  const ar = 62, ax = W - 210, ay = 96;
+  const av = g.createLinearGradient(ax, ay, ax, ay + 2 * ar); av.addColorStop(0, verde); av.addColorStop(1, oro);
+  g.fillStyle = av; g.beginPath(); g.arc(ax + ar, ay + ar, ar, 0, 7); g.fill();
+  g.textAlign = 'center'; g.font = '62px Arial'; g.fillText('🤖', ax + ar, ay + ar + 22); g.textAlign = 'left';
+
+  g.fillStyle = '#eafff2'; g.font = '700 80px Georgia, serif'; g.fillText(pair, 90, 365);
+  g.fillStyle = '#9dbdb2'; g.font = '600 30px Arial'; g.fillText('Ganancia total', 92, 470);
+  g.fillStyle = tint; g.font = '800 150px Georgia, serif'; g.fillText(gan || '—', 86, 618);
+  g.font = '700 58px Arial'; g.fillText(pct, 92, 696);
+
+  const stat = (x, lab, val) => {
+    g.fillStyle = 'rgba(255,255,255,.05)'; rr(x, 782, 420, 128, 22); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.1)'; g.lineWidth = 1.5; rr(x, 782, 420, 128, 22); g.stroke();
+    g.fillStyle = '#9dbdb2'; g.font = '600 26px Arial'; g.fillText(lab, x + 30, 832);
+    g.fillStyle = '#eafff2'; g.font = '700 44px Georgia, serif'; g.fillText(val, x + 30, 886);
+  };
+  stat(90, 'Invertido', inv);
+  stat(W - 90 - 420, 'Vueltas', vueltas);
+
+  g.fillStyle = oro; g.font = '700 33px Arial'; g.textAlign = 'center';
+  g.fillText('Sin custodia · Sin KYC · Arma el tuyo', W / 2, 992);
+  g.textAlign = 'left';
+
+  cv.toBlob(async (blob) => {
+    if (!blob) return;
+    const file = new File([blob], 'mi-bot-bolita.png', { type: 'image/png' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Mi bot en La Bolita', text: 'Mira cómo trabaja mi bot 🤖' });
+        return;
+      }
+    } catch (_) {}
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'mi-bot-bolita.png'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }, 'image/png');
+}
 function enganchar(cuenta) {
   document.querySelectorAll(`#${APP} .rej`).forEach((el) => {
     const b = el.dataset.b, q = el.dataset.q, sq = el.dataset.sq, sb = el.dataset.sb;
     wirePops(el);
+    const shareBtn = el.querySelector('[data-share]');
+    if (shareBtn) shareBtn.onclick = () => compartirBot(el);
     el.querySelectorAll('[data-acc]').forEach((btn) => btn.onclick = async () => {
       const acc = btn.dataset.acc;
       if (acc === 'toggle-panel') {
