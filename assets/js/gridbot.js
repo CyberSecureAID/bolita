@@ -481,7 +481,10 @@ export async function construirConfigDCA(p) {
     base: p.base, quote: p.quote,
     pathCompra: rutas.compra, pathVenta: rutas.venta,
     ordenQuote, ordenBase: 0n,
-    niveles: [],
+    // El modo 3 (DCA) compra por TIEMPO, no por niveles: no usa ninguno. Pero el contrato
+    // exige niveles.length > 0. Metemos un nivel "fantasma" inerte (el keeper del DCA usa
+    // comprarDCA, nunca ejecutar, así que este nivel jamás se toca).
+    niveles: [{ minOutCompra: 0n, minOutVenta: 0n, estado: 0 }],
     slippageBps: p.slippageBps || 0, cooldownSeg: 0,
     tpUnitOut: 0n, slUnitOut: 0n,
     feeTier,
