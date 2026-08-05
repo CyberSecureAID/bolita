@@ -187,7 +187,8 @@ function inyectarEstilo() {
   #colmena-app .coin-sel-ico{width:32px;height:32px;font-size:14px}
   #colmena-app .cm-coin-ico{width:38px;height:38px;font-size:17px}
   #colmena-app .coin-sel-ico img,#colmena-app .cm-coin-ico img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:transparent}
-  #colmena-app .coin-sel-ico:has(img),#colmena-app .cm-coin-ico:has(img){background:transparent;border:none}
+  #colmena-app .coin-sel-ico.conlogo,#colmena-app .cm-coin-ico.conlogo{background:transparent;border:none}
+  #colmena-app .coin-sel-ico.conlogo .ico-fb,#colmena-app .cm-coin-ico.conlogo .ico-fb{display:none}
   #colmena-app .coin-sel-tx{display:flex;flex-direction:column;gap:1px;min-width:0;text-align:left}
   #colmena-app .coin-sel-tx b{font-family:var(--display);font-size:15px;color:var(--ink);line-height:1.15}
   #colmena-app .coin-sel-tx i{font-family:var(--mono);font-size:10px;color:var(--ink-3);font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
@@ -1505,7 +1506,7 @@ function fmtPrecioUSD(p) {
 function icoInner(mo) {
   const letra = mo.icono || (mo.simbolo || '?')[0];
   const L = LOGOS[mo.id];
-  return letra + (L && L.img ? `<img src="${L.img}" alt="" onerror="this.style.display='none'">` : '');
+  return `<span class="ico-fb">${letra}</span>` + (L && L.img ? `<img src="${L.img}" alt="" onload="this.parentElement.classList.add('conlogo')" onerror="this.style.display='none'">` : '');
 }
 let _logosCargando = false, _logosOk = false;
 async function cargarLogosPrecios() {
@@ -2154,58 +2155,83 @@ function editarBot(el) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 async function compartirBot(card) {
-  const get = (sel) => card.querySelector(sel)?.textContent?.trim() || '';
-  const pair = get('.pio-pair') || 'MI BOT';
-  const inv = get('.pio-band .l .v') || '—';
+  const tipo = card.dataset.tipo || 'grid';
+  const meta = BOTMETA[tipo] || BOTMETA.grid;
+  const txt = (sel) => card.querySelector(sel)?.textContent?.trim() || '';
+  const sb = card.dataset.sb || '', sq = card.dataset.sq || '';
+  const pair = (sb && sq) ? `${sb}/${sq}` : (txt('.pio-pair') || 'MI BOT');
+  const nombre = txt('.pio-nombre') || meta.nom;
+  const invLab = txt('.pio-band .l .k') || 'Inversión';
+  const inv = txt('.pio-band .l .v') || '—';
   const ganEl = card.querySelector('.pio-band .r');
-  const gan = ganEl?.querySelector('.v')?.textContent?.trim() || '';
+  const gan = ganEl?.querySelector('.v')?.textContent?.trim() || '—';
   const pct = ganEl?.querySelector('.pct')?.textContent?.trim() || '';
   const neg = ganEl?.classList.contains('neg');
-  const boxes = card.querySelectorAll('.pio-grid .pio-box');
-  const vueltas = boxes[4]?.querySelector('.v')?.textContent?.trim() || '0';
+  const bid = card.dataset.bid || '';
+  const logoUrl = (LOGOS[bid] && LOGOS[bid].img) || '';
+  const fecha = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+  const acento = { grid: '#4d9fff', acum: '#b47cff', cash: '#e8b84b', dca: '#34d97b' }[tipo] || '#e8b84b';
+  const rgb = neg ? '246,70,93' : '46,232,106', tint = neg ? '#f6465d' : '#2ee86a';
+
+  const loadImg = (src, cross) => new Promise((res) => { if (!src) return res(null); const im = new Image(); if (cross) im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+  const [botImg, coinImg] = await Promise.all([loadImg(meta.img, false), loadImg(logoUrl, true)]);
 
   const W = 1080, H = 1080, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const g = cv.getContext('2d');
   const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
-  const verde = '#2ee86a', rojo = '#ff6b6b', oro = '#e8b84b', tint = neg ? rojo : verde;
+  const shadow = (b = 16) => { g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = b; g.shadowOffsetY = 3; };
+  const noShadow = () => { g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetY = 0; };
 
-  const bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#0c2a1c'); bg.addColorStop(1, '#040f0b');
-  g.fillStyle = bg; g.fillRect(0, 0, W, H);
-  const halo = g.createRadialGradient(W * 0.5, 360, 40, W * 0.5, 360, 640);
-  halo.addColorStop(0, neg ? 'rgba(255,107,107,.16)' : 'rgba(46,232,106,.18)'); halo.addColorStop(1, 'transparent');
-  g.fillStyle = halo; g.fillRect(0, 0, W, H);
-  g.strokeStyle = 'rgba(232,184,75,.35)'; g.lineWidth = 3; rr(40, 40, W - 80, H - 80, 40); g.stroke();
-
+  // Fondo: la foto del bot (cover) o un degradado si aún no está subida.
+  if (botImg) {
+    const ir = botImg.width / botImg.height, cr = W / H; let dw, dh, dx, dy;
+    if (ir > cr) { dh = H; dw = H * ir; dx = (W - dw) / 2; dy = 0; } else { dw = W; dh = W / ir; dx = 0; dy = (H - dh) / 2; }
+    g.drawImage(botImg, dx, dy, dw, dh);
+  } else {
+    const bgg = g.createLinearGradient(0, 0, W, H); bgg.addColorStop(0, '#20262f'); bgg.addColorStop(1, '#0b0e11'); g.fillStyle = bgg; g.fillRect(0, 0, W, H);
+  }
+  // Velo para que el texto no se pierda (más oscuro arriba y abajo).
+  const ov = g.createLinearGradient(0, 0, 0, H);
+  ov.addColorStop(0, 'rgba(4,6,9,.64)'); ov.addColorStop(.34, 'rgba(4,6,9,.12)'); ov.addColorStop(.6, 'rgba(4,6,9,.32)'); ov.addColorStop(1, 'rgba(4,6,9,.93)');
+  g.fillStyle = ov; g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(232,184,75,.5)'; g.lineWidth = 4; rr(22, 22, W - 44, H - 44, 46); g.stroke();
   g.textBaseline = 'alphabetic';
-  g.fillStyle = oro; g.font = '700 44px Georgia, serif'; g.fillText('LA BOLITA', 90, 150);
-  g.fillStyle = '#9dbdb2'; g.font = '500 26px Arial'; g.fillText('Bot Algorítmico', 92, 190);
 
-  const ar = 62, ax = W - 210, ay = 96;
-  const av = g.createLinearGradient(ax, ay, ax, ay + 2 * ar); av.addColorStop(0, verde); av.addColorStop(1, oro);
-  g.fillStyle = av; g.beginPath(); g.arc(ax + ar, ay + ar, ar, 0, 7); g.fill();
-  g.textAlign = 'center'; g.font = '62px Arial'; g.fillText('🤖', ax + ar, ay + ar + 22); g.textAlign = 'left';
+  // ── Arriba-izquierda: logo de la moneda + nombre + par · fecha ──
+  const lx = 70, ly = 66, lr = 42;
+  if (coinImg) { g.save(); g.beginPath(); g.arc(lx + lr, ly + lr, lr, 0, 7); g.closePath(); g.clip(); g.drawImage(coinImg, lx, ly, lr * 2, lr * 2); g.restore(); }
+  else { shadow(14); g.fillStyle = acento; g.beginPath(); g.arc(lx + lr, ly + lr, lr, 0, 7); g.fill(); noShadow(); g.fillStyle = '#08121f'; g.font = '800 36px Arial'; g.textAlign = 'center'; g.fillText(sb[0] || '?', lx + lr, ly + lr + 13); g.textAlign = 'left'; }
+  shadow(18);
+  g.fillStyle = acento; g.font = '800 50px Georgia, serif'; g.fillText(nombre, lx + lr * 2 + 26, ly + 38);
+  g.fillStyle = '#eaecef'; g.font = '600 27px Arial'; g.fillText(`${pair}   ·   ${fecha}`, lx + lr * 2 + 27, ly + 77);
+  noShadow();
 
-  g.fillStyle = '#eafff2'; g.font = '700 80px Georgia, serif'; g.fillText(pair, 90, 365);
-  g.fillStyle = '#9dbdb2'; g.font = '600 30px Arial'; g.fillText('Ganancia total', 92, 470);
-  g.fillStyle = tint; g.font = '800 150px Georgia, serif'; g.fillText(gan || '—', 86, 618);
-  g.font = '700 58px Arial'; g.fillText(pct, 92, 696);
-
-  const stat = (x, lab, val) => {
-    g.fillStyle = 'rgba(255,255,255,.05)'; rr(x, 782, 420, 128, 22); g.fill();
-    g.strokeStyle = 'rgba(255,255,255,.1)'; g.lineWidth = 1.5; rr(x, 782, 420, 128, 22); g.stroke();
-    g.fillStyle = '#9dbdb2'; g.font = '600 26px Arial'; g.fillText(lab, x + 30, 832);
-    g.fillStyle = '#eafff2'; g.font = '700 44px Georgia, serif'; g.fillText(val, x + 30, 886);
-  };
-  stat(90, 'Invertido', inv);
-  stat(W - 90 - 420, 'Vueltas', vueltas);
-
-  g.fillStyle = oro; g.font = '700 33px Arial'; g.textAlign = 'center';
-  g.fillText('Sin custodia · Sin KYC · Arma el tuyo', W / 2, 992);
+  // ── Abajo: banda Inversión ↔ Ganancia total, con chaflán diagonal ──
+  const bX = 56, bW = W - 112, bY = H - 272, bH = 170, split = bX + bW * 0.5;
+  shadow(28); g.fillStyle = 'rgba(11,15,20,.94)'; rr(bX, bY, bW, bH, 30); g.fill(); noShadow();
+  g.save(); rr(bX, bY, bW, bH, 30); g.clip();
+  const grd = g.createLinearGradient(split - 40, 0, bX + bW, 0);
+  grd.addColorStop(0, `rgba(${rgb},0)`); grd.addColorStop(1, `rgba(${rgb},.22)`);
+  g.fillStyle = grd; g.beginPath(); g.moveTo(split + 44, bY); g.lineTo(bX + bW, bY); g.lineTo(bX + bW, bY + bH); g.lineTo(split - 44, bY + bH); g.closePath(); g.fill();
+  g.strokeStyle = tint; g.lineWidth = 3; g.globalAlpha = .55; g.beginPath(); g.moveTo(split + 44, bY - 4); g.lineTo(split - 44, bY + bH + 4); g.stroke(); g.globalAlpha = 1;
+  g.restore();
+  g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1.5; rr(bX, bY, bW, bH, 30); g.stroke();
+  g.fillStyle = '#8b95a1'; g.font = '600 25px Arial'; g.fillText(invLab, bX + 40, bY + 60);
+  g.fillStyle = '#eaecef'; g.font = '800 56px Georgia, serif'; g.fillText(inv, bX + 38, bY + 124);
+  g.textAlign = 'right';
+  g.fillStyle = '#8b95a1'; g.font = '600 25px Arial'; g.fillText('Ganancia total', bX + bW - 40, bY + 58);
+  g.fillStyle = tint; g.font = '800 54px Georgia, serif'; g.fillText(gan, bX + bW - 40, bY + 116);
+  if (pct) { g.fillStyle = tint; g.font = '700 27px Arial'; g.fillText(pct, bX + bW - 40, bY + 150); }
   g.textAlign = 'left';
+
+  shadow(14); g.fillStyle = 'rgba(232,184,75,.95)'; g.font = '700 27px Arial'; g.textAlign = 'center';
+  g.fillText('Bot Algorítmico   ·   sin custodia   ·   sin KYC', W / 2, H - 50);
+  g.textAlign = 'left'; noShadow();
 
   cv.toBlob((blob) => {
     if (!blob) return;
-    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'mi-bot-bolita.png';
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url;
+    a.download = `bot-${tipo}-${sb}${sq}.png`;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500);
   }, 'image/png');
 }
