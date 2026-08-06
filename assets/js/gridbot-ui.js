@@ -333,7 +333,7 @@ function inyectarEstilo() {
   #colmena-app .hero h1{font-family:var(--display);color:var(--gold);font-size:34px;margin:0 0 12px}
   #colmena-app .colmenas{margin-top:24px;position:relative;overflow:hidden;background:#0d1117;
     border:1px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.45)}
-  #colmena-app .colmenas::before{content:'';position:absolute;inset:0;z-index:0;background:url('assets/img/aurex-og.jpg') center/cover no-repeat;filter:blur(6px) saturate(1.05) brightness(.9);transform:scale(1.08)}
+  #colmena-app .colmenas::before{content:'';position:absolute;inset:0;z-index:0;background:url('assets/img/bots-bg.webp') center/cover no-repeat;filter:blur(6px) saturate(1.05) brightness(.9);transform:scale(1.08)}
   #colmena-app .colmenas::after{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(9,11,15,.55),rgba(9,11,15,.80))}
   #colmena-app .colmenas>*{position:relative;z-index:2}
   #colmena-app .colmenas h3{position:relative;z-index:2;text-shadow:0 2px 12px rgba(0,0,0,.6)}
@@ -600,6 +600,7 @@ function inyectarEstilo() {
     #colmena-app .pio-op{display:none}
     #colmena-app .pio-band .tot{display:none}
     #colmena-app .pio-box[data-box="vueltas"],#colmena-app .pio-box[data-box="gas"]{display:none}
+    #colmena-app .pio-toggle{display:none}
     #colmena-app .pio-logo,#colmena-app .pio-mono{width:42px;height:42px}
     #colmena-app .pio-pair{font-size:18px}
     #colmena-app .pio-nombre{font-size:17px}
@@ -2223,7 +2224,7 @@ async function tarjeta(cuenta, clave, par, R) {
   const nombreBot = tipo === 'cash' ? 'Bot Cash Out' : tipo === 'acum' ? 'Bot Accumulator' : tipo === 'dca' ? 'Bot DCA' : 'Bot Smart Grid';
   const invLabel = tipo === 'cash' ? simB : simQ;
   const invValue = tipo === 'cash' ? num((par.cantBase != null ? Number(par.cantBase) : posBase), 6) : num(invertido, 2);
-  const _boxEntrada = `<div class="pio-box" data-box="entrada"><div class="k">Entrada → Ahora</div><div class="v" style="font-size:14px">${par.entry ? precioFmt(par.entry) + ' → ' : ''}${precioFmt(precio)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}">${mkt == null ? simQ : sg(mkt) + num(Math.abs(mkt), 2) + '% mercado'}</div></div>`;
+  const _boxEntrada = `<div class="pio-box" data-box="entrada"><div class="k">Entrada → Ahora</div><div class="v" style="font-size:14px">${par.entry ? precioFmt(par.entry) + ' → ' : ''}${precioFmt(precio)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}" style="${mkt == null ? 'color:var(--ink-3)' : ''}">${mkt == null ? 'precio actual' : sg(mkt) + num(Math.abs(mkt), 2) + '% mercado'}</div></div>`;
   const _boxFlotante = `<div class="pio-box" data-box="flotante"><div class="k">Flotante ${iBtn('ganancia')}</div><div class="v ${cls(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div><div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>`;
   const _boxGas = `<div class="pio-box" data-box="gas"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>`;
   const _boxGrid = `<div class="pio-box" data-box="realizado"><div class="k">Grid profit ${iBtn('porcuad')}</div><div class="v ${cls(realizado)} numgo" data-to="${Math.abs(realizado)}" data-dec="4" data-pre="${sg(realizado)}">${sg(realizado)}${num(Math.abs(realizado), 4)}</div><div class="v2 ${cls(realizado)}">${sg(pct(realizado))}${num(Math.abs(pct(realizado)), 2)}%</div></div>`;
@@ -2258,7 +2259,7 @@ async function tarjeta(cuenta, clave, par, R) {
       ${logoDe(bAddr, simB)}
       <div class="pio-titles">
         <div class="pio-pair">${simB}/${simQ}</div>
-        <div class="pio-sub">Activo <span class="pio-time" data-since="${creadoSeg}">${tiempoActivo(creadoSeg)}</span><span class="pio-op"> · ${R.activa ? '<span class="dot"></span>operando' : 'detenido'}</span></div>
+        <div class="pio-sub"><span class="pio-time" data-since="${creadoSeg}">${tiempoActivo(creadoSeg)}</span><span class="pio-op"> · ${R.activa ? '<span class="dot"></span>operando' : 'detenido'}</span></div>
       </div>
       <div class="pio-tags"><span class="pio-tag share" data-share>↗<span class="lbl"> Compartir</span></span><span class="pio-tag">LONG</span><span class="pio-tag grey">Spot</span></div>
     </div>
