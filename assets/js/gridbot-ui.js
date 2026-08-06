@@ -111,7 +111,7 @@ function inyectarEstilo() {
   #colmena-app .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:18px;padding:22px}
   #colmena-app .card h3{font-family:var(--display);color:var(--gold);margin:0 0 4px;font-size:18px}
   #colmena-app .card .sub{color:var(--ink-3);font-size:12.5px;margin:0 0 16px}
-  #colmena-app .lab{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--acento);margin:16px 0 7px;padding-left:3px;text-transform:uppercase;letter-spacing:.6px}
+  #colmena-app .lab{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-family:var(--mono);font-size:11px;color:var(--acento);margin:16px 0 7px;padding-left:3px;text-transform:uppercase;letter-spacing:.6px}
   #colmena-modal .busy-wrap{display:flex;align-items:center;justify-content:space-between;gap:18px}
   #colmena-modal .busy-tx{flex:1;line-height:1.55;font-size:14px}
   #colmena-modal .busy-ring{position:relative;width:58px;height:58px;flex:0 0 auto}
@@ -270,9 +270,9 @@ function inyectarEstilo() {
   #colmena-app .cash-resumen{margin-top:16px;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:0 8px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.03)}
   #colmena-app .cash-resumen .cr-top{font-family:var(--display);color:var(--gold);font-size:14px;font-weight:700;text-align:center;margin-bottom:12px;text-shadow:0 1px 1px rgba(0,0,0,.4);letter-spacing:.3px}
   #colmena-app .cash-resumen .cr-rows{display:flex;flex-direction:column;gap:1px;background:var(--line-soft);border-radius:11px;overflow:hidden}
-  #colmena-app .cash-resumen .cr-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:rgba(0,0,0,.28);font-family:var(--mono);font-size:12.5px}
-  #colmena-app .cash-resumen .cr-row span{color:var(--ink-3)}
-  #colmena-app .cash-resumen .cr-row b{color:var(--ink);font-family:var(--display);font-size:15px}
+  #colmena-app .cash-resumen .cr-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 14px;background:rgba(0,0,0,.28);font-family:var(--mono);font-size:12.5px}
+  #colmena-app .cash-resumen .cr-row span{color:var(--ink-3);min-width:0}
+  #colmena-app .cash-resumen .cr-row b{color:var(--ink);font-family:var(--display);font-size:15px;white-space:nowrap;text-align:right}
   #colmena-app .cash-resumen .cr-gan b{font-size:18px}
   #colmena-app .cash-resumen .cr-gan b.pos{color:var(--neon-lit);text-shadow:0 0 12px rgba(46,232,106,.3)}
   #colmena-app .cash-resumen .cr-gan b.neg{color:var(--rojo)}
@@ -640,6 +640,25 @@ function modalConfirm(o) {
     ok.onclick = () => fin(true);
     cancel.onclick = () => { m.classList.remove('show'); fin(false); };
     m.onclick = (e) => { if (e.target === m) { m.classList.remove('show'); fin(false); } };
+  });
+}
+/** Pausa el flujo antes de una firma y espera un toque del usuario.
+ *  Clave en móvil: tras cada firma la wallet te devuelve a su pantalla; este
+ *  "Continuar" hace que la siguiente firma la inicie un toque fresco (con la
+ *  dApp enfocada), evitando que la wallet te bote entre transacción y transacción. */
+function pasoWallet(titulo, texto) {
+  return new Promise((resolve) => {
+    const m = $('colmena-modal'); if (!m) return resolve();
+    limpiarBusy();
+    $('cm-title').textContent = titulo || '';
+    $('cm-body').innerHTML = texto || '';
+    m.querySelector('.m-btns').style.display = 'flex';
+    const ok = $('cm-ok'), cancel = $('cm-cancel');
+    if (cancel) cancel.style.display = 'none';
+    ok.textContent = 'Continuar'; ok.className = 'btn btn-oro';
+    m.onclick = null;
+    m.classList.add('show');
+    ok.onclick = () => { ok.onclick = null; resolve(); };
   });
 }
 function limpiarBusy() { if (window._busyTimer) { clearInterval(window._busyTimer); window._busyTimer = null; } }
@@ -1866,25 +1885,31 @@ async function onCrearCashOut() {
     const balH = Number(gb.fmt(balBI, base.decimals));
     if (cantidad > balH + 1e-9) { modalError(`No tienes suficiente ${base.simbolo}. En tu wallet hay ${num(balH, 6)} ${base.simbolo} y quieres vender ${num(cantidad, 6)}.`); return; }
     if (!(await asegurarSuscripcion(cuenta))) { modalClose(); return; }
-    // Si la moneda es BNB, hay que envolver a WBNB lo que falte (para que el bot pueda venderlo).
+    modalBusy('Preparando tu Cash Out con el precio real…');
+    const botId = Date.now();
+    const config = await gb.construirConfigCashOut(p); config.botId = botId;
+    const baseNeed = mBI(cantidad * 3, base.decimals);
+    // Paso: convertir BNB -> WBNB si hace falta (firma aparte)
     if (gb.esBNB(p.base)) {
       const wbnbBal = await gb.balanceToken(p.base, cuenta);
       const wbnbH = Number(gb.fmt(wbnbBal, base.decimals));
       if (cantidad > wbnbH + 1e-12) {
         const falta = cantidad - wbnbH;
-        modalBusy(`<b>Preparando tu BNB…</b><br>Se convierte ${num(falta, 6)} BNB a WBNB para poder venderlo (sigue siendo tuyo).<br><br>Confirma en tu wallet.`);
+        await pasoWallet('Preparar tu BNB', `Se convierte <b>${num(falta, 6)} BNB</b> a WBNB para poder venderlo (sigue siendo tuyo).<br><br>Toca <b>Continuar</b> y firma en tu wallet.`);
+        modalBusy('Convirtiendo tu BNB… firma en tu wallet.');
         await gb.envolverBNB(mBI(falta * 1.001, base.decimals));
       }
     }
-    modalBusy('Preparando tu Cash Out con el precio real…');
-    const botId = Date.now();
-    const config = await gb.construirConfigCashOut(p); config.botId = botId;
-    const topeBase = cantidad * 3;
-    const baseNeed = mBI(topeBase, base.decimals);
+    // Paso: permiso si hace falta (firma aparte)
     const aB = await gb.allowance(p.base, cuenta);
-    const pasos = (aB < baseNeed ? 1 : 0) + 1; let i = 0;
-    if (aB < baseNeed) { i++; modalBusy(`<b>Paso ${i} de ${pasos} — Permiso de ${base.simbolo}.</b><br>Le das permiso al bot para vender tus ${base.simbolo} cuando llegue el objetivo (puedes revocarlo cuando quieras).<br><br>Confirma en tu wallet.`); await gb.aprobarToken(p.base, baseNeed); }
-    i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu Cash Out y queda vigilando el precio.<br><br>Confirma en tu wallet.`);
+    if (aB < baseNeed) {
+      await pasoWallet('Dar permiso', `Le das permiso al bot para vender tus <b>${base.simbolo}</b> cuando llegue el objetivo (puedes revocarlo cuando quieras).<br><br>Toca <b>Continuar</b> y firma en tu wallet.`);
+      modalBusy('Registrando el permiso… firma en tu wallet.');
+      await gb.aprobarToken(p.base, baseNeed);
+    }
+    // Paso final: encender (firma aparte)
+    await pasoWallet('Encender el bot', 'Última firma: se crea tu Cash Out y queda vigilando el precio.<br><br>Toca <b>Continuar</b> y confirma en tu wallet.');
+    modalBusy('Encendiendo tu bot… firma en tu wallet.');
     await gb.crearRejilla(config);
     recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total: config._valorActual, cantBase: cantidad, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'cash', targetPrice, botId });
     modalDone('¡Cash Out encendido!', `Cuando ${base.simbolo} llegue a <b>${precioFmt(targetPrice)}</b>, venderá y recibirás ${quote.simbolo} en tu wallet. Ten <b>gas</b> cargado para que pueda operar. Lo verás en "Mis bots".`);
