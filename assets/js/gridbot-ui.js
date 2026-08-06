@@ -2033,6 +2033,28 @@ async function arrancarTrail(clave, par, pmin, pmax, decB, decQ, cuenta) {
   st.timer = setInterval(muestrear, 6000);
 }
 
+function tarjetaMinima(clave, par) {
+  const sim = (par && par.base) ? ` · ${par.simBase}/${par.simQuote}` : '';
+  return `<div class="rej" style="padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="min-width:0">
+        <div style="font-family:var(--display);color:var(--gold);font-size:15px;font-weight:700">Bot activo${sim}</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:5px;line-height:1.4">Está corriendo en el contrato, pero no se pudieron leer sus detalles desde este dispositivo. Puedes cerrarlo aquí; tu cripto queda en tu wallet.</div>
+      </div>
+      <button class="btn btn-rojo" style="width:auto;padding:11px 16px;white-space:nowrap" data-min-cancel="${clave}">Cerrar bot</button>
+    </div>
+  </div>`;
+}
+function wireMinCancel(cont) {
+  cont.querySelectorAll('[data-min-cancel]').forEach((btn) => btn.onclick = async () => {
+    const clave = btn.dataset.minCancel;
+    const ok = await modalConfirm({ titulo: 'Cerrar bot', cuerpo: 'Se cerrará este bot y se quita el permiso. <b>Tu cripto se queda en tu wallet.</b>', ok: 'Sí, cerrar', peligro: true });
+    if (!ok) return;
+    try { modalBusy('Cerrando el bot… confirma en tu wallet.'); await gb.cancelarRejillaK(clave); modalClose(); refrescarRejillas(); }
+    catch (e) { modalError(esRechazo(e) ? 'Cancelaste la firma.' : (e?.shortMessage || e?.message || String(e))); }
+  });
+}
+
 async function refrescarRejillas() {
   const cuenta = wallet.cuentaActual(); const cont = $('c-rejillas'); if (!cuenta || !cont) return;
   pararTrails();
@@ -2042,25 +2064,30 @@ async function refrescarRejillas() {
     const cerradas = JSON.parse(localStorage.getItem('bot-cerradas') || '{}');
     const cards = [];
     for (const clave of claves) {
+      if (cerradas[clave]) continue; // este bot lo cerró el usuario → oculto
       let par = store[clave];
       if (!par) {
-        // Falta en localStorage (otro navegador, caché borrada…): reconstruir desde el contrato.
+        // Falta en localStorage (otro navegador/dispositivo): reconstruir desde el contrato.
+        par = { base: null, quote: null, decBase: 18, decQuote: 18, simBase: '?', simQuote: '?', tipo: 'grid', reconstruido: true };
         try {
           const paths = await gb.pathsDe(clave);
-          const venta = paths.pathVenta || paths[1] || paths.venta || [];
-          if (!venta || venta.length < 2) continue;
-          const bAddr = venta[0], qAddr = venta[venta.length - 1];
-          const mb = monedaPorDir(bAddr), mq = monedaPorDir(qAddr);
-          par = { base: bAddr, quote: qAddr, decBase: mb?.decimals ?? 18, decQuote: mq?.decimals ?? 18, simBase: mb?.simbolo || simboloDe(bAddr), simQuote: mq?.simbolo || simboloDe(qAddr) };
-        } catch { continue; }
+          const venta = (paths && (paths.venta || paths[1] || paths.pathVenta)) || [];
+          if (venta && venta.length >= 2) {
+            const bAddr = venta[0], qAddr = venta[venta.length - 1];
+            const mb = monedaPorDir(bAddr), mq = monedaPorDir(qAddr);
+            par = { base: bAddr, quote: qAddr, decBase: mb?.decimals ?? 18, decQuote: mq?.decimals ?? 18, simBase: mb?.simbolo || simboloDe(bAddr), simQuote: mq?.simbolo || simboloDe(qAddr), tipo: 'grid', reconstruido: true };
+          }
+        } catch (_) {}
       }
-      if (cerradas[clave]) continue; // este bot lo cerró el usuario → oculto
       par.__cuenta = cuenta;
-      try { cards.push(await tarjeta(cuenta, clave, par)); } catch {}
+      // NUNCA ocultar un bot en silencio: si el detalle falla, tarjeta mínima gestionable.
+      try { cards.push(await tarjeta(cuenta, clave, par)); }
+      catch (_) { cards.push(tarjetaMinima(clave, par)); }
     }
     cont.innerHTML = cards.length ? cards.join('')
-      : `<p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">Aún no tienes bots activos. Arma el primero arriba.</p>`;
+      : `<p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">El contrato no reporta bots activos para <b>${wallet.abreviar(cuenta)}</b>. Si creaste un bot con otra cuenta, cámbiala en tu wallet.</p>`;
     enganchar(cuenta);
+    wireMinCancel(cont);
     activarContadores();
   } catch (e) { cont.innerHTML = `<div class="aviso err">No se pudieron cargar: ${e?.shortMessage || e?.message || e}</div>`; }
   if (PNL_TIMER) clearInterval(PNL_TIMER);
