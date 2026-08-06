@@ -5,9 +5,10 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=15';
-import * as wallet from './wallet.js?v=15';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=15';
+import * as gb from './gridbot.js?v=16';
+import * as wallet from './wallet.js?v=16';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=16';
+import * as perfil from './perfil.js?v=16';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -89,9 +90,9 @@ function inyectarEstilo() {
   #colmena-app .c-menu-btn span{display:block;width:17px;height:2px;border-radius:2px;background:#3a2800}
   #colmena-app .c-menu-btn:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
   /* Botones del header: todos mismo alto (36px), rectangulares, 3D dorado relleno */
-  #colmena-app .c-loteria{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 13px;border-radius:11px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;text-decoration:none;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3);transition:transform .08s,box-shadow .08s,filter .14s}
-  #colmena-app .c-loteria:hover{filter:brightness(1.06)}
-  #colmena-app .c-loteria:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
+  #colmena-app .c-loteria,#colmena-app .c-perfil{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 13px;border-radius:11px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;text-decoration:none;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3);transition:transform .08s,box-shadow .08s,filter .14s}
+  #colmena-app .c-loteria:hover,#colmena-app .c-perfil:hover{filter:brightness(1.06)}
+  #colmena-app .c-loteria:active,#colmena-app .c-perfil:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
   #colmena-app .c-swap{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 14px;border-radius:11px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;cursor:pointer;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3);transition:transform .08s,box-shadow .08s,filter .14s}
   #colmena-app .c-swap:hover{filter:brightness(1.06)}
   #colmena-app .c-swap:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
@@ -559,8 +560,8 @@ function inyectarEstilo() {
     #colmena-app .c-menu-btn{display:inline-flex}
     #colmena-app .c-hdr-r{position:absolute;top:calc(100% + 8px);right:12px;flex-direction:column;align-items:stretch;gap:5px;min-width:212px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 18px 44px rgba(0,0,0,.6);display:none;z-index:60}
     #colmena-app .c-hdr.open .c-hdr-r{display:flex;animation:cmFade .14s ease}
-    #colmena-app .c-hdr-r>.live,#colmena-app .c-hdr-r>.c-swap,#colmena-app .c-hdr-r>.c-loteria,#colmena-app .c-hdr-r>.dir{width:100%;height:42px;justify-content:flex-start;gap:11px;border-radius:10px;padding:0 13px;font-size:13px;background:transparent;border:1px solid transparent;box-shadow:none;color:var(--gold);text-shadow:none;font-weight:700}
-    #colmena-app .c-hdr-r>.live:active,#colmena-app .c-hdr-r>.c-swap:active,#colmena-app .c-hdr-r>.c-loteria:active{transform:none}
+    #colmena-app .c-hdr-r>.live,#colmena-app .c-hdr-r>.c-swap,#colmena-app .c-hdr-r>.c-loteria,#colmena-app .c-hdr-r>.c-perfil,#colmena-app .c-hdr-r>.dir{width:100%;height:42px;justify-content:flex-start;gap:11px;border-radius:10px;padding:0 13px;font-size:13px;background:transparent;border:1px solid transparent;box-shadow:none;color:var(--gold);text-shadow:none;font-weight:700}
+    #colmena-app .c-hdr-r>.live:active,#colmena-app .c-hdr-r>.c-swap:active,#colmena-app .c-hdr-r>.c-loteria:active,#colmena-app .c-hdr-r>.c-perfil:active{transform:none}
     #colmena-app .c-hdr-r>.dir{color:var(--ink-2);font-size:12px}
     #colmena-app .c-hdr-r>.hdr-off{display:flex;align-items:center;justify-content:flex-start;gap:11px;width:100%;height:42px;border-radius:10px;padding:0 13px;background:transparent;border:1px solid transparent;box-shadow:none;color:var(--rojo)}
     #colmena-app .c-hdr-r>.hdr-off::after{content:'Desconectar';font-family:var(--mono);font-size:13px;font-weight:700}
@@ -881,7 +882,7 @@ function headerHTML() {
   let right;
   if (!cuenta) right = `<button class="btn btn-oro hdr-btn" id="c-conectar">Conectar wallet</button>`;
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
-  else right = `<span class="dir">${wallet.abreviar(cuenta)}</span><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
+  else right = `<button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><span class="dir">${wallet.abreviar(cuenta)}</span><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
     <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/logo-samurai.webp" alt="" width="30" height="30"><span class="c-brand-tx">Aurex</span></a>
     <div class="c-hdr-r">
@@ -905,6 +906,7 @@ function wireHeader() {
   if ($('c-conectar')) $('c-conectar').onclick = conectarWallet;
   if ($('c-red')) $('c-red').onclick = () => wallet.cambiarARedCorrecta().catch(() => {});
   if ($('c-off')) $('c-off').onclick = () => wallet.desconectar().catch(() => {});
+  if ($('c-perfil')) $('c-perfil').onclick = () => perfil.abrirPerfil();
   const hdr = document.querySelector('#colmena-app .c-hdr');
   if ($('c-menu-btn') && hdr) $('c-menu-btn').onclick = (e) => { e.stopPropagation(); hdr.classList.toggle('open'); };
   if (hdr) { const hr = hdr.querySelector('.c-hdr-r'); if (hr) hr.addEventListener('click', () => hdr.classList.remove('open')); }
