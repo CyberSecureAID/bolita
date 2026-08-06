@@ -2001,6 +2001,7 @@ function olvidarPar(cuenta, clave) {
   const c = JSON.parse(localStorage.getItem('bot-cerradas') || '{}'); c[clave] = 1; localStorage.setItem('bot-cerradas', JSON.stringify(c));
 }
 function simboloDe(addr) {
+  if (!addr) return '—';
   if (addr.toLowerCase() === gb.WBNB.toLowerCase()) return 'BNB';
   const m = LISTA_TODAS.find((x) => (x.address || '').toLowerCase() === addr.toLowerCase());
   return m ? m.simbolo : addr.slice(0, 6);
@@ -2033,13 +2034,17 @@ async function arrancarTrail(clave, par, pmin, pmax, decB, decQ, cuenta) {
   st.timer = setInterval(muestrear, 6000);
 }
 
-function tarjetaMinima(clave, par) {
-  const sim = (par && par.base) ? ` · ${par.simBase}/${par.simQuote}` : '';
+function tarjetaMinima(clave, par, err, R) {
+  const pair = (R && R.base) ? `${simboloDe(R.base)}/${simboloDe(R.quote)}` : ((par && par.base) ? `${par.simBase}/${par.simQuote}` : '');
+  const estado = R ? (R.activa ? 'activo' : 'inactivo') : 'sin resumen';
+  const emsg = err ? (err.shortMessage || err.message || String(err)) : (R ? '' : 'resumenK falló');
+  const diag = `estado: ${estado} · ${clave ? clave.slice(0, 10) + '…' : ''}${emsg ? ' · ' + emsg.slice(0, 100) : ''}`;
   return `<div class="rej" style="padding:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="min-width:0">
-        <div style="font-family:var(--display);color:var(--gold);font-size:15px;font-weight:700">Bot activo${sim}</div>
-        <div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:5px;line-height:1.4">Está corriendo en el contrato, pero no se pudieron leer sus detalles desde este dispositivo. Puedes cerrarlo aquí; tu cripto queda en tu wallet.</div>
+        <div style="font-family:var(--display);color:var(--gold);font-size:15px;font-weight:700">Bot${pair ? ' · ' + pair : ''}</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:5px;line-height:1.4">No se pudieron leer todos sus detalles. Puedes cerrarlo aquí; tu cripto queda en tu wallet.</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--ink-3);opacity:.7;margin-top:6px;word-break:break-all">${diag}</div>
       </div>
       <button class="btn btn-rojo" style="width:auto;padding:11px 16px;white-space:nowrap" data-min-cancel="${clave}">Cerrar bot</button>
     </div>
@@ -2074,7 +2079,7 @@ async function refrescarRejillas() {
       par.__cuenta = cuenta;
       // NUNCA ocultar un bot en silencio: si el detalle falla, tarjeta mínima gestionable.
       try { cards.push(await tarjeta(cuenta, clave, par, R)); }
-      catch (_) { cards.push(tarjetaMinima(clave, par)); }
+      catch (e) { cards.push(tarjetaMinima(clave, par, e, R)); }
     }
     cont.innerHTML = cards.length ? cards.join('')
       : `<p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">El contrato no reporta bots activos para <b>${wallet.abreviar(cuenta)}</b>. Si creaste un bot con otra cuenta, cámbiala en tu wallet.</p>`;
