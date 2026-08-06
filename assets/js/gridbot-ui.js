@@ -329,7 +329,7 @@ function inyectarEstilo() {
   #colmena-app .hero{text-align:center;padding:70px 20px}
   #colmena-app .hero h1{font-family:var(--display);color:var(--gold);font-size:34px;margin:0 0 12px}
   #colmena-app .colmenas{margin-top:24px;position:relative;overflow:hidden;
-    background:linear-gradient(180deg,rgba(3,11,8,.82),rgba(3,11,8,.9)),url('assets/img/fondo-bots.webp') center/cover no-repeat;
+    background:linear-gradient(180deg,rgba(7,9,13,.72),rgba(7,9,13,.90)),url('assets/img/aurex-og.jpg') center/cover no-repeat;
     border:1px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.45)}
   #colmena-app .colmenas h3{position:relative;text-shadow:0 2px 12px rgba(0,0,0,.6)}
   #colmena-app .rej{border:1px solid rgba(232,184,75,.18);border-radius:16px;padding:18px;margin-top:16px;
