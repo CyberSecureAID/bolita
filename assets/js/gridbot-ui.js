@@ -5,9 +5,9 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=14';
-import * as wallet from './wallet.js?v=14';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=14';
+import * as gb from './gridbot.js?v=15';
+import * as wallet from './wallet.js?v=15';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=15';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -335,8 +335,7 @@ function inyectarEstilo() {
   #colmena-app .hero h1{font-family:var(--display);color:var(--gold);font-size:34px;margin:0 0 12px}
   #colmena-app .colmenas{margin-top:24px;position:relative;overflow:hidden;background:#0d1117;
     border:1px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.45)}
-  #colmena-app .colmenas::before{content:'';position:absolute;inset:0;z-index:0;background:url('assets/img/bots-bg.webp') center/cover no-repeat;filter:blur(6px) saturate(1.05) brightness(.9);transform:scale(1.08)}
-  #colmena-app .colmenas::after{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(9,11,15,.55),rgba(9,11,15,.80))}
+  #colmena-app .colmenas::before,#colmena-app .colmenas::after{display:none}
   #colmena-app .colmenas>*{position:relative;z-index:2}
   #colmena-app .colmenas h3{position:relative;z-index:2;text-shadow:0 2px 12px rgba(0,0,0,.6)}
   #colmena-app .rej{border:1px solid rgba(232,184,75,.18);border-radius:16px;padding:18px;margin-top:16px;
