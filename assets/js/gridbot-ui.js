@@ -5,10 +5,10 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=17';
-import * as wallet from './wallet.js?v=17';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=17';
-import * as perfil from './perfil.js?v=17';
+import * as gb from './gridbot.js?v=18';
+import * as wallet from './wallet.js?v=18';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=18';
+import * as perfil from './perfil.js?v=18';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -324,7 +324,7 @@ function inyectarEstilo() {
     #colmena-app .prev .p .rep-wrap{gap:7px}
     #colmena-app .prev .p .rep-pill{font-size:12px;padding:4px 14px}
   }
-  #colmena-app .gasbox{background:#12161c;border:1px solid var(--line-soft);border-radius:12px;padding:14px;margin-top:16px}
+  #colmena-app .gasbox{background:url('assets/img/marco-gas.webp') center/100% 100% no-repeat;border:none;border-radius:0;padding:6% 5.5%;margin-top:16px;box-sizing:border-box}
   #colmena-app .gasbox .top{display:flex;align-items:center;justify-content:space-between}
   #colmena-app .gasbox .v{font-family:var(--display);color:var(--gold);font-size:20px}
   #colmena-app .gas-row{display:flex;gap:8px;margin-top:12px}
