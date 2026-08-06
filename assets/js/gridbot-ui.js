@@ -587,6 +587,12 @@ function inyectarEstilo() {
     #colmena-app .fila{flex-wrap:wrap}
     #colmena-app select,#colmena-app input{min-width:0}
     #colmena-app .asesor .as-grid{grid-template-columns:1fr 1fr}
+    /* Responsividad de la tarjeta del bot en móvil (solo ajuste, sin tocar diseño) */
+    #colmena-app .pio-head{flex-wrap:wrap}
+    #colmena-app .pio-tags{flex-basis:100%;margin-top:4px;flex-wrap:wrap}
+    #colmena-app .pio-logo,#colmena-app .pio-mono{width:42px;height:42px}
+    #colmena-app .pio-pair{font-size:18px}
+    #colmena-app .pio-nombre{font-size:17px}
   }
   `;
   document.head.appendChild(s);
