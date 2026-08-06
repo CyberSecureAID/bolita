@@ -5,10 +5,10 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=19';
-import * as wallet from './wallet.js?v=19';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=19';
-import * as perfil from './perfil.js?v=19';
+import * as gb from './gridbot.js?v=20';
+import * as wallet from './wallet.js?v=20';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=20';
+import * as perfil from './perfil.js?v=20';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -324,10 +324,12 @@ function inyectarEstilo() {
     #colmena-app .prev .p .rep-wrap{gap:7px}
     #colmena-app .prev .p .rep-pill{font-size:12px;padding:4px 14px}
   }
-  #colmena-app .gasbox{background:url('assets/img/marco-gas.webp') center/100% 100% no-repeat;border:none;border-radius:0;padding:6% 5.5%;margin-top:16px;box-sizing:border-box}
+  #colmena-app .gasbox{position:relative;aspect-ratio:2043/770;background:url('assets/img/marco-gas.webp') center/100% 100% no-repeat;border:none;border-radius:0;padding:0;margin-top:16px;box-sizing:border-box}
   #colmena-app .gasbox .top{display:flex;align-items:center;justify-content:space-between}
   #colmena-app .gasbox .v{font-family:var(--display);color:var(--gold);font-size:20px}
-  #colmena-app .gas-row{display:flex;gap:8px;margin-top:12px}
+  #colmena-app .gas-row{position:absolute;left:5%;right:5%;top:10%;height:24%;display:flex;gap:2.5%;align-items:stretch;margin:0}
+  #colmena-app .gas-row .gas-stepper input{height:100%;box-sizing:border-box;padding-top:0;padding-bottom:0}
+  #colmena-app .gas-row .btn{height:100%;padding-top:0;padding-bottom:0}
   #colmena-app .gas-row input{flex:1}
   #colmena-app .gas-row .btn{width:auto;white-space:nowrap;padding:13px 16px}
   #colmena-app .gas-stepper input{padding-right:118px}
@@ -560,7 +562,8 @@ function inyectarEstilo() {
   #colmena-modal .m-btns .btn{margin:0;flex:1}
   @keyframes fade{from{opacity:0}to{opacity:1}}
   /* ====== gas: botón Max ====== */
-  #colmena-app .gas-sep{border-top:1px solid var(--line-soft);margin:14px 0 0;padding-top:12px}
+  #colmena-app .gas-sep{position:absolute;left:5%;right:5%;top:51%;height:30%;margin:0;padding:0;border:none}
+  #colmena-app .gas-sep .btn{height:100%;padding-top:0;padding-bottom:0}
   #colmena-app .btn-max{width:100%;margin-top:0;padding:12px}
   @media(max-width:860px){#colmena-app .cols{grid-template-columns:1fr}#colmena-app .rej-grid{grid-template-columns:1fr}#colmena-app .prev{grid-template-columns:repeat(2,1fr)}#colmena-app .pio-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){
@@ -1246,8 +1249,8 @@ function render() {
               <button class="btn btn-oro" id="f-gasdep">Recargar</button>
             </div>
             <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret">Retirar <span id="c-gas"><span class="skel">0.00000</span> BNB</span></button></div>
-            <div id="c-gasmsg"></div>
           </div>
+          <div id="c-gasmsg"></div>
           <div id="c-cash-price" class="cash-price" style="display:none;margin-top:16px;margin-bottom:0">
             <div class="cp-lab" id="cash-price-pair">BNB / USDT</div>
             <div class="cp-val" id="cash-price-val">—</div>
