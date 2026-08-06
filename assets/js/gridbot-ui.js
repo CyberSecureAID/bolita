@@ -5,10 +5,10 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=18';
-import * as wallet from './wallet.js?v=18';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=18';
-import * as perfil from './perfil.js?v=18';
+import * as gb from './gridbot.js?v=19';
+import * as wallet from './wallet.js?v=19';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=19';
+import * as perfil from './perfil.js?v=19';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -330,6 +330,11 @@ function inyectarEstilo() {
   #colmena-app .gas-row{display:flex;gap:8px;margin-top:12px}
   #colmena-app .gas-row input{flex:1}
   #colmena-app .gas-row .btn{width:auto;white-space:nowrap;padding:13px 16px}
+  #colmena-app .gas-stepper input{padding-right:118px}
+  #colmena-app .gas-stepper input:focus{padding-right:38px}
+  #colmena-app .gas-hint{position:absolute;right:36px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:10.5px;color:#8fb0c8;pointer-events:none;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;transition:opacity .15s}
+  #colmena-app .gas-i{display:inline-grid;place-items:center;width:13px;height:13px;border:1px solid #6f93aa;border-radius:50%;font-size:8.5px;font-style:italic;font-family:Georgia,serif;color:#8fb0c8;line-height:1}
+  #colmena-app .gas-stepper input:focus~.gas-hint,#colmena-app .gas-stepper input:not(:placeholder-shown)~.gas-hint{opacity:0}
   #colmena-app .btn-gasret{margin-top:10px;padding:11px;font-size:13px}
   #colmena-app .aviso{font-family:var(--mono);font-size:12px;padding:11px;border-radius:9px;margin-top:12px}
   #colmena-app .aviso.info{background:rgba(232,184,75,.08);color:var(--gold);border:1px solid var(--gold-soft)}
@@ -562,6 +567,10 @@ function inyectarEstilo() {
     #colmena-app .c-hdr{padding:10px 14px}
     #colmena-app .c-menu-btn{display:inline-flex}
     #colmena-app .c-sep{display:none}
+    #colmena-app .gas-stepper input{padding-right:96px}
+    #colmena-app .gas-stepper input:focus{padding-right:36px}
+    #colmena-app .gas-hint{font-size:9px;right:34px;gap:3px}
+    #colmena-app .gas-i{width:12px;height:12px;font-size:7.5px}
     #colmena-app .c-hdr-r{position:absolute;top:calc(100% + 8px);right:12px;flex-direction:column;align-items:stretch;gap:5px;min-width:212px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 18px 44px rgba(0,0,0,.6);display:none;z-index:60}
     #colmena-app .c-hdr.open .c-hdr-r{display:flex;animation:cmFade .14s ease}
     #colmena-app .c-hdr-r>.live,#colmena-app .c-hdr-r>.c-swap,#colmena-app .c-hdr-r>.c-loteria,#colmena-app .c-hdr-r>.c-perfil,#colmena-app .c-hdr-r>.dir{width:100%;height:42px;justify-content:flex-start;gap:11px;border-radius:10px;padding:0 13px;font-size:13px;background:transparent;border:1px solid transparent;box-shadow:none;color:var(--gold);text-shadow:none;font-weight:700}
@@ -1228,9 +1237,15 @@ function render() {
             <div class="as-nota" id="as-nota"></div>
           </div>
           <div class="gasbox">
-            <div class="top"><div class="lab" style="margin:0">Gas del bot ${iBtn('gas')}</div><div class="v" id="c-gas"><span class="skel">0.00000</span></div></div>
-            <div class="gas-row">${campoNum('f-gas',{placeholder:'0.01 BNB',step:0.005,min:0})}<button class="btn btn-oro" id="f-gasdep">Recargar</button></div>
-            <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret">Retirar todo el gas</button></div>
+            <div class="gas-row">
+              <div class="stepper gas-stepper">
+                <input id="f-gas" type="number" inputmode="decimal" placeholder="0.01 BNB" min="0" step="0.005" data-min="0" data-step="0.005">
+                <span class="gas-hint">Gas del bot <span class="gas-i">i</span></span>
+                <span class="stepper-btns"><button type="button" class="st-up" tabindex="-1">▲</button><button type="button" class="st-dn" tabindex="-1">▼</button></span>
+              </div>
+              <button class="btn btn-oro" id="f-gasdep">Recargar</button>
+            </div>
+            <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret">Retirar <span id="c-gas"><span class="skel">0.00000</span> BNB</span></button></div>
             <div id="c-gasmsg"></div>
           </div>
           <div id="c-cash-price" class="cash-price" style="display:none;margin-top:16px;margin-bottom:0">
