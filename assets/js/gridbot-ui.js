@@ -577,7 +577,9 @@ function inyectarEstilo() {
     #colmena-app .seg.presets button{font-size:12px;padding:10px 4px}
     #colmena-app .cols{gap:14px}
     #colmena-app .card{padding:16px}
-    #colmena-app .pio-band .r{width:64%;padding:12px 16px}
+    #colmena-app .pio-band .r{width:56%;padding:12px 16px}
+    #colmena-app .pio-band .cur{display:none}
+    #colmena-app .pio-band .k{white-space:nowrap}
     #colmena-app .pio-band .l{padding:12px 14px}
     #colmena-app .pio-band .r .v{font-size:26px}
     #colmena-app .pio-band .l .v{font-size:21px}
@@ -2255,8 +2257,8 @@ async function tarjeta(cuenta, clave, par, R) {
     <div class="pio-nombre">${nombreBot}</div>
 
     <div class="pio-band">
-      <div class="l"><div class="k">Inversión (${invLabel})</div><div class="v">${invValue}</div></div>
-      <div class="r ${totalG < 0 ? 'neg' : ''}"><div class="k">Ganancia total (${simQ})</div>
+      <div class="l"><div class="k">Inversión <span class="cur">(${invLabel})</span></div><div class="v">${invValue}</div></div>
+      <div class="r ${totalG < 0 ? 'neg' : ''}"><div class="k">Ganancia total <span class="cur">(${simQ})</span></div>
         <div class="v numgo" data-to="${Math.abs(totalG)}" data-dec="4" data-pre="${sg(totalG)}">${sg(totalG)}${num(Math.abs(totalG), 4)}</div>
         <div class="pct">(${sg(pct(totalG))}${num(Math.abs(pct(totalG)), 2)}%)</div></div>
     </div>
