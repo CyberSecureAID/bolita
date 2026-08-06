@@ -2146,6 +2146,7 @@ async function refrescarPnls() {
 }
 let GASMIN = null;
 function idDe(addr) {
+  if (!addr) return null;
   if (addr.toLowerCase() === gb.WBNB.toLowerCase()) return 'BNB';
   const e = Object.entries(MONEDAS).find(([, v]) => (v.address || '').toLowerCase() === addr.toLowerCase());
   return e ? e[0] : null;
@@ -2235,10 +2236,10 @@ async function tarjeta(cuenta, clave, par, R) {
     </div>`;
 
   return `<div class="rej" data-b="${bAddr}" data-q="${qAddr}" data-sq="${simQ}" data-sb="${simB}"
-     data-bid="${idDe(par.base) || ''}" data-qid="${idDe(par.quote) || ''}" data-pmin="${pmin}" data-pmax="${pmax}"
+     data-bid="${idDe(bAddr) || ''}" data-qid="${idDe(qAddr) || ''}" data-pmin="${pmin}" data-pmax="${pmax}"
      data-niv="${R.niveles}" data-total="${invertido}" data-decb="${decB}" data-decq="${decQ}" data-entry="${par.entry || ''}" data-tipo="${par.tipo || 'grid'}" data-cant="${par.cantBase != null ? par.cantBase : ''}" data-clave="${clave}">
     <div class="pio-head">
-      ${logoDe(par.base, simB)}
+      ${logoDe(bAddr, simB)}
       <div class="pio-titles">
         <div class="pio-pair">${simB}/${simQ}</div>
         <div class="pio-sub">Activo <span class="pio-time" data-since="${creadoSeg}">${tiempoActivo(creadoSeg)}</span> · ${R.activa ? '<span class="dot"></span>operando' : 'detenido'}</div>
