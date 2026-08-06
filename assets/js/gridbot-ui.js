@@ -2066,19 +2066,7 @@ async function refrescarRejillas() {
     for (const clave of claves) {
       if (cerradas[clave]) continue; // este bot lo cerró el usuario → oculto
       let par = store[clave];
-      if (!par) {
-        // Falta en localStorage (otro navegador/dispositivo): reconstruir desde el contrato.
-        par = { base: null, quote: null, decBase: 18, decQuote: 18, simBase: '?', simQuote: '?', tipo: 'grid', reconstruido: true };
-        try {
-          const paths = await gb.pathsDe(clave);
-          const venta = (paths && (paths.venta || paths[1] || paths.pathVenta)) || [];
-          if (venta && venta.length >= 2) {
-            const bAddr = venta[0], qAddr = venta[venta.length - 1];
-            const mb = monedaPorDir(bAddr), mq = monedaPorDir(qAddr);
-            par = { base: bAddr, quote: qAddr, decBase: mb?.decimals ?? 18, decQuote: mq?.decimals ?? 18, simBase: mb?.simbolo || simboloDe(bAddr), simQuote: mq?.simbolo || simboloDe(qAddr), tipo: 'grid', reconstruido: true };
-          }
-        } catch (_) {}
-      }
+      if (!par) par = { tipo: 'grid', reconstruido: true };   // tarjeta saca el par del resumen (R.base/R.quote)
       par.__cuenta = cuenta;
       // NUNCA ocultar un bot en silencio: si el detalle falla, tarjeta mínima gestionable.
       try { cards.push(await tarjeta(cuenta, clave, par)); }
@@ -2155,8 +2143,11 @@ function idDe(addr) {
 }
 async function tarjeta(cuenta, clave, par) {
   const R = await gb.resumenK(clave);
-  const decQ = par.decQuote ?? 18, decB = par.decBase ?? 18;
-  const simB = par.simBase ?? simboloDe(par.base), simQ = par.simQuote ?? simboloDe(par.quote);
+  const bAddr = par.base || R.base, qAddr = par.quote || R.quote;
+  const mbT = monedaPorDir(bAddr), mqT = monedaPorDir(qAddr);
+  const decQ = par.decQuote ?? mqT?.decimals ?? 18, decB = par.decBase ?? mbT?.decimals ?? 18;
+  const simB = (par.simBase && par.simBase !== '?') ? par.simBase : (mbT?.simbolo || simboloDe(bAddr));
+  const simQ = (par.simQuote && par.simQuote !== '?') ? par.simQuote : (mqT?.simbolo || simboloDe(qAddr));
   if (GASMIN === null) { try { GASMIN = await gb.gasMinOp(); } catch { GASMIN = 0n; } }
 
   // Niveles (órdenes) + precio
@@ -2168,10 +2159,10 @@ async function tarjeta(cuenta, clave, par) {
       const p = Number(gb.fmt(nv.minOutVenta, decQ)) / ordenBaseH; const est = Number(nv.estado);
       return { p, tipo: est === 1 ? 'compra' : est === 2 ? 'venta' : 'off' };
     }).filter((x) => isFinite(x.p) && x.p > 0);
-    try { const pr = await gb.precioPar(par.base, par.quote, decB, decQ); precio = pr.precio; } catch {}
+    try { const pr = await gb.precioPar(bAddr, qAddr, decB, decQ); precio = pr.precio; } catch {}
     if (ps.length) { pmin = Math.min(...ps.map((x) => x.p)); pmax = Math.max(...ps.map((x) => x.p)); }
   } catch {}
-  let ops = []; try { ops = await gb.operacionesDe(cuenta, par.base, par.quote, decB, decQ); } catch {}
+  let ops = []; try { ops = await gb.operacionesDe(cuenta, bAddr, qAddr, decB, decQ); } catch {}
   const chart = ps.length ? dibujar(ps, precio, pmin, pmax, null, ops) : svgVacio(560, 300, 'este bot ya no tiene órdenes');
 
   // Números
@@ -2234,7 +2225,7 @@ async function tarjeta(cuenta, clave, par) {
       <div class="tab-ordenes" style="display:none"><div class="ord-list">${ordRows}</div></div>
     </div>`;
 
-  return `<div class="rej" data-b="${par.base}" data-q="${par.quote}" data-sq="${simQ}" data-sb="${simB}"
+  return `<div class="rej" data-b="${bAddr}" data-q="${qAddr}" data-sq="${simQ}" data-sb="${simB}"
      data-bid="${idDe(par.base) || ''}" data-qid="${idDe(par.quote) || ''}" data-pmin="${pmin}" data-pmax="${pmax}"
      data-niv="${R.niveles}" data-total="${invertido}" data-decb="${decB}" data-decq="${decQ}" data-entry="${par.entry || ''}" data-tipo="${par.tipo || 'grid'}" data-cant="${par.cantBase != null ? par.cantBase : ''}" data-clave="${clave}">
     <div class="pio-head">

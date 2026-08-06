@@ -105,6 +105,20 @@ async function firmante() {
 }
 
 function cLee()  { return new ethers.Contract(GRIDBOT, ABI, lector()); }
+/* Lecturas resistentes: si un RPC falla o limita, rota al siguiente. */
+let _rpcIdx = 0;
+const _provCache = {};
+function provRPC(i) { const u = RPCS[i % RPCS.length]; if (!_provCache[u]) _provCache[u] = new ethers.JsonRpcProvider(u, 56, { staticNetwork: true }); return _provCache[u]; }
+async function leeGB(fnFirma, args) {
+  let err;
+  for (let k = 0; k < RPCS.length; k++) {
+    try {
+      const c = new ethers.Contract(GRIDBOT, ABI, provRPC(_rpcIdx));
+      return await c[fnFirma](...args);
+    } catch (e) { err = e; _rpcIdx = (_rpcIdx + 1) % RPCS.length; await new Promise((r) => setTimeout(r, 220)); }
+  }
+  throw err;
+}
 async function cEscribe() { return new ethers.Contract(GRIDBOT, ABI, await firmante()); }
 /** Espera el recibo con nuestro RPC fiable; el de MetaMask a veces no lo devuelve. */
 async function esperar(tx) {
@@ -141,10 +155,10 @@ export function claveDe(usuario, base, quote) {
 /* Lecturas                                                            */
 /* ================================================================== */
 
-export async function resumen(usuario, base, quote) { return cLee().resumen(usuario, base, quote); }
-export async function nivelesDe(clave)              { return cLee().nivelesDe(clave); }
-export async function pathsDe(clave)                { return cLee().pathsDe(clave); }
-export async function misRejillas(usuario)          { return cLee().misRejillas(usuario); }
+export async function resumen(usuario, base, quote) { return leeGB('resumen(address,address,address)', [usuario, base, quote]); }
+export async function nivelesDe(clave)              { return leeGB('nivelesDe', [clave]); }
+export async function pathsDe(clave)                { return leeGB('pathsDe', [clave]); }
+export async function misRejillas(usuario)          { return leeGB('misRejillas', [usuario]); }
 export async function gasSaldo(usuario)             { return cLee().gasSaldo(usuario); }
 export async function gasMinOp()                    { try { return await cLee().gasMinOp(); } catch { return 0n; } }
 export async function cotizar(amountIn, path) {
@@ -561,7 +575,7 @@ export async function crearRejilla(config) {
 export async function cerrarAhora(base, quote) {
   const bot = await cEscribe(); const tx = await bot.cerrarAhora(base, quote, { gasLimit: 900000n }); return esperar(tx);
 }
-export async function resumenK(clave) { return cLee()['resumen(bytes32)'](clave); }
+export async function resumenK(clave) { return leeGB('resumen(bytes32)', [clave]); }
 export async function cerrarAhoraK(clave) {
   const bot = await cEscribe(); const tx = await bot['cerrarAhora(bytes32)'](clave, { gasLimit: 900000n }); return esperar(tx);
 }
