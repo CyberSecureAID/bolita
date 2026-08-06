@@ -590,8 +590,16 @@ function inyectarEstilo() {
     #colmena-app select,#colmena-app input{min-width:0}
     #colmena-app .asesor .as-grid{grid-template-columns:1fr 1fr}
     /* Responsividad de la tarjeta del bot en móvil (solo ajuste, sin tocar diseño) */
-    #colmena-app .pio-head{flex-wrap:wrap}
-    #colmena-app .pio-tags{flex-basis:100%;margin-top:4px;flex-wrap:wrap}
+    #colmena-app .pio-head{flex-wrap:nowrap}
+    #colmena-app .pio-tags{flex-basis:auto;margin-top:0;flex-direction:row-reverse;align-self:flex-start;gap:5px}
+    #colmena-app .pio-tag{height:24px;font-size:10px;padding:0 8px;gap:3px}
+    #colmena-app .pio-tag.share .lbl{display:none}
+    #colmena-app .pio-tag.share{padding:0 9px;font-size:13px}
+    #colmena-app .pio-time{white-space:nowrap}
+    #colmena-app .pio-tags .grey{display:none}
+    #colmena-app .pio-op{display:none}
+    #colmena-app .pio-band .tot{display:none}
+    #colmena-app .pio-box[data-box="vueltas"],#colmena-app .pio-box[data-box="gas"]{display:none}
     #colmena-app .pio-logo,#colmena-app .pio-mono{width:42px;height:42px}
     #colmena-app .pio-pair{font-size:18px}
     #colmena-app .pio-nombre{font-size:17px}
@@ -2215,9 +2223,9 @@ async function tarjeta(cuenta, clave, par, R) {
   const nombreBot = tipo === 'cash' ? 'Bot Cash Out' : tipo === 'acum' ? 'Bot Accumulator' : tipo === 'dca' ? 'Bot DCA' : 'Bot Smart Grid';
   const invLabel = tipo === 'cash' ? simB : simQ;
   const invValue = tipo === 'cash' ? num((par.cantBase != null ? Number(par.cantBase) : posBase), 6) : num(invertido, 2);
-  const _boxEntrada = `<div class="pio-box" data-box="entrada"><div class="k">Entrada → Ahora</div><div class="v" style="font-size:14px">${par.entry ? precioFmt(par.entry) : '—'} → ${precioFmt(precio)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}">${mkt == null ? simQ : sg(mkt) + num(Math.abs(mkt), 2) + '% mercado'}</div></div>`;
+  const _boxEntrada = `<div class="pio-box" data-box="entrada"><div class="k">Entrada → Ahora</div><div class="v" style="font-size:14px">${par.entry ? precioFmt(par.entry) + ' → ' : ''}${precioFmt(precio)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}">${mkt == null ? simQ : sg(mkt) + num(Math.abs(mkt), 2) + '% mercado'}</div></div>`;
   const _boxFlotante = `<div class="pio-box" data-box="flotante"><div class="k">Flotante ${iBtn('ganancia')}</div><div class="v ${cls(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div><div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>`;
-  const _boxGas = `<div class="pio-box"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>`;
+  const _boxGas = `<div class="pio-box" data-box="gas"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>`;
   const _boxGrid = `<div class="pio-box" data-box="realizado"><div class="k">Grid profit ${iBtn('porcuad')}</div><div class="v ${cls(realizado)} numgo" data-to="${Math.abs(realizado)}" data-dec="4" data-pre="${sg(realizado)}">${sg(realizado)}${num(Math.abs(realizado), 4)}</div><div class="v2 ${cls(realizado)}">${sg(pct(realizado))}${num(Math.abs(pct(realizado)), 2)}%</div></div>`;
   const _boxRango = `<div class="pio-box"><div class="k">Rango (${simQ})</div><div class="v" style="font-size:13px">${precioFmt(pmin)} – ${precioFmt(pmax)}</div><div class="v2" style="color:var(--ink-3)">${R.niveles} cuadrículas</div></div>`;
   const _boxVueltas = `<div class="pio-box" data-box="vueltas"><div class="k">Vueltas / Ops ${iBtn('vueltas')}</div><div class="v numgo" data-to="${Number(R.ciclos)}" data-dec="0">${R.ciclos}</div><div class="v2" style="color:var(--ink-3)">${R.totalOps} operaciones</div></div>`;
@@ -2250,15 +2258,15 @@ async function tarjeta(cuenta, clave, par, R) {
       ${logoDe(bAddr, simB)}
       <div class="pio-titles">
         <div class="pio-pair">${simB}/${simQ}</div>
-        <div class="pio-sub">Activo <span class="pio-time" data-since="${creadoSeg}">${tiempoActivo(creadoSeg)}</span> · ${R.activa ? '<span class="dot"></span>operando' : 'detenido'}</div>
+        <div class="pio-sub">Activo <span class="pio-time" data-since="${creadoSeg}">${tiempoActivo(creadoSeg)}</span><span class="pio-op"> · ${R.activa ? '<span class="dot"></span>operando' : 'detenido'}</span></div>
       </div>
-      <div class="pio-tags"><span class="pio-tag share" data-share>↗ Compartir</span><span class="pio-tag">LONG</span><span class="pio-tag grey">Spot</span></div>
+      <div class="pio-tags"><span class="pio-tag share" data-share>↗<span class="lbl"> Compartir</span></span><span class="pio-tag">LONG</span><span class="pio-tag grey">Spot</span></div>
     </div>
     <div class="pio-nombre">${nombreBot}</div>
 
     <div class="pio-band">
       <div class="l"><div class="k">Inversión <span class="cur">(${invLabel})</span></div><div class="v">${invValue}</div></div>
-      <div class="r ${totalG < 0 ? 'neg' : ''}"><div class="k">Ganancia total <span class="cur">(${simQ})</span></div>
+      <div class="r ${totalG < 0 ? 'neg' : ''}"><div class="k">Ganancia <span class="tot">total </span><span class="cur">(${simQ})</span></div>
         <div class="v numgo" data-to="${Math.abs(totalG)}" data-dec="4" data-pre="${sg(totalG)}">${sg(totalG)}${num(Math.abs(totalG), 4)}</div>
         <div class="pct">(${sg(pct(totalG))}${num(Math.abs(pct(totalG)), 2)}%)</div></div>
     </div>
