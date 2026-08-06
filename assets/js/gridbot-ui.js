@@ -85,6 +85,9 @@ function inyectarEstilo() {
   #colmena-app .c-logo{height:32px;width:auto;flex:0 0 auto;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.55))}
   #colmena-app .c-brand-tx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
   #colmena-app .c-hdr-r{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+  #colmena-app .c-menu-btn{display:none;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:40px;height:36px;box-sizing:border-box;border-radius:11px;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);cursor:pointer;padding:0}
+  #colmena-app .c-menu-btn span{display:block;width:17px;height:2px;border-radius:2px;background:#3a2800}
+  #colmena-app .c-menu-btn:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
   /* Botones del header: todos mismo alto (36px), rectangulares, 3D dorado relleno */
   #colmena-app .c-loteria{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 13px;border-radius:11px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;text-decoration:none;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3);transition:transform .08s,box-shadow .08s,filter .14s}
   #colmena-app .c-loteria:hover{filter:brightness(1.06)}
@@ -296,7 +299,7 @@ function inyectarEstilo() {
   #colmena-app .p span.pos{color:var(--neon-lit)}
   /* Casillas del Smart Grid con marco tecnológico (una sola imagen, proporción bloqueada) */
   #colmena-app .prev{align-items:start}
-  #colmena-app .prev .p{background:url('assets/img/azul.webp') center/100% 100% no-repeat;border:none;border-radius:0;box-shadow:none;aspect-ratio:606/479;min-height:0;padding:15% 16%;overflow:hidden;justify-content:center}
+  #colmena-app .prev .p{background:url('assets/img/azul.webp') center/100% 100% no-repeat;border:none;border-radius:0;box-shadow:none;aspect-ratio:606/479;min-height:92px;padding:15% 16%;overflow:hidden;justify-content:center}
   #colmena-app .prev .p b{font-size:8px;letter-spacing:.2px}
   /* valores y guiones: chapados en el metal de la pizarra (relieve visible) */
   #colmena-app .prev .p span{font-size:16px;margin-top:3px;text-shadow:0 1px 1px rgba(0,0,0,.9),0 2px 3px rgba(0,0,0,.55),0 -1px 0 rgba(255,255,255,.18)}
@@ -328,10 +331,12 @@ function inyectarEstilo() {
   #colmena-app .aviso.warn{background:rgba(232,184,75,.08);color:var(--gold);border:1px solid var(--gold-soft)}
   #colmena-app .hero{text-align:center;padding:70px 20px}
   #colmena-app .hero h1{font-family:var(--display);color:var(--gold);font-size:34px;margin:0 0 12px}
-  #colmena-app .colmenas{margin-top:24px;position:relative;overflow:hidden;
-    background:linear-gradient(180deg,rgba(7,9,13,.72),rgba(7,9,13,.90)),url('assets/img/aurex-og.jpg') center/cover no-repeat;
+  #colmena-app .colmenas{margin-top:24px;position:relative;overflow:hidden;background:#0d1117;
     border:1px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.45)}
-  #colmena-app .colmenas h3{position:relative;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+  #colmena-app .colmenas::before{content:'';position:absolute;inset:0;z-index:0;background:url('assets/img/aurex-og.jpg') center/cover no-repeat;filter:blur(6px) saturate(1.05) brightness(.9);transform:scale(1.08)}
+  #colmena-app .colmenas::after{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(9,11,15,.55),rgba(9,11,15,.80))}
+  #colmena-app .colmenas>*{position:relative;z-index:2}
+  #colmena-app .colmenas h3{position:relative;z-index:2;text-shadow:0 2px 12px rgba(0,0,0,.6)}
   #colmena-app .rej{border:1px solid rgba(232,184,75,.18);border-radius:16px;padding:18px;margin-top:16px;
     background:rgba(255,255,255,.03);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
     box-shadow:0 10px 34px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04)}
@@ -550,14 +555,20 @@ function inyectarEstilo() {
   @media(max-width:860px){#colmena-app .cols{grid-template-columns:1fr}#colmena-app .rej-grid{grid-template-columns:1fr}#colmena-app .prev{grid-template-columns:repeat(2,1fr)}#colmena-app .pio-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){
     #colmena-app .c-hdr{padding:10px 14px}
-    #colmena-app .c-hdr-r{gap:6px}
-    #colmena-app .c-lot-tx,#colmena-app .c-swap-tx,#colmena-app .live-tx{display:none}
-    #colmena-app .c-loteria,#colmena-app .c-swap{padding:0;width:36px;justify-content:center}
-    #colmena-app .live{background:none;border:none;box-shadow:none;padding:0 2px;gap:0}
-    #colmena-app .dir{font-size:10.5px;padding:0 8px}
-    #colmena-app .c-brand-tx{display:none}
-    #colmena-app .c-logo{height:34px}
-    #colmena-app .prev .p{max-width:150px;margin:0 auto}
+    #colmena-app .c-menu-btn{display:inline-flex}
+    #colmena-app .c-hdr-r{position:absolute;top:calc(100% + 8px);right:12px;flex-direction:column;align-items:stretch;gap:5px;min-width:212px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 18px 44px rgba(0,0,0,.6);display:none;z-index:60}
+    #colmena-app .c-hdr.open .c-hdr-r{display:flex;animation:cmFade .14s ease}
+    #colmena-app .c-hdr-r>.live,#colmena-app .c-hdr-r>.c-swap,#colmena-app .c-hdr-r>.c-loteria,#colmena-app .c-hdr-r>.dir{width:100%;height:42px;justify-content:flex-start;gap:11px;border-radius:10px;padding:0 13px;font-size:13px;background:transparent;border:1px solid transparent;box-shadow:none;color:var(--gold);text-shadow:none;font-weight:700}
+    #colmena-app .c-hdr-r>.live:active,#colmena-app .c-hdr-r>.c-swap:active,#colmena-app .c-hdr-r>.c-loteria:active{transform:none}
+    #colmena-app .c-hdr-r>.dir{color:var(--ink-2);font-size:12px}
+    #colmena-app .c-hdr-r>.hdr-off{display:flex;align-items:center;justify-content:flex-start;gap:11px;width:100%;height:42px;border-radius:10px;padding:0 13px;background:transparent;border:1px solid transparent;box-shadow:none;color:var(--rojo)}
+    #colmena-app .c-hdr-r>.hdr-off::after{content:'Desconectar';font-family:var(--mono);font-size:13px;font-weight:700}
+    #colmena-app .c-hdr-r>.hdr-off:active{transform:none}
+    #colmena-app .c-lot-tx,#colmena-app .c-swap-tx,#colmena-app .live-tx{display:inline}
+    #colmena-app .c-logo{height:30px}
+    #colmena-app .bot-tabs{grid-template-columns:repeat(2,1fr)}
+    #colmena-app .bot-tabs>*,#colmena-app .fila>*,#colmena-app .fila-coins>*,#colmena-app .seg>*,#colmena-app .seg.presets>*,#colmena-app .stats>*,#colmena-app .rej-btns>*,#colmena-app .as-grid>*{min-width:0}
+    #colmena-app .bot-tab .bt-nom{overflow-wrap:anywhere}
     #colmena-app .hdr-btn{padding:0 12px;font-size:13px}
     #colmena-app .wrap{padding:18px 14px 50px}
     #colmena-app .hero{padding:44px 16px}
@@ -842,6 +853,7 @@ function headerHTML() {
       <a class="c-loteria" href="loteria.html"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/></svg><span class="c-lot-tx">Lotería</span></a>
       ${right}
     </div>
+    <button class="c-menu-btn" id="c-menu-btn" type="button" aria-label="Menú"><span></span><span></span><span></span></button>
   </header>`;
 }
 function conectarWallet() {
@@ -856,6 +868,16 @@ function wireHeader() {
   if ($('c-conectar')) $('c-conectar').onclick = conectarWallet;
   if ($('c-red')) $('c-red').onclick = () => wallet.cambiarARedCorrecta().catch(() => {});
   if ($('c-off')) $('c-off').onclick = () => wallet.desconectar().catch(() => {});
+  const hdr = document.querySelector('#colmena-app .c-hdr');
+  if ($('c-menu-btn') && hdr) $('c-menu-btn').onclick = (e) => { e.stopPropagation(); hdr.classList.toggle('open'); };
+  if (hdr) { const hr = hdr.querySelector('.c-hdr-r'); if (hr) hr.addEventListener('click', () => hdr.classList.remove('open')); }
+  if (!window._menuDocWired) {
+    window._menuDocWired = true;
+    document.addEventListener('click', (e) => {
+      const h = document.querySelector('#colmena-app .c-hdr');
+      if (h && h.classList.contains('open') && !h.contains(e.target)) h.classList.remove('open');
+    });
+  }
 }
 function footerHTML() {
   const faqs = [
