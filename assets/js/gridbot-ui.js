@@ -5,10 +5,10 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=16';
-import * as wallet from './wallet.js?v=16';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=16';
-import * as perfil from './perfil.js?v=16';
+import * as gb from './gridbot.js?v=17';
+import * as wallet from './wallet.js?v=17';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=17';
+import * as perfil from './perfil.js?v=17';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -90,15 +90,18 @@ function inyectarEstilo() {
   #colmena-app .c-menu-btn span{display:block;width:17px;height:2px;border-radius:2px;background:#3a2800}
   #colmena-app .c-menu-btn:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
   /* Botones del header: todos mismo alto (36px), rectangulares, 3D dorado relleno */
-  #colmena-app .c-loteria,#colmena-app .c-perfil{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 13px;border-radius:11px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;text-decoration:none;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3);transition:transform .08s,box-shadow .08s,filter .14s}
-  #colmena-app .c-loteria:hover,#colmena-app .c-perfil:hover{filter:brightness(1.06)}
-  #colmena-app .c-loteria:active,#colmena-app .c-perfil:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
-  #colmena-app .c-swap{display:inline-flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 14px;border-radius:11px;font-family:var(--mono);font-size:12px;font-weight:800;color:#3a2800;cursor:pointer;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3);transition:transform .08s,box-shadow .08s,filter .14s}
-  #colmena-app .c-swap:hover{filter:brightness(1.06)}
+  #colmena-app .c-loteria,#colmena-app .c-perfil{display:inline-flex;align-items:center;gap:7px;height:36px;box-sizing:border-box;padding:0 11px;border-radius:8px;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-2);text-decoration:none;background:transparent;border:none;box-shadow:none;text-shadow:none;cursor:pointer;transition:color .14s,background .14s}
+  #colmena-app .c-swap:active,#colmena-app .c-loteria:active,#colmena-app .c-perfil:active{opacity:.8}
+  #colmena-app .c-loteria:active,#colmena-app .c-perfil:active{opacity:.8}
+  #colmena-app .c-swap{display:inline-flex;align-items:center;gap:7px;height:36px;box-sizing:border-box;padding:0 11px;border-radius:8px;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;background:transparent;border:none;box-shadow:none;text-shadow:none;transition:color .14s,background .14s}
+
   #colmena-app .c-swap:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
   #colmena-app .c-swap svg{display:block}
-  #colmena-app .dir{display:inline-flex;align-items:center;height:36px;box-sizing:border-box;white-space:nowrap;font-family:var(--mono);font-size:12px;font-weight:700;color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;border-radius:11px;padding:0 13px;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);text-shadow:0 1px 0 rgba(255,255,255,.3)}
-  #colmena-app .hdr-off{width:36px;height:36px;box-sizing:border-box;border-radius:11px;background:linear-gradient(180deg,#1b2027,#12161c);border:1px solid var(--line);color:var(--ink-3);cursor:pointer;display:inline-grid;place-items:center;padding:0;line-height:0;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05);transition:transform .08s,box-shadow .08s,filter .14s}
+  #colmena-app .dir{display:inline-flex;align-items:center;gap:7px;height:36px;box-sizing:border-box;white-space:nowrap;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;padding:0 12px;box-shadow:none;text-shadow:none}
+  #colmena-app .hdr-off{width:36px;height:36px;box-sizing:border-box;border-radius:9px;background:transparent;border:1px solid var(--line);color:var(--ink-3);cursor:pointer;display:inline-grid;place-items:center;padding:0;line-height:0;box-shadow:none;transition:color .14s,border-color .14s}
+  #colmena-app .hdr-off:hover{color:var(--rojo);border-color:rgba(246,70,93,.4)}
+  #colmena-app .c-swap:hover,#colmena-app .c-loteria:hover,#colmena-app .c-perfil:hover{color:var(--gold);background:rgba(255,255,255,.05)}
+  #colmena-app .c-sep{width:1px;height:22px;background:var(--line);margin:0 3px;flex:0 0 auto}
   #colmena-app .hdr-off svg{display:block}
   #colmena-app .hdr-off:hover{color:var(--ink);border-color:var(--line-soft)}
   #colmena-app .hdr-off:active{transform:translateY(3px);box-shadow:0 0 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05)}
@@ -558,6 +561,7 @@ function inyectarEstilo() {
   @media(max-width:560px){
     #colmena-app .c-hdr{padding:10px 14px}
     #colmena-app .c-menu-btn{display:inline-flex}
+    #colmena-app .c-sep{display:none}
     #colmena-app .c-hdr-r{position:absolute;top:calc(100% + 8px);right:12px;flex-direction:column;align-items:stretch;gap:5px;min-width:212px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 18px 44px rgba(0,0,0,.6);display:none;z-index:60}
     #colmena-app .c-hdr.open .c-hdr-r{display:flex;animation:cmFade .14s ease}
     #colmena-app .c-hdr-r>.live,#colmena-app .c-hdr-r>.c-swap,#colmena-app .c-hdr-r>.c-loteria,#colmena-app .c-hdr-r>.c-perfil,#colmena-app .c-hdr-r>.dir{width:100%;height:42px;justify-content:flex-start;gap:11px;border-radius:10px;padding:0 13px;font-size:13px;background:transparent;border:1px solid transparent;box-shadow:none;color:var(--gold);text-shadow:none;font-weight:700}
@@ -882,11 +886,11 @@ function headerHTML() {
   let right;
   if (!cuenta) right = `<button class="btn btn-oro hdr-btn" id="c-conectar">Conectar wallet</button>`;
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
-  else right = `<button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><span class="dir">${wallet.abreviar(cuenta)}</span><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
+  else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><span class="dir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="6" width="20" height="13" rx="3"/><path d="M16 12h.01"/></svg>${wallet.abreviar(cuenta)}</span><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
     <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/logo-samurai.webp" alt="" width="30" height="30"><span class="c-brand-tx">Aurex</span></a>
     <div class="c-hdr-r">
-      <span class="live"><i></i><span class="live-tx">En vivo</span></span>
+
       <button class="c-swap" id="c-swap" type="button" aria-label="Intercambiar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10 3 6l4-4"/><path d="M3 6h14"/><path d="m17 14 4 4-4 4"/><path d="M21 18H7"/></svg><span class="c-swap-tx">Swap</span></button>
       <a class="c-loteria" href="loteria.html"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/></svg><span class="c-lot-tx">Lotería</span></a>
       ${right}
