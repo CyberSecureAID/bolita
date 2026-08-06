@@ -2064,12 +2064,16 @@ async function refrescarRejillas() {
     const cerradas = JSON.parse(localStorage.getItem('bot-cerradas') || '{}');
     const cards = [];
     for (const clave of claves) {
-      if (cerradas[clave]) continue; // este bot lo cerró el usuario → oculto
+      if (cerradas[clave]) continue; // ocultado local (mismo navegador)
+      // Estado real en el contrato: si el bot está inactivo (cancelado), no se muestra.
+      let R = null;
+      try { R = await gb.resumenK(clave); } catch (_) {}
+      if (R && R.activa === false) continue;   // bot cancelado/inactivo → fuera
       let par = store[clave];
       if (!par) par = { tipo: 'grid', reconstruido: true };   // tarjeta saca el par del resumen (R.base/R.quote)
       par.__cuenta = cuenta;
       // NUNCA ocultar un bot en silencio: si el detalle falla, tarjeta mínima gestionable.
-      try { cards.push(await tarjeta(cuenta, clave, par)); }
+      try { cards.push(await tarjeta(cuenta, clave, par, R)); }
       catch (_) { cards.push(tarjetaMinima(clave, par)); }
     }
     cont.innerHTML = cards.length ? cards.join('')
@@ -2141,8 +2145,8 @@ function idDe(addr) {
   const e = Object.entries(MONEDAS).find(([, v]) => (v.address || '').toLowerCase() === addr.toLowerCase());
   return e ? e[0] : null;
 }
-async function tarjeta(cuenta, clave, par) {
-  const R = await gb.resumenK(clave);
+async function tarjeta(cuenta, clave, par, R) {
+  if (!R) R = await gb.resumenK(clave);
   const bAddr = par.base || R.base, qAddr = par.quote || R.quote;
   const mbT = monedaPorDir(bAddr), mqT = monedaPorDir(qAddr);
   const decQ = par.decQuote ?? mqT?.decimals ?? 18, decB = par.decBase ?? mbT?.decimals ?? 18;
