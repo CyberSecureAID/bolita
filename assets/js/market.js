@@ -1,8 +1,8 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=45';
+import * as wallet from './wallet.js?v=46';
 
-const MARKET = '0xe60Ca0e7b504de347DC35c8FabF174F8907dfa33';
+const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
 const USDC   = '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d';
 const TOKENS = { [USDT.toLowerCase()]: 'USDT', [USDC.toLowerCase()]: 'USDC' };
@@ -152,6 +152,24 @@ function estilos() {
   #mk-overlay .mk-star{font-size:28px;cursor:pointer;color:#3a424c;line-height:1}
   #mk-overlay .mk-star.on{color:var(--gold,#E8B84B);text-shadow:0 0 10px rgba(232,184,75,.4)}
   #mk-overlay .mk-dist{font-family:var(--mono,monospace);font-size:11px;color:#7fb0ff;text-align:center;padding:9px;border-radius:10px;background:rgba(127,176,255,.08);border:1px solid rgba(127,176,255,.3);margin-top:9px}
+  #mk-overlay .mk-mapa{margin-top:10px;border-radius:12px;overflow:hidden;border:1px solid #2b3139;background:#0b0e12}
+  #mk-overlay .mk-mapa-top{display:flex;justify-content:space-between;align-items:center;padding:10px 13px;font-family:var(--mono,monospace);font-size:11px;color:#7d8794;text-transform:uppercase;letter-spacing:.6px}
+  #mk-overlay .mk-mapa-top b{font-family:var(--display,sans-serif);font-size:18px;color:#7fb0ff;letter-spacing:0}
+  #mk-overlay .mk-iframe{width:100%;height:190px;border:none;display:block;filter:grayscale(.35) brightness(.85) contrast(1.05)}
+  #mk-overlay .mk-mapa-pie{padding:9px 13px;font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;display:flex;justify-content:space-between;gap:9px;flex-wrap:wrap}
+  #mk-overlay .mk-mapa-pie a{color:#7fb0ff;text-decoration:none}
+  #mk-overlay .mk-aviso{font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.6;padding:12px 14px;border-radius:11px;background:rgba(232,184,75,.06);border:1px solid rgba(232,184,75,.28);margin-top:10px}
+  #mk-overlay .mk-aviso b{color:var(--gold,#E8B84B)}
+  #mk-overlay .mk-escala{margin-top:12px;padding:13px;border-radius:12px;background:#0b0e12;border:1px solid #2b3139}
+  #mk-overlay .mk-escala-t{display:flex;justify-content:space-between;font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;margin-bottom:8px}
+  #mk-overlay .mk-escala-t b{color:var(--gold,#E8B84B)}
+  #mk-overlay .mk-escala-bar{display:flex;gap:4px}
+  #mk-overlay .mk-escala-p{flex:1;height:34px;border-radius:7px;background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid #3a424c;display:grid;place-items:center;font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);font-weight:700}
+  #mk-overlay .mk-paso{display:flex;gap:10px;padding:11px 12px;border-radius:11px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid #2b3139;margin-bottom:7px}
+  #mk-overlay .mk-paso .n{flex:0 0 auto;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-family:var(--display,sans-serif);font-weight:800;font-size:12px;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800;box-shadow:0 2px 0 #8f6a1a}
+  #mk-overlay .mk-paso .t b{font-family:var(--display,sans-serif);color:#eaecef;font-size:13.5px;display:block;margin-bottom:2px}
+  #mk-overlay .mk-paso .t span{font-family:var(--sans,sans-serif);font-size:12.5px;color:#8b96a3;line-height:1.55}
+  #mk-overlay .mk-paso .t span em{color:var(--gold,#E8B84B);font-style:normal;font-weight:600}
   @media(max-width:560px){
     #mk-overlay{padding:0}
     #mk-overlay .mk-card{max-width:100%;max-height:100vh;height:100vh;border-radius:0;border:none;padding:18px 14px}
@@ -207,24 +225,49 @@ export async function abrirMarket() {
     <button class="mk-tab on" id="mk-t1">Ofertas</button>
     <button class="mk-tab" id="mk-t2">Vender</button>
     <button class="mk-tab" id="mk-t3">Mis operaciones</button>
+    <button class="mk-tab" id="mk-t4">Cómo funciona</button>
   </div>
   <div class="mk-pane on" id="mk-p1"><div class="mk-vacio">Cargando ofertas…</div></div>
   <div class="mk-pane" id="mk-p2"></div>
   <div class="mk-pane" id="mk-p3"></div>
+  <div class="mk-pane" id="mk-p4">${comoFunciona()}</div>
   <div class="mk-msg info" id="mk-msg"></div>
   <div class="mk-nota">Tu cripto queda trabada en el contrato hasta que confirmes cada tramo. Aurex no custodia fondos ni interviene en el pago en efectivo.</div>`;
   $('mk-x').onclick = cerrar;
 
-  const tabs = [['mk-t1', 'mk-p1'], ['mk-t2', 'mk-p2'], ['mk-t3', 'mk-p3']];
+  const tabs = [['mk-t1', 'mk-p1'], ['mk-t2', 'mk-p2'], ['mk-t3', 'mk-p3'], ['mk-t4', 'mk-p4']];
   tabs.forEach(([t, p], i) => {
     $(t).onclick = () => {
       tabs.forEach(([tt, pp], j) => { $(tt).classList.toggle('on', i === j); $(pp).classList.toggle('on', i === j); });
       $('mk-card').scrollTop = 0; msg('');
       if (i === 1) panelVender();
       if (i === 2) panelMisOps();
+      if (i === 3) { const b = $('mk-ir-vender'); if (b) b.onclick = () => $('mk-t2').click(); }
     };
   });
   listarOfertas();
+}
+
+/* ── Cómo funciona ── */
+function comoFunciona() {
+  const pasos = [
+    ['¿Qué es esto?', 'Un lugar para <em>vender y comprar cripto entre personas</em>, sin que ninguna tenga que confiar a ciegas en la otra. La plataforma no toca tu dinero: solo lo guarda en una caja fuerte automática mientras hacen el trato.'],
+    ['El problema de siempre', 'En los grupos, la pelea es <em>¿quién manda primero?</em> Si mandas tú, te pueden dejar embarcado. Si manda el otro, igual. Aquí eso se acaba.'],
+    ['La caja fuerte', 'El vendedor mete su cripto en el contrato. <em>Ya no la tiene él</em>, y tampoco la tenemos nosotros. El comprador lo ve con sus propios ojos y paga tranquilo.'],
+    ['La entrega por partes', 'El dinero <em>no se entrega de golpe</em>. Si vendes 500 en 5 partes, van saliendo de 100 en 100. Recibes tu pago, confirmas, y sale la siguiente parte.'],
+    ['La fianza del vendedor', 'Para vender hay que dejar una fianza. <em>Ese dinero es tuyo</em> y lo retiras cuando quieras. Solo sirve para responderle al comprador si un árbitro determina que hubo estafa.'],
+    ['La reputación', 'Al terminar, ambos se califican con estrellas. Ese historial queda <em>en la blockchain, y nadie lo puede borrar ni falsificar</em>. Mira siempre las estrellas y las ventas antes de tratar con alguien.'],
+    ['Si algo sale mal', 'Cualquiera puede abrir una disputa. Un árbitro revisa los comprobantes y decide. Como el dinero está trabado, <em>nadie puede desaparecer con él</em>.'],
+    ['La distancia', 'Puedes ver a cuántos kilómetros está la otra persona. Al estafador esto <em>no le gusta nada</em>. Y si viven cerca, quizás puedan hacer el trato en persona.']
+  ];
+  return `
+  <div class="mk-box"><div class="bt">Consejo de oro</div>
+    <div style="font-family:var(--sans,sans-serif);font-size:13px;color:#b7bdc6;line-height:1.65">
+      Divide siempre tu venta en <b style="color:#E8B84B">la mayor cantidad de partes posible</b>. Es la mejor defensa que existe aquí, y es gratis.
+    </div>
+  </div>
+  ${pasos.map((p, i) => `<div class="mk-paso"><span class="n">${i + 1}</span><span class="t"><b>${p[0]}</b><span>${p[1]}</span></span></div>`).join('')}
+  <button class="mk-b" id="mk-ir-vender" style="margin-top:14px">Quiero vender</button>`;
 }
 
 /* ── Ofertas ── */
@@ -327,7 +370,23 @@ async function verDistancia(dir, btn) {
     return;
   }
   const km = kmEntre(mia, suya);
-  cont.innerHTML = `<div class="mk-dist">Están a <b>${km} km</b> de distancia. ${km < 30 ? 'Están cerca: podrían verse en persona.' : ''}</div>`;
+  cont.innerHTML = mapaHTML(mia, suya, km);
+}
+
+/// Mapa con OpenStreetMap (gratis, sin clave). Marca ambos puntos y la distancia.
+function mapaHTML(a, b, km) {
+  const minLat = Math.min(a.lat, b.lat), maxLat = Math.max(a.lat, b.lat);
+  const minLon = Math.min(a.lon, b.lon), maxLon = Math.max(a.lon, b.lon);
+  const mLat = Math.max(0.05, (maxLat - minLat) * 0.35), mLon = Math.max(0.05, (maxLon - minLon) * 0.35);
+  const bbox = [minLon - mLon, minLat - mLat, maxLon + mLon, maxLat + mLat].join(',');
+  const url = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${a.lat},${a.lon}`;
+  const ver = `https://www.openstreetmap.org/directions?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}`;
+  return `<div class="mk-mapa">
+    <div class="mk-mapa-top"><span>Distancia entre ustedes</span><b>${km} km</b></div>
+    <iframe class="mk-iframe" src="${url}" loading="lazy" referrerpolicy="no-referrer"></iframe>
+    <div class="mk-mapa-pie">${km < 30 ? 'Están cerca: podrían verse en persona.' : 'Están lejos: hagan el trato solo por los tramos.'}
+      <a href="${ver}" target="_blank" rel="noopener">Ver ruta ↗</a></div>
+  </div>`;
 }
 
 /* ── Tomar / cancelar ── */
@@ -407,13 +466,17 @@ async function panelVender() {
       <div><label>Cantidad</label><input id="mk-cant" type="number" step="any" placeholder="100"></div>
     </div>
     <div class="mk-2">
-      <div><label>En cuántos tramos</label><select id="mk-tra"><option value="5" selected>5 tramos (recomendado)</option><option value="3">3 tramos</option><option value="2">2 tramos (mínimo)</option><option value="10">10 tramos</option></select></div>
+      <div><label>En cuántos tramos</label><select id="mk-tra"><option value="10">10 partes (máxima seguridad)</option><option value="5" selected>5 partes (recomendado)</option><option value="4">4 partes</option><option value="3">3 partes</option><option value="2">2 partes (mínimo)</option></select></div>
       <div><label>Moneda que aceptas</label><select id="mk-moneda">${MONEDAS.map(m => `<option${perf.moneda === m ? ' selected' : ''}>${m}</option>`).join('')}</select></div>
     </div>
     <div class="mk-2">
       <div><label>Cómo te pagan</label><select id="mk-met">${METODOS.map(m => `<option>${m}</option>`).join('')}</select></div>
       <div><label>Precio por unidad</label><input id="mk-prec" type="number" step="any" placeholder="Ej: 420"></div>
     </div>
+    <div class="mk-aviso">
+      <b>Mientras en más partes lo dividas, más seguro estás.</b> El estafador necesita que le sueltes todo de golpe; si solo puede tocar una parte pequeña y para seguir tiene que cumplir, deja de valerle la pena y casi siempre ni lo intenta. Y si algo sale mal, <b>lo único en riesgo es esa parte</b>, no tu venta completa.
+    </div>
+    <div class="mk-escala" id="mk-escala"></div>
     <button class="mk-b" id="mk-pub" style="margin-top:14px">Publicar oferta</button>
     <div style="font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-align:center;margin-top:9px">Tu cripto queda trabada en el contrato hasta que confirmes cada tramo.</div>
   </div>` : ''}`;
@@ -421,6 +484,19 @@ async function panelVender() {
   if ($('mk-savep')) $('mk-savep').onclick = guardarPerfil;
   if ($('mk-dep')) $('mk-dep').onclick = depositarFianza;
   if ($('mk-pub')) $('mk-pub').onclick = publicar;
+  const pintarEscala = () => {
+    const box = $('mk-escala'); if (!box) return;
+    const cant = Number(($('mk-cant') || {}).value || 0);
+    const tr = Number(($('mk-tra') || {}).value || 5);
+    const sim = ($('mk-tok') && $('mk-tok').selectedOptions[0]) ? $('mk-tok').selectedOptions[0].text : '';
+    if (!(cant > 0)) { box.innerHTML = `<div class="mk-escala-t"><span>Así se repartirá tu venta</span></div><div style="font-family:var(--mono,monospace);font-size:11px;color:#7d8794;text-align:center;padding:8px 0">Escribe la cantidad para verlo</div>`; return; }
+    const por = cant / tr;
+    box.innerHTML = `<div class="mk-escala-t"><span>Se entregará en <b>${tr}</b> partes</span><span>Cada parte: <b>${num(por, 2)} ${sim}</b></span></div>
+      <div class="mk-escala-bar">${Array.from({ length: tr }, (_, i) => `<div class="mk-escala-p">${i + 1}</div>`).join('')}</div>
+      <div style="font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;margin-top:9px;line-height:1.6">Recibes el pago de la parte 1 → confirmas → se libera. Y así hasta la ${tr}. <b style="color:#E8B84B">Máximo en riesgo: ${num(por, 2)} ${sim}</b>, no ${num(cant, 2)}.</div>`;
+  };
+  ['mk-cant', 'mk-tra', 'mk-tok'].forEach(id => { const e = $(id); if (e) { e.oninput = pintarEscala; e.onchange = pintarEscala; } });
+  pintarEscala();
 }
 
 async function guardarPerfil() {
