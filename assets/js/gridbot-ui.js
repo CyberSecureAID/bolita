@@ -5,11 +5,12 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=40';
-import * as wallet from './wallet.js?v=40';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=40';
-import * as perfil from './perfil.js?v=40';
-import * as prizepool from './prizepool.js?v=40';
+import * as gb from './gridbot.js?v=41';
+import * as wallet from './wallet.js?v=41';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=41';
+import * as perfil from './perfil.js?v=41';
+import * as prizepool from './prizepool.js?v=41';
+import * as tutorial from './tutorial.js?v=41';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -957,6 +958,7 @@ function wireHeader() {
   if ($('c-perfil')) $('c-perfil').onclick = () => perfil.abrirPerfil();
   if ($('c-prize')) $('c-prize').onclick = () => prizepool.abrirPrizePool();
   if ($('c-ticker')) $('c-ticker').onclick = () => prizepool.abrirPrizePool();
+  tutorial.wireFila(document);
   const hdr = document.querySelector('#colmena-app .c-hdr');
   if ($('c-menu-btn') && hdr) $('c-menu-btn').onclick = (e) => { e.stopPropagation(); hdr.classList.toggle('open'); };
   if (hdr) { const hr = hdr.querySelector('.c-hdr-r'); if (hr) hr.addEventListener('click', () => hdr.classList.remove('open')); }
@@ -1005,6 +1007,7 @@ function footerHTML() {
     <details class="c-faq-wrap">
       <summary><span class="faq-long">¿Tienes dudas sobre cómo funciona la plataforma?</span><span class="faq-short">¿Tienes dudas? Toca aquí</span></summary>
       <div style="padding:16px">
+        ${tutorial.filaBots()}
         <input class="faq-search" id="faq-search" type="text" autocomplete="off" placeholder="Escribe aquí sobre lo que quieres saber…">
         <div class="c-foot-grid" id="faq-grid">${faqs.map(card).join('')}</div>
         <div class="faq-empty" id="faq-empty" style="display:none">No encontramos nada con esa palabra. Prueba con otra.</div>
