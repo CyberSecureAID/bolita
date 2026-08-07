@@ -5,10 +5,10 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=29';
-import * as wallet from './wallet.js?v=29';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=29';
-import * as perfil from './perfil.js?v=29';
+import * as gb from './gridbot.js?v=30';
+import * as wallet from './wallet.js?v=30';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=30';
+import * as perfil from './perfil.js?v=30';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -296,7 +296,7 @@ function inyectarEstilo() {
   #colmena-app .seg button.on{background:var(--ac-m);color:var(--ac-t);border-color:var(--ac-d);font-weight:700}
   #colmena-app .avz{border-top:1px solid var(--line-soft);margin-top:18px;padding-top:4px}
   #colmena-app .chart{width:100%;height:auto;display:block;border-radius:14px;background:#0d1117;border:1px solid var(--line-soft)}
-  #colmena-app #c-chart{position:relative;background:url('assets/img/marco-rejilla.webp') center/100% 100% no-repeat;padding:14% 13%;box-sizing:border-box}
+  #colmena-app #c-chart{position:relative;background:url('assets/img/marco-rejilla.webp') center/100% 100% no-repeat;padding:11% 11%;box-sizing:border-box}
   #colmena-app #c-chart .chart{background:transparent;border:none;border-radius:0}
   #colmena-app .hint{font-family:var(--sans);font-size:12px;line-height:1.5;color:var(--ink-2);background:rgba(232,184,75,.05);border:1px solid var(--line-soft);border-left:2px solid var(--gold-soft);border-radius:8px;padding:9px 12px;margin:12px 0 4px}
   #colmena-app .prev{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
@@ -341,8 +341,9 @@ function inyectarEstilo() {
   #colmena-app .gas-stepper input{padding-right:118px}
   #colmena-app .gas-stepper input:focus{padding-right:38px}
   #colmena-app .gas-hint{position:absolute;right:36px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:10.5px;color:#8fb0c8;pointer-events:none;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;transition:opacity .15s}
-  #colmena-app .gas-i{display:inline-grid;place-items:center;width:13px;height:13px;border:1px solid #6f93aa;border-radius:50%;font-size:8.5px;font-style:italic;font-family:Georgia,serif;color:#8fb0c8;line-height:1}
-  #colmena-app .gas-stepper input:focus~.gas-hint,#colmena-app .gas-stepper input:not(:placeholder-shown)~.gas-hint{opacity:0}
+  #colmena-app .gas-hint .gas-ibtn{pointer-events:auto;width:14px;height:14px;border:1px solid #6f93aa;border-radius:50%;color:#8fb0c8;background:transparent;opacity:1;font-size:8.5px;font-style:italic;font-family:Georgia,serif;display:inline-grid;place-items:center;cursor:pointer;flex:0 0 auto}
+  #colmena-app .gas-hint .gas-ibtn:hover{background:rgba(143,176,200,.15);color:#8fb0c8;border-color:#8fb0c8}
+  #colmena-app .gas-stepper input:focus~.gas-hint,#colmena-app .gas-stepper input:not(:placeholder-shown)~.gas-hint{opacity:0;pointer-events:none}
   #colmena-app .btn-gasret{margin-top:10px;padding:11px;font-size:13px}
   #colmena-app .aviso{font-family:var(--mono);font-size:12px;padding:11px;border-radius:9px;margin-top:12px}
   #colmena-app .aviso.info{background:rgba(232,184,75,.08);color:var(--gold);border:1px solid var(--gold-soft)}
@@ -579,9 +580,10 @@ function inyectarEstilo() {
     #colmena-app .c-menu-btn{display:inline-flex}
     #colmena-app .c-sep{display:none}
     #colmena-app .inv-lbl{display:none}
-    #colmena-app .gas-stepper input{padding-right:96px}
-    #colmena-app .gas-stepper input:focus{padding-right:36px}
-    #colmena-app .gas-hint{font-size:9px;right:34px;gap:3px}
+    #colmena-app .gas-stepper .stepper-btns{display:none}
+    #colmena-app .gas-stepper input{padding-right:82px}
+    #colmena-app .gas-stepper input:focus{padding-right:14px}
+    #colmena-app .gas-hint{font-size:9px;right:12px;gap:3px}
     #colmena-app .gas-i{width:12px;height:12px;font-size:7.5px}
     #colmena-app .c-hdr-r{position:absolute;top:calc(100% + 8px);right:12px;flex-direction:column;align-items:stretch;gap:5px;min-width:212px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 18px 44px rgba(0,0,0,.6);display:none;z-index:60}
     #colmena-app .c-hdr.open .c-hdr-r{display:flex;animation:cmFade .14s ease}
@@ -1252,7 +1254,7 @@ function render() {
             <div class="gas-row">
               <div class="stepper gas-stepper">
                 <input id="f-gas" type="number" inputmode="decimal" placeholder="0.01 BNB" min="0" step="0.005" data-min="0" data-step="0.005">
-                <span class="gas-hint">Gas del bot <span class="gas-i">i</span></span>
+                <span class="gas-hint">Gas del bot <button class="i-btn gas-ibtn" data-info="gas" type="button">i</button></span>
                 <span class="stepper-btns"><button type="button" class="st-up" tabindex="-1">▲</button><button type="button" class="st-dn" tabindex="-1">▼</button></span>
               </div>
               <button class="btn btn-oro" id="f-gasdep">Recargar</button>
