@@ -5,11 +5,11 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=39';
-import * as wallet from './wallet.js?v=39';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=39';
-import * as perfil from './perfil.js?v=39';
-import * as prizepool from './prizepool.js?v=39';
+import * as gb from './gridbot.js?v=40';
+import * as wallet from './wallet.js?v=40';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=40';
+import * as perfil from './perfil.js?v=40';
+import * as prizepool from './prizepool.js?v=40';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -277,6 +277,10 @@ function inyectarEstilo() {
   #colmena-app .cash-slider::-moz-range-track{height:6px;border-radius:100px;background:var(--line)}
   #colmena-app .cash-slider::-moz-range-progress{height:6px;border-radius:100px;background:var(--gold)}
   #colmena-app .cash-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:2px solid #8f6a1a;cursor:pointer}
+  #colmena-app .bot-panel-wrap{position:relative;display:block}
+  #colmena-app .rec-tag{position:absolute;top:5.5%;right:5%;display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-family:var(--display);font-weight:800;font-size:10.5px;letter-spacing:.3px;color:#e5d2ff;background:linear-gradient(180deg,rgba(180,124,255,.28),rgba(120,60,200,.22));border:1px solid rgba(200,160,255,.5);box-shadow:0 3px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.18);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);pointer-events:none;white-space:nowrap;z-index:2}
+  #colmena-app .rec-tag svg{color:#d9b8ff;flex:0 0 auto}
+  @media(max-width:560px){#colmena-app .rec-tag{font-size:9px;padding:4px 8px;gap:4px;border-radius:16px}#colmena-app .rec-tag svg{width:9px;height:9px}}
   #colmena-app .bot-panel{display:block;width:100%;height:auto;max-width:100%;margin:0 0 4px;border:none;transition:filter .18s ease}
   #colmena-app .bot-panel:hover{transform:none;filter:drop-shadow(0 10px 24px rgba(0,0,0,.5))}
   #colmena-app .cash-price{position:relative;text-align:center;background:url('assets/img/marco-precio.webp') center/100% 100% no-repeat;border:none;border-radius:0;aspect-ratio:900/338;padding:0;margin-bottom:14px;box-shadow:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:filter .18s ease}
@@ -1217,7 +1221,10 @@ function render() {
         <div class="card">
           <div id="c-chart">${graficaPreview()}</div>
           <div id="c-acum-side" style="display:none">
-            <img class="bot-panel" src="assets/img/panel-acum.webp" alt="Accumulator" loading="lazy">
+            <div class="bot-panel-wrap">
+              <img class="bot-panel" src="assets/img/panel-acum.webp" alt="Accumulator" loading="lazy">
+              <span class="rec-tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.6 1.4 6.8L12 17.1 5.9 20.5l1.4-6.8L2.2 9.1l6.9-.8L12 2z"/></svg>Recomendado</span>
+            </div>
           </div>
           <div id="c-cash-side" style="display:none">
             <img class="bot-panel" src="assets/img/panel-cash.webp" alt="Cash Out" loading="lazy">

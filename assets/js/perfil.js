@@ -1,6 +1,6 @@
 // perfil.js — Panel de cuenta por wallet. Módulo independiente (no toca la lógica existente).
-import * as gb from './gridbot.js?v=39';
-import * as wallet from './wallet.js?v=39';
+import * as gb from './gridbot.js?v=40';
+import * as wallet from './wallet.js?v=40';
 
 const $ = (id) => document.getElementById(id);
 const num = (n, d = 2) => { const x = Number(n); if (!isFinite(x)) return '—'; return x.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d }); };
@@ -9,20 +9,6 @@ const claveNombre = (c) => 'aurex-nombre:' + (c || '').toLowerCase();
 const leerNombre = (c) => { try { return localStorage.getItem(claveNombre(c)) || ''; } catch (_) { return ''; } };
 const guardarNombre = (c, v) => { try { v ? localStorage.setItem(claveNombre(c), v) : localStorage.removeItem(claveNombre(c)); } catch (_) {} };
 
-/* Rango por volumen operado (herramienta de progreso, puramente informativa) */
-const RANGOS = [
-  { n: 'Aprendiz',  min: 0,      col: '#8b96a3' },
-  { n: 'Operador',  min: 100,    col: '#4d9fff' },
-  { n: 'Veterano',  min: 1000,   col: '#b47cff' },
-  { n: 'Maestro',   min: 10000,  col: '#E8B84B' },
-  { n: 'Leyenda',   min: 100000, col: '#2ee86a' }
-];
-function rangoDe(vol) {
-  let r = RANGOS[0], sig = RANGOS[1];
-  for (let i = 0; i < RANGOS.length; i++) { if (vol >= RANGOS[i].min) { r = RANGOS[i]; sig = RANGOS[i + 1] || null; } }
-  const pct = sig ? Math.min(100, Math.round((vol - r.min) / (sig.min - r.min) * 100)) : 100;
-  return { r, sig, pct };
-}
 function desde(ts) {
   if (!ts) return '—';
   const d = new Date(Number(ts) * 1000);
@@ -63,12 +49,14 @@ function estilos() {
   #perfil-overlay .pf-off{background:rgba(246,70,93,.13);color:var(--rojo,#f6465d);border:1px solid rgba(246,70,93,.42)}
 
   /* Rango */
-  #perfil-overlay .pf-rank{background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid #2b3139;border-radius:14px;padding:14px 16px;margin-bottom:16px;box-shadow:0 4px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04)}
-  #perfil-overlay .pf-rank .rt{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-family:var(--mono,monospace);font-size:11px;color:#7d8794;text-transform:uppercase;letter-spacing:.6px}
-  #perfil-overlay .pf-rank .rn{font-family:var(--display,sans-serif);font-weight:800;font-size:17px;letter-spacing:.3px}
-  #perfil-overlay .pf-rank .rbar{height:9px;border-radius:6px;background:#0b0e12;border:1px solid #2b3139;overflow:hidden;margin-top:9px;box-shadow:inset 0 1px 3px rgba(0,0,0,.6)}
-  #perfil-overlay .pf-rank .rbar>i{display:block;height:100%;border-radius:5px;transition:width .5s ease}
-  #perfil-overlay .pf-rank .rs{font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;margin-top:7px}
+  #perfil-overlay .pf-tipos{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  #perfil-overlay .pf-tipo{display:flex;align-items:center;gap:10px;padding:12px 13px;border-radius:12px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid #2b3139;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04)}
+  #perfil-overlay .pf-tipo .ti{flex:0 0 auto;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid #2b3139}
+  #perfil-overlay .pf-tipo .tn{flex:1;min-width:0;font-family:var(--mono,monospace);font-size:11.5px;color:#b7bdc6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #perfil-overlay .pf-tipo .tc{flex:0 0 auto;font-family:var(--display,sans-serif);font-weight:800;font-size:17px;color:#eaecef}
+  #perfil-overlay .pf-sw{position:relative;width:40px;height:22px;border-radius:20px;background:rgba(46,232,106,.2);border:1px solid rgba(46,232,106,.45);cursor:not-allowed;flex:0 0 auto;opacity:.75;transition:background .18s,border-color .18s}
+  #perfil-overlay .pf-sw>i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#7d8794;transition:transform .2s ease,background .2s}
+  #perfil-overlay .pf-sw.on>i{transform:translateX(18px);background:var(--neon-lit,#2ee86a);box-shadow:0 0 8px rgba(46,232,106,.7)}
 
   /* KPIs */
   #perfil-overlay .pf-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
@@ -111,6 +99,11 @@ function estilos() {
     #perfil-overlay .pf-kpi{padding:12px 8px}
     #perfil-overlay .pf-kpi .kv{font-size:17px}
     #perfil-overlay .pf-acts{grid-template-columns:1fr}
+    #perfil-overlay .pf-tipos{gap:7px}
+    #perfil-overlay .pf-tipo{padding:10px;gap:8px}
+    #perfil-overlay .pf-tipo .tn{font-size:10.5px}
+    #perfil-overlay .pf-tipo .tc{font-size:15px}
+    #perfil-overlay .pf-tipo .ti{width:26px;height:26px}
   }
   `;
   document.head.appendChild(s);
@@ -131,6 +124,10 @@ function cerrar() { const o = $('perfil-overlay'); if (o) o.classList.remove('sh
 
 const iconoUser = () => `<svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>`;
 const iconoPen = () => `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+const icoGrid = () => `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`;
+const icoAcum = () => `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg>`;
+const icoCash = () => `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`;
+const icoDca = () => `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>`;
 const iconoCopy = () => `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`;
 
 function pintarNombre(cuenta) {
@@ -174,13 +171,6 @@ export async function abrirPerfil() {
     <div class="pf-hr" id="pf-sub">…</div>
   </div>
 
-  <div class="pf-rank" id="pf-rankbox">
-    <div class="rt"><span>Rango</span><span id="pf-rvol">—</span></div>
-    <div class="rn" id="pf-rname">—</div>
-    <div class="rbar"><i id="pf-rbar" style="width:0%"></i></div>
-    <div class="rs" id="pf-rnext">Calculando…</div>
-  </div>
-
   <div class="pf-kpis">
     <div class="pf-kpi"><div class="kl">Resultado</div><div class="kv" id="pf-pnl">…</div></div>
     <div class="pf-kpi"><div class="kl">Volumen</div><div class="kv" id="pf-vol">…</div></div>
@@ -207,14 +197,29 @@ export async function abrirPerfil() {
     </div>
   </div>
 
+  <div class="pf-sec">
+    <div class="pf-sect">Tus bots por estrategia</div>
+    <div class="pf-tipos" id="pf-tipos">
+      <div class="pf-tipo"><span class="ti" style="color:#4d9fff">${icoGrid()}</span><span class="tn">Smart Grid</span><span class="tc" id="pf-t0">—</span></div>
+      <div class="pf-tipo"><span class="ti" style="color:#b47cff">${icoAcum()}</span><span class="tn">Accumulator</span><span class="tc" id="pf-t1">—</span></div>
+      <div class="pf-tipo"><span class="ti" style="color:#E8B84B">${icoCash()}</span><span class="tn">Cash Out</span><span class="tc" id="pf-t2">—</span></div>
+      <div class="pf-tipo"><span class="ti" style="color:#34d97b">${icoDca()}</span><span class="tn">DCA</span><span class="tc" id="pf-t3">—</span></div>
+    </div>
+  </div>
+
   <div class="pf-acts">
     <a class="pf-act" href="https://bscscan.com/address/${cuenta}" target="_blank" rel="noopener">Ver en BscScan ↗</a>
     <button class="pf-act" id="pf-reload">Actualizar datos</button>
   </div>
 
   <div class="pf-soon">
-    <div class="t"><span>Renovación automática</span><span class="pf-badge">Pronto</span></div>
-    <div class="d">Podrás dejar la suscripción en piloto automático y olvidarte de renovar cada mes.</div>
+    <div class="t"><span>Renovación automática</span>
+      <span style="display:inline-flex;align-items:center;gap:9px">
+        <span class="pf-badge">Pronto</span>
+        <span class="pf-sw on" id="pf-sw" title="Disponible próximamente"><i></i></span>
+      </span>
+    </div>
+    <div class="d">Vendrá activada: tu suscripción se renovará sola y no tendrás que acordarte cada mes. Podrás desactivarla cuando quieras (se firmará en la blockchain).</div>
   </div>
   <div class="pf-note">Los datos se leen directamente de la blockchain. Tu nombre se guarda solo en este dispositivo.</div>`;
 
@@ -244,6 +249,7 @@ async function cargarDatos(cuenta) {
   // Agregado de todos los bots del usuario
   let total = 0, activos = 0, ops = 0, ciclos = 0, compras = 0, ventas = 0;
   let pnl = 0, vol = 0, gasGas = 0, creadaMin = 0;
+  const porTipo = [0, 0, 0, 0];
   const decCache = {};
   try {
     const claves = await gb.misRejillas(cuenta);
@@ -252,6 +258,7 @@ async function cargarDatos(cuenta) {
       let R; try { R = await gb.resumenK(k); } catch (_) { continue; }
       if (!R) continue;
       if (R.activa) activos++;
+      try { const md = await gb.modoDe(k); const mi = Number(Array.isArray(md) ? md[0] : md); if (mi >= 0 && mi <= 3) porTipo[mi]++; } catch (_) {}
       ops += Number(R.totalOps || 0);
       ciclos += Number(R.ciclos || 0);
       compras += Number(R.comprasHechas || 0);
@@ -281,11 +288,6 @@ async function cargarDatos(cuenta) {
   if ($('pf-cv')) $('pf-cv').textContent = `${compras} / ${ventas}`;
   if ($('pf-desde')) $('pf-desde').textContent = desde(creadaMin);
   if ($('pf-gasg')) $('pf-gasg').textContent = `${num(gasGas, 4)} BNB`;
+  for (let i = 0; i < 4; i++) { const e = $('pf-t' + i); if (e) e.textContent = String(porTipo[i]); }
 
-  // Rango por volumen
-  const { r, sig, pct } = rangoDe(vol);
-  if ($('pf-rname')) { $('pf-rname').textContent = r.n; $('pf-rname').style.color = r.col; }
-  if ($('pf-rvol')) $('pf-rvol').textContent = `${num(vol, 0)} operado`;
-  if ($('pf-rbar')) { $('pf-rbar').style.width = pct + '%'; $('pf-rbar').style.background = `linear-gradient(90deg,${r.col}55,${r.col})`; }
-  if ($('pf-rnext')) $('pf-rnext').textContent = sig ? `Faltan ${num(Math.max(0, sig.min - vol), 0)} de volumen para ${sig.n}` : 'Rango máximo alcanzado';
 }

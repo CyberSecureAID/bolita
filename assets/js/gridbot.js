@@ -710,3 +710,6 @@ export async function infoToken(addr) {
   let nom = sym; try { nom = await t.name(); } catch (_) {}
   return { address: a, simbolo: String(sym), nombre: String(nom), decimals: Number(dec) };
 }
+
+/** Modo/tipo de un bot: 0=Grid, 1=Acumulador, 2=Cash Out, 3=DCA. */
+export async function modoDe(clave) { return leeGB('modoDe(bytes32)', [clave]); }
