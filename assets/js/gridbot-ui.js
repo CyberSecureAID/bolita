@@ -5,10 +5,10 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=25';
-import * as wallet from './wallet.js?v=25';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=25';
-import * as perfil from './perfil.js?v=25';
+import * as gb from './gridbot.js?v=26';
+import * as wallet from './wallet.js?v=26';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=26';
+import * as perfil from './perfil.js?v=26';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -289,7 +289,7 @@ function inyectarEstilo() {
   #colmena-app .btn-rojo,#colmena-modal .btn-rojo{background:transparent;border:1px solid var(--rojo);color:var(--rojo)}
   #colmena-app .mt{margin-top:14px} #colmena-app .mt8{margin-top:8px}
   #colmena-app .link{background:none;border:none;color:var(--gold-soft);font-family:var(--mono);font-size:12px;cursor:pointer;text-decoration:underline;padding:0;margin-top:16px}
-  #colmena-app .sug{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid var(--gold-soft);color:var(--gold);border-radius:8px;padding:6px 11px;font-family:var(--mono);font-size:11px;cursor:pointer;margin-left:auto;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.06);transition:transform .08s,box-shadow .08s}
+  #colmena-app .sug{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid var(--acento);color:var(--acento);border-radius:8px;padding:6px 11px;font-family:var(--mono);font-size:11px;cursor:pointer;margin-left:auto;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.06);transition:transform .08s,box-shadow .08s}
   #colmena-app .sug:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.3)}
   #colmena-app .seg{display:flex;gap:6px}
   #colmena-app .seg button{flex:1;padding:11px;border:1px solid var(--line);background:transparent;color:var(--ink-2);border-radius:9px;font-family:var(--mono);font-size:12px;cursor:pointer}
@@ -404,8 +404,8 @@ function inyectarEstilo() {
   #colmena-app .stepper-btns button{flex:1;width:24px;border:1px solid var(--line);background:#1b2027;color:var(--ac-m);border-radius:6px;font-size:7px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0;transition:background .12s,color .12s,transform .1s}
   #colmena-app .stepper-btns button:hover{background:var(--ac-m);color:var(--ac-t);border-color:var(--ac-d)}
   #colmena-app .stepper-btns button:active{transform:scale(.92)}
-  #colmena-app .saldo-chip{font-family:var(--mono);font-size:10px;color:var(--gold-soft);cursor:pointer;white-space:nowrap;text-transform:none;letter-spacing:0}
-  #colmena-app .saldo-chip:hover{color:var(--gold)} #colmena-app .saldo-chip b{color:var(--gold)}
+  #colmena-app .saldo-chip{font-family:var(--mono);font-size:10px;color:var(--acento);cursor:pointer;white-space:nowrap;text-transform:none;letter-spacing:0}
+  #colmena-app .saldo-chip:hover{filter:brightness(1.15)} #colmena-app .saldo-chip b{color:var(--acento)}
   #colmena-app .btn-avz{background:rgba(255,255,255,.03);border:1px solid var(--line-soft);color:var(--ink-3);font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;margin-top:14px;transition:color .12s,border-color .12s}
   #colmena-app .btn-avz:hover{color:var(--gold);border-color:var(--gold-soft)}
   #colmena-app .paso-box{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding:12px 14px;background:#12161c;border:1px solid var(--line-soft);border-radius:11px}
@@ -1071,9 +1071,9 @@ function render() {
           <div class="fila">${campoNum('f-min',{placeholder:'precio bajo',pct:0.005})}${campoNum('f-max',{placeholder:'precio alto',pct:0.005})}</div>
           <div class="fila">
             <div><div class="lab">Cuadrículas ${iBtn('cuadriculas')}</div>${campoNum('f-niv',{value:20,min:2,max:100,step:1,int:true})}</div>
-            <div><div class="lab" style="justify-content:space-between;gap:8px"><span style="display:flex;align-items:center;gap:6px">Invierto <span id="f-total-sym">(${moneda(F.quoteId).simbolo})</span> ${iBtn('inversion')}</span><span id="f-total-saldo" class="saldo-chip">—</span></div>${campoNum('f-total',{placeholder:'0.00',step:1,min:0})}</div>
+            <div><div class="lab" style="gap:10px"><span style="display:flex;align-items:center;gap:6px">Inv. <span id="f-total-sym">(${moneda(F.quoteId).simbolo})</span> ${iBtn('inversion')}</span><span id="f-total-saldo" class="saldo-chip">—</span></div>${campoNum('f-total',{placeholder:'0.00',step:1,min:0})}</div>
           </div>
-          <div class="lab">Ganancia por cuadrícula % ${iBtn('margen')} <span style="color:var(--ink-3);font-size:11px;font-family:var(--mono)">— opcional, recalcula las cuadrículas</span></div>
+          <div class="lab">Gan. cuadrícula % ${iBtn('margen')} <span style="color:var(--ink-3);font-size:11px;font-family:var(--mono)">opcional</span></div>
           ${campoNum('f-margen',{placeholder:'auto',min:0,max:20,step:0.5})}
           <div id="f-margen-nota"></div>
           <div class="paso-box"><span>Separación entre cuadrículas ${iBtn('separacion')}</span><b id="pv-paso">—</b></div>
@@ -1083,7 +1083,7 @@ function render() {
           ${campoNum('fa-min',{placeholder:'precio más bajo',pct:0.01})}
           <div class="fila">
             <div><div class="lab">Nº de compras ${iBtn('acniv')}</div>${campoNum('fa-niv',{value:15,min:2,max:100,step:1,int:true})}</div>
-            <div><div class="lab">Invierto (${moneda(F.quoteId).simbolo}) ${iBtn('inversion')}</div>${campoNum('fa-total',{placeholder:'0.00',step:1,min:0})}</div>
+            <div><div class="lab">Inv. (${moneda(F.quoteId).simbolo}) ${iBtn('inversion')}</div>${campoNum('fa-total',{placeholder:'0.00',step:1,min:0})}</div>
           </div>
           <div class="fila">
             <div><div class="lab">Compra inicial % ${iBtn('acini')}</div>${campoNum('fa-ini',{value:30,min:0,max:100,step:5})}</div>
@@ -1510,7 +1510,7 @@ async function refrescarSaldoInversion() {
     const quote = moneda(F.quoteId);
     const bal = await gb.balanceToken(gb.dirDe(quote), cuenta);
     const balH = Number(gb.fmt(bal, quote.decimals)); F.saldoQuote = balH;
-    el.innerHTML = `Tienes ${num(balH, 2)} · <b>Máx</b>`;
+    el.innerHTML = `${num(balH, 2)} · <b>Máx</b>`;
     if (inp) inp.dataset.max = balH;                 // el stepper y el clamp respetan este tope
     if (inp && parseFloat(inp.value) > balH) { inp.value = Number(balH.toPrecision(8)); inp.dispatchEvent(new Event('input', { bubbles: true })); }
     el.onclick = () => { if (F.saldoQuote > 0 && inp) { inp.value = Number(F.saldoQuote.toPrecision(8)); inp.dispatchEvent(new Event('input', { bubbles: true })); } };
