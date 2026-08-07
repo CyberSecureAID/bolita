@@ -5,10 +5,10 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=24';
-import * as wallet from './wallet.js?v=24';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=24';
-import * as perfil from './perfil.js?v=24';
+import * as gb from './gridbot.js?v=25';
+import * as wallet from './wallet.js?v=25';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=25';
+import * as perfil from './perfil.js?v=25';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -149,7 +149,7 @@ function inyectarEstilo() {
   #colmena-app .fila{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   #colmena-app .btn,#colmena-modal .btn{width:100%;box-sizing:border-box;border:none;border-radius:12px;padding:14px;font-family:var(--display);font-weight:700;font-size:15px;cursor:pointer;transition:filter .15s}
   #colmena-app .btn:hover,#colmena-modal .btn:hover{filter:brightness(1.1)}
-  #colmena-app .btn-oro:hover,#colmena-modal .btn-oro:hover{filter:none;transform:translateY(-1px);box-shadow:0 6px 0 #8f6a1a,0 12px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.5)}
+  #colmena-app .btn-oro:hover,#colmena-modal .btn-oro:hover{filter:none;transform:translateY(-1px);box-shadow:0 6px 0 var(--ac-s),0 12px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.5)}
   #colmena-app .btn-verde:hover,#colmena-modal .btn-verde:hover{filter:none;transform:translateY(-1px);box-shadow:0 6px 0 var(--ac-s),0 12px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.4)} #colmena-app .btn:disabled{opacity:.5;cursor:not-allowed}
   #colmena-app .btn-oro,#colmena-modal .btn-oro{background:linear-gradient(180deg,var(--ac-l),var(--ac-m) 45%,var(--ac-d));color:var(--ac-t);box-shadow:0 4px 0 var(--ac-s),0 8px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.5);transition:transform .09s,box-shadow .09s,filter .12s;text-shadow:0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .btn-oro:active,#colmena-modal .btn-oro:active{transform:translateY(4px);box-shadow:0 0 0 #8f6a1a,0 3px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.4)}
@@ -178,15 +178,15 @@ function inyectarEstilo() {
   #colmena-app mark.faq-hl{background:transparent;color:var(--gold);font-weight:800;text-shadow:0 0 8px rgba(232,184,75,.3)}
   #colmena-app .acum-hero{text-align:center;padding:14px 12px 6px}
   #colmena-app .acum-hero .acum-ico{font-size:46px;line-height:1;color:var(--acento);filter:drop-shadow(0 0 12px rgba(0,0,0,.5))}
-  #colmena-app .acum-hero h4{font-family:var(--display);color:var(--gold);font-size:20px;margin:10px 0 8px;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+  #colmena-app .acum-hero h4{font-family:var(--display);color:var(--acento);font-size:20px;margin:10px 0 8px;text-shadow:0 1px 2px rgba(0,0,0,.5)}
   #colmena-app .acum-hero p{font-family:var(--sans);color:var(--ink-2);font-size:13px;line-height:1.55;margin:0 auto 14px;max-width:300px}
   #colmena-app .acum-flow{display:flex;flex-direction:column;gap:8px;text-align:left;max-width:320px;margin:0 auto}
   #colmena-app .acum-flow .af{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;color:var(--ink-2);background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:10px;padding:9px 12px}
-  #colmena-app .acum-flow .af span{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,#5cf58c,#1ea34a);color:#03210f;font-weight:800;font-size:12px}
+  #colmena-app .acum-flow .af span{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,var(--ac-l),var(--ac-d));color:var(--ac-t);font-weight:800;font-size:12px}
   /* ===== Pestañas de bot (tipo carpeta) + foto ===== */
   #colmena-app .bot-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
   #colmena-app .bot-tab{display:flex;flex-direction:column;align-items:center;gap:5px;padding:11px 5px;background:linear-gradient(180deg,#1b2027,#12161c);border:1.5px solid var(--line);border-radius:12px;cursor:pointer;color:var(--ink-3);box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);transition:transform .1s,box-shadow .1s,border-color .14s,color .14s,background .14s}
-  #colmena-app .bot-tab:hover{border-color:var(--gold-soft);filter:brightness(1.15)}
+  #colmena-app .bot-tab:hover{border-color:var(--acento);filter:brightness(1.15)}
   #colmena-app .bot-tab .bt-ico{display:grid}
   #colmena-app .bot-tab .bt-nom{font-family:var(--mono);font-size:10.5px;font-weight:700;text-align:center;line-height:1.05}
   #colmena-app .bot-tab[data-tipo="grid"]{color:var(--az)}
@@ -199,8 +199,8 @@ function inyectarEstilo() {
   #colmena-app .bot-foto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
   #colmena-app .bot-foto img.nocarga{display:none}
   #colmena-app .bot-foto-cap{position:absolute;left:0;right:0;bottom:0;padding:28px 16px 14px;background:linear-gradient(180deg,transparent,rgba(3,5,7,.5) 42%,rgba(3,5,7,.9));display:flex;flex-direction:column;gap:3px}
-  #colmena-app .bot-foto-cap b{font-family:var(--display);font-weight:800;font-size:19px;color:var(--acento);text-shadow:0 1px 3px rgba(0,0,0,.7);letter-spacing:.3px}
-  #colmena-app .bot-foto-cap span{font-family:var(--sans);font-size:12.5px;color:var(--ink-2);text-shadow:0 1px 3px rgba(0,0,0,.85);line-height:1.35}
+  #colmena-app .bot-foto-cap b{font-family:var(--display);font-weight:800;font-size:19px;color:var(--gold);text-shadow:0 1px 3px rgba(0,0,0,.7),0 0 12px rgba(232,184,75,.3);letter-spacing:.3px}
+  #colmena-app .bot-foto-cap span{font-family:var(--sans);font-size:12.5px;color:var(--gold);text-shadow:0 1px 3px rgba(0,0,0,.85);line-height:1.35}
   /* ===== Selector de moneda + modal ===== */
   #colmena-app .fila-coins{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   #colmena-app .coin-sel{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 13px;background:linear-gradient(180deg,#1b2027,#12161c);border:1.5px solid var(--line);border-radius:13px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);transition:border-color .14s,transform .08s}
@@ -416,7 +416,7 @@ function inyectarEstilo() {
   @media(max-width:640px){#colmena-app .bot-tipos{grid-template-columns:1fr}}
   #colmena-app .bot-tipo{display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;padding:14px;border:1.5px solid var(--line);background:linear-gradient(180deg,#1b2027,#12161c);border-radius:14px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05);transition:transform .1s,box-shadow .1s,border-color .14s,background .14s}
   #colmena-app .bot-tipo:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05)}
-  #colmena-app .bot-tipo:hover{border-color:var(--gold-soft)}
+  #colmena-app .bot-tipo:hover{border-color:var(--acento)}
   #colmena-app .bot-tipo.on{border-color:var(--gold);background:linear-gradient(180deg,rgba(232,184,75,.13),rgba(232,184,75,.04));box-shadow:0 3px 0 #8f6a1a,0 0 0 1px var(--gold) inset,inset 0 1px 0 rgba(255,255,255,.14)}
   #colmena-app .bot-tipo .bot-ico{font-size:26px;line-height:1}
   #colmena-app .bot-tipo .bot-nom{font-family:var(--display);font-size:15px;font-weight:700;color:var(--ink)}
@@ -428,8 +428,8 @@ function inyectarEstilo() {
   #colmena-app .rep-c{background:linear-gradient(180deg,rgba(46,232,106,.30),rgba(46,232,106,.1));color:#96ffbe;border:1px solid rgba(46,232,106,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 1px 2px rgba(0,0,0,.55);text-shadow:0 1px 1px rgba(0,0,0,.75)}
   #colmena-app .seg.presets button{padding:10px 6px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));color:var(--ink-2);border-radius:9px;font-family:var(--mono);font-size:12px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);transition:transform .08s,box-shadow .08s,background .12s,color .12s}
   #colmena-app .seg.presets button:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.35)}
-  #colmena-app .seg.presets button:hover{border-color:var(--gold-soft);color:var(--ink)}
-  #colmena-app .seg.presets button.on{background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);color:#3a2800;border-color:var(--gold);font-weight:800;box-shadow:0 2px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.4);text-shadow:0 1px 0 rgba(255,255,255,.3)}
+  #colmena-app .seg.presets button:hover{border-color:var(--acento);color:var(--ink)}
+  #colmena-app .seg.presets button.on{background:linear-gradient(180deg,var(--ac-l),var(--ac-m) 50%,var(--ac-d));color:var(--ac-t);border-color:var(--ac-d);font-weight:800;box-shadow:0 2px 0 var(--ac-s),inset 0 1px 0 rgba(255,255,255,.4);text-shadow:0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .asesor{margin-top:12px;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:0 6px 18px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.03)}
   #colmena-app .asesor .as-top{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
   #colmena-app .asesor .as-top b{color:var(--acento)}
@@ -1221,7 +1221,7 @@ function render() {
           <div id="c-dca-side" style="display:none">
             <div class="acum-hero">
               <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div>
-              <h4>DCA — Compra Automática</h4>
+              <h4>DCA Compra Automática</h4>
               <p>Compra un monto fijo de tu moneda <b>cada cierto tiempo</b>, pase lo que pase con el precio. La forma más tranquila de ir armando posición sin estar pendiente del mercado.</p>
               <div class="acum-flow">
                 <div class="af"><span>1</span> Eliges la moneda y con qué pagar</div>
