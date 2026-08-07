@@ -5,10 +5,10 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=23';
-import * as wallet from './wallet.js?v=23';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=23';
-import * as perfil from './perfil.js?v=23';
+import * as gb from './gridbot.js?v=24';
+import * as wallet from './wallet.js?v=24';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=24';
+import * as perfil from './perfil.js?v=24';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -177,7 +177,7 @@ function inyectarEstilo() {
   }
   #colmena-app mark.faq-hl{background:transparent;color:var(--gold);font-weight:800;text-shadow:0 0 8px rgba(232,184,75,.3)}
   #colmena-app .acum-hero{text-align:center;padding:14px 12px 6px}
-  #colmena-app .acum-hero .acum-ico{font-size:46px;line-height:1;filter:drop-shadow(0 0 16px rgba(232,184,75,.35))}
+  #colmena-app .acum-hero .acum-ico{font-size:46px;line-height:1;color:var(--acento);filter:drop-shadow(0 0 12px rgba(0,0,0,.5))}
   #colmena-app .acum-hero h4{font-family:var(--display);color:var(--gold);font-size:20px;margin:10px 0 8px;text-shadow:0 1px 2px rgba(0,0,0,.5)}
   #colmena-app .acum-hero p{font-family:var(--sans);color:var(--ink-2);font-size:13px;line-height:1.55;margin:0 auto 14px;max-width:300px}
   #colmena-app .acum-flow{display:flex;flex-direction:column;gap:8px;text-align:left;max-width:320px;margin:0 auto}
@@ -195,12 +195,12 @@ function inyectarEstilo() {
   #colmena-app .bot-tab[data-tipo="dca"]{color:var(--ve)}
   #colmena-app .bot-tab.on{color:var(--ac-t);background:linear-gradient(180deg,var(--ac-l),var(--ac-m) 55%,var(--ac-d));border-color:var(--ac-d);box-shadow:0 4px 0 var(--ac-s),inset 0 1px 0 rgba(255,255,255,.45);text-shadow:0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .bot-tab.on:active{transform:translateY(2px);box-shadow:0 2px 0 var(--ac-s),inset 0 1px 0 rgba(255,255,255,.45)}
-  #colmena-app .bot-foto{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin-bottom:16px;border:2px solid var(--gold);box-shadow:0 5px 0 #8f6a1a,0 12px 28px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.1);background:linear-gradient(135deg,#20262f,#0d1117)}
+  #colmena-app .bot-foto{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin-bottom:16px;border:2px solid var(--ac-m);box-shadow:0 5px 0 var(--ac-s),0 12px 28px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.1);background:linear-gradient(135deg,#20262f,#0d1117)}
   #colmena-app .bot-foto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
   #colmena-app .bot-foto img.nocarga{display:none}
   #colmena-app .bot-foto-cap{position:absolute;left:0;right:0;bottom:0;padding:28px 16px 14px;background:linear-gradient(180deg,transparent,rgba(3,5,7,.5) 42%,rgba(3,5,7,.9));display:flex;flex-direction:column;gap:3px}
-  #colmena-app .bot-foto-cap b{font-family:var(--display);font-weight:800;font-size:19px;color:var(--gold);text-shadow:0 1px 3px rgba(0,0,0,.7),0 0 12px rgba(232,184,75,.3);letter-spacing:.3px}
-  #colmena-app .bot-foto-cap span{font-family:var(--sans);font-size:12.5px;color:var(--gold);text-shadow:0 1px 3px rgba(0,0,0,.85);line-height:1.35}
+  #colmena-app .bot-foto-cap b{font-family:var(--display);font-weight:800;font-size:19px;color:var(--acento);text-shadow:0 1px 3px rgba(0,0,0,.7);letter-spacing:.3px}
+  #colmena-app .bot-foto-cap span{font-family:var(--sans);font-size:12.5px;color:var(--ink-2);text-shadow:0 1px 3px rgba(0,0,0,.85);line-height:1.35}
   /* ===== Selector de moneda + modal ===== */
   #colmena-app .fila-coins{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   #colmena-app .coin-sel{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 13px;background:linear-gradient(180deg,#1b2027,#12161c);border:1.5px solid var(--line);border-radius:13px;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);transition:border-color .14s,transform .08s}
@@ -268,12 +268,12 @@ function inyectarEstilo() {
   #colmena-app .cash-slider::-moz-range-track{height:6px;border-radius:100px;background:var(--line)}
   #colmena-app .cash-slider::-moz-range-progress{height:6px;border-radius:100px;background:var(--gold)}
   #colmena-app .cash-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:2px solid #8f6a1a;cursor:pointer}
-  #colmena-app .cash-price{text-align:center;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--gold-soft);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 6px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)}
+  #colmena-app .cash-price{text-align:center;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--ac-m);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 6px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)}
   #colmena-app .cash-price .cp-lab{font-family:var(--mono);font-size:12px;color:var(--ink-2);letter-spacing:.5px}
-  #colmena-app .cash-price .cp-val{font-family:var(--display);font-weight:800;font-size:30px;color:var(--gold);margin:6px 0 3px;text-shadow:0 1px 2px rgba(0,0,0,.5),0 2px 12px rgba(232,184,75,.25);letter-spacing:-.5px}
+  #colmena-app .cash-price .cp-val{font-family:var(--display);font-weight:800;font-size:30px;color:var(--acento);margin:6px 0 3px;text-shadow:0 1px 2px rgba(0,0,0,.5);letter-spacing:-.5px}
   #colmena-app .cash-price .cp-src{font-family:var(--mono);font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
   #colmena-app .cash-resumen{margin-top:16px;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:0 8px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.03)}
-  #colmena-app .cash-resumen .cr-top{font-family:var(--display);color:var(--gold);font-size:14px;font-weight:700;text-align:center;margin-bottom:12px;text-shadow:0 1px 1px rgba(0,0,0,.4);letter-spacing:.3px}
+  #colmena-app .cash-resumen .cr-top{font-family:var(--display);color:var(--acento);font-size:14px;font-weight:700;text-align:center;margin-bottom:12px;text-shadow:0 1px 1px rgba(0,0,0,.4);letter-spacing:.3px}
   #colmena-app .cash-resumen .cr-rows{display:flex;flex-direction:column;gap:1px;background:var(--line-soft);border-radius:11px;overflow:hidden}
   #colmena-app .cash-resumen .cr-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 14px;background:rgba(0,0,0,.28);font-family:var(--mono);font-size:12.5px}
   #colmena-app .cash-resumen .cr-row span{color:var(--ink-3);min-width:0}
@@ -293,7 +293,7 @@ function inyectarEstilo() {
   #colmena-app .sug:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.3)}
   #colmena-app .seg{display:flex;gap:6px}
   #colmena-app .seg button{flex:1;padding:11px;border:1px solid var(--line);background:transparent;color:var(--ink-2);border-radius:9px;font-family:var(--mono);font-size:12px;cursor:pointer}
-  #colmena-app .seg button.on{background:var(--gold);color:#1a1200;border-color:var(--gold);font-weight:700}
+  #colmena-app .seg button.on{background:var(--ac-m);color:var(--ac-t);border-color:var(--ac-d);font-weight:700}
   #colmena-app .avz{border-top:1px solid var(--line-soft);margin-top:18px;padding-top:4px}
   #colmena-app .chart{width:100%;height:auto;display:block;border-radius:14px;background:#0d1117;border:1px solid var(--line-soft)}
   #colmena-app #c-chart{position:relative;background:url('assets/img/marco-rejilla.webp') center/100% 100% no-repeat;padding:6.5% 7.5%;box-sizing:border-box}
@@ -432,7 +432,7 @@ function inyectarEstilo() {
   #colmena-app .seg.presets button.on{background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);color:#3a2800;border-color:var(--gold);font-weight:800;box-shadow:0 2px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.4);text-shadow:0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .asesor{margin-top:12px;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:0 6px 18px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.03)}
   #colmena-app .asesor .as-top{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
-  #colmena-app .asesor .as-top b{color:var(--gold)}
+  #colmena-app .asesor .as-top b{color:var(--acento)}
   #colmena-app .asesor .as-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   #colmena-app .asesor .as-grid>div{display:flex;flex-direction:column;gap:4px;background:rgba(0,0,0,.28);border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px}
   #colmena-app .asesor .as-grid span{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
@@ -1194,7 +1194,7 @@ function render() {
           <div id="c-chart">${graficaPreview()}</div>
           <div id="c-acum-side" style="display:none">
             <div class="acum-hero">
-              <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.6"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></div>
+              <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></div>
               <h4>Accumulator</h4>
               <p>Compra en la caída (más volumen mientras más baja) y vende <b>todo junto</b> cuando el total gana el % que elijas. Menos operaciones, menos comisiones.</p>
               <div class="acum-flow">
@@ -1207,7 +1207,7 @@ function render() {
           </div>
           <div id="c-cash-side" style="display:none">
             <div class="acum-hero">
-              <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.5"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+              <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
               <h4>Cash Out</h4>
               <p>Ya tienes la cripto. Dices <b>cuánto</b> vender y <b>a qué objetivo</b> (precio o %). El bot vende solo cuando llega, y te paga en tu estable.</p>
               <div class="acum-flow">
@@ -1220,7 +1220,7 @@ function render() {
           </div>
           <div id="c-dca-side" style="display:none">
             <div class="acum-hero">
-              <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#e8b84b" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div>
+              <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div>
               <h4>DCA — Compra Automática</h4>
               <p>Compra un monto fijo de tu moneda <b>cada cierto tiempo</b>, pase lo que pase con el precio. La forma más tranquila de ir armando posición sin estar pendiente del mercado.</p>
               <div class="acum-flow">
