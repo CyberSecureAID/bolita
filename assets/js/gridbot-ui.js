@@ -5,10 +5,10 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=22';
-import * as wallet from './wallet.js?v=22';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=22';
-import * as perfil from './perfil.js?v=22';
+import * as gb from './gridbot.js?v=23';
+import * as wallet from './wallet.js?v=23';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=23';
+import * as perfil from './perfil.js?v=23';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -78,6 +78,7 @@ function inyectarEstilo() {
     --rojo:#f6465d;
     --az:#4d9fff; --mo:#b47cff; --ve:#34d97b;   /* acentos por bot */
     --acento:var(--gold);                          /* color del bot seleccionado (lo fija pintarTipo) */
+    --ac-l:#f7db8d; --ac-m:#E8B84B; --ac-d:#c79426; --ac-s:#8f6a1a; --ac-t:#3a2800;  /* set 3D del acento (pintarTipo) */
     font-family:var(--sans);color:var(--ink);position:relative;isolation:isolate;
     background:#0b0e11;min-height:100vh;overflow-x:hidden}
   #colmena-app .c-hdr{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
@@ -149,8 +150,8 @@ function inyectarEstilo() {
   #colmena-app .btn,#colmena-modal .btn{width:100%;box-sizing:border-box;border:none;border-radius:12px;padding:14px;font-family:var(--display);font-weight:700;font-size:15px;cursor:pointer;transition:filter .15s}
   #colmena-app .btn:hover,#colmena-modal .btn:hover{filter:brightness(1.1)}
   #colmena-app .btn-oro:hover,#colmena-modal .btn-oro:hover{filter:none;transform:translateY(-1px);box-shadow:0 6px 0 #8f6a1a,0 12px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.5)}
-  #colmena-app .btn-verde:hover,#colmena-modal .btn-verde:hover{filter:none;transform:translateY(-1px);box-shadow:0 6px 0 #12702f,0 12px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.4)} #colmena-app .btn:disabled{opacity:.5;cursor:not-allowed}
-  #colmena-app .btn-oro,#colmena-modal .btn-oro{background:linear-gradient(180deg,#f7db8d,var(--gold) 45%,#c79426);color:#3a2800;box-shadow:0 4px 0 #8f6a1a,0 8px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.5);transition:transform .09s,box-shadow .09s,filter .12s;text-shadow:0 1px 0 rgba(255,255,255,.3)}
+  #colmena-app .btn-verde:hover,#colmena-modal .btn-verde:hover{filter:none;transform:translateY(-1px);box-shadow:0 6px 0 var(--ac-s),0 12px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.4)} #colmena-app .btn:disabled{opacity:.5;cursor:not-allowed}
+  #colmena-app .btn-oro,#colmena-modal .btn-oro{background:linear-gradient(180deg,var(--ac-l),var(--ac-m) 45%,var(--ac-d));color:var(--ac-t);box-shadow:0 4px 0 var(--ac-s),0 8px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.5);transition:transform .09s,box-shadow .09s,filter .12s;text-shadow:0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .btn-oro:active,#colmena-modal .btn-oro:active{transform:translateY(4px);box-shadow:0 0 0 #8f6a1a,0 3px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.4)}
   #colmena-app .btn-oro3d{width:100%;border:none;border-radius:13px;padding:16px;font-family:var(--display);font-weight:800;font-size:16px;cursor:pointer;color:#3a2800;letter-spacing:.3px;background:linear-gradient(180deg,#f7db8d,var(--gold) 45%,#c79426);box-shadow:0 5px 0 #8f6a1a,0 11px 24px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.55);transition:transform .09s,box-shadow .09s,filter .12s;text-shadow:0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .btn-oro3d:hover{filter:brightness(1.05)}
@@ -192,8 +193,8 @@ function inyectarEstilo() {
   #colmena-app .bot-tab[data-tipo="acum"]{color:var(--mo)}
   #colmena-app .bot-tab[data-tipo="cash"]{color:var(--gold)}
   #colmena-app .bot-tab[data-tipo="dca"]{color:var(--ve)}
-  #colmena-app .bot-tab.on{color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border-color:#c79426;box-shadow:0 4px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.45);text-shadow:0 1px 0 rgba(255,255,255,.3)}
-  #colmena-app .bot-tab.on:active{transform:translateY(2px);box-shadow:0 2px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.45)}
+  #colmena-app .bot-tab.on{color:var(--ac-t);background:linear-gradient(180deg,var(--ac-l),var(--ac-m) 55%,var(--ac-d));border-color:var(--ac-d);box-shadow:0 4px 0 var(--ac-s),inset 0 1px 0 rgba(255,255,255,.45);text-shadow:0 1px 0 rgba(255,255,255,.3)}
+  #colmena-app .bot-tab.on:active{transform:translateY(2px);box-shadow:0 2px 0 var(--ac-s),inset 0 1px 0 rgba(255,255,255,.45)}
   #colmena-app .bot-foto{position:relative;width:100%;aspect-ratio:16/9;border-radius:16px;overflow:hidden;margin-bottom:16px;border:2px solid var(--gold);box-shadow:0 5px 0 #8f6a1a,0 12px 28px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.1);background:linear-gradient(135deg,#20262f,#0d1117)}
   #colmena-app .bot-foto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
   #colmena-app .bot-foto img.nocarga{display:none}
@@ -282,8 +283,8 @@ function inyectarEstilo() {
   #colmena-app .cash-resumen .cr-gan b.neg{color:var(--rojo)}
   #colmena-app .cash-resumen .cr-note{text-align:center;font-family:var(--sans);font-size:12px;color:var(--ink-2);line-height:1.55;margin-top:12px}
   #colmena-app .cash-resumen .cr-note b{color:var(--gold)}
-  #colmena-app .btn-verde,#colmena-modal .btn-verde{background:linear-gradient(180deg,#5cf58c,var(--neon) 45%,#1ea34a);color:#03210f;box-shadow:0 4px 0 #12702f,0 8px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.4);transition:transform .09s,box-shadow .09s,filter .12s;text-shadow:0 1px 0 rgba(255,255,255,.25)}
-  #colmena-app .btn-verde:active,#colmena-modal .btn-verde:active{transform:translateY(4px);box-shadow:0 0 0 #12702f,0 3px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.3)}
+  #colmena-app .btn-verde,#colmena-modal .btn-verde{background:linear-gradient(180deg,var(--ac-l),var(--ac-m) 45%,var(--ac-d));color:var(--ac-t);box-shadow:0 4px 0 var(--ac-s),0 8px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.4);transition:transform .09s,box-shadow .09s,filter .12s;text-shadow:0 1px 0 rgba(255,255,255,.25)}
+  #colmena-app .btn-verde:active,#colmena-modal .btn-verde:active{transform:translateY(4px);box-shadow:0 0 0 var(--ac-s),0 3px 10px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.3)}
   #colmena-app .btn-linea,#colmena-modal .btn-linea{background:transparent;border:1px solid var(--line);color:var(--ink)}
   #colmena-app .btn-rojo,#colmena-modal .btn-rojo{background:transparent;border:1px solid var(--rojo);color:var(--rojo)}
   #colmena-app .mt{margin-top:14px} #colmena-app .mt8{margin-top:8px}
@@ -327,7 +328,7 @@ function inyectarEstilo() {
   }
   #colmena-app .gasbox{position:relative;aspect-ratio:994/367;background:url('assets/img/marco-gas.webp') center/100% 100% no-repeat;border:none;border-radius:0;padding:0;margin-top:16px;box-sizing:border-box}
   #colmena-app .gas-row{display:contents}
-  #colmena-app .gas-stepper{position:absolute;left:3.83%;top:11.85%;width:69.07%;height:26.67%;margin:0}
+  #colmena-app .gas-stepper{position:absolute;left:3.83%;top:11.85%;width:69.07%;height:26.67%;margin:0;transform:translateY(2px)}
   #colmena-app .gas-stepper input{width:100%;height:100%;box-sizing:border-box;padding-top:0;padding-bottom:0;background:transparent;border:none}
   #colmena-app .gas-stepper input:focus{border:none;outline:none;box-shadow:none}
   #colmena-app #f-gasdep{position:absolute;left:74.44%;top:12.39%;width:21.43%;height:25.99%;padding:0;margin:0;box-sizing:border-box;transform:translateX(-1px)}
@@ -400,8 +401,8 @@ function inyectarEstilo() {
   #colmena-app .stepper input{padding-right:38px}
   #colmena-app .gas-row .stepper{flex:1}
   #colmena-app .stepper-btns{position:absolute;right:6px;top:6px;bottom:6px;display:flex;flex-direction:column;gap:3px}
-  #colmena-app .stepper-btns button{flex:1;width:24px;border:1px solid var(--line);background:#1b2027;color:var(--gold-soft);border-radius:6px;font-size:7px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0;transition:background .12s,color .12s,transform .1s}
-  #colmena-app .stepper-btns button:hover{background:var(--gold);color:#1a1200;border-color:var(--gold)}
+  #colmena-app .stepper-btns button{flex:1;width:24px;border:1px solid var(--line);background:#1b2027;color:var(--ac-m);border-radius:6px;font-size:7px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0;transition:background .12s,color .12s,transform .1s}
+  #colmena-app .stepper-btns button:hover{background:var(--ac-m);color:var(--ac-t);border-color:var(--ac-d)}
   #colmena-app .stepper-btns button:active{transform:scale(.92)}
   #colmena-app .saldo-chip{font-family:var(--mono);font-size:10px;color:var(--gold-soft);cursor:pointer;white-space:nowrap;text-transform:none;letter-spacing:0}
   #colmena-app .saldo-chip:hover{color:var(--gold)} #colmena-app .saldo-chip b{color:var(--gold)}
@@ -568,6 +569,7 @@ function inyectarEstilo() {
   #colmena-app .gas-sep{position:absolute;left:3.83%;top:45.79%;width:92.34%;height:34.34%;margin:0;padding:0;border:none}
   #colmena-app .gas-sep .btn{width:100%;height:100%;box-sizing:border-box;padding-top:0;padding-bottom:0;background:transparent;border:none;box-shadow:none}
   #colmena-app .gas-sep .btn:hover{background:transparent;border:none;box-shadow:0 8px 24px rgba(0,0,0,.45);transform:translateY(-1px)}
+  #colmena-app .gas-rtx{display:inline-block;transform:translateY(2px)}
   #colmena-app .btn-max{width:100%;margin-top:0;padding:12px}
   @media(max-width:860px){#colmena-app .cols{grid-template-columns:1fr}#colmena-app .rej-grid{grid-template-columns:1fr}#colmena-app .prev{grid-template-columns:repeat(2,1fr)}#colmena-app .pio-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){
@@ -1252,7 +1254,7 @@ function render() {
               </div>
               <button class="btn btn-oro" id="f-gasdep">Recargar</button>
             </div>
-            <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret">Retirar <span id="c-gas"><span class="skel">0.00000</span> BNB</span></button></div>
+            <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret"><span class="gas-rtx">Retirar <span id="c-gas"><span class="skel">0.00000</span> BNB</span></span></button></div>
           </div>
           <div id="c-gasmsg"></div>
           <div id="c-cash-price" class="cash-price" style="display:none;margin-top:16px;margin-bottom:0">
@@ -1769,7 +1771,9 @@ function pintarTipo() {
   const tpsl = $('f-avz-tpsl'); if (tpsl) tpsl.style.display = noGrid ? 'none' : '';
   document.querySelectorAll(`#${APP} #f-tipo button`).forEach((b) => b.classList.toggle('on', b.dataset.tipo === t));
   { const meta = BOTMETA[t]; if (meta) { const img = $('f-foto-img'), tit = $('f-foto-tit'), des = $('f-foto-des'); if (img) { img.classList.remove('nocarga'); img.src = meta.img; } if (tit) tit.textContent = meta.nom; if (des) des.textContent = meta.des; } }
-  { const ac = { grid: 'var(--az)', acum: 'var(--mo)', cash: 'var(--gold)', dca: 'var(--ve)' }[t] || 'var(--gold)'; const h = $(APP); if (h) h.style.setProperty('--acento', ac); }
+  { const ac = { grid: 'var(--az)', acum: 'var(--mo)', cash: 'var(--gold)', dca: 'var(--ve)' }[t] || 'var(--gold)'; const h = $(APP); if (h) h.style.setProperty('--acento', ac);
+    const th = { grid:['#a9d4ff','#4d9fff','#2b7fe0','#1a5bb0','#04213f'], acum:['#dcc0ff','#b47cff','#8f4de0','#6a2fb0','#23064a'], cash:['#f7db8d','#E8B84B','#c79426','#8f6a1a','#3a2800'], dca:['#8ff0bd','#34d97b','#1fae5c','#158043','#05230f'] }[t] || ['#f7db8d','#E8B84B','#c79426','#8f6a1a','#3a2800'];
+    if (h) { h.style.setProperty('--ac-l', th[0]); h.style.setProperty('--ac-m', th[1]); h.style.setProperty('--ac-d', th[2]); h.style.setProperty('--ac-s', th[3]); h.style.setProperty('--ac-t', th[4]); } }
   if (t === 'cash') refrescarSaldoCash();
   if (t === 'dca') refrescarSaldoDCA();
   if (t === 'acum') previewAcum(); else if (t === 'cash') previewCash(); else if (t === 'dca') previewDCA(); else actualizarVista();
