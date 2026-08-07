@@ -5,11 +5,11 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=36';
-import * as wallet from './wallet.js?v=36';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=36';
-import * as perfil from './perfil.js?v=36';
-import * as prizepool from './prizepool.js?v=36';
+import * as gb from './gridbot.js?v=37';
+import * as wallet from './wallet.js?v=37';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=37';
+import * as perfil from './perfil.js?v=37';
+import * as prizepool from './prizepool.js?v=37';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -277,6 +277,8 @@ function inyectarEstilo() {
   #colmena-app .cash-slider::-moz-range-track{height:6px;border-radius:100px;background:var(--line)}
   #colmena-app .cash-slider::-moz-range-progress{height:6px;border-radius:100px;background:var(--gold)}
   #colmena-app .cash-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:2px solid #8f6a1a;cursor:pointer}
+  #colmena-app .bot-panel{display:block;width:100%;height:auto;max-width:100%;margin:0 0 4px;border:none;transition:transform .15s ease,filter .15s ease}
+  #colmena-app .bot-panel:hover{transform:translateY(-2px);filter:drop-shadow(0 12px 26px rgba(0,0,0,.5))}
   #colmena-app .cash-price{position:relative;text-align:center;background:url('assets/img/marco-precio.webp') center/100% 100% no-repeat;border:none;border-radius:0;aspect-ratio:900/338;padding:0;margin-bottom:14px;box-shadow:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:transform .15s ease,filter .15s ease}
   #colmena-app .cash-price:hover{transform:translateY(-2px);filter:drop-shadow(0 10px 22px rgba(0,0,0,.55))}
   #colmena-app .cash-price .cp-lab{font-family:var(--mono);font-size:11px;color:var(--ink-2);letter-spacing:2.4px;text-transform:uppercase;opacity:.9}
@@ -1215,43 +1217,13 @@ function render() {
         <div class="card">
           <div id="c-chart">${graficaPreview()}</div>
           <div id="c-acum-side" style="display:none">
-            <div class="acum-hero">
-              <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></div>
-              <h4>Accumulator</h4>
-              <p>Compra en la caída (más volumen mientras más baja) y vende <b>todo junto</b> cuando el total gana el % que elijas. Menos operaciones, menos comisiones.</p>
-              <div class="acum-flow">
-                <div class="af"><span>1</span> Compra inicial a mercado</div>
-                <div class="af"><span>2</span> Compra más en cada caída (progresivo)</div>
-                <div class="af"><span>3</span> Vende todo al llegar a tu ganancia</div>
-                <div class="af"><span>4</span> Repite, sin parar</div>
-              </div>
-            </div>
+            <img class="bot-panel" src="assets/img/panel-acum.webp" alt="Accumulator" loading="lazy">
           </div>
           <div id="c-cash-side" style="display:none">
-            <div class="acum-hero">
-              <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-              <h4>Cash Out</h4>
-              <p>Ya tienes la cripto. Dices <b>cuánto</b> vender y <b>a qué objetivo</b> (precio o %). El bot vende solo cuando llega, y te paga en tu estable.</p>
-              <div class="acum-flow">
-                <div class="af"><span>1</span> Eliges la moneda que ya tienes</div>
-                <div class="af"><span>2</span> Cuánto vender y a qué objetivo</div>
-                <div class="af"><span>3</span> Vende solo al llegar el precio</div>
-                <div class="af"><span>4</span> Recibes en USDT/USDC en tu wallet</div>
-              </div>
-            </div>
+            <img class="bot-panel" src="assets/img/panel-cash.webp" alt="Cash Out" loading="lazy">
           </div>
           <div id="c-dca-side" style="display:none">
-            <div class="acum-hero">
-              <div class="acum-ico"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div>
-              <h4>DCA Compra Automática</h4>
-              <p>Compra un monto fijo de tu moneda <b>cada cierto tiempo</b>, pase lo que pase con el precio. La forma más tranquila de ir armando posición sin estar pendiente del mercado.</p>
-              <div class="acum-flow">
-                <div class="af"><span>1</span> Eliges la moneda y con qué pagar</div>
-                <div class="af"><span>2</span> Cuánto comprar y cada cuánto</div>
-                <div class="af"><span>3</span> El bot compra solo, en cada ciclo</div>
-                <div class="af"><span>4</span> Tu cripto llega a tu wallet</div>
-              </div>
-            </div>
+            <img class="bot-panel" src="assets/img/panel-dca.webp" alt="DCA Compra Automática" loading="lazy">
           </div>
           <div id="c-hint"></div>
           <div class="prev vacio">
