@@ -5,12 +5,12 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=41';
-import * as wallet from './wallet.js?v=41';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=41';
-import * as perfil from './perfil.js?v=41';
-import * as prizepool from './prizepool.js?v=41';
-import * as tutorial from './tutorial.js?v=41';
+import * as gb from './gridbot.js?v=42';
+import * as wallet from './wallet.js?v=42';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=42';
+import * as perfil from './perfil.js?v=42';
+import * as prizepool from './prizepool.js?v=42';
+import * as tutorial from './tutorial.js?v=42';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -279,9 +279,19 @@ function inyectarEstilo() {
   #colmena-app .cash-slider::-moz-range-progress{height:6px;border-radius:100px;background:var(--gold)}
   #colmena-app .cash-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:2px solid #8f6a1a;cursor:pointer}
   #colmena-app .bot-panel-wrap{position:relative;display:block}
-  #colmena-app .rec-tag{position:absolute;top:5.5%;right:5%;display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-family:var(--display);font-weight:800;font-size:10.5px;letter-spacing:.3px;color:#e5d2ff;background:linear-gradient(180deg,rgba(180,124,255,.28),rgba(120,60,200,.22));border:1px solid rgba(200,160,255,.5);box-shadow:0 3px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.18);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);pointer-events:none;white-space:nowrap;z-index:2}
-  #colmena-app .rec-tag svg{color:#d9b8ff;flex:0 0 auto}
-  @media(max-width:560px){#colmena-app .rec-tag{font-size:9px;padding:4px 8px;gap:4px;border-radius:16px}#colmena-app .rec-tag svg{width:9px;height:9px}}
+  #colmena-app .rec-tag{position:absolute;top:10%;right:9%;display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:20px;font-family:var(--display);font-weight:800;font-size:10.5px;letter-spacing:.4px;color:#f7db8d;
+    background:linear-gradient(180deg,#8f4de0,#6a2fb0 55%,#4a1d80);
+    border:1px solid transparent;
+    background-origin:border-box;
+    background-clip:padding-box,border-box;
+    background-image:linear-gradient(180deg,#8f4de0,#6a2fb0 55%,#4a1d80),linear-gradient(150deg,#f7db8d,#c79426 32%,#8f6a1a 55%,#f0d488 78%,#c79426);
+    box-shadow:0 3px 0 #3a1566,0 7px 16px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.22);
+    text-shadow:0 1px 2px rgba(0,0,0,.6);pointer-events:none;white-space:nowrap;z-index:2;overflow:hidden}
+  #colmena-app .rec-tag svg{color:#f7db8d;flex:0 0 auto;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))}
+  #colmena-app .rec-tag::after{content:'';position:absolute;top:0;bottom:0;left:-60%;width:45%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.42),transparent);transform:skewX(-20deg);animation:recShine 6s ease-in-out infinite}
+  @keyframes recShine{0%,88%{left:-60%}100%{left:130%}}
+  @media(prefers-reduced-motion:reduce){#colmena-app .rec-tag::after{animation:none}}
+  @media(max-width:560px){#colmena-app .rec-tag{font-size:9px;padding:5px 10px;gap:4px;border-radius:16px;top:9.5%;right:8%}#colmena-app .rec-tag svg{width:9px;height:9px}}
   #colmena-app .bot-panel{display:block;width:100%;height:auto;max-width:100%;margin:0 0 4px;border:none;transition:filter .18s ease}
   #colmena-app .bot-panel:hover{transform:none;filter:drop-shadow(0 10px 24px rgba(0,0,0,.5))}
   #colmena-app .cash-price{position:relative;text-align:center;background:url('assets/img/marco-precio.webp') center/100% 100% no-repeat;border:none;border-radius:0;aspect-ratio:900/338;padding:0;margin-bottom:14px;box-shadow:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:filter .18s ease}

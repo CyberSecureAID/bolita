@@ -1,6 +1,6 @@
 // prizepool.js — Módulo Prize Pool (independiente). No toca la lógica de los bots.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=35';
+import * as wallet from './wallet.js?v=42';
 
 /* ───────── Config ───────── */
 const PRIZEPOOL = '0x75094C2faE55E61B03B4AB0E86026AB11c309C6d';
@@ -88,6 +88,10 @@ function estilos() {
   #pp-overlay .pp-eco-tbl td:first-child{color:var(--gold,#E8B84B);font-weight:700}
   #pp-overlay .pp-eco-tbl td:last-child{color:var(--neon-lit,#2ee86a)}
   #pp-overlay .pp-eco-tbl tr:last-child td{border-bottom:none}
+  #pp-overlay .pp-eco-hi{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px;margin-bottom:14px;border-radius:12px;background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid #c79426;box-shadow:0 4px 0 rgba(143,106,26,.3),inset 0 1px 0 rgba(255,255,255,.06)}
+  #pp-overlay .pp-eco-hi .n{font-family:var(--display,sans-serif);font-weight:800;font-size:26px;color:var(--gold,#E8B84B);line-height:1;text-shadow:0 2px 4px rgba(0,0,0,.6)}
+  #pp-overlay .pp-eco-hi .l{font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;text-transform:uppercase;letter-spacing:1.4px}
+  #pp-overlay .pp-eco-pie{margin:13px 0 0!important;font-size:12px!important;color:#7d8794!important;text-align:center;line-height:1.6!important}
 
   /* Pestañas */
   #pp-overlay .pp-tabs{display:flex;gap:8px;background:#0b0e12;border:1px solid #2b3139;border-radius:12px;padding:5px;margin-bottom:18px}
@@ -228,15 +232,17 @@ function comoFunciona(entrada) {
   let html = `
   <button class="pp-eco-btn" id="pp-eco-btn">Funcionamiento económico <span class="ar">▼</span></button>
   <div class="pp-eco" id="pp-eco">
-    <p>La idea es simple: <b>mientras más gente entra, más ganadores hay</b> (gana 1 de cada 5). <b>Todo ganador recupera más de lo que puso</b> (~${entrada} USDT). Y como entrar cuesta tan poquito, si no ganas <b>casi no pierdes</b>. El objetivo es que gane la mayor cantidad de gente posible.</p>
+    <p>Pones <b>${entrada} USDT</b>. Si ganas, <b>recuperas eso y varias veces más</b>. Y no gana solo uno: <b>gana 1 de cada 5 participantes</b>. Mientras más gente entra, <b>más ganadores hay</b> — ese es el objetivo.</p>
+    <div class="pp-eco-hi"><span class="n">1 de cada 5</span><span class="l">participantes gana</span></div>
     <table class="pp-eco-tbl">
-      <tr><th>Entran</th><th>Ganadores</th><th>Cada ganador se lleva</th></tr>
-      <tr><td>10</td><td>2</td><td>4.3 – 5.7</td></tr>
-      <tr><td>50</td><td>10</td><td>3.4 – 6.6</td></tr>
-      <tr><td>100</td><td>20</td><td>3.2 – 6.8</td></tr>
-      <tr><td>300</td><td>60</td><td>3.1 – 6.9</td></tr>
-      <tr><td>500</td><td>100</td><td>3.0 – 7.0</td></tr>
+      <tr><th>Si entran</th><th>Ganan</th><th>Multiplicas tu entrada</th></tr>
+      <tr><td>10</td><td>2 personas</td><td>2.9× – 3.8×</td></tr>
+      <tr><td>50</td><td>10 personas</td><td>2.3× – 4.4×</td></tr>
+      <tr><td>100</td><td>20 personas</td><td>2.1× – 4.5×</td></tr>
+      <tr><td>300</td><td>60 personas</td><td>2.1× – 4.6×</td></tr>
+      <tr><td>500</td><td>100 personas</td><td>2.0× – 4.6×</td></tr>
     </table>
+    <p class="pp-eco-pie">Si no ganas, lo único que arriesgaste fue <b>${entrada} USDT</b> — menos que un refresco. Y si la ronda no reúne el mínimo de gente, <b>se te devuelve tu aporte</b>.</p>
   </div>`;
   pasos.forEach((p, i) => {
     html += `<div class="pp-step"><div class="n">${i}</div><div class="tx"><b>${p[0]}</b><span>${p[1]}</span></div></div>`;

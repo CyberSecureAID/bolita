@@ -82,7 +82,15 @@ function estilos() {
   #colmena-app .tuto-b .ti{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.05);border:1px solid var(--bc,#2b3139);color:var(--bc,#eaecef)}
   #colmena-app .tuto-b .tn{font-family:var(--display,sans-serif);font-weight:700;font-size:12px;color:var(--ink,#eaecef);text-align:center;line-height:1.2}
   #colmena-app .tuto-b .tv{font-family:var(--mono,monospace);font-size:9px;color:var(--ink-3,#7d8794);display:flex;align-items:center;gap:3px}
-  #colmena-app .tuto-b .rec{position:absolute;top:-7px;right:-4px;font-family:var(--display,sans-serif);font-weight:800;font-size:8.5px;padding:3px 7px;border-radius:9px;color:#e5d2ff;background:linear-gradient(180deg,rgba(180,124,255,.9),rgba(120,60,200,.85));border:1px solid rgba(200,160,255,.6);box-shadow:0 2px 6px rgba(0,0,0,.5);white-space:nowrap}
+  #colmena-app .tuto-b .rec{position:absolute;top:-8px;right:-5px;font-family:var(--display,sans-serif);font-weight:800;font-size:8.5px;padding:4px 9px;border-radius:10px;color:#f7db8d;letter-spacing:.3px;
+    background:linear-gradient(180deg,#8f4de0,#6a2fb0 55%,#4a1d80);
+    border:1px solid transparent;background-origin:border-box;background-clip:padding-box,border-box;
+    background-image:linear-gradient(180deg,#8f4de0,#6a2fb0 55%,#4a1d80),linear-gradient(150deg,#f7db8d,#c79426 35%,#8f6a1a 58%,#f0d488 80%,#c79426);
+    box-shadow:0 2px 0 #3a1566,0 5px 12px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.22);
+    text-shadow:0 1px 2px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden;z-index:2}
+  #colmena-app .tuto-b .rec::after{content:'';position:absolute;top:0;bottom:0;left:-60%;width:45%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.4),transparent);transform:skewX(-20deg);animation:recShine2 6s ease-in-out infinite}
+  @keyframes recShine2{0%,88%{left:-60%}100%{left:130%}}
+  @media(prefers-reduced-motion:reduce){#colmena-app .tuto-b .rec::after{animation:none}}
   @media(max-width:560px){
     #colmena-app .tuto-grid{grid-template-columns:1fr 1fr;gap:8px}
     #colmena-app .tuto-b{padding:12px 6px 10px}
