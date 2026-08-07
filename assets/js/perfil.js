@@ -1,6 +1,7 @@
 // perfil.js — Panel de cuenta por wallet. Módulo independiente (no toca la lógica existente).
-import * as gb from './gridbot.js?v=47';
-import * as wallet from './wallet.js?v=47';
+import * as gb from './gridbot.js?v=48';
+import * as wallet from './wallet.js?v=48';
+import * as avisos from './avisos.js?v=48';
 
 const $ = (id) => document.getElementById(id);
 const num = (n, d = 2) => { const x = Number(n); if (!isFinite(x)) return '—'; return x.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d }); };
@@ -60,6 +61,10 @@ function estilos() {
   #perfil-overlay .pf-tipo .ti{flex:0 0 auto;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid #2b3139}
   #perfil-overlay .pf-tipo .tn{flex:1;min-width:0;font-family:var(--mono,monospace);font-size:11.5px;color:#b7bdc6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #perfil-overlay .pf-tipo .tc{flex:0 0 auto;font-family:var(--display,sans-serif);font-weight:800;font-size:17px;color:#eaecef}
+  #perfil-overlay .pf-sw2{position:relative;display:inline-block;width:44px;height:24px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid #3a424c;cursor:pointer;flex:0 0 auto;transition:background .18s,border-color .18s;vertical-align:middle}
+  #perfil-overlay .pf-sw2>i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#7d8794;transition:transform .2s ease,background .2s}
+  #perfil-overlay .pf-sw2.on{background:rgba(46,232,106,.18);border-color:rgba(46,232,106,.5)}
+  #perfil-overlay .pf-sw2.on>i{transform:translateX(20px);background:var(--neon-lit,#2ee86a);box-shadow:0 0 8px rgba(46,232,106,.7)}
   #perfil-overlay .pf-sw{position:relative;width:40px;height:22px;border-radius:20px;background:rgba(46,232,106,.2);border:1px solid rgba(46,232,106,.45);cursor:not-allowed;flex:0 0 auto;opacity:.75;transition:background .18s,border-color .18s}
   #perfil-overlay .pf-sw>i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#7d8794;transition:transform .2s ease,background .2s}
   #perfil-overlay .pf-sw.on>i{transform:translateX(18px);background:var(--neon-lit,#2ee86a);box-shadow:0 0 8px rgba(46,232,106,.7)}
@@ -218,6 +223,19 @@ export async function abrirPerfil() {
     <button class="pf-act" id="pf-reload">Actualizar datos</button>
   </div>
 
+  <div class="pf-sec">
+    <div class="pf-sect">Notificaciones</div>
+    <div class="pf-box">
+      <div class="pf-row">
+        <span class="k">Avisos del Marketplace</span>
+        <span class="v"><span class="pf-sw2" id="pf-push"><i></i></span></span>
+      </div>
+      <div class="pf-row" style="border-bottom:none">
+        <span class="k" style="font-size:11px;line-height:1.5">Te avisamos cuando alguien tome tu oferta, marque un pago o libere un tramo.</span>
+      </div>
+    </div>
+  </div>
+
   <div class="pf-soon">
     <div class="t"><span>Renovación automática</span>
       <span style="display:inline-flex;align-items:center;gap:9px">
@@ -236,6 +254,17 @@ export async function abrirPerfil() {
     try { await navigator.clipboard.writeText(cuenta); const t = addr.innerHTML; addr.innerHTML = '¡Copiada!'; setTimeout(() => { addr.innerHTML = t; }, 1100); } catch (_) {}
   };
   if ($('pf-reload')) $('pf-reload').onclick = () => abrirPerfil();
+  const sw = $('pf-push');
+  if (sw) {
+    const pintar = () => sw.classList.toggle('on', avisos.pushActivado());
+    pintar();
+    sw.onclick = async () => {
+      const nuevo = !avisos.pushActivado();
+      avisos.setPush(nuevo);
+      if (nuevo) await avisos.pedirPermisoPush();
+      pintar();
+    };
+  }
 
   cargarDatos(cuenta);
 }

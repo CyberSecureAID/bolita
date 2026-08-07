@@ -5,13 +5,14 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=47';
-import * as wallet from './wallet.js?v=47';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=47';
-import * as perfil from './perfil.js?v=47';
-import * as prizepool from './prizepool.js?v=47';
-import * as tutorial from './tutorial.js?v=47';
-import * as market from './market.js?v=47';
+import * as gb from './gridbot.js?v=48';
+import * as wallet from './wallet.js?v=48';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=48';
+import * as perfil from './perfil.js?v=48';
+import * as prizepool from './prizepool.js?v=48';
+import * as tutorial from './tutorial.js?v=48';
+import * as market from './market.js?v=48';
+import * as avisos from './avisos.js?v=48';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -971,7 +972,8 @@ function wireHeader() {
   if ($('c-prize')) $('c-prize').onclick = () => prizepool.abrirPrizePool();
   if ($('c-ticker')) $('c-ticker').onclick = () => prizepool.abrirPrizePool();
   tutorial.wireFila(document);
-  if ($('c-market')) $('c-market').onclick = () => market.abrirMarket();
+  if ($('c-market')) $('c-market').onclick = () => { avisos.limpiarPunto(); market.abrirMarket(); };
+  try { avisos.iniciar(); } catch (_) {}
   const hdr = document.querySelector('#colmena-app .c-hdr');
   if ($('c-menu-btn') && hdr) $('c-menu-btn').onclick = (e) => { e.stopPropagation(); hdr.classList.toggle('open'); };
   if (hdr) { const hr = hdr.querySelector('.c-hdr-r'); if (hr) hr.addEventListener('click', () => hdr.classList.remove('open')); }
