@@ -1,6 +1,6 @@
 // prizepool.js — Módulo Prize Pool (independiente). No toca la lógica de los bots.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=32';
+import * as wallet from './wallet.js?v=33';
 
 /* ───────── Config ───────── */
 const PRIZEPOOL = '0x75094C2faE55E61B03B4AB0E86026AB11c309C6d';
@@ -70,7 +70,24 @@ function estilos() {
   #pp-overlay .pp-title{font-family:var(--display,sans-serif);font-weight:800;font-size:26px;letter-spacing:2px;color:var(--gold,#E8B84B);text-shadow:0 2px 4px rgba(0,0,0,.6);text-transform:uppercase}
   #pp-overlay .pp-title .pp-line{display:inline-block;width:26px;height:1px;background:linear-gradient(90deg,transparent,var(--gold-soft,#C9A84B));vertical-align:middle;margin:0 12px}
   #pp-overlay .pp-title .pp-line.r{background:linear-gradient(90deg,var(--gold-soft,#C9A84B),transparent)}
-  #pp-overlay .pp-round{font-family:var(--mono,monospace);font-size:11px;color:#7d8794;letter-spacing:1px;margin-top:5px;text-transform:uppercase}
+  #pp-overlay .pp-round{display:inline-flex;align-items:center;gap:9px;margin-top:11px;padding:8px 18px;border-radius:999px;background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid #c79426;box-shadow:0 4px 0 rgba(143,106,26,.35),0 8px 18px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.06);font-family:var(--display,sans-serif);font-weight:800;font-size:14px;color:var(--gold,#E8B84B);letter-spacing:.5px}
+  #pp-overlay .pp-round .dot{width:8px;height:8px;border-radius:50%;background:var(--neon-lit,#2ee86a);box-shadow:0 0 9px rgba(46,232,106,.8);animation:ppPulse 1.6s ease-in-out infinite}
+  #pp-overlay .pp-round .sep{width:1px;height:13px;background:#3a424c}
+  #pp-overlay .pp-round .fc{color:#b7bdc6;font-weight:600;font-size:12.5px}
+  @keyframes ppPulse{0%,100%{opacity:.45}50%{opacity:1}}
+  #pp-overlay .pp-eco-btn{width:100%;padding:13px;border-radius:12px;background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid #3a424c;color:var(--gold,#E8B84B);font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:14px}
+  #pp-overlay .pp-eco-btn .ar{transition:transform .22s;font-size:10px;color:var(--gold-soft,#C9A84B)}
+  #pp-overlay .pp-eco-btn.open .ar{transform:rotate(180deg)}
+  #pp-overlay .pp-eco{display:none;margin-bottom:16px;padding:15px;border-radius:13px;background:rgba(255,255,255,.02);border:1px solid #2b3139;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+  #pp-overlay .pp-eco.open{display:block;animation:ppIn .16s ease both}
+  #pp-overlay .pp-eco p{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.6;margin:0 0 13px}
+  #pp-overlay .pp-eco p b{color:var(--gold-soft,#C9A84B)}
+  #pp-overlay .pp-eco-tbl{width:100%;border-collapse:collapse;font-family:var(--mono,monospace);font-size:12.5px}
+  #pp-overlay .pp-eco-tbl th{color:#7d8794;font-weight:400;font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;padding:7px 4px;border-bottom:1px solid #2b3139;text-align:center}
+  #pp-overlay .pp-eco-tbl td{color:#eaecef;padding:9px 4px;text-align:center;border-bottom:1px solid var(--line-soft,rgba(255,255,255,.055))}
+  #pp-overlay .pp-eco-tbl td:first-child{color:var(--gold,#E8B84B);font-weight:700}
+  #pp-overlay .pp-eco-tbl td:last-child{color:var(--neon-lit,#2ee86a)}
+  #pp-overlay .pp-eco-tbl tr:last-child td{border-bottom:none}
 
   /* Pestañas */
   #pp-overlay .pp-tabs{display:flex;gap:8px;background:#0b0e12;border:1px solid #2b3139;border-radius:12px;padding:5px;margin-bottom:18px}
@@ -200,6 +217,7 @@ function tabHTML() {
 
 function comoFunciona(entrada) {
   const pasos = [
+    ['¿Qué es esto?', 'Muchas personas ponen un granito, se junta un <em>premio grande</em> y se reparte entre <em>muchos ganadores</em>. No es apostar a lo loco: es una <em>oportunidad con reglas claras</em>, pensada para que gane la mayor cantidad de gente.'],
     ['Conecta tu wallet', 'Sin cuenta, sin banco, sin papeleo. Tu dinero <em>siempre está en tu wallet</em> — nosotros nunca lo tocamos. Solo lo conectas para poder entrar.'],
     ['Pon tu nombre y tu Telegram', 'Así, <em>si ganas</em>, todos ven que fue una persona real y pueden felicitarte. Transparencia total: los ganadores quedan a la vista de todos.'],
     ['Participa con ' + entrada + ' USDT', 'Menos que un café. Casi todo va al <em>fondo común de premios</em>; solo una pizca cubre el sistema. Puedes entrar una vez… o varias, tú decides.'],
@@ -207,9 +225,21 @@ function comoFunciona(entrada) {
     ['Se eligen los ganadores', 'Al azar, pero de forma <em>verificable en la blockchain</em>. Nadie hace trampa, ni siquiera nosotros: el sorteo lo hace un sistema público y auditable.'],
     ['Reclamas tu premio', 'Si ganas, el premio llega <em>directo a tu wallet</em>. Y si no se junta suficiente gente, se te <em>devuelve tu aporte</em>. Reglas claras desde el minuto uno.']
   ];
-  let html = `<div class="pp-intro">Muchas personas ponen un granito. Se junta un <b>premio grande</b>. Y se reparte entre <b>muchos ganadores</b>. No es apostar a lo loco: es una <b>oportunidad con reglas claras</b>, pensada para que gane la mayor cantidad de gente posible.</div>`;
+  let html = `
+  <button class="pp-eco-btn" id="pp-eco-btn">Funcionamiento económico <span class="ar">▼</span></button>
+  <div class="pp-eco" id="pp-eco">
+    <p>La idea es simple: <b>mientras más gente entra, más ganadores hay</b> (gana 1 de cada 5). <b>Todo ganador recupera más de lo que puso</b> (~${entrada} USDT). Y como entrar cuesta tan poquito, si no ganas <b>casi no pierdes</b>. El objetivo es que gane la mayor cantidad de gente posible.</p>
+    <table class="pp-eco-tbl">
+      <tr><th>Entran</th><th>Ganadores</th><th>Cada ganador se lleva</th></tr>
+      <tr><td>10</td><td>2</td><td>4.3 – 5.7</td></tr>
+      <tr><td>50</td><td>10</td><td>3.4 – 6.6</td></tr>
+      <tr><td>100</td><td>20</td><td>3.2 – 6.8</td></tr>
+      <tr><td>300</td><td>60</td><td>3.1 – 6.9</td></tr>
+      <tr><td>500</td><td>100</td><td>3.0 – 7.0</td></tr>
+    </table>
+  </div>`;
   pasos.forEach((p, i) => {
-    html += `<div class="pp-step"><div class="n">${i + 1}</div><div class="tx"><b>${p[0]}</b><span>${p[1]}</span></div></div>`;
+    html += `<div class="pp-step"><div class="n">${i}</div><div class="tx"><b>${p[0]}</b><span>${p[1]}</span></div></div>`;
   });
   html += `<div class="pp-cta"><button class="pp-btn" id="pp-goto-ev">Quiero participar</button></div>`;
   return html;
@@ -256,7 +286,7 @@ function render(round, pool, players, minReq, pct, entrada, W, distTxt) {
   <button class="pp-x" id="pp-x">✕</button>
   <div class="pp-head">
     <div class="pp-title"><span class="pp-line"></span>Prize Pool<span class="pp-line r"></span></div>
-    <div class="pp-round">Ronda #${round} · Fondo comunitario</div>
+    <div class="pp-round"><span class="dot"></span> Ronda #${round} <span class="sep"></span> <span class="fc">Fondo comunitario</span></div>
   </div>
   ${tabHTML()}
 
@@ -304,6 +334,7 @@ function wireTabs() {
   if (ev) ev.onclick = () => go('ev');
   if (hw) hw.onclick = () => go('hw');
   const goev = $('pp-goto-ev'); if (goev) goev.onclick = () => go('ev');
+  const eco = $('pp-eco-btn'); if (eco) eco.onclick = () => { eco.classList.toggle('open'); const p = $('pp-eco'); if (p) p.classList.toggle('open'); };
 }
 
 /* ───────── Participar ───────── */
