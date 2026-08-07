@@ -1,6 +1,6 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=46';
+import * as wallet from './wallet.js?v=47';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
@@ -27,6 +27,9 @@ const ABI = [
   'function misCompras(address) view returns (uint256[])',
   'function pendientesDeCalificar(address) view returns (uint256[])',
   'function guardarPerfil(string,string,string,string)',
+  'function ubicacionDe(address) view returns (bool comparte,int32 lat1e3,int32 lon1e3,string zona)',
+  'function compartirUbicacion(int32,int32,string)',
+  'function ocultarUbicacion()',
   'function depositarFianza(uint256)',
   'function retirarFianza(uint256)',
   'function crearOrden(address,uint256,uint16,string,string,uint256) payable returns (uint256)',
@@ -358,23 +361,34 @@ async function verDistancia(dir, btn) {
   const cont = btn.closest('.mk-of').querySelector('[id^="mk-extra-"]');
   const cuenta = wallet.cuentaActual && wallet.cuentaActual();
   if (!cuenta) { cont.innerHTML = `<div class="mk-dist">Conecta tu wallet primero.</div>`; return; }
-  cont.innerHTML = `<div class="mk-dist">Pidiendo tu ubicación…</div>`;
+  cont.innerHTML = `<div class="mk-dist">Consultando…</div>`;
+
+  // 1) ¿La otra persona permitió compartir su ubicación?
+  let u;
+  try { u = await lee('ubicacionDe', [dir]); } catch (_) { u = null; }
+  if (!u || !u.comparte) {
+    cont.innerHTML = `<div class="mk-dist">Esta persona <b>no ha activado</b> compartir su ubicación.<br>
+      Para verla, ella debe activarlo en su perfil (pestaña "Vender"). Puedes pedírselo por el contacto:
+      <b>si se niega, tú decides si sigues adelante</b>.</div>`;
+    return;
+  }
+  const suya = { lat: Number(u.lat1e3) / 1000, lon: Number(u.lon1e3) / 1000 };
+
+  // 2) Mi ubicación (para calcular la distancia; se queda en mi dispositivo)
   let mia = leerUbic(cuenta);
   if (!mia) {
     try { mia = await pedirUbicacion(); guardarUbic(cuenta, mia.lat, mia.lon); }
-    catch (_) { cont.innerHTML = `<div class="mk-dist">No diste permiso de ubicación.</div>`; return; }
-  }
-  const suya = leerUbic(dir);
-  if (!suya) {
-    cont.innerHTML = `<div class="mk-dist">La otra persona todavía no ha compartido su ubicación. Pídesela por el contacto: si no quiere mostrarla, tú decides si sigues.</div>`;
-    return;
+    catch (_) {
+      cont.innerHTML = `<div class="mk-dist">Esta persona está en <b>${esc(u.zona || 'zona no indicada')}</b>.<br>Da permiso de ubicación para ver a cuántos kilómetros estás.</div>`;
+      return;
+    }
   }
   const km = kmEntre(mia, suya);
-  cont.innerHTML = mapaHTML(mia, suya, km);
+  cont.innerHTML = mapaHTML(mia, suya, km, u.zona);
 }
 
 /// Mapa con OpenStreetMap (gratis, sin clave). Marca ambos puntos y la distancia.
-function mapaHTML(a, b, km) {
+function mapaHTML(a, b, km, zona) {
   const minLat = Math.min(a.lat, b.lat), maxLat = Math.max(a.lat, b.lat);
   const minLon = Math.min(a.lon, b.lon), maxLon = Math.max(a.lon, b.lon);
   const mLat = Math.max(0.05, (maxLat - minLat) * 0.35), mLon = Math.max(0.05, (maxLon - minLon) * 0.35);
@@ -382,7 +396,7 @@ function mapaHTML(a, b, km) {
   const url = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${a.lat},${a.lon}`;
   const ver = `https://www.openstreetmap.org/directions?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}`;
   return `<div class="mk-mapa">
-    <div class="mk-mapa-top"><span>Distancia entre ustedes</span><b>${km} km</b></div>
+    <div class="mk-mapa-top"><span>${zona ? esc(zona) : 'Distancia entre ustedes'}</span><b>${km} km</b></div>
     <iframe class="mk-iframe" src="${url}" loading="lazy" referrerpolicy="no-referrer"></iframe>
     <div class="mk-mapa-pie">${km < 30 ? 'Están cerca: podrían verse en persona.' : 'Están lejos: hagan el trato solo por los tramos.'}
       <a href="${ver}" target="_blank" rel="noopener">Ver ruta ↗</a></div>
@@ -420,11 +434,12 @@ async function panelVender() {
   if (!cuenta) { box.innerHTML = `<div class="mk-vacio">Conecta tu wallet para publicar una oferta.</div>`; return; }
   box.innerHTML = `<div class="mk-vacio">Cargando…</div>`;
 
-  const [perf, fianza, fmin, limite] = await Promise.all([
+  const [perf, fianza, fmin, limite, ubic] = await Promise.all([
     lee('perfiles', [cuenta]).catch(() => null),
     lee('fianzaDe', [cuenta]).catch(() => 0n),
     lee('fianzaMinima').catch(() => 0n),
-    lee('limiteDe', [cuenta]).catch(() => 0n)
+    lee('limiteDe', [cuenta]).catch(() => 0n),
+    lee('ubicacionDe', [cuenta]).catch(() => null)
   ]);
   const tienePerfil = perf && perf.existe;
   const fOk = fianza >= fmin;
@@ -437,6 +452,20 @@ async function panelVender() {
     <div class="mk-row"><span class="k">Fianza depositada</span><span class="v">${num(f18(fianza), 2)} / ${num(f18(fmin), 0)} USDT ${fOk ? '<span class="mk-est a">OK</span>' : '<span class="mk-est d">Falta</span>'}</span></div>
     <div class="mk-row"><span class="k">Puedes vender hasta</span><span class="v">${lim}</span></div>
   </div>
+
+  ${tienePerfil ? `
+  <div class="mk-box">
+    <div class="bt">Tu ubicación (opcional)</div>
+    <div style="font-family:var(--sans,sans-serif);font-size:12.5px;color:#8b96a3;line-height:1.6;margin-bottom:11px">
+      Si la compartes, quien mire tu oferta verá <b style="color:#E8B84B">tu zona y a cuántos kilómetros está de ti</b>. Genera confianza: el que no la comparte, siempre da más dudas.
+      Se guarda <b style="color:#E8B84B">redondeada a ~1 km</b>, nunca tu dirección exacta, y la puedes quitar cuando quieras.
+    </div>
+    <div class="mk-row"><span class="k">Estado</span><span class="v">${ubic && ubic.comparte ? `<span class="mk-est a">Compartida</span> ${esc(ubic.zona || '')}` : '<span class="mk-est">No compartida</span>'}</span></div>
+    <div class="mk-acts" style="margin-top:11px">
+      <button class="mk-b" id="mk-ubic-on">${ubic && ubic.comparte ? 'Actualizar mi ubicación' : 'Compartir mi ubicación'}</button>
+      ${ubic && ubic.comparte ? '<button class="mk-b gris" id="mk-ubic-off">Dejar de compartir</button>' : ''}
+    </div>
+  </div>` : ''}
 
   ${!tienePerfil ? `
   <div class="mk-box">
@@ -484,6 +513,8 @@ async function panelVender() {
   if ($('mk-savep')) $('mk-savep').onclick = guardarPerfil;
   if ($('mk-dep')) $('mk-dep').onclick = depositarFianza;
   if ($('mk-pub')) $('mk-pub').onclick = publicar;
+  if ($('mk-ubic-on')) $('mk-ubic-on').onclick = activarUbicacion;
+  if ($('mk-ubic-off')) $('mk-ubic-off').onclick = quitarUbicacion;
   const pintarEscala = () => {
     const box = $('mk-escala'); if (!box) return;
     const cant = Number(($('mk-cant') || {}).value || 0);
@@ -558,6 +589,41 @@ async function publicar() {
     await (await c.crearOrden(tok, monto, tramos, moneda, metodo, Math.round(precio * 100), { value: fee })).wait();
     msg('¡Oferta publicada!', 'ok');
     setTimeout(() => { $('mk-t1').click(); }, 1000);
+  } catch (e) { msg(traducir(e), 'err'); }
+}
+
+/* ── Ubicación ── */
+async function activarUbicacion() {
+  const cuenta = wallet.cuentaActual && wallet.cuentaActual();
+  if (!cuenta) { msg('Conecta tu wallet.', 'err'); return; }
+  msg('Pidiendo permiso de ubicación…', 'info');
+  let u;
+  try { u = await pedirUbicacion(); }
+  catch (_) { msg('No diste permiso de ubicación en el navegador.', 'err'); return; }
+  guardarUbic(cuenta, u.lat, u.lon);
+  // redondeo a 3 decimales (~1 km): nunca la posición exacta
+  const lat = Math.round(u.lat * 1000), lon = Math.round(u.lon * 1000);
+  let zona = '';
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${u.lat}&lon=${u.lon}&zoom=10`, { headers: { 'Accept-Language': 'es' } });
+    const j = await r.json();
+    const a = j.address || {};
+    zona = [a.city || a.town || a.village || a.county || a.state, a.country].filter(Boolean).join(', ').slice(0, 40);
+  } catch (_) {}
+  try {
+    msg('Confirma en tu wallet…', 'info');
+    const c = new ethers.Contract(MARKET, ABI, await firmante());
+    await (await c.compartirUbicacion(lat, lon, zona)).wait();
+    msg('Ubicación compartida. Ahora genera más confianza.', 'ok'); panelVender();
+  } catch (e) { msg(traducir(e), 'err'); }
+}
+
+async function quitarUbicacion() {
+  try {
+    msg('Confirma en tu wallet…', 'info');
+    const c = new ethers.Contract(MARKET, ABI, await firmante());
+    await (await c.ocultarUbicacion()).wait();
+    msg('Ya no compartes tu ubicación.', 'ok'); panelVender();
   } catch (e) { msg(traducir(e), 'err'); }
 }
 
