@@ -5,10 +5,10 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=21';
-import * as wallet from './wallet.js?v=21';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=21';
-import * as perfil from './perfil.js?v=21';
+import * as gb from './gridbot.js?v=22';
+import * as wallet from './wallet.js?v=22';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=22';
+import * as perfil from './perfil.js?v=22';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -311,12 +311,13 @@ function inyectarEstilo() {
   #colmena-app .prev .p span{font-size:16px;margin-top:3px;text-shadow:0 1px 1px rgba(0,0,0,.9),0 2px 3px rgba(0,0,0,.55),0 -1px 0 rgba(255,255,255,.18)}
   #colmena-app .prev .p span.pos{color:#4dff8a}
   #colmena-app .prev .p span.neg{color:#ff7a7a}
+  #colmena-app .prev.vacio .p b,#colmena-app .prev.vacio .p span,#colmena-app .prev.vacio .p .rep-wrap{opacity:0}
   /* reparto: sin título, solo las cápsulas centradas */
   #colmena-app .prev .prep{padding:14% 12%;align-items:center}
   #colmena-app .prev .p .rep-wrap{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-top:0}
   #colmena-app .prev .p .rep-pill{display:block;width:auto;text-align:center;font-size:10px;padding:3px 11px;border-radius:7px;margin-top:0}
   /* ícono de info visible sobre el metal */
-  #colmena-app .prev .p .i-btn{opacity:1;color:var(--gold);border-color:var(--gold-soft);background:rgba(4,7,10,.6);box-shadow:0 1px 2px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.12)}
+  #colmena-app .prev .p .i-btn{opacity:.85;color:#9aa4b0;border-color:#3b434d;background:rgba(255,255,255,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
   /* En móvil/tableta (2 columnas): casillas más grandes -> texto e info interiores más grandes */
   @media(max-width:860px){
     #colmena-app .prev .p b{font-size:10px}
@@ -327,8 +328,9 @@ function inyectarEstilo() {
   #colmena-app .gasbox{position:relative;aspect-ratio:994/367;background:url('assets/img/marco-gas.webp') center/100% 100% no-repeat;border:none;border-radius:0;padding:0;margin-top:16px;box-sizing:border-box}
   #colmena-app .gas-row{display:contents}
   #colmena-app .gas-stepper{position:absolute;left:3.83%;top:11.85%;width:69.07%;height:26.67%;margin:0}
-  #colmena-app .gas-stepper input{width:100%;height:100%;box-sizing:border-box;padding-top:0;padding-bottom:0}
-  #colmena-app #f-gasdep{position:absolute;left:74.44%;top:12.39%;width:21.43%;height:25.99%;padding:0;margin:0;box-sizing:border-box}
+  #colmena-app .gas-stepper input{width:100%;height:100%;box-sizing:border-box;padding-top:0;padding-bottom:0;background:transparent;border:none}
+  #colmena-app .gas-stepper input:focus{border:none;outline:none;box-shadow:none}
+  #colmena-app #f-gasdep{position:absolute;left:74.44%;top:12.39%;width:21.43%;height:25.99%;padding:0;margin:0;box-sizing:border-box;transform:translateX(-1px)}
   #colmena-app .gasbox .top{display:flex;align-items:center;justify-content:space-between}
   #colmena-app .gasbox .v{font-family:var(--display);color:var(--gold);font-size:20px}
   #colmena-app .gas-row input{flex:1}
@@ -564,7 +566,8 @@ function inyectarEstilo() {
   @keyframes fade{from{opacity:0}to{opacity:1}}
   /* ====== gas: botón Max ====== */
   #colmena-app .gas-sep{position:absolute;left:3.83%;top:45.79%;width:92.34%;height:34.34%;margin:0;padding:0;border:none}
-  #colmena-app .gas-sep .btn{width:100%;height:100%;box-sizing:border-box;padding-top:0;padding-bottom:0}
+  #colmena-app .gas-sep .btn{width:100%;height:100%;box-sizing:border-box;padding-top:0;padding-bottom:0;background:transparent;border:none;box-shadow:none}
+  #colmena-app .gas-sep .btn:hover{background:transparent;border:none;box-shadow:0 8px 24px rgba(0,0,0,.45);transform:translateY(-1px)}
   #colmena-app .btn-max{width:100%;margin-top:0;padding:12px}
   @media(max-width:860px){#colmena-app .cols{grid-template-columns:1fr}#colmena-app .rej-grid{grid-template-columns:1fr}#colmena-app .prev{grid-template-columns:repeat(2,1fr)}#colmena-app .pio-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){
@@ -1227,7 +1230,7 @@ function render() {
             </div>
           </div>
           <div id="c-hint"></div>
-          <div class="prev">
+          <div class="prev vacio">
             <div class="p"><b>Precio</b><span id="pv-precio">—</span></div>
             <div class="p prep"><span id="pv-compras" class="rep-wrap">—</span></div>
             <div class="p"><b>Por compra</b><span id="pv-orden">—</span></div>
@@ -1340,6 +1343,7 @@ function actualizarVista() {
   const pMin = parseFloat($('f-min')?.value), pMax = parseFloat($('f-max')?.value);
   const n = parseInt($('f-niv')?.value, 10), total = parseFloat($('f-total')?.value);
   const valido = F.precio && pMin > 0 && pMax > pMin && n >= 2;
+  const _prev = document.querySelector(`#${APP} .prev`); if (_prev) _prev.classList.toggle('vacio', !valido);
   const pasoPct = valido ? (Math.pow(pMax / pMin, 1 / (n - 1)) - 1) : null;
   if ($('pv-paso')) $('pv-paso').textContent = pasoPct != null ? num(pasoPct * 100, 2) + '%' : '—';
 
