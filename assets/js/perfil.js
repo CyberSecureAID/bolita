@@ -1,6 +1,6 @@
 // perfil.js — Panel de cuenta por wallet. Módulo independiente (no toca la lógica existente).
-import * as gb from './gridbot.js?v=43';
-import * as wallet from './wallet.js?v=43';
+import * as gb from './gridbot.js?v=44';
+import * as wallet from './wallet.js?v=44';
 
 const $ = (id) => document.getElementById(id);
 const num = (n, d = 2) => { const x = Number(n); if (!isFinite(x)) return '—'; return x.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d }); };
@@ -49,6 +49,12 @@ function estilos() {
   #perfil-overlay .pf-off{background:rgba(246,70,93,.13);color:var(--rojo,#f6465d);border:1px solid rgba(246,70,93,.42)}
 
   /* Rango */
+  #perfil-overlay .pf-sk{display:inline-block;height:1em;min-width:46px;border-radius:5px;vertical-align:middle;background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.05) 75%);background-size:220% 100%;animation:pfSk 1.1s ease-in-out infinite}
+  #perfil-overlay .pf-kpi .pf-sk{height:19px;min-width:58px}
+  #perfil-overlay .pf-tipo .pf-sk{min-width:20px;height:17px}
+  #perfil-overlay .pf-hr .pf-sk{min-width:74px;height:24px;border-radius:20px}
+  @keyframes pfSk{0%{background-position:120% 0}100%{background-position:-120% 0}}
+  @media(prefers-reduced-motion:reduce){#perfil-overlay .pf-sk{animation:none}}
   #perfil-overlay .pf-tipos{display:grid;grid-template-columns:1fr 1fr;gap:9px}
   #perfil-overlay .pf-tipo{display:flex;align-items:center;gap:10px;padding:12px 13px;border-radius:12px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid #2b3139;box-shadow:0 3px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04)}
   #perfil-overlay .pf-tipo .ti{flex:0 0 auto;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid #2b3139}
@@ -168,42 +174,42 @@ export async function abrirPerfil() {
       <div class="pf-name" id="pf-name"></div>
       <div class="pf-addr" id="pf-addr" title="Copiar dirección">${wallet.abreviar(cuenta)} ${iconoCopy()}</div>
     </div>
-    <div class="pf-hr" id="pf-sub">…</div>
+    <div class="pf-hr" id="pf-sub"><span class="pf-sk"></span></div>
   </div>
 
   <div class="pf-kpis">
-    <div class="pf-kpi"><div class="kl">Resultado</div><div class="kv" id="pf-pnl">…</div></div>
-    <div class="pf-kpi"><div class="kl">Volumen</div><div class="kv" id="pf-vol">…</div></div>
-    <div class="pf-kpi"><div class="kl">Operaciones</div><div class="kv" id="pf-ops">…</div></div>
-    <div class="pf-kpi"><div class="kl">Bots activos</div><div class="kv oro" id="pf-bots">…</div></div>
+    <div class="pf-kpi"><div class="kl">Resultado</div><div class="kv" id="pf-pnl"><span class="pf-sk"></span></div></div>
+    <div class="pf-kpi"><div class="kl">Volumen</div><div class="kv" id="pf-vol"><span class="pf-sk"></span></div></div>
+    <div class="pf-kpi"><div class="kl">Operaciones</div><div class="kv" id="pf-ops"><span class="pf-sk"></span></div></div>
+    <div class="pf-kpi"><div class="kl">Bots activos</div><div class="kv oro" id="pf-bots"><span class="pf-sk"></span></div></div>
   </div>
 
   <div class="pf-sec">
     <div class="pf-sect">Suscripción y gas</div>
     <div class="pf-box">
-      <div class="pf-row"><span class="k">Cuota mensual</span><span class="v" id="pf-precio">…</span></div>
-      <div class="pf-row"><span class="k">Gas disponible</span><span class="v oro" id="pf-gas">…</span></div>
-      <div class="pf-row"><span class="k">Gas gastado (total)</span><span class="v" id="pf-gasg">…</span></div>
+      <div class="pf-row"><span class="k">Cuota mensual</span><span class="v" id="pf-precio"><span class="pf-sk"></span></span></div>
+      <div class="pf-row"><span class="k">Gas disponible</span><span class="v oro" id="pf-gas"><span class="pf-sk"></span></span></div>
+      <div class="pf-row"><span class="k">Gas gastado (total)</span><span class="v" id="pf-gasg"><span class="pf-sk"></span></span></div>
     </div>
   </div>
 
   <div class="pf-sec">
     <div class="pf-sect">Actividad</div>
     <div class="pf-box">
-      <div class="pf-row"><span class="k">Bots creados (total)</span><span class="v" id="pf-tot">…</span></div>
-      <div class="pf-row"><span class="k">Ciclos completados</span><span class="v" id="pf-ciclos">…</span></div>
-      <div class="pf-row"><span class="k">Compras / ventas</span><span class="v" id="pf-cv">…</span></div>
-      <div class="pf-row"><span class="k">Miembro desde</span><span class="v" id="pf-desde">…</span></div>
+      <div class="pf-row"><span class="k">Bots creados (total)</span><span class="v" id="pf-tot"><span class="pf-sk"></span></span></div>
+      <div class="pf-row"><span class="k">Ciclos completados</span><span class="v" id="pf-ciclos"><span class="pf-sk"></span></span></div>
+      <div class="pf-row"><span class="k">Compras / ventas</span><span class="v" id="pf-cv"><span class="pf-sk"></span></span></div>
+      <div class="pf-row"><span class="k">Miembro desde</span><span class="v" id="pf-desde"><span class="pf-sk"></span></span></div>
     </div>
   </div>
 
   <div class="pf-sec">
     <div class="pf-sect">Tus bots por estrategia</div>
     <div class="pf-tipos" id="pf-tipos">
-      <div class="pf-tipo"><span class="ti" style="color:#4d9fff">${icoGrid()}</span><span class="tn">Smart Grid</span><span class="tc" id="pf-t0">—</span></div>
-      <div class="pf-tipo"><span class="ti" style="color:#b47cff">${icoAcum()}</span><span class="tn">Accumulator</span><span class="tc" id="pf-t1">—</span></div>
-      <div class="pf-tipo"><span class="ti" style="color:#E8B84B">${icoCash()}</span><span class="tn">Cash Out</span><span class="tc" id="pf-t2">—</span></div>
-      <div class="pf-tipo"><span class="ti" style="color:#34d97b">${icoDca()}</span><span class="tn">DCA</span><span class="tc" id="pf-t3">—</span></div>
+      <div class="pf-tipo"><span class="ti" style="color:#4d9fff">${icoGrid()}</span><span class="tn">Smart Grid</span><span class="tc" id="pf-t0"><span class="pf-sk"></span></span></div>
+      <div class="pf-tipo"><span class="ti" style="color:#b47cff">${icoAcum()}</span><span class="tn">Accumulator</span><span class="tc" id="pf-t1"><span class="pf-sk"></span></span></div>
+      <div class="pf-tipo"><span class="ti" style="color:#E8B84B">${icoCash()}</span><span class="tn">Cash Out</span><span class="tc" id="pf-t2"><span class="pf-sk"></span></span></div>
+      <div class="pf-tipo"><span class="ti" style="color:#34d97b">${icoDca()}</span><span class="tn">DCA</span><span class="tc" id="pf-t3"><span class="pf-sk"></span></span></div>
     </div>
   </div>
 
@@ -235,59 +241,83 @@ export async function abrirPerfil() {
 }
 
 async function cargarDatos(cuenta) {
-  let activo = false, precio = 0n, gasWei = 0n;
-  try { activo = await gb.estaActivo(cuenta); } catch (_) {}
-  try { precio = await gb.precioSub(); } catch (_) {}
-  try { gasWei = await gb.gasSaldo(cuenta); } catch (_) {}
+  // 1) Suscripción y gas: en PARALELO y se pintan apenas llegan.
+  Promise.all([
+    gb.estaActivo(cuenta).catch(() => false),
+    gb.precioSub().catch(() => 0n),
+    gb.gasSaldo(cuenta).catch(() => 0n)
+  ]).then(([activo, precio, gasWei]) => {
+    if ($('pf-sub')) $('pf-sub').innerHTML = activo
+      ? `<span class="pf-pill pf-on"><i></i>Activa</span>`
+      : `<span class="pf-pill pf-off">Inactiva</span>`;
+    if ($('pf-precio')) $('pf-precio').textContent = precio > 0n ? `${num(Number(gb.fmtBNB(precio)), 5)} BNB ≈ $1` : '—';
+    if ($('pf-gas')) $('pf-gas').textContent = `${num(Number(gb.fmtBNB(gasWei)), 4)} BNB`;
+  }).catch(() => {});
 
-  if ($('pf-sub')) $('pf-sub').innerHTML = activo
-    ? `<span class="pf-pill pf-on"><i></i>Activa</span>`
-    : `<span class="pf-pill pf-off">Inactiva</span>`;
-  if ($('pf-precio')) $('pf-precio').textContent = precio > 0n ? `${num(Number(gb.fmtBNB(precio)), 5)} BNB ≈ $1` : '—';
-  if ($('pf-gas')) $('pf-gas').textContent = `${num(Number(gb.fmtBNB(gasWei)), 4)} BNB`;
+  // 2) Bots: todo en paralelo (antes iba uno detrás de otro).
+  let claves = [];
+  try { claves = await gb.misRejillas(cuenta); } catch (_) { claves = []; }
+  const total = claves.length;
+  if ($('pf-tot')) $('pf-tot').textContent = String(total);
 
-  // Agregado de todos los bots del usuario
-  let total = 0, activos = 0, ops = 0, ciclos = 0, compras = 0, ventas = 0;
+  if (total === 0) {
+    ['pf-pnl','pf-vol','pf-ops','pf-bots','pf-ciclos','pf-t0','pf-t1','pf-t2','pf-t3']
+      .forEach((id) => { const e = $(id); if (e) e.textContent = '0'; });
+    if ($('pf-pnl')) $('pf-pnl').className = 'kv';
+    if ($('pf-cv')) $('pf-cv').textContent = '0 / 0';
+    if ($('pf-desde')) $('pf-desde').textContent = '—';
+    if ($('pf-gasg')) $('pf-gasg').textContent = '0.0000 BNB';
+    return;
+  }
+
+  const datos = await Promise.all(claves.map(async (k) => {
+    const [R, md] = await Promise.all([
+      gb.resumenK(k).catch(() => null),
+      gb.modoDe(k).catch(() => null)
+    ]);
+    return { R, md };
+  }));
+
+  const quotes = [...new Set(datos.filter((d) => d.R).map((d) => String(d.R.quote || '').toLowerCase()))];
+  const decs = {};
+  await Promise.all(quotes.map(async (q) => {
+    try { decs[q] = (await gb.infoToken(q)).decimals; } catch (_) { decs[q] = 18; }
+  }));
+
+  let activos = 0, ops = 0, ciclos = 0, compras = 0, ventas = 0;
   let pnl = 0, vol = 0, gasGas = 0, creadaMin = 0;
   const porTipo = [0, 0, 0, 0];
-  const decCache = {};
-  try {
-    const claves = await gb.misRejillas(cuenta);
-    total = claves.length;
-    for (const k of claves) {
-      let R; try { R = await gb.resumenK(k); } catch (_) { continue; }
-      if (!R) continue;
-      if (R.activa) activos++;
-      try { const md = await gb.modoDe(k); const mi = Number(Array.isArray(md) ? md[0] : md); if (mi >= 0 && mi <= 3) porTipo[mi]++; } catch (_) {}
-      ops += Number(R.totalOps || 0);
-      ciclos += Number(R.ciclos || 0);
-      compras += Number(R.comprasHechas || 0);
-      ventas += Number(R.ventasHechas || 0);
-      gasGas += Number(gb.fmtBNB(R.gasGastadoWei || 0n));
-      const c = Number(R.creadaEn || 0);
-      if (c > 0 && (creadaMin === 0 || c < creadaMin)) creadaMin = c;
-      // decimales del token quote (cacheado)
-      const q = String(R.quote || '').toLowerCase();
-      let dec = decCache[q];
-      if (dec === undefined) { try { dec = (await gb.infoToken(R.quote)).decimals; } catch (_) { dec = 18; } decCache[q] = dec; }
-      try { pnl += Number(gb.fmt(R.gananciaQuote || 0n, dec)); } catch (_) {}
-      try { vol += Number(gb.fmt(R.volumenQuote || 0n, dec)); } catch (_) {}
+
+  for (const { R, md } of datos) {
+    if (!R) continue;
+    if (R.activa) activos++;
+    if (md !== null && md !== undefined) {
+      const mi = Number(Array.isArray(md) ? md[0] : md);
+      if (mi >= 0 && mi <= 3) porTipo[mi]++;
     }
-  } catch (_) {}
+    ops += Number(R.totalOps || 0);
+    ciclos += Number(R.ciclos || 0);
+    compras += Number(R.comprasHechas || 0);
+    ventas += Number(R.ventasHechas || 0);
+    gasGas += Number(gb.fmtBNB(R.gasGastadoWei || 0n));
+    const c = Number(R.creadaEn || 0);
+    if (c > 0 && (creadaMin === 0 || c < creadaMin)) creadaMin = c;
+    const dec = decs[String(R.quote || '').toLowerCase()] ?? 18;
+    try { pnl += Number(gb.fmt(R.gananciaQuote || 0n, dec)); } catch (_) {}
+    try { vol += Number(gb.fmt(R.volumenQuote || 0n, dec)); } catch (_) {}
+  }
 
   const elP = $('pf-pnl');
   if (elP) {
     elP.textContent = (pnl >= 0 ? '+' : '') + num(pnl, 2);
     elP.className = 'kv ' + (pnl > 0 ? 'pos' : pnl < 0 ? 'neg' : '');
   }
-  if ($('pf-vol')) $('pf-vol').innerHTML = `${num(vol, vol >= 1000 ? 0 : 2)}`;
+  if ($('pf-vol')) $('pf-vol').textContent = num(vol, vol >= 1000 ? 0 : 2);
   if ($('pf-ops')) $('pf-ops').textContent = String(ops);
-  if ($('pf-bots')) $('pf-bots').textContent = `${activos}`;
-  if ($('pf-tot')) $('pf-tot').textContent = String(total);
+  if ($('pf-bots')) $('pf-bots').textContent = String(activos);
   if ($('pf-ciclos')) $('pf-ciclos').textContent = String(ciclos);
   if ($('pf-cv')) $('pf-cv').textContent = `${compras} / ${ventas}`;
   if ($('pf-desde')) $('pf-desde').textContent = desde(creadaMin);
   if ($('pf-gasg')) $('pf-gasg').textContent = `${num(gasGas, 4)} BNB`;
   for (let i = 0; i < 4; i++) { const e = $('pf-t' + i); if (e) e.textContent = String(porTipo[i]); }
-
 }
