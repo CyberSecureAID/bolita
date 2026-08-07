@@ -5,10 +5,10 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=27';
-import * as wallet from './wallet.js?v=27';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=27';
-import * as perfil from './perfil.js?v=27';
+import * as gb from './gridbot.js?v=29';
+import * as wallet from './wallet.js?v=29';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=29';
+import * as perfil from './perfil.js?v=29';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -296,7 +296,7 @@ function inyectarEstilo() {
   #colmena-app .seg button.on{background:var(--ac-m);color:var(--ac-t);border-color:var(--ac-d);font-weight:700}
   #colmena-app .avz{border-top:1px solid var(--line-soft);margin-top:18px;padding-top:4px}
   #colmena-app .chart{width:100%;height:auto;display:block;border-radius:14px;background:#0d1117;border:1px solid var(--line-soft)}
-  #colmena-app #c-chart{position:relative;background:url('assets/img/marco-rejilla.webp') center/100% 100% no-repeat;padding:6.5% 7.5%;box-sizing:border-box}
+  #colmena-app #c-chart{position:relative;background:url('assets/img/marco-rejilla.webp') center/100% 100% no-repeat;padding:14% 13%;box-sizing:border-box}
   #colmena-app #c-chart .chart{background:transparent;border:none;border-radius:0}
   #colmena-app .hint{font-family:var(--sans);font-size:12px;line-height:1.5;color:var(--ink-2);background:rgba(232,184,75,.05);border:1px solid var(--line-soft);border-left:2px solid var(--gold-soft);border-radius:8px;padding:9px 12px;margin:12px 0 4px}
   #colmena-app .prev{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
@@ -331,7 +331,9 @@ function inyectarEstilo() {
   #colmena-app .gas-stepper{position:absolute;left:3.83%;top:11.85%;width:69.07%;height:26.67%;margin:0;transform:translateY(2px)}
   #colmena-app .gas-stepper input{width:100%;height:100%;box-sizing:border-box;padding-top:0;padding-bottom:0;background:transparent;border:none}
   #colmena-app .gas-stepper input:focus{border:none;outline:none;box-shadow:none}
-  #colmena-app #f-gasdep{position:absolute;left:74.44%;top:12.39%;width:21.43%;height:25.99%;padding:0;margin:0;box-sizing:border-box;transform:translateX(-1px)}
+  #colmena-app #f-gasdep{position:absolute;left:74.44%;top:12.39%;width:21.43%;height:25.99%;padding:0;margin:0;box-sizing:border-box;transform:translateX(-1px);border-radius:8px;font-size:12px}
+  #colmena-app .gas-stepper .stepper-btns{top:50%;bottom:auto;transform:translateY(-50%);gap:2px;right:5px}
+  #colmena-app .gas-stepper .stepper-btns button{flex:0 0 auto;width:22px;height:13px;font-size:6.5px}
   #colmena-app .gasbox .top{display:flex;align-items:center;justify-content:space-between}
   #colmena-app .gasbox .v{font-family:var(--display);color:var(--gold);font-size:20px}
   #colmena-app .gas-row input{flex:1}
@@ -576,6 +578,7 @@ function inyectarEstilo() {
     #colmena-app .c-hdr{padding:10px 14px}
     #colmena-app .c-menu-btn{display:inline-flex}
     #colmena-app .c-sep{display:none}
+    #colmena-app .inv-lbl{display:none}
     #colmena-app .gas-stepper input{padding-right:96px}
     #colmena-app .gas-stepper input:focus{padding-right:36px}
     #colmena-app .gas-hint{font-size:9px;right:34px;gap:3px}
@@ -1071,7 +1074,7 @@ function render() {
           <div class="fila">${campoNum('f-min',{placeholder:'precio bajo',pct:0.005})}${campoNum('f-max',{placeholder:'precio alto',pct:0.005})}</div>
           <div class="fila">
             <div><div class="lab">Cuadrículas ${iBtn('cuadriculas')}</div>${campoNum('f-niv',{value:20,min:2,max:100,step:1,int:true})}</div>
-            <div><div class="lab" style="gap:10px"><span style="display:flex;align-items:center;gap:6px">Inv. <span id="f-total-sym">(${moneda(F.quoteId).simbolo})</span> ${iBtn('inversion')}</span><span id="f-total-saldo" class="saldo-chip">—</span></div>${campoNum('f-total',{placeholder:'0.00',step:1,min:0})}</div>
+            <div><div class="lab" style="gap:10px"><span style="display:flex;align-items:center;gap:6px"><span class="inv-lbl">Inv. <span id="f-total-sym">(${moneda(F.quoteId).simbolo})</span></span> ${iBtn('inversion')}</span><span id="f-total-saldo" class="saldo-chip">—</span></div>${campoNum('f-total',{placeholder:'0.00',step:1,min:0})}</div>
           </div>
           <div class="lab">Gan. cuadrícula % ${iBtn('margen')} <span style="color:var(--ink-3);font-size:11px;font-family:var(--mono)">opcional</span></div>
           ${campoNum('f-margen',{placeholder:'auto',min:0,max:20,step:0.5})}
@@ -1079,7 +1082,7 @@ function render() {
           <div class="paso-box"><span>Separación entre cuadrículas ${iBtn('separacion')}</span><b id="pv-paso">—</b></div>
         </div>
         <div id="f-acum" style="${F.tipo==='acum'?'':'display:none'}">
-          <div class="lab">Precio mínimo — hasta dónde compra ${iBtn('acmin')}<button class="sug" id="fa-sug" type="button">Sugerir</button></div>
+          <div class="lab">Precio mínimo (hasta dónde compra) ${iBtn('acmin')}<button class="sug" id="fa-sug" type="button">Sugerir</button></div>
           ${campoNum('fa-min',{placeholder:'precio más bajo',pct:0.01})}
           <div class="fila">
             <div><div class="lab">Nº de compras ${iBtn('acniv')}</div>${campoNum('fa-niv',{value:15,min:2,max:100,step:1,int:true})}</div>
@@ -1087,7 +1090,7 @@ function render() {
           </div>
           <div class="fila">
             <div><div class="lab">Compra inicial % ${iBtn('acini')}</div>${campoNum('fa-ini',{value:30,min:0,max:100,step:5})}</div>
-            <div><div class="lab">Comprar más abajo % ${iBtn('acfactor')}</div>${campoNum('fa-factor',{value:20,min:0,max:200,step:5})}</div>
+            <div><div class="lab">Comprar abajo % ${iBtn('acfactor')}</div>${campoNum('fa-factor',{value:20,min:0,max:200,step:5})}</div>
           </div>
           <div class="lab">Vender cuando gane ${iBtn('acobj')}</div>
           <div class="seg presets" id="fa-obj" style="grid-template-columns:repeat(5,1fr)">
