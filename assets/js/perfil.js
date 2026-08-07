@@ -1,6 +1,6 @@
 // perfil.js — Panel de perfil por wallet. Módulo independiente (no toca la lógica existente).
-import * as gb from './gridbot.js?v=34';
-import * as wallet from './wallet.js?v=34';
+import * as gb from './gridbot.js?v=35';
+import * as wallet from './wallet.js?v=35';
 
 const $ = (id) => document.getElementById(id);
 const num = (n, d = 2) => { const x = Number(n); if (!isFinite(x)) return '—'; return x.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d }); };

@@ -5,11 +5,11 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=34';
-import * as wallet from './wallet.js?v=34';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=34';
-import * as perfil from './perfil.js?v=34';
-import * as prizepool from './prizepool.js?v=34';
+import * as gb from './gridbot.js?v=35';
+import * as wallet from './wallet.js?v=35';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=35';
+import * as perfil from './perfil.js?v=35';
+import * as prizepool from './prizepool.js?v=35';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -89,7 +89,7 @@ function inyectarEstilo() {
   #colmena-app .c-brand-tx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
   #colmena-app .c-hdr-r{display:flex;align-items:center;gap:10px;flex:0 0 auto}
   /* ── Cinta Prize Pool (publicidad propia) ── */
-  #colmena-app .c-ticker{flex:1 1 auto;min-width:0;max-width:290px;height:30px;margin:0 0 0 16px;margin-right:auto;padding:0;border:none;background:transparent;overflow:hidden;position:relative;cursor:pointer;display:block;border-radius:5px;
+  #colmena-app .c-ticker{flex:1 1 auto;min-width:0;max-width:290px;height:44px;margin:0 0 0 16px;margin-right:auto;padding:0;border:none;background:transparent;overflow:hidden;position:relative;cursor:pointer;display:block;border-radius:5px;
     -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22%,#000 78%,transparent 100%);-webkit-mask-repeat:no-repeat;-webkit-mask-size:100% 100%;
             mask-image:linear-gradient(90deg,transparent 0,#000 22%,#000 78%,transparent 100%);mask-repeat:no-repeat;mask-size:100% 100%}
   #colmena-app .c-ticker-img{height:100%;width:auto;max-width:none;display:block;will-change:transform;animation:ctSlide 34s ease-in-out infinite alternate}
@@ -586,7 +586,7 @@ function inyectarEstilo() {
   @media(max-width:860px){#colmena-app .cols{grid-template-columns:1fr}#colmena-app .rej-grid{grid-template-columns:1fr}#colmena-app .prev{grid-template-columns:repeat(2,1fr)}#colmena-app .pio-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){
     #colmena-app .c-hdr{padding:10px 14px;flex-wrap:wrap}
-    #colmena-app .c-ticker{order:3;flex:0 0 100%;width:100%;max-width:none;height:24px;margin:9px 0 1px;border-radius:4px;
+    #colmena-app .c-ticker{order:3;flex:0 0 100%;width:100%;max-width:none;height:34px;margin:9px 0 1px;border-radius:5px;
       -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 15%,#000 85%,transparent 100%);-webkit-mask-repeat:no-repeat;-webkit-mask-size:100% 100%;
               mask-image:linear-gradient(90deg,transparent 0,#000 15%,#000 85%,transparent 100%);mask-repeat:no-repeat;mask-size:100% 100%}
     #colmena-app .c-menu-btn{display:inline-flex}
