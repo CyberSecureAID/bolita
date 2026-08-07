@@ -5,11 +5,11 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=35';
-import * as wallet from './wallet.js?v=35';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=35';
-import * as perfil from './perfil.js?v=35';
-import * as prizepool from './prizepool.js?v=35';
+import * as gb from './gridbot.js?v=36';
+import * as wallet from './wallet.js?v=36';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=36';
+import * as perfil from './perfil.js?v=36';
+import * as prizepool from './prizepool.js?v=36';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -277,10 +277,11 @@ function inyectarEstilo() {
   #colmena-app .cash-slider::-moz-range-track{height:6px;border-radius:100px;background:var(--line)}
   #colmena-app .cash-slider::-moz-range-progress{height:6px;border-radius:100px;background:var(--gold)}
   #colmena-app .cash-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);border:2px solid #8f6a1a;cursor:pointer}
-  #colmena-app .cash-price{text-align:center;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--ac-m);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 6px 18px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)}
-  #colmena-app .cash-price .cp-lab{font-family:var(--mono);font-size:12px;color:var(--ink-2);letter-spacing:.5px}
-  #colmena-app .cash-price .cp-val{font-family:var(--display);font-weight:800;font-size:30px;color:var(--acento);margin:6px 0 3px;text-shadow:0 1px 2px rgba(0,0,0,.5);letter-spacing:-.5px}
-  #colmena-app .cash-price .cp-src{font-family:var(--mono);font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px}
+  #colmena-app .cash-price{position:relative;text-align:center;background:url('assets/img/marco-precio.webp') center/100% 100% no-repeat;border:none;border-radius:0;aspect-ratio:900/338;padding:0;margin-bottom:14px;box-shadow:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:transform .15s ease,filter .15s ease}
+  #colmena-app .cash-price:hover{transform:translateY(-2px);filter:drop-shadow(0 10px 22px rgba(0,0,0,.55))}
+  #colmena-app .cash-price .cp-lab{font-family:var(--mono);font-size:11px;color:var(--ink-2);letter-spacing:2.4px;text-transform:uppercase;opacity:.9}
+  #colmena-app .cash-price .cp-val{font-family:var(--display);font-weight:800;font-size:clamp(22px,6.2vw,34px);color:var(--acento);margin:2px 0 1px;line-height:1.05;letter-spacing:-.3px;text-shadow:0 2px 4px rgba(0,0,0,.75),0 0 18px color-mix(in srgb,var(--acento) 35%,transparent)}
+  #colmena-app .cash-price .cp-src{font-family:var(--mono);font-size:9px;color:var(--ink-3);text-transform:uppercase;letter-spacing:2.6px;opacity:.85}
   #colmena-app .cash-resumen{margin-top:16px;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:0 8px 24px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.03)}
   #colmena-app .cash-resumen .cr-top{font-family:var(--display);color:var(--acento);font-size:14px;font-weight:700;text-align:center;margin-bottom:12px;text-shadow:0 1px 1px rgba(0,0,0,.4);letter-spacing:.3px}
   #colmena-app .cash-resumen .cr-rows{display:flex;flex-direction:column;gap:1px;background:var(--line-soft);border-radius:11px;overflow:hidden}
