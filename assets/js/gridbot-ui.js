@@ -5,10 +5,11 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=30';
-import * as wallet from './wallet.js?v=30';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=30';
-import * as perfil from './perfil.js?v=30';
+import * as gb from './gridbot.js?v=31';
+import * as wallet from './wallet.js?v=31';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=31';
+import * as perfil from './perfil.js?v=31';
+import * as prizepool from './prizepool.js?v=31';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -91,8 +92,8 @@ function inyectarEstilo() {
   #colmena-app .c-menu-btn span{display:block;width:17px;height:2px;border-radius:2px;background:#3a2800}
   #colmena-app .c-menu-btn:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
   /* Botones del header: todos mismo alto (36px), rectangulares, 3D dorado relleno */
-  #colmena-app .c-loteria,#colmena-app .c-perfil{display:inline-flex;align-items:center;gap:7px;height:36px;box-sizing:border-box;padding:0 11px;border-radius:8px;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-2);text-decoration:none;background:transparent;border:none;box-shadow:none;text-shadow:none;cursor:pointer;transition:color .14s,background .14s}
-  #colmena-app .c-swap:active,#colmena-app .c-loteria:active,#colmena-app .c-perfil:active{opacity:.8}
+  #colmena-app .c-loteria,#colmena-app .c-perfil,#colmena-app .c-prize{display:inline-flex;align-items:center;gap:7px;height:36px;box-sizing:border-box;padding:0 11px;border-radius:8px;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-2);text-decoration:none;background:transparent;border:none;box-shadow:none;text-shadow:none;cursor:pointer;transition:color .14s,background .14s}
+  #colmena-app .c-swap:active,#colmena-app .c-loteria:active,#colmena-app .c-perfil:active,#colmena-app .c-prize:active{opacity:.8}
   #colmena-app .c-loteria:active,#colmena-app .c-perfil:active{opacity:.8}
   #colmena-app .c-swap{display:inline-flex;align-items:center;gap:7px;height:36px;box-sizing:border-box;padding:0 11px;border-radius:8px;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;background:transparent;border:none;box-shadow:none;text-shadow:none;transition:color .14s,background .14s}
 
@@ -101,7 +102,7 @@ function inyectarEstilo() {
   #colmena-app .dir{display:inline-flex;align-items:center;gap:7px;height:36px;box-sizing:border-box;white-space:nowrap;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;padding:0 12px;box-shadow:none;text-shadow:none}
   #colmena-app .hdr-off{width:36px;height:36px;box-sizing:border-box;border-radius:9px;background:transparent;border:1px solid var(--line);color:var(--ink-3);cursor:pointer;display:inline-grid;place-items:center;padding:0;line-height:0;box-shadow:none;transition:color .14s,border-color .14s}
   #colmena-app .hdr-off:hover{color:var(--rojo);border-color:rgba(246,70,93,.4)}
-  #colmena-app .c-swap:hover,#colmena-app .c-loteria:hover,#colmena-app .c-perfil:hover{color:var(--gold);background:rgba(255,255,255,.05)}
+  #colmena-app .c-swap:hover,#colmena-app .c-loteria:hover,#colmena-app .c-perfil:hover,#colmena-app .c-prize:hover{color:var(--gold);background:rgba(255,255,255,.05)}
   #colmena-app .c-sep{width:1px;height:22px;background:var(--line);margin:0 3px;flex:0 0 auto}
   #colmena-app .hdr-off svg{display:block}
   #colmena-app .hdr-off:hover{color:var(--ink);border-color:var(--line-soft)}
@@ -587,13 +588,13 @@ function inyectarEstilo() {
     #colmena-app .gas-i{width:12px;height:12px;font-size:7.5px}
     #colmena-app .c-hdr-r{position:absolute;top:calc(100% + 8px);right:12px;flex-direction:column;align-items:stretch;gap:5px;min-width:212px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:0 18px 44px rgba(0,0,0,.6);display:none;z-index:60}
     #colmena-app .c-hdr.open .c-hdr-r{display:flex;animation:cmFade .14s ease}
-    #colmena-app .c-hdr-r>.live,#colmena-app .c-hdr-r>.c-swap,#colmena-app .c-hdr-r>.c-loteria,#colmena-app .c-hdr-r>.c-perfil,#colmena-app .c-hdr-r>.dir{width:100%;height:42px;justify-content:flex-start;gap:11px;border-radius:10px;padding:0 13px;font-size:13px;background:transparent;border:1px solid transparent;box-shadow:none;color:var(--gold);text-shadow:none;font-weight:700}
+    #colmena-app .c-hdr-r>.live,#colmena-app .c-hdr-r>.c-swap,#colmena-app .c-hdr-r>.c-loteria,#colmena-app .c-hdr-r>.c-perfil,#colmena-app .c-hdr-r>.c-prize,#colmena-app .c-hdr-r>.dir{width:100%;height:42px;justify-content:flex-start;gap:11px;border-radius:10px;padding:0 13px;font-size:13px;background:transparent;border:1px solid transparent;box-shadow:none;color:var(--gold);text-shadow:none;font-weight:700}
     #colmena-app .c-hdr-r>.live:active,#colmena-app .c-hdr-r>.c-swap:active,#colmena-app .c-hdr-r>.c-loteria:active,#colmena-app .c-hdr-r>.c-perfil:active{transform:none}
     #colmena-app .c-hdr-r>.dir{color:var(--ink-2);font-size:12px}
     #colmena-app .c-hdr-r>.hdr-off{display:flex;align-items:center;justify-content:flex-start;gap:11px;width:100%;height:42px;border-radius:10px;padding:0 13px;background:transparent;border:1px solid transparent;box-shadow:none;color:var(--rojo)}
     #colmena-app .c-hdr-r>.hdr-off::after{content:'Desconectar';font-family:var(--mono);font-size:13px;font-weight:700}
     #colmena-app .c-hdr-r>.hdr-off:active{transform:none}
-    #colmena-app .c-lot-tx,#colmena-app .c-swap-tx,#colmena-app .live-tx{display:inline}
+    #colmena-app .c-lot-tx,#colmena-app .c-swap-tx,#colmena-app .c-prize-tx,#colmena-app .live-tx{display:inline}
     #colmena-app .c-logo{height:30px}
     #colmena-app .bot-tabs{grid-template-columns:repeat(2,1fr)}
     #colmena-app .bot-tabs>*,#colmena-app .fila>*,#colmena-app .fila-coins>*,#colmena-app .seg>*,#colmena-app .seg.presets>*,#colmena-app .stats>*,#colmena-app .rej-btns>*,#colmena-app .as-grid>*{min-width:0}
@@ -915,6 +916,7 @@ function headerHTML() {
     <div class="c-hdr-r">
 
       <button class="c-swap" id="c-swap" type="button" aria-label="Intercambiar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10 3 6l4-4"/><path d="M3 6h14"/><path d="m17 14 4 4-4 4"/><path d="M21 18H7"/></svg><span class="c-swap-tx">Swap</span></button>
+      <button class="c-prize" id="c-prize" type="button" aria-label="Prize Pool"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg><span class="c-prize-tx">Prize Pool</span></button>
       <a class="c-loteria" href="loteria.html"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/></svg><span class="c-lot-tx">Lotería</span></a>
       ${right}
     </div>
@@ -934,6 +936,7 @@ function wireHeader() {
   if ($('c-red')) $('c-red').onclick = () => wallet.cambiarARedCorrecta().catch(() => {});
   if ($('c-off')) $('c-off').onclick = () => wallet.desconectar().catch(() => {});
   if ($('c-perfil')) $('c-perfil').onclick = () => perfil.abrirPerfil();
+  if ($('c-prize')) $('c-prize').onclick = () => prizepool.abrirPrizePool();
   const hdr = document.querySelector('#colmena-app .c-hdr');
   if ($('c-menu-btn') && hdr) $('c-menu-btn').onclick = (e) => { e.stopPropagation(); hdr.classList.toggle('open'); };
   if (hdr) { const hr = hdr.querySelector('.c-hdr-r'); if (hr) hr.addEventListener('click', () => hdr.classList.remove('open')); }
