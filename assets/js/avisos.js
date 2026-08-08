@@ -1,7 +1,7 @@
 // avisos.js — Notificaciones del Marketplace (dentro de la web + push del navegador).
 // Módulo independiente. No usa servidores: lee los eventos directamente de la blockchain.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=57';
+import * as wallet from './wallet.js?v=58';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const RPCS = [

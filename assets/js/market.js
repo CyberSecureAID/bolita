@@ -1,6 +1,6 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=57';
+import * as wallet from './wallet.js?v=58';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
@@ -517,8 +517,14 @@ export async function abrirMarket() {
 
   const tabs = [['mk-t1', 'mk-p1'], ['mk-t2', 'mk-p2'], ['mk-t5', 'mk-p5'], ['mk-t3', 'mk-p3'], ['mk-t4', 'mk-p4'], ['mk-t6', 'mk-p6']];
   tabs.forEach(([t, p], i) => {
-    $(t).onclick = () => {
-      tabs.forEach(([tt, pp], j) => { $(tt).classList.toggle('on', i === j); $(pp).classList.toggle('on', i === j); });
+    const btn = $(t);
+    if (!btn) return;                      // la de Disputas solo existe para el owner
+    btn.onclick = () => {
+      tabs.forEach(([tt, pp], j) => {
+        const b2 = $(tt), p2 = $(pp);
+        if (b2) b2.classList.toggle('on', i === j);
+        if (p2) p2.classList.toggle('on', i === j);
+      });
       $('mk-card').scrollTop = 0; msg('');
       if (i === 0) listarOfertas();
       if (i === 1) panelVender();
