@@ -5,14 +5,14 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=74';
-import * as wallet from './wallet.js?v=74';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=74';
-import * as perfil from './perfil.js?v=74';
-import * as prizepool from './prizepool.js?v=74';
-import * as tutorial from './tutorial.js?v=74';
-import * as market from './market.js?v=74';
-import * as avisos from './avisos.js?v=74';
+import * as gb from './gridbot.js?v=75';
+import * as wallet from './wallet.js?v=75';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=75';
+import * as perfil from './perfil.js?v=75';
+import * as prizepool from './prizepool.js?v=75';
+import * as tutorial from './tutorial.js?v=75';
+import * as market from './market.js?v=75';
+import * as avisos from './avisos.js?v=75';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -124,6 +124,32 @@ function inyectarEstilo() {
   #colmena-app .c-swap:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
   #colmena-app .c-swap svg{display:block}
   @keyframes spin{to{transform:rotate(360deg)}}
+  /* Tablets y pantallas medianas: el header nunca se desborda */
+  @media(min-width:561px) and (max-width:900px){
+    #colmena-app .c-ticker{display:none}                     /* la cinta cede el sitio */
+    #colmena-app .dir{max-width:132px;overflow:hidden;padding:0 9px;font-size:11px}
+    #colmena-app .c-swap,#colmena-app .c-prize,#colmena-app .c-market,
+    #colmena-app .c-loteria,#colmena-app .c-perfil{padding:0 7px}
+    #colmena-app .c-sep{display:none}
+  }
+  /* En el móvil todo se puede tocar cómodo */
+  @media(max-width:560px){
+    #colmena-app .c-swap,#colmena-app .c-prize,#colmena-app .c-market,
+    #colmena-app .c-loteria,#colmena-app .c-perfil,#colmena-app .dir,
+    #colmena-app .hdr-btn,#colmena-app .hdr-off{min-height:44px}
+    #colmena-app .bot-tab,#colmena-app .bot-tipo,#colmena-app .seg button,
+    #colmena-app .sug,#colmena-app .btn{min-height:44px}
+    #colmena-app .stepper-btns button{min-height:20px}
+    #colmena-app .btn-avz{min-height:44px;padding:0 14px}
+  }
+  #colmena-app .vacio-ok{text-align:center;padding:34px 20px;border-radius:16px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid var(--line)}
+  #colmena-app .vacio-ico{width:58px;height:58px;margin:0 auto 12px;border-radius:16px;display:grid;place-items:center;background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.3);color:var(--gold)}
+  #colmena-app .vacio-t{font-family:var(--display);font-weight:800;font-size:18px;color:var(--ink)}
+  #colmena-app .vacio-d{font-family:var(--sans);font-size:13.5px;color:var(--ink-3);line-height:1.6;margin:7px auto 16px;max-width:330px}
+  #colmena-app .vacio-b{padding:13px 26px;border-radius:12px;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold) 45%,#c79426);color:#3a2800;font-family:var(--display);font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 4px 0 #8f6a1a;min-height:46px}
+  #colmena-app .vacio-b:active{transform:translateY(3px);box-shadow:0 1px 0 #8f6a1a}
+  #colmena-app .vacio-p{font-family:var(--mono);font-size:10.5px;color:#6b7681;margin-top:14px;line-height:1.5}
+  @media(max-width:560px){#colmena-app .vacio-ok{padding:26px 14px}#colmena-app .vacio-t{font-size:16px}#colmena-app .vacio-d{font-size:12.5px}}
   #colmena-app .dir{cursor:pointer}
   #colmena-app .dir:hover{border-color:var(--gold-soft);color:var(--gold)}
   #colmena-app .dir-logo{width:16px;height:16px;border-radius:4px;object-fit:contain;flex:0 0 auto}
@@ -644,6 +670,21 @@ function inyectarEstilo() {
   #colmena-app .gas-sep .btn:hover{background:transparent;border:none;box-shadow:0 8px 24px rgba(0,0,0,.45);transform:translateY(-1px)}
   #colmena-app .gas-rtx{display:inline-block;transform:translateY(2px)}
   #colmena-app .btn-max{width:100%;margin-top:0;padding:12px}
+  /* Sin esto, un elemento ancho estira la columna y saca la tarjeta de la pantalla */
+  #colmena-app .cols>*,#colmena-app .fila>*,#colmena-app .fila-coins>*,#colmena-app .card{min-width:0}
+  #colmena-app .card{overflow:hidden}
+  @media(max-width:400px){
+    /* El iconito de ayuda nunca se sale del borde */
+    #colmena-app .i-btn{margin-right:2px}
+    #colmena-app .lab{padding-right:2px}
+    #colmena-app .paso-box{gap:6px;padding:11px 12px}
+    #colmena-app .paso-box>span{min-width:0;flex:1}
+    #colmena-app .paso-box .i-btn{flex:0 0 auto}
+    #colmena-app .wrap{padding:18px 12px 50px}
+    #colmena-app .card{padding:15px}
+    #colmena-app .bot-tabs{grid-template-columns:1fr 1fr}
+    #colmena-app .fila,#colmena-app .fila-coins{grid-template-columns:1fr}
+  }
   @media(max-width:860px){#colmena-app .cols{grid-template-columns:1fr}#colmena-app .rej-grid{grid-template-columns:1fr}#colmena-app .prev{grid-template-columns:repeat(2,1fr)}#colmena-app .pio-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){
     #colmena-app .c-hdr{padding:10px 14px;flex-wrap:wrap}
@@ -1040,16 +1081,34 @@ function abrirSelectorWallet(ancla) {
     const id = b.getAttribute('data-w'); cerrar();
     Promise.resolve().then(() => wallet.conectarCon(id)).catch((e) => {
       const el = $('c-hero-msg') || $('c-msg');
-      if (el) aviso(el, 'err', 'No se pudo conectar con esa wallet: ' + (e?.shortMessage || e?.message || e), 7000);
+      console.warn('[Aurex] detalle técnico:', e);
+      if (el) aviso(el, 'err', enCristiano(e), 7000);
     });
   });
+}
+
+/** Convierte los errores técnicos en algo que se entiende. */
+function enCristiano(e) {
+  const t = String(e?.shortMessage || e?.reason || e?.message || e || '').toLowerCase();
+  if (t.includes('user rejected') || t.includes('denied') || t.includes('rechaz')) return 'Cancelaste la operación en tu wallet.';
+  if (t.includes('insufficient funds')) return 'No te alcanza el BNB para pagar la comisión de red.';
+  if (t.includes('transfer amount exceeds balance') || t.includes('exceeds balance')) return 'No tienes suficiente saldo de esa moneda.';
+  if (t.includes('allowance') || t.includes('approve')) return 'Falta dar permiso a la moneda. Inténtalo otra vez.';
+  if (t.includes('no_wallet')) return 'No encontramos ninguna wallet. Instala MetaMask o abre esta página desde tu wallet.';
+  if (t.includes('sin_cuentas')) return 'Tu wallet no dio acceso a ninguna cuenta.';
+  if (t.includes('nonce') || t.includes('replacement')) return 'Tienes otra operación en marcha. Espera a que termine.';
+  if (t.includes('network') || t.includes('rpc') || t.includes('timeout') || t.includes('fetch')) return 'La red va lenta ahora mismo. Prueba de nuevo en un momento.';
+  if (t.includes('chain') || t.includes('red incorrecta')) return 'Cambia tu wallet a la red BNB Smart Chain.';
+  if (t.includes('gas required exceeds') || t.includes('gas limit')) return 'La operación no cabe. Prueba con una cantidad menor.';
+  if (t.includes('revert')) return 'El sistema no aceptó la operación. Revisa los datos e inténtalo otra vez.';
+  return 'No se pudo completar. Inténtalo de nuevo en un momento.';
 }
 
 function conectarWallet() {
   Promise.resolve().then(() => wallet.conectar()).catch((e) => {
     const el = $('c-hero-msg') || $('c-msg');
-    const msg = e?.shortMessage || e?.message || String(e);
-    if (el) aviso(el, 'err', 'No se pudo conectar: ' + msg + '. Si estás en el móvil, abre esta página desde el navegador de tu wallet (MetaMask o Trust Wallet).', 8000);
+    console.warn('[Aurex] detalle técnico:', e);
+    if (el) aviso(el, 'err', enCristiano(e) + ' Si estás en el móvil, abre esta página desde el navegador de tu wallet.', 8000);
   });
 }
 
@@ -2243,11 +2302,22 @@ async function refrescarRejillas() {
       catch (e) { cards.push(tarjetaMinima(clave, par, e, R)); }
     }
     cont.innerHTML = cards.length ? cards.join('')
-      : `<p style="color:var(--ink-3);font-family:var(--mono);font-size:12px">El contrato no reporta bots activos para <b>${wallet.abreviar(cuenta)}</b>. Si creaste un bot con otra cuenta, cámbiala en tu wallet.</p>`;
+      : `<div class="vacio-ok">
+          <div class="vacio-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+          <div class="vacio-t">Todavía no tienes bots</div>
+          <div class="vacio-d">Cuando enciendas uno, aparecerá aquí con su marcha y sus resultados.</div>
+          <button class="vacio-b" id="c-ir-crear">Crear mi primer bot</button>
+          <div class="vacio-p">¿Tenías bots creados? Puede que estén con otra cuenta: revisa cuál tienes activa en tu wallet.</div>
+        </div>`;
+    const irC = $('c-ir-crear');
+    if (irC) irC.onclick = () => { const t = document.querySelector('#colmena-app .bot-tab'); if (t) { t.click(); t.scrollIntoView({ behavior: 'smooth', block: 'center' }); } };
     enganchar(cuenta);
     wireMinCancel(cont);
     activarContadores();
-  } catch (e) { cont.innerHTML = `<div class="aviso err">No se pudieron cargar: ${e?.shortMessage || e?.message || e}</div>`; }
+  } catch (e) {
+    console.warn('[Aurex] detalle técnico:', e);
+    cont.innerHTML = `<div class="vacio-ok"><div class="vacio-t">No pudimos leer tus bots ahora mismo</div><div class="vacio-d">La red está lenta o hubo un corte momentáneo. Tus bots y tu dinero siguen intactos en la blockchain.</div><button class="vacio-b" onclick="location.reload()">Reintentar</button></div>`;
+  }
   if (PNL_TIMER) clearInterval(PNL_TIMER);
   PNL_TIMER = setInterval(refrescarPnls, 10000);
 }
@@ -2792,7 +2862,7 @@ function abrirSwap() {
       <div class="sw-find">
         <div class="sw-find-bar">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-          <input id="sw-find-inp" class="sw-find-inp" placeholder="Busca o pega el contrato de cualquier moneda" autocomplete="off" spellcheck="false">
+          <input id="sw-find-inp" class="sw-find-inp" placeholder="Busca por nombre o pega la dirección de la moneda" autocomplete="off" spellcheck="false">
         </div>
         <div class="sw-find-res" id="sw-find-res"></div>
       </div>
@@ -2945,7 +3015,7 @@ function abrirSwapCoinModal(lado) {
     <div class="coin-modal-bg" id="scm-bg"></div>
     <div class="coin-modal-box">
       <div class="cm-head"><span class="cm-title">Elige la moneda</span><button class="cm-x" id="scm-x" aria-label="Cerrar">${x}</button></div>
-      <div class="cm-search">${searchIco}<input id="scm-search" placeholder="Nombre, símbolo o dirección del contrato…" autocomplete="off" spellcheck="false"></div>
+      <div class="cm-search">${searchIco}<input id="scm-search" placeholder="Nombre, símbolo o dirección…" autocomplete="off" spellcheck="false"></div>
       <div class="cm-list" id="scm-list"></div>
     </div>
   </div>`;
@@ -2976,7 +3046,7 @@ function abrirSwapCoinModal(lado) {
       html += `<div class="cm-import" id="cm-import"><span class="cm-imp-spin"></span>Buscando token en BNB Chain…</div>`;
       swImportarToken(q, lado);
     } else if (!html) {
-      html = `<div class="cm-empty">Sin resultados para "${q}". Pega la dirección del contrato para importar.</div>`;
+      html = `<div class="cm-empty">Sin resultados para "${q}". Pega su dirección para añadirla.</div>`;
     }
     list.innerHTML = html;
     list.querySelectorAll('.cm-coin').forEach((b) => b.onclick = () => swElegir(lado, b.dataset.id));
@@ -3050,7 +3120,7 @@ function swFindRender(q) {
     if (CUSTOM[ql]) html += swFindRow(CUSTOM[ql]);
     else { html += `<div class="sw-find-msg" id="sw-find-imp"><span class="cm-imp-spin"></span>Buscando en BNB Chain…</div>`; swFindImport(q); }
   } else if (!html) {
-    html = `<div class="sw-find-msg">Sin resultados. Pega el contrato de la moneda.</div>`;
+    html = `<div class="sw-find-msg">Sin resultados. Prueba con otro nombre o pega su dirección.</div>`;
   }
   res.innerHTML = html;
   res.querySelectorAll('.sw-find-row').forEach((b) => b.onclick = () => swFindPick(b.dataset.id));
@@ -3137,7 +3207,7 @@ async function swEjecutar() {
     S.amount = ''; S.out = 0n; S.minOut = 0n; const a2 = $('sw-amt'); if (a2) a2.value = '';
     swCargarBalances(); setOut(); swRenderInfo(); swRenderBtn();
   } catch (e) {
-    const msg = e?.shortMessage || e?.reason || e?.message || String(e);
-    modalError('No se pudo completar: ' + msg);
+    console.warn('[Aurex] detalle técnico:', e);
+    modalError(enCristiano(e));
   }
 }
