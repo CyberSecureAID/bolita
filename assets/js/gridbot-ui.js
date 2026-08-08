@@ -5,14 +5,14 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=64';
-import * as wallet from './wallet.js?v=64';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=64';
-import * as perfil from './perfil.js?v=64';
-import * as prizepool from './prizepool.js?v=64';
-import * as tutorial from './tutorial.js?v=64';
-import * as market from './market.js?v=64';
-import * as avisos from './avisos.js?v=64';
+import * as gb from './gridbot.js?v=65';
+import * as wallet from './wallet.js?v=65';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=65';
+import * as perfil from './perfil.js?v=65';
+import * as prizepool from './prizepool.js?v=65';
+import * as tutorial from './tutorial.js?v=65';
+import * as market from './market.js?v=65';
+import * as avisos from './avisos.js?v=65';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -2570,7 +2570,15 @@ async function arrancar() {
   // Splash neutro mientras se resuelve si hay wallet conectada (evita el pestañeo del hero).
   host.innerHTML = `<div style="min-height:64vh;display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-family:var(--mono);font-size:13px"><span class="skel" style="width:16px;height:16px;min-width:16px;border-radius:50%;margin-right:10px"></span>Cargando…</div>`;
   wallet.alCambiar(() => render());
-  try { await wallet.reconectarSiProcede(); } catch (_) {}
+  // Reconectamos la wallet, pero NUNCA esperamos más de 4 segundos.
+  // Hay extensiones de navegador rotas que inyectan una wallet que jamás responde:
+  // sin este límite, la página se quedaría en "Cargando…" para siempre.
+  try {
+    await Promise.race([
+      wallet.reconectarSiProcede(),
+      new Promise((r) => setTimeout(r, 4000))
+    ]);
+  } catch (_) {}
   render(); iniciarReloj();
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);

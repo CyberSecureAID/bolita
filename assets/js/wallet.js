@@ -185,6 +185,16 @@ export async function desconectar() {
  * usuario se haya desconectado a mano. Así vuelve el comportamiento de
  * antes sin romper el botón de desconectar.
  */
+/** Pide algo a la wallet, pero se rinde a los 3,5 s.
+ *  Hay extensiones rotas cuyas peticiones no responden NUNCA (ni bien ni mal).
+ *  Sin este límite, la página se quedaría cargando para siempre. */
+function pedirConLimite(prov, args, ms = 3500) {
+  return Promise.race([
+    prov.request(args),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('wallet no responde')), ms))
+  ]);
+}
+
 export async function reconectarSiProcede() {
   if (localStorage.getItem(CLAVE_SALIDA) === '1') return null;
 
@@ -192,11 +202,11 @@ export async function reconectarSiProcede() {
   if (!prov) return null;
 
   try {
-    const cuentas = await prov.request({ method: 'eth_accounts' });
+    const cuentas = await pedirConLimite(prov, { method: 'eth_accounts' });
     if (cuentas?.length) {
       est.proveedor = prov;
       est.cuenta = cuentas[0];
-      est.chainId = await prov.request({ method: 'eth_chainId' });
+      est.chainId = await pedirConLimite(prov, { method: 'eth_chainId' });
       engancharEventos(prov);
       avisar();
       return est.cuenta;
