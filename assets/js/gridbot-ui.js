@@ -5,14 +5,14 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=70';
-import * as wallet from './wallet.js?v=70';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=70';
-import * as perfil from './perfil.js?v=70';
-import * as prizepool from './prizepool.js?v=70';
-import * as tutorial from './tutorial.js?v=70';
-import * as market from './market.js?v=70';
-import * as avisos from './avisos.js?v=70';
+import * as gb from './gridbot.js?v=71';
+import * as wallet from './wallet.js?v=71';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=71';
+import * as perfil from './perfil.js?v=71';
+import * as prizepool from './prizepool.js?v=71';
+import * as tutorial from './tutorial.js?v=71';
+import * as market from './market.js?v=71';
+import * as avisos from './avisos.js?v=71';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';

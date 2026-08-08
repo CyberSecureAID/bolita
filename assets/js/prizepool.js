@@ -1,8 +1,8 @@
 // prizepool.js — Módulo Prize Pool (independiente). No toca la lógica de los bots.
 // La librería vive en ESTE repositorio. Carga directa: sin CDN, sin esperas,
 // sin nada externo que pueda quedarse colgado y dejar la app en 'Cargando…'.
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=70';
-import * as wallet from './wallet.js?v=70';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=71';
+import * as wallet from './wallet.js?v=71';
 
 /* ───────── Config ───────── */
 const PRIZEPOOL = '0x75094C2faE55E61B03B4AB0E86026AB11c309C6d';
@@ -22,7 +22,9 @@ const PP_ABI = [
   'function entryTotal() view returns (uint256)',
   'function miReclamo(uint256 round,address who) view returns (uint256 amount,bool yaReclamado)',
   'function participar(string name,string telegram,address inviter) payable',
-  'function reclamar(uint256 round)'
+  'function reclamar(uint256 round)',
+  'function miAporte(address who) view returns (uint256 tickets,uint256 devolucion)',
+  'function abandonarParticipacion()'
 ];
 const ERC20 = [
   'function allowance(address,address) view returns (uint256)',
@@ -147,6 +149,12 @@ function estilos() {
   #pp-overlay .pp-claim button{margin-top:9px;width:100%;padding:12px;border-radius:10px;border:1px solid rgba(46,232,106,.5);background:rgba(46,232,106,.14);color:var(--neon-lit,#2ee86a);font-family:var(--display,sans-serif);font-weight:800;cursor:pointer;font-size:14px}
 
   /* Ganadores */
+  #pp-overlay .pp-mio{margin-top:14px;padding:14px;border-radius:12px;background:rgba(46,232,106,.07);border:1px solid rgba(46,232,106,.35);text-align:center}
+  #pp-overlay .pp-mio .t{font-family:var(--display,sans-serif);font-weight:800;font-size:14px;color:var(--neon-lit,#2ee86a)}
+  #pp-overlay .pp-mio .d{font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;margin:5px 0 10px}
+  #pp-overlay .pp-mio .d b{color:#eaecef}
+  #pp-overlay .pp-mio-b{width:100%;padding:11px;border-radius:10px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:#b7bdc6;font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;cursor:pointer;min-height:44px}
+  #pp-overlay .pp-mio-b:hover{color:var(--rojo,#f6465d);border-color:rgba(246,70,93,.4)}
   #pp-overlay .pp-win{margin-top:20px}
   #pp-overlay .pp-win .wt{font-family:var(--mono,monospace);font-size:11px;color:#7d8794;text-transform:uppercase;letter-spacing:.8px;margin-bottom:9px;text-align:center}
   #pp-overlay .pp-w{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid #2b3139;font-family:var(--mono,monospace);font-size:12.5px;margin-bottom:7px;box-shadow:0 2px 0 rgba(0,0,0,.3)}
@@ -285,7 +293,7 @@ export async function abrirPrizePool() {
   $('pp-x').onclick = cerrar;
   cuentaAtras(endTime);
   wireTabs(); wireParticipar();
-  cargarGanadores(); cargarReclamo();
+  cargarGanadores(); cargarReclamo(); cargarMiAporte();
 }
 
 function render(round, pool, players, minReq, pct, entrada, W, distTxt) {
@@ -320,6 +328,7 @@ function render(round, pool, players, minReq, pct, entrada, W, distTxt) {
       <button class="pp-btn" id="pp-confirm" style="margin-top:4px">Confirmar participación</button>
     </div>
     <div class="pp-msg info" id="pp-msg"></div>
+    <div id="pp-mio"></div>
     <div id="pp-claim-box"></div>
     <div class="pp-win" id="pp-win"></div>
     <div class="pp-note">Al participar, tu nombre y Telegram quedan registrados on-chain y se muestran si ganas. Participa con responsabilidad.</div>
@@ -391,6 +400,32 @@ function traducir(e) {
   if (s.includes('insufficient')) return 'Saldo insuficiente (USDT o BNB para el gas).';
   if (s.includes('rondanoabierta') || s.includes('rondaencurso')) return 'La ronda no está abierta ahora mismo.';
   return 'No se pudo completar. Intenta de nuevo.';
+}
+
+/* ───────── Mi participación (con opción de abandonar) ───────── */
+async function cargarMiAporte() {
+  const box = $('pp-mio'); if (!box) return;
+  const cuenta = wallet.cuentaActual && wallet.cuentaActual();
+  if (!cuenta) { box.innerHTML = ''; return; }
+  try {
+    const [tickets, devolucion] = await leePP('miAporte', [cuenta]);
+    if (Number(tickets) === 0) { box.innerHTML = ''; return; }
+    box.innerHTML = `<div class="pp-mio">
+      <div class="t">Ya estás participando</div>
+      <div class="d">Tienes <b>${Number(tickets)}</b> ${Number(tickets) === 1 ? 'participación' : 'participaciones'} en esta ronda.</div>
+      <button class="pp-mio-b" id="pp-aband">Abandonar y recuperar ${num(fmt(devolucion), 2)} USDT</button>
+    </div>`;
+    $('pp-aband').onclick = async () => {
+      if (!confirm('¿Seguro que quieres abandonar?\n\nSe te devuelve tu aporte al fondo y quedas fuera del sorteo. La comisión de la plataforma no se devuelve.')) return;
+      try {
+        msg('Confirma en tu wallet…', 'info');
+        const c = new ethers.Contract(PRIZEPOOL, PP_ABI, await firmante());
+        await (await c.abandonarParticipacion()).wait();
+        msg('Listo. Tu aporte volvió a tu wallet.', 'ok');
+        setTimeout(() => abrirPrizePool(), 1200);
+      } catch (e) { msg(traducir(e), 'err'); }
+    };
+  } catch (_) { box.innerHTML = ''; }
 }
 
 /* ───────── Ganadores ───────── */

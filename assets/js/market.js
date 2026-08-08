@@ -1,8 +1,8 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 // La librería vive en ESTE repositorio. Carga directa: sin CDN, sin esperas,
 // sin nada externo que pueda quedarse colgado y dejar la app en 'Cargando…'.
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=70';
-import * as wallet from './wallet.js?v=70';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=71';
+import * as wallet from './wallet.js?v=71';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
@@ -1702,7 +1702,7 @@ async function panelMisOps() {
           <div class="op-caja-t">Tu dinero en la caja fuerte</div>
           <div class="op-caja-v">${hayRet.map(([k, v]) => `<span><b>${num(v, 2)}</b> ${k}</span>`).join('')}</div>
           <div class="op-caja-d">Es tuyo. Vuelve a tu wallet en cuanto canceles la publicación o termine la operación.</div>
-          <button class="op-caja-b" id="op-retirar">Retirar todos mis fondos</button>
+          <button class="op-caja-b" id="op-retirar"><span class="tx-l">Retirar todos mis fondos</span><span class="tx-s">Retirar fondos</span></button>
         </div>`
       : `<div class="op-caja vacia"><div class="op-caja-t">Tu dinero en la caja fuerte</div><div class="op-caja-v"><span><b>0.00</b></span></div><div class="op-caja-d">Ahora mismo el contrato no retiene nada tuyo.</div></div>`;
 
@@ -1744,15 +1744,16 @@ function opCard({ o, perfOtro }, cuenta, esOwner) {
   if (est === 0) {
     titulo = compraAnuncio ? 'Tu anuncio de compra' : 'Tu oferta está publicada';
     explica = 'Todavía nadie la ha tomado. Puedes cancelarla y recuperar tu cripto cuando quieras.';
-    acciones = `<button class="op-b gris" data-cancel2="${o.id}">Cancelar y recuperar</button>`;
+    acciones = `<button class="op-b gris" data-cancel2="${o.id}"><span class="tx-l">Cancelar y recuperar</span><span class="tx-s">Cancelar</span></button>`;
   } else if (est === 1) {
     color = 'act';
     if (soyV) {
       if (o.tramoPagado) {
         titulo = `${esc(otroNom)} dice que ya pagó la parte ${hechos + 1}`;
         explica = `<b>Comprueba en tu banco/Zelle que el dinero llegó de verdad.</b> Si llegó, libera esa parte y se le envían ${num(porTramo, 2)} ${sim}. Si no llegó, no liberes nada y abre una disputa.`;
-        acciones = `<button class="op-b" data-lib="${o.id}">Sí, ya me llegó · liberar ${num(porTramo, 2)} ${sim}</button>
-                    <button class="op-b gris" data-disp="${o.id}">No me llegó · abrir disputa</button>`;
+        acciones = `<button class="op-b" data-lib="${o.id}"><span class="tx-l">Sí, ya me llegó · liberar ${num(porTramo, 2)} ${sim}</span><span class="tx-s">Ya me llegó · liberar</span></button>
+                    <button class="op-b gris" data-canmut="${o.id}"><span class="tx-l">Cancelar pedido (de mutuo acuerdo)</span><span class="tx-s">Cancelar pedido</span></button>
+                    <button class="op-b gris" data-disp="${o.id}"><span class="tx-l">No me llegó · abrir disputa</span><span class="tx-s">No llegó · disputa</span></button>`;
       } else {
         titulo = `${esc(otroNom)} reservó tu oferta`;
         const venceEn = (Number(o.tomadaEn) + 24 * 3600) * 1000;
@@ -1761,10 +1762,9 @@ function opCard({ o, perfOtro }, cuenta, esOwner) {
         explica = `Ahora te toca <b>contactarlo</b> y ponerte de acuerdo. Cuando te pague la parte ${hechos + 1}, él marcará el pago y tú lo confirmas aquí.` +
           (vencida ? ` <b>La reserva ya venció</b>: puedes devolver la oferta al listado.` : ` Si no arranca, en <b>${hs} h</b> podrás devolverla al listado.`);
         acciones = otroCt ? `<div class="op-ct">${esc(otroCt)}</div>` : '';
-        acciones += vencida ? `<button class="op-b" data-liber="${o.id}">Devolver mi oferta al listado</button>` : '';
-        acciones += `<button class="op-b gris" data-aband="${o.id}">Me arrepentí · abandonar venta</button>
-                     <button class="op-b gris" data-canmut="${o.id}">Cancelar de mutuo acuerdo</button>
-                     <button class="op-b gris" data-disp="${o.id}">Tengo un problema</button>`;
+        acciones += vencida ? `<button class="op-b" data-liber="${o.id}"><span class="tx-l">Devolver mi oferta al listado</span><span class="tx-s">Devolver al listado</span></button>` : '';
+        acciones += `<button class="op-b gris" data-aband="${o.id}"><span class="tx-l">Me arrepentí · cancelar pedido</span><span class="tx-s">Cancelar pedido</span></button>
+                     <button class="op-b gris" data-disp="${o.id}"><span class="tx-l">Tengo un problema</span><span class="tx-s">Problema</span></button>`;
       }
     } else {
       if (o.tramoPagado) {
@@ -1775,9 +1775,9 @@ function opCard({ o, perfOtro }, cuenta, esOwner) {
         titulo = `Te toca pagar la parte ${hechos + 1}`;
         explica = `Contacta a ${esc(otroNom)}, págale lo acordado por esta parte y <b>solo entonces</b> marca abajo que ya pagaste. Recibirás ${num(porTramo, 2)} ${sim}.`;
         acciones = otroCt ? `<div class="op-ct">${esc(otroCt)}</div>` : '';
-        acciones += `<button class="op-b" data-pag="${o.id}">Ya le pagué la parte ${hechos + 1}</button>
-                     <button class="op-b gris" data-canmut="${o.id}">Cancelar de mutuo acuerdo</button>
-                     <button class="op-b gris" data-disp="${o.id}">Tengo un problema</button>`;
+        acciones += `<button class="op-b" data-pag="${o.id}"><span class="tx-l">Ya le pagué la parte ${hechos + 1}</span><span class="tx-s">Ya pagué</span></button>
+                     <button class="op-b gris" data-canmut="${o.id}"><span class="tx-l">Cancelar pedido (de mutuo acuerdo)</span><span class="tx-s">Cancelar pedido</span></button>
+                     <button class="op-b gris" data-disp="${o.id}"><span class="tx-l">Tengo un problema</span><span class="tx-s">Problema</span></button>`;
       }
     }
   } else if (est === 2) {
