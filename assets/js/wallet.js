@@ -43,8 +43,28 @@ if (typeof window !== 'undefined') {
 
 function detectar() {
   if (est.proveedor) return est.proveedor;
-  if (proveedores6963.length > 0) return proveedores6963[0].provider;
-  return window.ethereum ?? null;
+
+  // Elegimos con criterio, no "la primera que aparezca":
+  // hay extensiones rotas que se anuncian como wallet y nunca responden.
+  if (proveedores6963.length > 0) {
+    const nombre = (p) => String(p?.info?.name || p?.info?.rdns || '').toLowerCase();
+    const PREFERIDAS = ['metamask', 'trust', 'coinbase', 'rabby', 'okx', 'bitget', 'binance', 'phantom', 'brave'];
+    for (const clave of PREFERIDAS) {
+      const hit = proveedores6963.find((p) => nombre(p).includes(clave));
+      if (hit?.provider) return hit.provider;
+    }
+    // Ninguna conocida: nos quedamos con la primera que al menos sepa hablar.
+    const usable = proveedores6963.find((p) => typeof p?.provider?.request === 'function');
+    if (usable?.provider) return usable.provider;
+  }
+
+  // Sin EIP-6963: si varias extensiones se pelean por window.ethereum,
+  // buscamos MetaMask dentro de la lista antes de rendirnos.
+  const eth = window.ethereum;
+  if (eth?.providers?.length) {
+    return eth.providers.find((p) => p?.isMetaMask) || eth.providers[0];
+  }
+  return eth ?? null;
 }
 
 export const hayWallet = () => Boolean(detectar());
@@ -188,7 +208,7 @@ export async function desconectar() {
 /** Pide algo a la wallet, pero se rinde a los 3,5 s.
  *  Hay extensiones rotas cuyas peticiones no responden NUNCA (ni bien ni mal).
  *  Sin este límite, la página se quedaría cargando para siempre. */
-function pedirConLimite(prov, args, ms = 3500) {
+function pedirConLimite(prov, args, ms = 1200) {
   return Promise.race([
     prov.request(args),
     new Promise((_, rej) => setTimeout(() => rej(new Error('wallet no responde')), ms))
