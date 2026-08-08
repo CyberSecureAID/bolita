@@ -32,6 +32,10 @@ const est = {
 /* ================================================================== */
 
 const proveedores6963 = [];
+const CLAVE_PREF = 'aurex-wallet';
+const idDe = (d) => String(d?.info?.rdns || d?.info?.uuid || d?.info?.name || '').toLowerCase();
+const prefGuardada = () => { try { return localStorage.getItem(CLAVE_PREF) || ''; } catch (_) { return ''; } };
+const guardarPref = (id) => { try { id ? localStorage.setItem(CLAVE_PREF, id) : localStorage.removeItem(CLAVE_PREF); } catch (_) {} };
 if (typeof window !== 'undefined') {
   window.addEventListener('eip6963:announceProvider', (e) => {
     if (!proveedores6963.some((p) => p.info?.uuid === e.detail.info?.uuid)) {
@@ -43,6 +47,13 @@ if (typeof window !== 'undefined') {
 
 function detectar() {
   if (est.proveedor) return est.proveedor;
+
+  // Si el usuario eligió una wallet a mano, esa manda.
+  const pref = prefGuardada();
+  if (pref) {
+    const elegida = proveedores6963.find((d) => idDe(d) === pref);
+    if (elegida?.provider) return elegida.provider;
+  }
 
   // Preferimos MetaMask de verdad. Las wallets integradas del navegador
   // (p. ej. la de Brave) se anuncian aunque no estén configuradas y no responden.
@@ -157,7 +168,30 @@ function soltarEventos() {
 
 
 
-export function olvidarWallet() { guardarPref(''); est.proveedor = null; est.info = null; }
+
+/** Wallets que el navegador ofrece (con su logo oficial, que envía la propia wallet). */
+export function walletsDisponibles() {
+  return proveedores6963.map((d) => ({
+    id: idDe(d),
+    nombre: d?.info?.name || 'Wallet',
+    icono: d?.info?.icon || '',
+    activa: est.proveedor === d.provider
+  }));
+}
+
+/** Conecta con la wallet que el usuario eligió y la recuerda para la próxima. */
+export async function conectarCon(id) {
+  const d = proveedores6963.find((x) => idDe(x) === String(id).toLowerCase());
+  if (!d) throw new Error('NO_WALLET');
+  guardarPref(idDe(d));
+  est.proveedor = d.provider;
+  est.info = d.info;
+  est.cuenta = null;
+  return conectar();
+}
+
+/** Vuelve a la elección automática. */
+export function olvidarWallet() { guardarPref(''); }
 
 export async function conectar() {
   const prov = detectar();

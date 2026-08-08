@@ -5,14 +5,14 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=69';
-import * as wallet from './wallet.js?v=69';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=69';
-import * as perfil from './perfil.js?v=69';
-import * as prizepool from './prizepool.js?v=69';
-import * as tutorial from './tutorial.js?v=69';
-import * as market from './market.js?v=69';
-import * as avisos from './avisos.js?v=69';
+import * as gb from './gridbot.js?v=70';
+import * as wallet from './wallet.js?v=70';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=70';
+import * as perfil from './perfil.js?v=70';
+import * as prizepool from './prizepool.js?v=70';
+import * as tutorial from './tutorial.js?v=70';
+import * as market from './market.js?v=70';
+import * as avisos from './avisos.js?v=70';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -105,7 +105,7 @@ function inyectarEstilo() {
     #colmena-app .c-ticker{max-width:170px}
   }
   /* ── Cinta Prize Pool (publicidad propia) ── */
-  #colmena-app .c-ticker{flex:1 1 0;min-width:0;max-width:290px;height:44px;margin:0 0 0 16px;margin-right:auto;padding:0;border:none;background:transparent;overflow:hidden;position:relative;cursor:pointer;display:block;border-radius:5px;
+  #colmena-app .c-ticker{flex:0 1 290px;min-width:130px;max-width:290px;height:44px;margin:0 0 0 16px;margin-right:auto;padding:0;border:none;background:transparent;overflow:hidden;position:relative;cursor:pointer;display:block;border-radius:5px;
     -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22%,#000 78%,transparent 100%);-webkit-mask-repeat:no-repeat;-webkit-mask-size:100% 100%;
             mask-image:linear-gradient(90deg,transparent 0,#000 22%,#000 78%,transparent 100%);mask-repeat:no-repeat;mask-size:100% 100%}
   #colmena-app .c-ticker-img{height:100%;width:auto;max-width:none;display:block;will-change:transform;animation:ctSlide 34s ease-in-out infinite alternate}
@@ -123,6 +123,23 @@ function inyectarEstilo() {
 
   #colmena-app .c-swap:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
   #colmena-app .c-swap svg{display:block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #colmena-app .dir{cursor:pointer}
+  #colmena-app .dir:hover{border-color:var(--gold-soft);color:var(--gold)}
+  #colmena-app .dir-logo{width:16px;height:16px;border-radius:4px;object-fit:contain;flex:0 0 auto}
+  #colmena-app .dir-ch{width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-2px) rotate(45deg);opacity:.65;margin-left:3px;flex:0 0 auto}
+  #wsel{position:fixed;inset:0;z-index:9800}
+  #wsel .wsel-bg{position:absolute;inset:0}
+  #wsel .wsel-p{position:absolute;width:250px;max-width:calc(100vw - 20px);background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft);border-radius:16px;padding:9px;box-shadow:0 22px 60px rgba(0,0,0,.72);animation:wselIn .14s ease both}
+  @keyframes wselIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  #wsel .wsel-t{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.9px;padding:6px 9px 8px}
+  #wsel .wsel-b{width:100%;display:flex;align-items:center;gap:10px;padding:11px;border-radius:11px;border:1px solid transparent;background:transparent;color:var(--ink);font-family:var(--display);font-weight:700;font-size:14px;cursor:pointer;text-align:left;min-height:46px}
+  #wsel .wsel-b:hover{background:rgba(255,255,255,.06);border-color:var(--line)}
+  #wsel .wsel-b.on{background:rgba(232,184,75,.1);border-color:rgba(232,184,75,.4)}
+  #wsel .wsel-b img,#wsel .wsel-i{width:26px;height:26px;border-radius:7px;flex:0 0 auto;object-fit:contain;background:rgba(255,255,255,.06)}
+  #wsel .wsel-b b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #wsel .wsel-ok{font-family:var(--mono);font-size:8.5px;color:var(--neon-lit);background:rgba(46,232,106,.14);border:1px solid rgba(46,232,106,.4);border-radius:7px;padding:2px 7px;flex:0 0 auto}
+  #wsel .wsel-v{font-family:var(--sans);font-size:12px;color:var(--ink-3);line-height:1.55;padding:10px}
   #colmena-app .dir{display:inline-flex;align-items:center;gap:7px;height:36px;box-sizing:border-box;white-space:nowrap;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;padding:0 12px;box-shadow:none;text-shadow:none}
   #colmena-app .hdr-off{width:36px;height:36px;box-sizing:border-box;border-radius:9px;background:transparent;border:1px solid var(--line);color:var(--ink-3);cursor:pointer;display:inline-grid;place-items:center;padding:0;line-height:0;box-shadow:none;transition:color .14s,border-color .14s}
   #colmena-app .hdr-off:hover{color:var(--rojo);border-color:rgba(246,70,93,.4)}
@@ -965,7 +982,7 @@ function headerHTML() {
   let right;
   if (!cuenta) right = `<button class="btn btn-oro hdr-btn" id="c-conectar">Conectar wallet</button>`;
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
-  else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><span class="dir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="6" width="20" height="13" rx="3"/><path d="M16 12h.01"/></svg>${wallet.abreviar(cuenta)}</span><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
+  else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><button class="dir" id="c-dir" type="button" title="Cambiar de wallet">${iconoWallet()}${wallet.abreviar(cuenta)}<span class="dir-ch"></span></button><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
     <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/logo-samurai.webp" alt="" width="30" height="30"><span class="c-brand-tx">Aurex</span></a>
     <button class="c-ticker" id="c-ticker" type="button" aria-label="Prize Pool"><img class="c-ticker-img" src="assets/img/cinta-prize.webp" alt="Prize Pool" loading="lazy"></button>
@@ -980,6 +997,54 @@ function headerHTML() {
     <button class="c-menu-btn" id="c-menu-btn" type="button" aria-label="Menú"><span></span><span></span><span></span></button>
   </header>`;
 }
+const escT = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* Logo de la wallet conectada (lo envía la propia wallet, sin servidores externos) */
+function iconoWallet() {
+  try {
+    const info = wallet.walletInfo ? wallet.walletInfo() : null;
+    if (info?.icon) return `<img class="dir-logo" src="${info.icon}" alt="">`;
+  } catch (_) {}
+  return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="6" width="20" height="13" rx="3"/><path d="M16 12h.01"/></svg>`;
+}
+
+/* Desplegable para cambiar de wallet */
+function abrirSelectorWallet(ancla) {
+  const prev = $('wsel'); if (prev) { prev.remove(); return; }
+  let lista = [];
+  try { lista = wallet.walletsDisponibles ? wallet.walletsDisponibles() : []; } catch (_) {}
+
+  const d = document.createElement('div');
+  d.id = 'wsel';
+  d.innerHTML = `<div class="wsel-bg"></div>
+    <div class="wsel-p">
+      <div class="wsel-t">Tus wallets</div>
+      ${lista.length ? lista.map((w) => `
+        <button class="wsel-b ${w.activa ? 'on' : ''}" data-w="${escT(w.id)}">
+          ${w.icono ? `<img src="${escT(w.icono)}" alt="">` : '<span class="wsel-i"></span>'}
+          <b>${escT(w.nombre)}</b>
+          ${w.activa ? '<span class="wsel-ok">Conectada</span>' : ''}
+        </button>`).join('')
+        : '<div class="wsel-v">No detectamos otras wallets instaladas.<br>Instala MetaMask, Trust, Phantom o SafePal y aparecerán aquí.</div>'}
+    </div>`;
+  document.body.appendChild(d);
+  // colocar justo debajo de la cápsula
+  const r = ancla.getBoundingClientRect();
+  const p = d.querySelector('.wsel-p');
+  p.style.top = (r.bottom + 8) + 'px';
+  p.style.right = Math.max(10, window.innerWidth - r.right) + 'px';
+
+  const cerrar = () => d.remove();
+  d.querySelector('.wsel-bg').onclick = cerrar;
+  d.querySelectorAll('[data-w]').forEach((b) => b.onclick = () => {
+    const id = b.getAttribute('data-w'); cerrar();
+    Promise.resolve().then(() => wallet.conectarCon(id)).catch((e) => {
+      const el = $('c-hero-msg') || $('c-msg');
+      if (el) aviso(el, 'err', 'No se pudo conectar con esa wallet: ' + (e?.shortMessage || e?.message || e), 7000);
+    });
+  });
+}
+
 function conectarWallet() {
   Promise.resolve().then(() => wallet.conectar()).catch((e) => {
     const el = $('c-hero-msg') || $('c-msg');
@@ -991,6 +1056,7 @@ function conectarWallet() {
 function wireHeader() {
   if ($('c-swap')) $('c-swap').onclick = abrirSwap;
   if ($('c-conectar')) $('c-conectar').onclick = conectarWallet;
+  if ($('c-dir')) $('c-dir').onclick = (e) => { e.stopPropagation(); abrirSelectorWallet($('c-dir')); };
   if ($('c-red')) $('c-red').onclick = () => wallet.cambiarARedCorrecta().catch(() => {});
   if ($('c-off')) $('c-off').onclick = () => wallet.desconectar().catch(() => {});
   if ($('c-perfil')) $('c-perfil').onclick = () => perfil.abrirPerfil();
@@ -2569,7 +2635,7 @@ async function arrancar() {
   if (!$(APP)) return;
   const host = $(APP);
   // Splash neutro mientras se resuelve si hay wallet conectada (evita el pestañeo del hero).
-  host.innerHTML = `<div style="min-height:64vh;display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-family:var(--mono);font-size:13px"><span class="skel" style="width:16px;height:16px;min-width:16px;border-radius:50%;margin-right:10px"></span>Cargando…</div>`;
+  host.innerHTML = `<div style="min-height:64vh;background:var(--bg,#0b0e11);display:flex;align-items:center;justify-content:center"><span style="width:22px;height:22px;border-radius:50%;border:2px solid rgba(232,184,75,.25);border-top-color:var(--gold,#E8B84B);display:inline-block;animation:spin .7s linear infinite"></span></div>`;
   wallet.alCambiar(() => render());
   // La página se dibuja SIEMPRE. Si una extensión de wallet no contesta
   // (pasa cuando MetaMask u otra wallet queda en mal estado tras actualizarse),
