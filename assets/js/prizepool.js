@@ -1,7 +1,7 @@
 // prizepool.js — Módulo Prize Pool (independiente). No toca la lógica de los bots.
-import { ethersListo } from './ethers-carga.js?v=61';
+import { ethersListo } from './ethers-carga.js?v=62';
 const ethers = await ethersListo;   // prueba varios CDN: si uno se cae, usa otro
-import * as wallet from './wallet.js?v=61';
+import * as wallet from './wallet.js?v=62';
 
 /* ───────── Config ───────── */
 const PRIZEPOOL = '0x75094C2faE55E61B03B4AB0E86026AB11c309C6d';

@@ -1,7 +1,7 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
-import { ethersListo } from './ethers-carga.js?v=61';
+import { ethersListo } from './ethers-carga.js?v=62';
 const ethers = await ethersListo;   // prueba varios CDN: si uno se cae, usa otro
-import * as wallet from './wallet.js?v=61';
+import * as wallet from './wallet.js?v=62';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';

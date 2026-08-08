@@ -13,7 +13,7 @@
  * Lo único que deja en el contrato: un tanque de BNB para gas (retirable).
  */
 
-import { ethersListo } from './ethers-carga.js?v=61';
+import { ethersListo } from './ethers-carga.js?v=62';
 const ethers = await ethersListo;   // prueba varios CDN: si uno se cae, usa otro
 
 // ⚠️ IMPORTANTE: cambia esta dirección por la de tu PROXY de GridBotV2 recién desplegado.
