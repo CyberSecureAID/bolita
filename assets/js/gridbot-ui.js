@@ -5,14 +5,14 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=56';
-import * as wallet from './wallet.js?v=56';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=56';
-import * as perfil from './perfil.js?v=56';
-import * as prizepool from './prizepool.js?v=56';
-import * as tutorial from './tutorial.js?v=56';
-import * as market from './market.js?v=56';
-import * as avisos from './avisos.js?v=56';
+import * as gb from './gridbot.js?v=57';
+import * as wallet from './wallet.js?v=57';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=57';
+import * as perfil from './perfil.js?v=57';
+import * as prizepool from './prizepool.js?v=57';
+import * as tutorial from './tutorial.js?v=57';
+import * as market from './market.js?v=57';
+import * as avisos from './avisos.js?v=57';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -90,7 +90,17 @@ function inyectarEstilo() {
   #colmena-app .c-brand{display:inline-flex;align-items:center;gap:9px;font-family:var(--display);font-weight:700;font-size:20px;color:var(--gold);text-decoration:none;letter-spacing:.3px;min-width:0}
   #colmena-app .c-logo{height:32px;width:auto;flex:0 0 auto;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.55))}
   #colmena-app .c-brand-tx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-  #colmena-app .c-hdr-r{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+  #colmena-app .c-hdr-r{display:flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0;flex-wrap:nowrap}
+  #colmena-app .c-hdr-r>button,#colmena-app .c-hdr-r>a{flex:0 0 auto;white-space:nowrap}
+  /* Si no cabe todo (p. ej. sin wallet conectada), se ocultan los textos antes de montarse */
+  @media(min-width:561px) and (max-width:1080px){
+    #colmena-app .c-prize-tx,#colmena-app .c-market-tx,#colmena-app .c-lot-tx{display:none}
+    #colmena-app .c-swap,#colmena-app .c-prize,#colmena-app .c-market,#colmena-app .c-loteria,#colmena-app .c-perfil{padding:0 9px}
+  }
+  @media(min-width:561px) and (max-width:900px){
+    #colmena-app .c-swap-tx{display:none}
+    #colmena-app .c-ticker{max-width:170px}
+  }
   /* ── Cinta Prize Pool (publicidad propia) ── */
   #colmena-app .c-ticker{flex:1 1 auto;min-width:0;max-width:290px;height:44px;margin:0 0 0 16px;margin-right:auto;padding:0;border:none;background:transparent;overflow:hidden;position:relative;cursor:pointer;display:block;border-radius:5px;
     -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22%,#000 78%,transparent 100%);-webkit-mask-repeat:no-repeat;-webkit-mask-size:100% 100%;

@@ -1,6 +1,6 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=56';
+import * as wallet from './wallet.js?v=57';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
@@ -17,7 +17,6 @@ const ABI = [
   'function ordenes(uint256) view returns (tuple(uint256 id,address vendedor,address comprador,address token,uint256 monto,uint256 liberado,uint16 tramos,uint16 tramosHechos,string moneda,string metodo,uint256 precioFiat,uint64 creadaEn,uint64 tomadaEn,uint64 ultimoMovEn,bool tramoPagado,uint8 estado,address arbitro,bool califVendedor,bool califComprador))',
   'function perfiles(address) view returns (tuple(string nombre,string pais,string moneda,string contacto,bool existe,uint32 ventasOk,uint32 comprasOk,uint32 disputasPerdidas,uint64 sumaEstrellas,uint32 numVotos,uint64 desde))',
   'function reputacionDe(address) view returns (uint32 ventasOk,uint32 comprasOk,uint32 disputasPerdidas,uint256 estrellasX100,uint32 votos,uint64 desde)',
-  'function ordenesAbiertas(uint256,uint256) view returns (uint256[])',
   'function totalOrdenes() view returns (uint256)',
   'function comisionBnb() view returns (uint256)',
   'function fianzaDe(address) view returns (uint256)',
@@ -41,7 +40,10 @@ const ABI = [
   'function liberarTramo(uint256)',
   'function cancelarOrden(uint256)',
   'function cancelarPorTiempo(uint256)',
-  'function abrirDisputa(uint256)',
+  'function abrirDisputa(uint256,string)',
+  'function anularDisputa(uint256)',
+  'function caducarDisputa(uint256)',
+  'function pedirCancelar(uint256)',
   'function calificar(uint256,uint8)'
 ];
 const ERC20 = [
@@ -229,6 +231,16 @@ function estilos() {
   #mk-overlay .tj-moneda,.mk-wiz-c .tj-moneda{width:38px;height:38px;flex:0 0 auto;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#0b0e12;border:1px solid #2b3139}
   .mk-wiz-c .tj-moneda.grande{width:50px;height:50px}
   .mk-wiz-c .fc-ct .ic{display:grid;place-items:center}
+  #mk-overlay .mk-badge{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 5px;border-radius:9px;background:var(--rojo,#f6465d);color:#fff;font-family:var(--mono,monospace);font-size:9.5px;font-weight:800;margin-left:5px;box-shadow:0 0 8px rgba(246,70,93,.6)}
+  #mk-overlay .tj-estrellas{display:flex;align-items:center;justify-content:center;gap:7px;width:100%}
+  #mk-overlay .tj-estrellas .st{color:var(--gold,#E8B84B);font-size:11px;letter-spacing:1px}
+  #mk-overlay .tj-estrellas b{color:#eaecef;font-family:var(--display,sans-serif);font-size:12px}
+  #mk-overlay .tj-estrellas .ops{color:#7d8794;font-size:10px}
+  #mk-overlay .tj-pie{justify-content:center}
+  #mk-overlay .op-motivo{margin-top:10px;padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.03);border:1px solid #3a424c;font-family:var(--sans,sans-serif);font-size:12.5px;color:#eaecef;line-height:1.6}
+  #mk-overlay .op-motivo span{display:block;font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
+  .mk-wiz-c textarea{width:100%;box-sizing:border-box;background:#0b0e12;border:1px solid #2b3139;border-radius:11px;color:#eaecef;font-family:var(--sans,sans-serif);font-size:13.5px;padding:12px;line-height:1.5;resize:vertical}
+  .mk-wiz-c textarea:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
   /* ── Operaciones ── */
   #mk-overlay .op-sec{margin-bottom:20px}
   #mk-overlay .op-st{font-family:var(--display,sans-serif);font-weight:800;font-size:14px;color:#eaecef;margin-bottom:5px;display:flex;align-items:center;gap:8px}
@@ -378,6 +390,11 @@ function estilos() {
   .mk-wiz-c .mk-step-in{display:flex;gap:7px}
   .mk-wiz-c .mk-step-in input{flex:1;min-width:0;text-align:center;font-size:18px;font-weight:700}
   .mk-wiz-c .mk-mm{flex:0 0 auto;width:50px;border-radius:10px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:var(--gold,#E8B84B);font-size:21px;font-weight:800;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.4)}
+  .mk-wiz-c .mk-sel{position:relative}
+  .mk-wiz-c .mk-sel select{width:100%;box-sizing:border-box;-webkit-appearance:none;-moz-appearance:none;appearance:none;background:#0b0e12;border:1px solid #2b3139;border-radius:10px;color:#eaecef;font-family:var(--mono,monospace);font-size:14px;padding:13px;padding-right:44px;cursor:pointer}
+  .mk-wiz-c .mk-sel select:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
+  .mk-wiz-c .mk-sel::after{content:'';position:absolute;right:16px;top:50%;width:8px;height:8px;border-right:2px solid var(--gold,#E8B84B);border-bottom:2px solid var(--gold,#E8B84B);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+  .mk-wiz-c .mk-sel::before{content:'';position:absolute;right:6px;top:6px;bottom:6px;width:32px;border-left:1px solid #2b3139;pointer-events:none}
   .mk-wiz-c .mk-hint{font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;line-height:1.55;margin-top:8px}
   .mk-wiz-c .mk-hint b{color:var(--gold-soft,#C9A84B)}
   .mk-wiz-c .mk-rp{padding:5px 10px;border-radius:7px;border:1px solid #3a424c;background:rgba(255,255,255,.05);color:var(--gold,#E8B84B);font-family:var(--mono,monospace);font-size:11px;cursor:pointer;margin-left:6px}
@@ -484,29 +501,102 @@ export async function abrirMarket() {
   <div class="mk-tabs">
     <button class="mk-tab on" id="mk-t1">Ofertas</button>
     <button class="mk-tab" id="mk-t2">Vender</button>
-    <button class="mk-tab" id="mk-t3">Operaciones</button>
+    <button class="mk-tab" id="mk-t5">Comprar</button>
+    <button class="mk-tab" id="mk-t3"><span class="tx-l">Operaciones</span><span class="tx-s">Ops</span></button>
     <button class="mk-tab" id="mk-t4"><span class="tx-l">Cómo funciona</span><span class="tx-s">Guía</span></button>
   </div>
   <div class="mk-pane on" id="mk-p1"><div class="mk-vacio">Cargando ofertas…</div></div>
   <div class="mk-pane" id="mk-p2"></div>
+  <div class="mk-pane" id="mk-p5"></div>
   <div class="mk-pane" id="mk-p3"></div>
+  <div class="mk-pane" id="mk-p6"></div>
   <div class="mk-pane" id="mk-p4">${comoFunciona()}</div>
   <div class="mk-msg info" id="mk-msg"></div>
   `;
   $('mk-x').onclick = cerrar;
 
-  const tabs = [['mk-t1', 'mk-p1'], ['mk-t2', 'mk-p2'], ['mk-t3', 'mk-p3'], ['mk-t4', 'mk-p4']];
+  const tabs = [['mk-t1', 'mk-p1'], ['mk-t2', 'mk-p2'], ['mk-t5', 'mk-p5'], ['mk-t3', 'mk-p3'], ['mk-t4', 'mk-p4'], ['mk-t6', 'mk-p6']];
   tabs.forEach(([t, p], i) => {
     $(t).onclick = () => {
       tabs.forEach(([tt, pp], j) => { $(tt).classList.toggle('on', i === j); $(pp).classList.toggle('on', i === j); });
       $('mk-card').scrollTop = 0; msg('');
       if (i === 0) listarOfertas();
       if (i === 1) panelVender();
-      if (i === 2) panelMisOps();
-      if (i === 3) { const b = $('mk-ir-vender'); if (b) b.onclick = () => $('mk-t2').click(); }
+      if (i === 2) panelComprar();
+      if (i === 3) panelMisOps();
+      if (i === 4) { const b = $('mk-ir-vender'); if (b) b.onclick = () => $('mk-t2').click(); }
+      if (i === 5) panelDisputas();
     };
   });
   listarOfertas();
+  // Pestaña de Disputas: solo para el owner
+  (async () => {
+    try {
+      const cuenta = wallet.cuentaActual && wallet.cuentaActual();
+      if (!cuenta) return;
+      const dueno = await lee('owner');
+      if (String(dueno).toLowerCase() !== String(cuenta).toLowerCase()) return;
+      const cont = document.querySelector('#mk-overlay .mk-tabs');
+      if (!cont || $('mk-t6')) return;
+      const b = document.createElement('button');
+      b.className = 'mk-tab'; b.id = 'mk-t6';
+      b.innerHTML = `Disputas <span class="mk-badge" id="mk-nd" style="display:none">0</span>`;
+      cont.appendChild(b);
+      b.onclick = () => {
+        document.querySelectorAll('#mk-overlay .mk-tab').forEach(x => x.classList.remove('on'));
+        document.querySelectorAll('#mk-overlay .mk-pane').forEach(x => x.classList.remove('on'));
+        b.classList.add('on'); $('mk-p6').classList.add('on'); $('mk-card').scrollTop = 0; msg('');
+        panelDisputas();
+      };
+      contarDisputas();
+    } catch (_) {}
+  })();
+}
+
+/* ── Disputas (solo owner) ── */
+async function buscarDisputas() {
+  const total = Number(await lee('totalOrdenes'));
+  const ids = []; for (let i = total; i >= 1; i--) ids.push(i);
+  const ords = await Promise.all(ids.map(i => lee('ordenes', [i]).catch(() => null)));
+  return ords.filter(o => o && Number(o.estado) === 4);
+}
+async function contarDisputas() {
+  try {
+    const d = await buscarDisputas();
+    const el = $('mk-nd'); if (!el) return;
+    if (d.length > 0) { el.textContent = String(d.length); el.style.display = 'inline-grid'; }
+    else el.style.display = 'none';
+  } catch (_) {}
+}
+async function panelDisputas() {
+  const box = $('mk-p6'); if (!box) return;
+  box.innerHTML = `<div class="tj-grid">${'<div class="tj-sk"></div>'.repeat(2)}</div>`;
+  try {
+    const ds = await buscarDisputas();
+    if (ds.length === 0) { box.innerHTML = `<div class="mk-vacio">No hay disputas pendientes.<br>Todo tranquilo.</div>`; return; }
+    const conNom = await Promise.all(ds.map(async (o) => {
+      const [pv, pc] = await Promise.all([
+        lee('perfiles', [o.vendedor]).catch(() => null),
+        o.comprador && o.comprador !== '0x0000000000000000000000000000000000000000' ? lee('perfiles', [o.comprador]).catch(() => null) : null
+      ]);
+      return { o, pv, pc };
+    }));
+    box.innerHTML = `<div class="op-nota">Revisa el motivo y los comprobantes que te enviaron por el contacto antes de decidir. Si no resuelves en 48 horas, el sistema devuelve la cripto al vendedor solo.</div>` +
+      conNom.map(({ o, pv, pc }) => {
+        const sim = simbolo(o.token), monto = f18(o.monto), tramos = Number(o.tramos) || 1;
+        return `<div class="op-card dis">
+          <div class="op-cab"><span class="op-id">#${o.id}</span><span class="op-rol">${num(monto, 2)} ${sim} · ${Number(o.tramosHechos)}/${tramos} partes</span><span class="op-est dis">Disputa</span></div>
+          <div class="op-exp"><b>Vendedor:</b> ${esc((pv && pv.nombre) || '—')} · ${esc((pv && pv.contacto) || 'sin contacto')}</div>
+          <div class="op-exp"><b>Comprador:</b> ${esc((pc && pc.nombre) || '—')} · ${esc((pc && pc.contacto) || 'sin contacto')}</div>
+          ${o.motivo ? `<div class="op-motivo"><span>Lo que dice quien abrió la disputa:</span>${esc(o.motivo)}</div>` : '<div class="mk-hint">No dejó explicación.</div>'}
+          <div class="op-acts">
+            <button class="op-b" data-res1="${o.id}">Razón al COMPRADOR</button>
+            <button class="op-b gris" data-res0="${o.id}">Razón al VENDEDOR</button>
+            <button class="op-b gris" data-anu="${o.id}">Anular · devolver todo</button>
+          </div></div>`;
+      }).join('');
+    wireOps();
+  } catch (e) { box.innerHTML = `<div class="mk-vacio">No se pudo cargar.</div>`; }
 }
 
 /* ── Cómo funciona ── */
@@ -539,8 +629,11 @@ async function listarOfertas() {
     const total = Number(await lee('totalOrdenes'));
     if (total === 0) { box.innerHTML = `<div class="mk-vacio">Todavía no hay ofertas publicadas.<br>Sé el primero: pasa a "Vender".</div>`; return; }
     const desde = total > 40 ? total - 40 : 0;
-    const ids = await lee('ordenesAbiertas', [desde, 40]);
-    if (!ids || ids.length === 0) { box.innerHTML = `<div class="mk-vacio">No hay ofertas abiertas ahora mismo.</div>`; return; }
+    const todos = [];
+    for (let i = total; i > desde; i--) todos.push(i);
+    const crudas = await Promise.all(todos.map(i => lee('ordenes', [i]).catch(() => null)));
+    const ids = crudas.filter(o => o && Number(o.estado) === 0).map(o => o.id);
+    if (ids.length === 0) { box.innerHTML = `<div class="mk-vacio">No hay publicaciones abiertas ahora mismo.</div>`; return; }
     const datos = await Promise.all(ids.map(async (id) => {
       const [o, p, r] = await Promise.all([
         lee('ordenes', [id]).catch(() => null),
@@ -603,8 +696,9 @@ function tarjeta({ o, perf, rep }, cuenta) {
     ${otras.length ? `<div class="tj-otras">También: ${otras.map(x => `<b>${num(x.v, x.v >= 100 ? 0 : 2)}</b> ${esc(x.m)}`).join(' · ')}</div>` : ''}
 
     <div class="tj-pie">
-      ${conRep ? `<span class="st">★ ${(Number(rep.estrellasX100) / 100).toFixed(1)}</span>` : ''}
-      ${ventas > 0 ? `<span>${ventas} ventas</span>` : (conRep ? '' : '<span class="nuevo">Nuevo</span>')}
+      ${(conRep || ventas > 0)
+        ? `<div class="tj-estrellas">${conRep ? `<span class="st">${'★'.repeat(Math.round(Number(rep.estrellasX100) / 100))}${'☆'.repeat(5 - Math.round(Number(rep.estrellasX100) / 100))}</span><b>${(Number(rep.estrellasX100) / 100).toFixed(1)}</b>` : ''}${ventas > 0 ? `<span class="ops">${ventas} ${ventas === 1 ? 'venta' : 'ventas'}</span>` : ''}</div>`
+        : '<span class="nuevo">Nuevo · sin historial</span>'}
     </div>
 
     <button class="tj-btn${mio ? ' gris' : ''}" data-ver="${o.id}">${mio ? 'Mi publicación' : (compra ? 'Quiero venderle' : 'Comprar')}</button>
@@ -1255,7 +1349,7 @@ function pintarPaso(p) {
     marco(7, 8, '¿Cómo quieren que te contacten?', 'Pon al menos una vía. Sin esto nadie puede cerrar el trato contigo.',
       VIAS.map(v => `<label>${v.lab}</label><input class="wz-ct" data-ct="${v.id}" maxlength="40" placeholder="${v.ph}" value="${esc(W.contactos[v.id] || '')}">`).join('') +
       `<label>¿En qué horario prefieres que te escriban? <span class="op">(opcional)</span></label>
-       <div class="mk-sel"><select id="wz-hora-sel">
+       <div class="mk-sel wz-sel"><select id="wz-hora-sel">
          <option value="">Elige uno…</option>
          ${['A cualquier hora', 'Mañanas (9am a 1pm)', 'Tardes (1pm a 7pm)', 'Noches (7pm a 11pm)', '9am a 9pm'].map(h => `<option${W.horario === h ? ' selected' : ''}>${h}</option>`).join('')}
        </select></div>
@@ -1361,6 +1455,143 @@ async function publicarWiz() {
   } catch (e) { wmsg(traducir(e), 'err'); if (btn) btn.disabled = false; }
 }
 
+/* ── Comprar: publicar un anuncio de compra ── */
+async function panelComprar() {
+  const box = $('mk-p5'); if (!box) return;
+  const cuenta = wallet.cuentaActual && wallet.cuentaActual();
+  if (!cuenta) { box.innerHTML = `<div class="mk-vacio">Conecta tu wallet para publicar que quieres comprar.</div>`; return; }
+  box.innerHTML = `
+  <div class="mk-box mk-lanza">
+    <div class="lz-t">¿No encuentras lo que buscas?</div>
+    <div class="lz-d">Publica que <b style="color:#7fb8ff">quieres comprar</b> y deja que los vendedores te contacten a ti. Dices cuánto quieres, a cómo lo pagas y por dónde. Cuesta lo mismo: 1 USD en BNB.</div>
+    <button class="mk-b" id="mk-abrir-cwiz">Quiero comprar</button>
+  </div>
+  <div class="mk-box">
+    <div class="bt">Cómo funciona</div>
+    <div class="op-exp">Tu anuncio sale en la lista con la etiqueta azul <b>Compro</b>. No trabas nada de cripto ni necesitas fianza: es una publicación para que te encuentren. Cuando alguien te escriba, se ponen de acuerdo y esa persona publica la venta con caja fuerte.</div>
+  </div>`;
+  if ($('mk-abrir-cwiz')) $('mk-abrir-cwiz').onclick = () => abrirAsistenteCompra();
+}
+
+let C = null;
+export function abrirAsistenteCompra() {
+  C = { token: USDT, tokSel: null, sim: 'USDT', cant: 0, cobros: [], datos: {}, monedas: [], precios: {}, contactos: {} };
+  pasoC(1);
+}
+function pasoC(p) {
+  if (p === 1) {
+    marco(1, 5, '¿Qué quieres comprar?', 'Elige la moneda digital que buscas.',
+      `<div class="wz-ops">
+        <button class="wz-op ${C.tokSel === USDT ? 'on' : ''}" data-ctok="${USDT}" data-csim="USDT"><b>USDT</b><span>Tether · la más usada</span></button>
+        <button class="wz-op ${C.tokSel === USDC ? 'on' : ''}" data-ctok="${USDC}" data-csim="USDC"><b>USDC</b><span>USD Coin</span></button>
+      </div>`, { atras: false });
+    document.querySelectorAll('[data-ctok]').forEach(b => b.onclick = () => {
+      document.querySelectorAll('[data-ctok]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on'); C.tokSel = b.getAttribute('data-ctok'); C.token = C.tokSel; C.sim = b.getAttribute('data-csim');
+    });
+    $('wz-ok').onclick = () => { if (!C.tokSel) { wmsg('Elige qué quieres comprar.', 'err'); return; } pasoC(2); };
+    return;
+  }
+  if (p === 2) {
+    marco(2, 5, `¿Cuánto ${C.sim} quieres comprar?`, 'La cantidad que buscas.',
+      `<div class="mk-step-in">
+        <button type="button" class="mk-mm" data-cmm="-">−</button>
+        <input id="cz-cant" type="text" inputmode="decimal" placeholder="0.00" value="${C.cant || ''}">
+        <button type="button" class="mk-mm" data-cmm="+">+</button>
+      </div>`);
+    const inp = $('cz-cant');
+    document.querySelectorAll('[data-cmm]').forEach(b => b.onclick = () => {
+      let v = Number(String(inp.value || '').replace(',', '.')) || 0;
+      v = b.getAttribute('data-cmm') === '+' ? v + 10 : Math.max(0, v - 10);
+      inp.value = String(Math.round(v * 100) / 100);
+    });
+    $('wz-ok').onclick = () => {
+      const v = Number(String(inp.value || '').replace(',', '.')) || 0;
+      if (!(v > 0)) { wmsg('Escribe cuánto quieres comprar.', 'err'); return; }
+      C.cant = v; pasoC(3);
+    };
+    $('wz-atras').onclick = () => pasoC(1);
+    return;
+  }
+  if (p === 3) {
+    marco(3, 5, '¿Cómo vas a pagar?', 'Marca todas las formas con las que puedes pagar.',
+      `<div class="wz-ops" id="cz-cobros">${COBROS.map(c =>
+        `<button class="wz-op ${C.cobros.includes(c.id) ? 'on' : ''}" data-cco="${c.id}"><b>${c.nom}</b><span>${c.desc}</span></button>`).join('')}</div>`);
+    document.querySelectorAll('[data-cco]').forEach(b => b.onclick = () => {
+      const id = b.getAttribute('data-cco'); b.classList.toggle('on');
+      C.cobros = C.cobros.includes(id) ? C.cobros.filter(x => x !== id) : [...C.cobros, id];
+    });
+    $('wz-ok').onclick = () => {
+      if (C.cobros.length === 0) { wmsg('Marca al menos una forma de pago.', 'err'); return; }
+      C.posibles = [...new Set(C.cobros.flatMap(id => (COBROS.find(c => c.id === id) || {}).monedas || []))];
+      C.monedas = C.monedas.filter(m => C.posibles.includes(m));
+      pasoC(4);
+    };
+    $('wz-atras').onclick = () => pasoC(2);
+    return;
+  }
+  if (p === 4) {
+    marco(4, 5, '¿En qué moneda pagas y a cómo?', 'Marca la moneda y pon lo que estás dispuesto a pagar.',
+      `<div class="wz-ops chicas" id="cz-monedas">${(C.posibles || []).map(m =>
+        `<button class="wz-op ${C.monedas.includes(m) ? 'on' : ''}" data-cmo="${m}"><b>${m}</b><span>${NOMBRE_MONEDA[m] || ''}</span></button>`).join('')}</div>
+       <div id="cz-precios"></div>`);
+    const pintar = () => {
+      $('cz-precios').innerHTML = C.monedas.map(m => `<label>¿Cuántos <b>${m}</b> pagas por cada <b>1 ${C.sim}</b>?</label>
+        <input class="cz-precio" data-cmo="${m}" type="text" inputmode="decimal" placeholder="${['USD','MLC','EUR'].includes(m) ? 'Ej: 1.05' : 'Ej: 380'}" value="${C.precios[m] || ''}">`).join('');
+      document.querySelectorAll('.cz-precio').forEach(i => i.oninput = () => { C.precios[i.getAttribute('data-cmo')] = i.value; });
+    };
+    document.querySelectorAll('[data-cmo]').forEach(b => b.onclick = () => {
+      const m = b.getAttribute('data-cmo'); b.classList.toggle('on');
+      C.monedas = C.monedas.includes(m) ? C.monedas.filter(x => x !== m) : [...C.monedas, m];
+      pintar();
+    });
+    pintar();
+    $('wz-ok').onclick = () => {
+      if (C.monedas.length === 0) { wmsg('Marca al menos una moneda.', 'err'); return; }
+      for (const m of C.monedas) { if (!(Number(String(C.precios[m] || '').replace(',', '.')) > 0)) { wmsg(`Falta el precio para ${m}.`, 'err'); return; } }
+      pasoC(5);
+    };
+    $('wz-atras').onclick = () => pasoC(3);
+    return;
+  }
+  if (p === 5) {
+    const VIAS = [{ id: 'Telegram', lab: 'Usuario de Telegram', ph: '@tuusuario' }, { id: 'WhatsApp', lab: 'WhatsApp (opcional)', ph: '+53 5xxxxxxx' }];
+    marco(5, 5, '¿Cómo te contactan?', 'Para que los vendedores puedan escribirte.',
+      VIAS.map(v => `<label>${v.lab}</label><input class="cz-ct" data-cct="${v.id}" maxlength="40" placeholder="${v.ph}" value="${esc(C.contactos[v.id] || '')}">`).join(''),
+      { seguir: 'Publicar anuncio' });
+    document.querySelectorAll('.cz-ct').forEach(i => i.oninput = () => { C.contactos[i.getAttribute('data-cct')] = i.value; });
+    $('wz-ok').onclick = publicarCompra;
+    $('wz-atras').onclick = () => pasoC(4);
+    return;
+  }
+}
+
+async function publicarCompra() {
+  const hay = Object.values(C.contactos).filter(v => String(v || '').trim()).length;
+  if (hay === 0) { wmsg('Pon al menos una forma de contacto.', 'err'); return; }
+  const moneda = C.monedas.map(m => `${m} ${Number(String(C.precios[m]).replace(',', '.'))}`).join(' · ').slice(0, 160);
+  const metodo = C.cobros.join(' · ').slice(0, 160);
+  const primero = Number(String(C.precios[C.monedas[0]]).replace(',', '.')) || 0;
+  const btn = $('wz-ok'); if (btn) btn.disabled = true;
+  try {
+    const signer = await firmante();
+    const cuenta = await signer.getAddress();
+    const c = new ethers.Contract(MARKET, ABI, signer);
+    const cts = Object.entries(C.contactos).filter(([, v]) => String(v || '').trim()).map(([k, v]) => `${k}: ${String(v).trim()}`).join(' · ').slice(0, 200);
+    const p = await lee('perfiles', [cuenta]).catch(() => null);
+    if (!p || !p.existe || p.contacto !== cts) {
+      wmsg('Guardando tus datos…', 'info');
+      await (await c.guardarPerfil((p && p.nombre) || 'Comprador', (p && p.pais) || '', C.monedas[0] || 'USD', cts)).wait();
+    }
+    const fee = await lee('comisionBnb');
+    wmsg('Confirma la publicación (1 USD en BNB)…', 'info');
+    await (await c.crearAnuncioCompra(C.token, ethers.parseUnits(String(C.cant), 18), moneda, metodo, Math.round(primero * 100), { value: fee })).wait();
+    cerrarWiz();
+    msg('¡Anuncio publicado! Los vendedores ya pueden verte.', 'ok');
+    $('mk-t1').click(); listarOfertas();
+  } catch (e) { wmsg(traducir(e), 'err'); if (btn) btn.disabled = false; }
+}
+
 /* ── Mis operaciones ── */
 async function panelMisOps() {
   const box = $('mk-p3'); if (!box) return;
@@ -1443,7 +1674,8 @@ function opCard({ o, perfOtro }, cuenta, esOwner) {
         titulo = `${esc(otroNom)} reservó tu oferta`;
         explica = `Ahora te toca <b>contactarlo</b> y ponerte de acuerdo. Cuando te pague la parte ${hechos + 1}, él marcará el pago y tú lo confirmas aquí.`;
         acciones = otroCt ? `<div class="op-ct">${esc(otroCt)}</div>` : '';
-        acciones += `<button class="op-b gris" data-disp="${o.id}">Tengo un problema</button>`;
+        acciones += `<button class="op-b gris" data-canmut="${o.id}">Cancelar de mutuo acuerdo</button>
+                     <button class="op-b gris" data-disp="${o.id}">Tengo un problema</button>`;
       }
     } else {
       if (o.tramoPagado) {
@@ -1455,6 +1687,7 @@ function opCard({ o, perfOtro }, cuenta, esOwner) {
         explica = `Contacta a ${esc(otroNom)}, págale lo acordado por esta parte y <b>solo entonces</b> marca abajo que ya pagaste. Recibirás ${num(porTramo, 2)} ${sim}.`;
         acciones = otroCt ? `<div class="op-ct">${esc(otroCt)}</div>` : '';
         acciones += `<button class="op-b" data-pag="${o.id}">Ya le pagué la parte ${hechos + 1}</button>
+                     <button class="op-b gris" data-canmut="${o.id}">Cancelar de mutuo acuerdo</button>
                      <button class="op-b gris" data-disp="${o.id}">Tengo un problema</button>`;
       }
     }
@@ -1473,8 +1706,9 @@ function opCard({ o, perfOtro }, cuenta, esOwner) {
     explica = 'Un árbitro va a revisar el caso y decidirá quién tiene razón. Mientras tanto, la cripto sigue trabada y segura.';
     if (esOwner) {
       acciones = `<div class="op-arb">Eres el árbitro. Revisa los comprobantes antes de decidir.</div>
-        <button class="op-b" data-res1="${o.id}">Dar la razón al COMPRADOR</button>
-        <button class="op-b gris" data-res0="${o.id}">Dar la razón al VENDEDOR</button>`;
+        <button class="op-b" data-res1="${o.id}">Razón al COMPRADOR</button>
+        <button class="op-b gris" data-res0="${o.id}">Razón al VENDEDOR</button>
+        <button class="op-b gris" data-anu="${o.id}">Anular · devolver todo</button>`;
     }
   }
 
@@ -1519,11 +1753,19 @@ function wireOps() {
     ok: 'Sí, me llegó · liberar'
   }, () => tx('liberarTramo', b.getAttribute('data-lib'), 'Parte liberada.')));
 
-  document.querySelectorAll('[data-disp]').forEach(b => b.onclick = () => confirmar({
-    titulo: '¿Abrir una disputa?',
-    texto: 'Úsalo solo si hay un problema real: no te llegó el pago, o pagaste y no te liberan.<br><br>Al abrirla, <b>la operación se detiene</b> y un árbitro tendrá que revisarla. Puede tardar. Si es un malentendido, intenta primero hablarlo por el contacto.',
-    ok: 'Sí, abrir disputa', peligro: true
-  }, () => tx('abrirDisputa', b.getAttribute('data-disp'), 'Disputa abierta. Un árbitro la revisará.')));
+  document.querySelectorAll('[data-disp]').forEach(b => b.onclick = () => pedirMotivo(b.getAttribute('data-disp')));
+
+  document.querySelectorAll('[data-canmut]').forEach(b => b.onclick = () => confirmar({
+    titulo: 'Cancelar de mutuo acuerdo',
+    texto: 'Si los dos lo piden, la operación se cierra sin culpables y <b>la cripto que quede vuelve al vendedor</b>. Nadie pierde reputación.<br><br>Tu petición queda registrada; se cancela cuando la otra persona también lo pida.',
+    ok: 'Sí, pedir cancelación'
+  }, () => tx('pedirCancelar', b.getAttribute('data-canmut'), 'Pedido registrado. Falta que la otra persona lo pida también.')));
+
+  document.querySelectorAll('[data-anu]').forEach(b => b.onclick = () => confirmar({
+    titulo: 'Anular la disputa',
+    texto: 'Se cierra sin culpables y <b>la cripto trabada vuelve al vendedor</b>. Úsalo cuando fue un malentendido.',
+    ok: 'Anular', peligro: true
+  }, () => tx('anularDisputa', b.getAttribute('data-anu'), 'Disputa anulada.')));
 
   document.querySelectorAll('[data-cancel2]').forEach(b => b.onclick = () => confirmar({
     titulo: '¿Cancelar tu publicación?',
@@ -1544,6 +1786,37 @@ function wireOps() {
   }, () => tx('resolverDisputa', b.getAttribute('data-res0'), 'Disputa resuelta.', false)));
 
   document.querySelectorAll('[data-cal]').forEach(b => b.onclick = () => pedirEstrellas(b.getAttribute('data-cal')));
+}
+
+/* Disputa: pedimos que expliquen qué pasó */
+function pedirMotivo(id) {
+  const d = document.createElement('div');
+  d.className = 'mk-wiz-bg';
+  d.innerHTML = `<div class="mk-wiz-c" style="max-width:420px">
+    <div class="mk-wiz-t">¿Qué pasó?</div>
+    <div class="mk-wiz-s">Cuéntalo en pocas palabras. Esto lo lee el árbitro para poder decidir, así que <b>sé concreto</b>: qué acordaron, qué pagaste o qué esperabas.</div>
+    <div class="mk-wiz-b">
+      <textarea id="dm-txt" maxlength="300" rows="4" placeholder="Ej: le pagué 120 CUP por Transferencia el día 8 a las 3pm y no me ha liberado la parte 1."></textarea>
+      <div class="mk-hint">Al abrirla, <b>la operación se detiene</b> hasta que el árbitro decida (máximo 48 h). Si es un malentendido, intenta hablarlo primero por el contacto.</div>
+    </div>
+    <div class="mk-wiz-acts"><button class="mk-b gris" data-no>Volver</button><button class="mk-b peligro" data-si>Abrir disputa</button></div>
+    <div class="mk-msg info" id="dm-msg"></div>
+  </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => d.remove();
+  d.querySelector('[data-no]').onclick = cerrar;
+  d.onclick = (e) => { if (e.target === d) cerrar(); };
+  d.querySelector('[data-si]').onclick = async () => {
+    const t = ($('dm-txt').value || '').trim();
+    const m = $('dm-msg');
+    if (t.length < 10) { m.className = 'mk-msg err'; m.textContent = 'Explica un poco más, para que el árbitro entienda.'; return; }
+    try {
+      m.className = 'mk-msg info'; m.textContent = 'Confirma en tu wallet…';
+      const c = new ethers.Contract(MARKET, ABI, await firmante());
+      await (await c.abrirDisputa(id, t.slice(0, 300))).wait();
+      cerrar(); msg('Disputa abierta. Se revisará en un máximo de 48 horas.', 'ok'); panelMisOps();
+    } catch (e) { m.className = 'mk-msg err'; m.textContent = traducir(e); }
+  };
 }
 
 /* Confirmación con explicación (nunca una acción grave a ciegas) */
