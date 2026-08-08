@@ -1,6 +1,6 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=50';
+import * as wallet from './wallet.js?v=51';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
@@ -67,7 +67,10 @@ const num = (n, d = 2) => Number(n).toLocaleString('es', { minimumFractionDigits
 const simbolo = (t) => TOKENS[String(t).toLowerCase()] || 'Token';
 const ESTADOS = ['Abierta', 'En curso', 'Completada', 'Cancelada', 'En disputa'];
 const MONEDAS = ['CUP', 'MLC', 'USD', 'MXN', 'COP', 'ARS', 'EUR', 'BRL', 'CAD', 'CLP', 'PEN', 'DOP', 'VES'];
-const METODOS = ['Transferencia', 'Saldo movil', 'Efectivo', 'Zelle', 'Otro'];
+const METODOS = ['Transferencia', 'Zelle', 'PayPal', 'Saldo movil', 'Efectivo', 'Otro'];
+// Monedas "a la par" (se cotizan cerca de 1:1 con el dólar): sugerimos multiplicadores.
+const PAR = ['USD', 'MLC', 'EUR'];
+const SUGERE = { CUP: [380, 400, 420, 440], MXN: [17, 18, 19, 20], COP: [3900, 4000, 4200], ARS: [1000, 1100, 1200], VES: [36, 38, 40], DOP: [58, 60, 62], PEN: [3.7, 3.8, 3.9], CLP: [900, 950, 1000], BRL: [5, 5.2, 5.5], CAD: [1.35, 1.4, 1.45] };
 
 /* ── Distancia (se calcula en el navegador; nada se guarda on-chain) ── */
 const claveUbic = (a) => 'aurex-ubic:' + String(a).toLowerCase();
@@ -139,6 +142,33 @@ function estilos() {
 
   #mk-overlay label{display:block;font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.7px;margin:12px 0 6px}
   #mk-overlay input,#mk-overlay select{width:100%;background:#0b0e12;border:1px solid #2b3139;border-radius:10px;color:#eaecef;font-family:var(--mono,monospace);font-size:14px;padding:12px}
+  #mk-overlay input[type=number]::-webkit-outer-spin-button,#mk-overlay input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  /* Desplegable con flecha propia, bien separada del borde */
+  #mk-overlay .mk-sel{position:relative}
+  #mk-overlay .mk-sel select{-webkit-appearance:none;-moz-appearance:none;appearance:none;padding-right:44px;cursor:pointer}
+  #mk-overlay .mk-sel::after{content:'';position:absolute;right:16px;top:50%;width:8px;height:8px;border-right:2px solid var(--gold,#E8B84B);border-bottom:2px solid var(--gold,#E8B84B);transform:translateY(-70%) rotate(45deg);pointer-events:none;border-radius:1px}
+  #mk-overlay .mk-sel::before{content:'';position:absolute;right:6px;top:6px;bottom:6px;width:32px;border-left:1px solid #2b3139;pointer-events:none}
+  /* Cantidad con − y + propios */
+  #mk-overlay .mk-step-in{display:flex;gap:7px;align-items:stretch}
+  #mk-overlay .mk-step-in input{flex:1;min-width:0;text-align:center;font-size:16px;font-weight:700}
+  #mk-overlay .mk-mm{flex:0 0 auto;width:48px;border-radius:10px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:var(--gold,#E8B84B);font-size:20px;font-weight:800;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.4);line-height:1}
+  #mk-overlay .mk-mm:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+  /* Chips seleccionables */
+  #mk-overlay .mk-chips-sel{display:flex;flex-wrap:wrap;gap:7px}
+  #mk-overlay .mk-cs{padding:9px 13px;border-radius:9px;border:1px solid #2b3139;background:linear-gradient(180deg,#1b2027,#0d1117);color:#b7bdc6;font-family:var(--mono,monospace);font-size:12px;cursor:pointer;font-weight:700}
+  #mk-overlay .mk-cs.on{color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);border-color:#c79426;box-shadow:0 2px 0 #8f6a1a}
+  #mk-overlay .mk-rapidos{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  #mk-overlay .mk-rp{padding:7px 12px;border-radius:8px;border:1px solid #3a424c;background:rgba(255,255,255,.04);color:var(--gold,#E8B84B);font-family:var(--mono,monospace);font-size:12px;cursor:pointer}
+  #mk-overlay .mk-rp:active{transform:translateY(1px)}
+  #mk-overlay .mk-hint{font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;line-height:1.55;margin-top:6px}
+  #mk-overlay .mk-hint b{color:var(--gold-soft,#C9A84B)}
+  #mk-overlay .mk-lab-s{text-transform:none;letter-spacing:0;color:#5f6a75}
+  #mk-overlay .mk-i{width:16px;height:16px;border-radius:50%;border:1px solid #6f7a86;background:transparent;color:#8b96a3;font-size:10px;font-style:italic;font-family:Georgia,serif;cursor:pointer;display:inline-grid;place-items:center;vertical-align:middle;margin-left:4px;padding:0}
+  #mk-overlay .mk-i:hover{border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
+  #mk-overlay label b{color:var(--gold,#E8B84B)}
+  #mk-overlay .mk-chip.pr{background:rgba(232,184,75,.1);border-color:rgba(232,184,75,.35);color:var(--gold,#E8B84B)}
+  #mk-overlay .mk-chip.pr b{color:#eaecef;font-size:12.5px}
+  #mk-overlay .tx-s{display:none}
   #mk-overlay input:focus,#mk-overlay select:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
   #mk-overlay .mk-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   #mk-overlay .mk-msg{font-family:var(--mono,monospace);font-size:12px;text-align:center;margin-top:12px;min-height:16px;line-height:1.5}
@@ -200,7 +230,13 @@ function estilos() {
     #mk-overlay .mk-title{font-size:20px}
     #mk-overlay .mk-2{grid-template-columns:1fr}
     #mk-overlay .mk-b{min-width:100%}
-    #mk-overlay .mk-tab{font-size:11px;padding:9px 4px}
+    #mk-overlay .mk-tab{font-size:11px;padding:9px 3px}
+    #mk-overlay .tx-l{display:none} #mk-overlay .tx-s{display:inline}
+    #mk-overlay label{font-size:9.5px;letter-spacing:.4px}
+    #mk-overlay .mk-cs{padding:8px 11px;font-size:11px}
+    #mk-overlay .mk-mm{width:42px;font-size:18px}
+    #mk-overlay .mk-hint{font-size:11px}
+    #mk-overlay .mk-chip{font-size:10px;padding:4px 8px}
   }`;
   document.head.appendChild(s);
 }
@@ -248,8 +284,8 @@ export async function abrirMarket() {
   <div class="mk-tabs">
     <button class="mk-tab on" id="mk-t1">Ofertas</button>
     <button class="mk-tab" id="mk-t2">Vender</button>
-    <button class="mk-tab" id="mk-t3">Mis operaciones</button>
-    <button class="mk-tab" id="mk-t4">Cómo funciona</button>
+    <button class="mk-tab" id="mk-t3">Operaciones</button>
+    <button class="mk-tab" id="mk-t4"><span class="tx-l">Cómo funciona</span><span class="tx-s">Guía</span></button>
   </div>
   <div class="mk-pane on" id="mk-p1"><div class="mk-vacio">Cargando ofertas…</div></div>
   <div class="mk-pane" id="mk-p2"></div>
@@ -264,6 +300,7 @@ export async function abrirMarket() {
     $(t).onclick = () => {
       tabs.forEach(([tt, pp], j) => { $(tt).classList.toggle('on', i === j); $(pp).classList.toggle('on', i === j); });
       $('mk-card').scrollTop = 0; msg('');
+      if (i === 0) listarOfertas();
       if (i === 1) panelVender();
       if (i === 2) panelMisOps();
       if (i === 3) { const b = $('mk-ir-vender'); if (b) b.onclick = () => $('mk-t2').click(); }
@@ -348,9 +385,14 @@ function tarjeta({ o, perf, rep }, cuenta) {
       <div class="mk-monto"><b>${num(monto, 2)}</b><span>${sim}</span></div>
     </div>
     <div class="mk-chips">
-      ${precio > 0 ? `<span class="mk-chip">Precio <b>${num(precio, 2)} ${esc(o.moneda)}</b></span>` : `<span class="mk-chip">Moneda <b>${esc(o.moneda)}</b></span>`}
-      <span class="mk-chip">${esc(o.metodo)}</span>
-      <span class="mk-chip">En <b>${o.tramos}</b> tramos de <b>${num(porTramo, 2)}</b></span>
+      ${String(o.moneda || '').split('·').filter(Boolean).map(p => {
+        const t = p.trim().split(/\s+/);
+        return `<span class="mk-chip pr"><b>${esc(t[1] || '')}</b> ${esc(t[0] || '')}</span>`;
+      }).join('')}
+    </div>
+    <div class="mk-chips">
+      ${String(o.metodo || '').split('·').filter(Boolean).map(p => `<span class="mk-chip">${esc(p.trim())}</span>`).join('')}
+      <span class="mk-chip">En <b>${o.tramos}</b> partes de <b>${num(porTramo, 2)}</b></span>
     </div>
     <div class="mk-acts">
       ${mio
@@ -501,27 +543,43 @@ async function panelVender() {
     <button class="mk-b" id="mk-dep" style="margin-top:10px">Depositar fianza</button>
   </div>` : ''}
 
-  ${tienePerfil && fOk ? `
+  ${listo ? `
   <div class="mk-box">
     <div class="bt">Paso 3 · Publica tu oferta</div>
-    <div class="mk-2">
-      <div><label>Qué vendes</label><select id="mk-tok"><option value="${USDT}">USDT</option><option value="${USDC}">USDC</option></select></div>
-      <div><label>Cantidad</label><input id="mk-cant" type="number" step="any" placeholder="100"></div>
+
+    <label>Qué vendes</label>
+    <div class="mk-sel"><select id="mk-tok"><option value="${USDT}">USDT</option><option value="${USDC}">USDC</option></select></div>
+
+    <label>Cantidad que pones a la venta</label>
+    <div class="mk-step-in">
+      <button type="button" class="mk-mm" data-mm="-">−</button>
+      <input id="mk-cant" type="text" inputmode="decimal" placeholder="0.00">
+      <button type="button" class="mk-mm" data-mm="+">+</button>
     </div>
-    <div class="mk-2">
-      <div><label>En cuántos tramos</label><select id="mk-tra"><option value="10">10 partes (máxima seguridad)</option><option value="5" selected>5 partes (recomendado)</option><option value="4">4 partes</option><option value="3">3 partes</option><option value="2">2 partes (mínimo)</option></select></div>
-      <div><label>Moneda que aceptas</label><select id="mk-moneda">${MONEDAS.map(m => `<option${perf.moneda === m ? ' selected' : ''}>${m}</option>`).join('')}</select></div>
-    </div>
-    <div class="mk-2">
-      <div><label>Cómo te pagan</label><select id="mk-met">${METODOS.map(m => `<option>${m}</option>`).join('')}</select></div>
-      <div><label>Precio por unidad</label><input id="mk-prec" type="number" step="any" placeholder="Ej: 420"></div>
-    </div>
+
+    <label>Divide tu venta en partes <button class="mk-i" id="mk-i-partes" type="button">i</button></label>
+    <div class="mk-sel"><select id="mk-tra">
+      <option value="10">10 partes · máxima seguridad</option>
+      <option value="5" selected>5 partes · recomendado</option>
+      <option value="4">4 partes</option>
+      <option value="3">3 partes</option>
+      <option value="2">2 partes · mínimo</option>
+    </select></div>
+
+    <label>Qué aceptas que te paguen <span class="mk-lab-s">(puedes marcar varias)</span></label>
+    <div class="mk-chips-sel" id="mk-monedas">${MONEDAS.map(m => `<button type="button" class="mk-cs${perf.moneda === m ? ' on' : ''}" data-mon="${m}">${m}</button>`).join('')}</div>
+
+    <div id="mk-precios"></div>
+
+    <label>Cómo te lo pueden pagar <span class="mk-lab-s">(puedes marcar varias)</span></label>
+    <div class="mk-chips-sel" id="mk-metodos">${METODOS.map(m => `<button type="button" class="mk-cs" data-met="${m}">${m}</button>`).join('')}</div>
+
     <div class="mk-aviso">
-      <b>Mientras en más partes lo dividas, más seguro estás.</b> El estafador necesita que le sueltes todo de golpe; si solo puede tocar una parte pequeña y para seguir tiene que cumplir, deja de valerle la pena y casi siempre ni lo intenta. Y si algo sale mal, <b>lo único en riesgo es esa parte</b>, no tu venta completa.
+      <b>Mientras en más partes lo dividas, más seguro estás.</b> El estafador necesita que le sueltes todo de golpe; si solo puede tocar una parte pequeña y para seguir tiene que cumplir, deja de valerle la pena. Y si algo sale mal, <b>lo único en riesgo es esa parte</b>.
     </div>
     <div class="mk-escala" id="mk-escala"></div>
     <button class="mk-b" id="mk-pub" style="margin-top:14px">Publicar oferta</button>
-    <div style="font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-align:center;margin-top:9px">Tu cripto queda trabada en el contrato hasta que confirmes cada tramo.</div>
+    <div style="font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-align:center;margin-top:9px">Tu cripto queda trabada en el contrato hasta que confirmes cada parte.</div>
   </div>` : ''}
 
   ${tienePerfil ? `
@@ -543,18 +601,73 @@ async function panelVender() {
   if ($('mk-pub')) $('mk-pub').onclick = publicar;
   if ($('mk-ubic-on')) $('mk-ubic-on').onclick = activarUbicacion;
   if ($('mk-ubic-off')) $('mk-ubic-off').onclick = quitarUbicacion;
+
+  // ── Chips de selección múltiple ──
+  const wireChips = (cont, alCambiar) => {
+    document.querySelectorAll(`#${cont} .mk-cs`).forEach(b => b.onclick = () => { b.classList.toggle('on'); if (alCambiar) alCambiar(); });
+  };
+
+  const recordarPrecios = () => {
+    window.__mkPrecios = window.__mkPrecios || {};
+    document.querySelectorAll('.mk-precio').forEach(i => { window.__mkPrecios[i.getAttribute('data-mon')] = i.value; });
+  };
+
+  // ── Un precio por cada moneda marcada ──
+  const pintarPrecios = () => {
+    const box = $('mk-precios'); if (!box) return;
+    const sel = [...document.querySelectorAll('#mk-monedas .mk-cs.on')].map(b => b.getAttribute('data-mon'));
+    const sim = ($('mk-tok') && $('mk-tok').selectedOptions[0]) ? $('mk-tok').selectedOptions[0].text : 'USDT';
+    if (sel.length === 0) { box.innerHTML = `<div class="mk-hint" style="margin-top:8px">Marca arriba al menos una moneda para poner tu precio.</div>`; return; }
+    box.innerHTML = sel.map(m => {
+      const previo = (window.__mkPrecios || {})[m] || '';
+      const par = PAR.includes(m);
+      const rapidos = par ? [1, 1.05, 1.1, 1.2] : (SUGERE[m] || []);
+      return `<label>¿Cuántos <b>${m}</b> por cada <b>1 ${sim}</b>?</label>
+        ${rapidos.length ? `<div class="mk-rapidos">${rapidos.map(v => `<button type="button" class="mk-rp" data-para="${m}" data-val="${v}">${par ? Number(v).toFixed(2) : v}</button>`).join('')}</div>` : ''}
+        <input class="mk-precio" data-mon="${m}" type="text" inputmode="decimal" placeholder="${par ? 'Ej: 1.10' : 'Ej: ' + (rapidos[1] || 100)}" value="${previo}">
+        <div class="mk-hint">${par ? `A la par pon <b>1.00</b>. Si lo vendes más caro, <b>1.10</b>, <b>1.20</b>…` : `Es la tasa de hoy: cuántos ${m} vale <b>1 ${sim}</b>.`}</div>`;
+    }).join('');
+    document.querySelectorAll('.mk-rp').forEach(b => b.onclick = () => {
+      const inp = document.querySelector(`.mk-precio[data-mon="${b.getAttribute('data-para')}"]`);
+      if (inp) { inp.value = b.getAttribute('data-val'); recordarPrecios(); }
+    });
+    document.querySelectorAll('.mk-precio').forEach(i => { i.oninput = recordarPrecios; });
+  };
+
+  // ── Escala visual de las partes ──
   const pintarEscala = () => {
     const box = $('mk-escala'); if (!box) return;
-    const cant = Number(($('mk-cant') || {}).value || 0);
+    const cant = Number(String(($('mk-cant') || {}).value || '').replace(',', '.')) || 0;
     const tr = Number(($('mk-tra') || {}).value || 5);
     const sim = ($('mk-tok') && $('mk-tok').selectedOptions[0]) ? $('mk-tok').selectedOptions[0].text : '';
-    if (!(cant > 0)) { box.innerHTML = `<div class="mk-escala-t"><span>Así se repartirá tu venta</span></div><div style="font-family:var(--mono,monospace);font-size:11px;color:#7d8794;text-align:center;padding:8px 0">Escribe la cantidad para verlo</div>`; return; }
+    if (!(cant > 0)) { box.innerHTML = `<div class="mk-escala-t"><span>Así se repartirá tu venta</span></div><div class="mk-hint" style="text-align:center;margin-top:6px">Escribe la cantidad para verlo</div>`; return; }
     const por = cant / tr;
-    box.innerHTML = `<div class="mk-escala-t"><span>Se entregará en <b>${tr}</b> partes</span><span>Cada parte: <b>${num(por, 2)} ${sim}</b></span></div>
+    box.innerHTML = `<div class="mk-escala-t"><span>Se entrega en <b>${tr}</b> partes</span><span>Cada parte: <b>${num(por, 2)} ${sim}</b></span></div>
       <div class="mk-escala-bar">${Array.from({ length: tr }, (_, i) => `<div class="mk-escala-p">${i + 1}</div>`).join('')}</div>
-      <div style="font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;margin-top:9px;line-height:1.6">Recibes el pago de la parte 1 → confirmas → se libera. Y así hasta la ${tr}. <b style="color:#E8B84B">Máximo en riesgo: ${num(por, 2)} ${sim}</b>, no ${num(cant, 2)}.</div>`;
+      <div class="mk-hint" style="margin-top:9px">Cobras la parte 1 → confirmas → se libera. Y así hasta la ${tr}. <b>Máximo en riesgo: ${num(por, 2)} ${sim}</b>, no ${num(cant, 2)}.</div>`;
   };
-  ['mk-cant', 'mk-tra', 'mk-tok'].forEach(id => { const e = $(id); if (e) { e.oninput = pintarEscala; e.onchange = pintarEscala; } });
+
+  // ── Stepper propio (sin las flechitas del navegador) ──
+  document.querySelectorAll('[data-mm]').forEach(b => b.onclick = () => {
+    const i = $('mk-cant'); if (!i) return;
+    let v = Number(String(i.value || '').replace(',', '.')) || 0;
+    v = b.getAttribute('data-mm') === '+' ? v + 10 : Math.max(0, v - 10);
+    i.value = String(Math.round(v * 100) / 100);
+    pintarEscala();
+  });
+
+  wireChips('mk-monedas', pintarPrecios);
+  wireChips('mk-metodos', null);
+  ['mk-cant', 'mk-tra', 'mk-tok'].forEach(id => {
+    const e = $(id); if (e) { e.oninput = () => { pintarEscala(); pintarPrecios(); }; e.onchange = () => { pintarEscala(); pintarPrecios(); }; }
+  });
+  const ip = $('mk-i-partes');
+  if (ip) ip.onclick = () => dialogo({ soloOk: true, ok: 'Entendido',
+    titulo: 'Dividir tu venta en partes',
+    texto: `Tu venta <b>no se entrega de golpe</b>: se parte en trozos.<br><br>
+      Ejemplo: vendes 500 USDT en 5 partes → salen de <b>100 en 100</b>. El comprador te paga la primera, tú confirmas, y se libera. Luego la segunda, y así.<br><br>
+      ¿Para qué? Para que <b>si alguien te intenta estafar, solo alcance una parte</b>, no toda tu venta. Mientras en más partes lo dividas, menos arriesgas.` });
+  pintarPrecios();
   pintarEscala();
 }
 
@@ -592,19 +705,33 @@ async function depositarFianza() {
 
 async function publicar() {
   const tok = $('mk-tok').value;
-  const cant = Number($('mk-cant').value || 0);
+  const cant = Number(String($('mk-cant').value || '').replace(',', '.')) || 0;
   const tramos = Number($('mk-tra').value);
-  const moneda = $('mk-moneda').value;
-  const metodo = $('mk-met').value;
-  const precio = Number($('mk-prec').value || 0);
-  if (!(cant > 0)) { msg('Pon la cantidad.', 'err'); return; }
-  const porTramo = cant / tramos;
-  if (Math.abs(porTramo * tramos - cant) > 1e-9) { msg('La cantidad debe dividirse exacta entre los tramos.', 'err'); return; }
+  const monedas = [...document.querySelectorAll('#mk-monedas .mk-cs.on')].map(b => b.getAttribute('data-mon'));
+  const metodos = [...document.querySelectorAll('#mk-metodos .mk-cs.on')].map(b => b.getAttribute('data-met'));
+
+  if (!(cant > 0)) { msg('Escribe la cantidad que vas a vender.', 'err'); return; }
+  if (monedas.length === 0) { msg('Marca al menos una moneda que aceptas.', 'err'); return; }
+  if (metodos.length === 0) { msg('Marca al menos una forma de pago.', 'err'); return; }
+
+  // Precio de cada moneda: "CUP 420 · USD 1.10"
+  const partes = [];
+  let primero = 0;
+  for (const m of monedas) {
+    const inp = document.querySelector(`.mk-precio[data-mon="${m}"]`);
+    const v = Number(String((inp && inp.value) || '').replace(',', '.')) || 0;
+    if (!(v > 0)) { msg(`Falta el precio para ${m}.`, 'err'); return; }
+    if (primero === 0) primero = v;
+    partes.push(`${m} ${v}`);
+  }
+  const moneda = partes.join(' · ').slice(0, 160);
+  const metodo = metodos.join(' · ').slice(0, 160);
+
   try {
     const signer = await firmante();
     const cuenta = await signer.getAddress();
     const monto = ethers.parseUnits(String(cant), 18);
-    if (monto % BigInt(tramos) !== 0n) { msg('Elige una cantidad que se divida exacta entre los tramos.', 'err'); return; }
+    if (monto % BigInt(tramos) !== 0n) { msg('Elige una cantidad que se divida exacta entre las partes.', 'err'); return; }
     const t = new ethers.Contract(tok, ERC20, signer);
     msg('Revisando permiso…', 'info');
     if ((await t.allowance(cuenta, MARKET)) < monto) {
@@ -614,9 +741,9 @@ async function publicar() {
     const fee = await lee('comisionBnb');
     msg('Confirma la publicación…', 'info');
     const c = new ethers.Contract(MARKET, ABI, signer);
-    await (await c.crearOrden(tok, monto, tramos, moneda, metodo, Math.round(precio * 100), { value: fee })).wait();
-    msg('¡Oferta publicada!', 'ok');
-    setTimeout(() => { $('mk-t1').click(); }, 1000);
+    await (await c.crearOrden(tok, monto, tramos, moneda, metodo, Math.round(primero * 100), { value: fee })).wait();
+    msg('¡Oferta publicada! Ya la puede ver todo el mundo.', 'ok');
+    setTimeout(() => { $('mk-t1').click(); listarOfertas(); }, 900);
   } catch (e) { msg(traducir(e), 'err'); }
 }
 
