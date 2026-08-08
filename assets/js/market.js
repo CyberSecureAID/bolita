@@ -1,6 +1,6 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=54';
+import * as wallet from './wallet.js?v=55';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
@@ -230,26 +230,47 @@ function estilos() {
   .mk-wiz-c .tj-moneda.grande{width:50px;height:50px}
   .mk-wiz-c .fc-ct .ic{display:grid;place-items:center}
   /* ── Tarjetas en cuadrícula ── */
-  #mk-overlay .tj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:11px}
-  #mk-overlay .tj{position:relative;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid #2b3139;border-radius:16px;padding:15px 14px 14px;box-shadow:0 4px 0 rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.04);display:flex;flex-direction:column;gap:10px}
-  #mk-overlay .tj-tag{position:absolute;top:10px;right:10px;font-family:var(--display,sans-serif);font-weight:800;font-size:10px;padding:5px 10px;border-radius:9px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.55);letter-spacing:.2px}
+  #mk-overlay .tj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  #mk-overlay .tj{position:relative;border-radius:18px;padding:16px 15px 15px;display:flex;flex-direction:column;gap:0;overflow:hidden;
+    background:linear-gradient(158deg,#1c222c 0%,#141922 45%,#0c1017 100%);
+    border:1px solid #2b3139;
+    box-shadow:0 6px 0 rgba(0,0,0,.35),0 12px 28px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)}
+  /* brillo diagonal sutil */
+  #mk-overlay .tj::before{content:'';position:absolute;top:-40%;right:-30%;width:120%;height:90%;pointer-events:none;
+    background:radial-gradient(ellipse at top right,rgba(232,184,75,.13),transparent 62%)}
+  #mk-overlay .tj.compra::before{background:radial-gradient(ellipse at top right,rgba(77,159,255,.14),transparent 62%)}
+  /* franja de color arriba */
+  #mk-overlay .tj::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,transparent,var(--gold,#E8B84B),transparent);opacity:.55}
+  #mk-overlay .tj.compra::after{background:linear-gradient(90deg,transparent,#4d9fff,transparent)}
+
+  #mk-overlay .tj-cab{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+  #mk-overlay .tj-moneda{width:34px;height:34px;flex:0 0 auto;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#0b0e12;border:1px solid #2b3139;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  #mk-overlay .tj-q{min-width:0;flex:1}
+  #mk-overlay .tj-nom{font-family:var(--display,sans-serif);font-weight:700;font-size:13.5px;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px}
+  #mk-overlay .tj-ok{color:#4d9fff;font-size:10px;flex:0 0 auto}
+  #mk-overlay .tj-red{font-family:var(--mono,monospace);font-size:9px;color:#6b7681;letter-spacing:.5px;margin-top:1px}
+  #mk-overlay .tj-tag{flex:0 0 auto;font-family:var(--display,sans-serif);font-weight:800;font-size:9.5px;padding:5px 10px;border-radius:8px;white-space:nowrap;letter-spacing:.3px;box-shadow:0 2px 6px rgba(0,0,0,.5)}
   #mk-overlay .tj-tag.v{background:linear-gradient(180deg,#e35d6a,#b8323f);color:#fff;border:1px solid #d14a58}
   #mk-overlay .tj-tag.c{background:linear-gradient(180deg,#4d9fff,#2b6fd0);color:#fff;border:1px solid #3f86e0}
-  #mk-overlay .tj-top{display:flex;align-items:center;gap:10px;margin-top:26px}
-  #mk-overlay .tj-ava{width:36px;height:36px;flex:0 0 auto;border-radius:11px;display:grid;place-items:center;background:linear-gradient(160deg,#f7db8d,var(--gold,#E8B84B) 55%,#b98614);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:15px}
-  #mk-overlay .tj-ava.grande{width:50px;height:50px;border-radius:14px;font-size:21px}
-  #mk-overlay .tj-q{min-width:0;flex:1}
-  #mk-overlay .tj-nom{font-family:var(--display,sans-serif);font-weight:700;font-size:14px;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #mk-overlay .tj-rep{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;display:flex;gap:8px;margin-top:2px}
-  #mk-overlay .tj-rep .st{color:var(--gold,#E8B84B)}
-  #mk-overlay .tj-precios{display:flex;flex-wrap:wrap;gap:5px}
-  #mk-overlay .tj-pr{font-family:var(--mono,monospace);font-size:10.5px;color:var(--gold,#E8B84B);background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.3);border-radius:7px;padding:4px 8px}
-  #mk-overlay .tj-pr b{color:#eaecef}
-  #mk-overlay .tj-partes{font-family:var(--mono,monospace);font-size:10px;color:#7d8794}
-  #mk-overlay .tj-partes b{color:var(--gold-soft,#C9A84B)}
-  #mk-overlay .tj-btn{width:100%;margin-top:auto;padding:11px;border-radius:11px;font-family:var(--display,sans-serif);font-weight:800;font-size:13px;cursor:pointer;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;box-shadow:0 3px 0 #8f6a1a}
-  #mk-overlay .tj-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #8f6a1a}
-  #mk-overlay .tj-btn.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:var(--gold,#E8B84B);box-shadow:0 3px 0 rgba(0,0,0,.4)}
+
+  #mk-overlay .tj-cifra{display:flex;align-items:baseline;gap:5px;margin-top:13px;position:relative;z-index:1}
+  #mk-overlay .tj-cifra b{font-family:var(--display,sans-serif);font-weight:800;font-size:27px;color:var(--gold,#E8B84B);line-height:1;text-shadow:0 2px 5px rgba(0,0,0,.6)}
+  #mk-overlay .tj.compra .tj-cifra b{color:#7fb8ff}
+  #mk-overlay .tj-cifra span{font-family:var(--mono,monospace);font-size:11px;color:#8b96a3}
+  #mk-overlay .tj-tasa{font-family:var(--mono,monospace);font-size:12px;color:#b7bdc6;margin-top:5px;position:relative;z-index:1}
+  #mk-overlay .tj-tasa b{color:#eaecef;font-size:13px}
+  #mk-overlay .tj-total{font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;margin-top:2px;position:relative;z-index:1}
+  #mk-overlay .tj-total b{color:var(--gold-soft,#C9A84B)}
+  #mk-overlay .tj-otras{font-family:var(--mono,monospace);font-size:9.5px;color:#6b7681;margin-top:5px;position:relative;z-index:1}
+  #mk-overlay .tj-otras b{color:#9aa4b0}
+  #mk-overlay .tj-pie{display:flex;gap:9px;align-items:center;margin:11px 0 12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);font-family:var(--mono,monospace);font-size:10px;color:#7d8794;position:relative;z-index:1;min-height:12px}
+  #mk-overlay .tj-pie .st{color:var(--gold,#E8B84B)}
+  #mk-overlay .tj-pie .nuevo{color:#6b7681;border:1px solid #2b3139;border-radius:6px;padding:2px 7px}
+  #mk-overlay .tj-btn{width:100%;margin-top:auto;padding:12px;border-radius:11px;font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;cursor:pointer;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;box-shadow:0 4px 0 #8f6a1a,0 6px 14px rgba(0,0,0,.35);text-shadow:0 1px 0 rgba(255,255,255,.3);position:relative;z-index:1}
+  #mk-overlay .tj-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #8f6a1a}
+  #mk-overlay .tj-btn.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:var(--gold,#E8B84B);box-shadow:0 4px 0 rgba(0,0,0,.4);text-shadow:none}
+  #mk-overlay .tj.compra .tj-btn{border-color:#3f86e0;background:linear-gradient(180deg,#a9d4ff,#4d9fff 45%,#2b6fd0);color:#06213f;box-shadow:0 4px 0 #1a5bb0,0 6px 14px rgba(0,0,0,.35)}
   /* Esqueletos mientras carga */
   #mk-overlay .tj-sk{height:150px;border-radius:16px;border:1px solid #2b3139;background:linear-gradient(90deg,rgba(255,255,255,.03) 25%,rgba(255,255,255,.08) 50%,rgba(255,255,255,.03) 75%);background-size:220% 100%;animation:tjSk 1.1s ease-in-out infinite}
   @keyframes tjSk{0%{background-position:120% 0}100%{background-position:-120% 0}}
@@ -260,6 +281,10 @@ function estilos() {
   .mk-wiz-c .fc-hero{text-align:center;padding:15px;border-radius:14px;background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid #2b3139;margin-bottom:15px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
   .mk-wiz-c .fc-hero span{display:block;font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:1px}
   .mk-wiz-c .fc-hero b{display:block;font-family:var(--display,sans-serif);font-weight:800;font-size:27px;color:var(--gold,#E8B84B);margin-top:4px}
+  .mk-wiz-c .fc-hero i{display:block;font-style:normal;font-family:var(--mono,monospace);font-size:9.5px;color:#6b7681;letter-spacing:.5px;margin-top:5px}
+  .mk-wiz-c .fc-reser{margin-top:14px;padding:14px 15px;border-radius:12px;background:rgba(46,232,106,.09);border:1px solid rgba(46,232,106,.4);font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.6;text-align:center}
+  .mk-wiz-c .fc-reser b{display:block;color:var(--neon-lit,#2ee86a);font-family:var(--display,sans-serif);font-size:15px;margin-bottom:5px}
+  .mk-wiz-c .fc-reser b:not(:first-child){display:inline;font-size:inherit;color:var(--gold,#E8B84B);margin:0}
   .mk-wiz-c .fc-sec{margin-bottom:16px}
   .mk-wiz-c .fc-t{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
   .mk-wiz-c .fc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
@@ -516,25 +541,42 @@ function tarjeta({ o, perf, rep }, cuenta) {
   const sim = simbolo(o.token);
   const monto = f18(o.monto);
   const nombre = perf && perf.nombre ? perf.nombre : 'Sin nombre';
-  const ini = nombre.trim().charAt(0).toUpperCase() || '?';
   const mio = cuenta && String(cuenta).toLowerCase() === String(o.vendedor).toLowerCase();
   const compra = Number(o.tipo) === 1;
   const conRep = rep && Number(rep.votos) > 0;
-  const conVentas = rep && Number(rep.ventasOk) > 0;
-  const precios = String(o.moneda || '').split('·').filter(Boolean).slice(0, 2)
-    .map(p => { const t = p.trim().split(/\s+/); return `<span class="tj-pr"><b>${esc(t[1] || '')}</b> ${esc(t[0] || '')}</span>`; }).join('');
+  const ventas = rep ? Number(rep.ventasOk) : 0;
+
+  // Precio principal + equivalente total
+  const lista = String(o.moneda || '').split('·').filter(Boolean)
+    .map(p => { const t = p.trim().split(/\s+/); return { m: t[0] || '', v: Number(t[1]) || 0 }; });
+  const p1 = lista[0] || { m: '', v: 0 };
+  const total = p1.v * monto;
+  const otras = lista.slice(1);
+
   return `
   <div class="tj ${compra ? 'compra' : ''}" data-id="${o.id}">
-    <span class="tj-tag ${compra ? 'c' : 'v'}">${compra ? 'Compro' : 'Vendo'} ${num(monto, monto >= 1000 ? 0 : 2)} ${sim}</span>
-    <div class="tj-top">
+    <div class="tj-cab">
       <div class="tj-moneda">${logoMoneda(o.token)}</div>
       <div class="tj-q">
-        <div class="tj-nom">${esc(nombre)}</div>
-        ${(conRep || conVentas) ? `<div class="tj-rep">${conRep ? `<span class="st">★ ${(Number(rep.estrellasX100) / 100).toFixed(1)}</span>` : ''}${conVentas ? `<span>${Number(rep.ventasOk)} ventas</span>` : ''}</div>` : ''}
+        <div class="tj-nom">${esc(nombre)}${(conRep || ventas > 0) ? `<span class="tj-ok" title="Con historial">✓</span>` : ''}</div>
+        <div class="tj-red">${sim} · BEP-20</div>
       </div>
+      <span class="tj-tag ${compra ? 'c' : 'v'}">${compra ? 'Compro' : 'Vendo'}</span>
     </div>
-    <div class="tj-precios">${precios || '<span class="tj-pr">Ver detalles</span>'}</div>
-    <button class="tj-btn${mio ? ' gris' : ''}" data-ver="${o.id}">${mio ? 'Mi publicación' : (compra ? 'Vender a esta persona' : 'Comprar')}</button>
+
+    <div class="tj-cifra">
+      <b>${num(monto, monto >= 1000 ? 0 : 2)}</b><span>${sim}</span>
+    </div>
+    ${p1.v > 0 ? `<div class="tj-tasa">a <b>${num(p1.v, p1.v >= 100 ? 0 : 2)}</b> ${esc(p1.m)} c/u</div>` : ''}
+    ${(p1.v > 0 && total > 0) ? `<div class="tj-total">≈ <b>${num(total, total >= 1000 ? 0 : 2)} ${esc(p1.m)}</b> en total</div>` : ''}
+    ${otras.length ? `<div class="tj-otras">También: ${otras.map(x => `<b>${num(x.v, x.v >= 100 ? 0 : 2)}</b> ${esc(x.m)}`).join(' · ')}</div>` : ''}
+
+    <div class="tj-pie">
+      ${conRep ? `<span class="st">★ ${(Number(rep.estrellasX100) / 100).toFixed(1)}</span>` : ''}
+      ${ventas > 0 ? `<span>${ventas} ventas</span>` : (conRep ? '' : '<span class="nuevo">Nuevo</span>')}
+    </div>
+
+    <button class="tj-btn${mio ? ' gris' : ''}" data-ver="${o.id}">${mio ? 'Mi publicación' : (compra ? 'Quiero venderle' : 'Comprar')}</button>
   </div>`;
 }
 
@@ -571,6 +613,8 @@ async function verFicha(id) {
   const conRep = rep && Number(rep.votos) > 0;
   const contactos = String((perf && perf.contacto) || '').split('·').map(x => x.trim()).filter(Boolean);
   const mio = cuenta && String(cuenta).toLowerCase() === String(o.vendedor).toLowerCase();
+  const reservada = Number(o.estado) === 1;
+  const miaReserva = reservada && cuenta && String(cuenta).toLowerCase() === String(o.comprador).toLowerCase();
 
   const iconoDe = (t) => {
     const l = t.toLowerCase();
@@ -590,7 +634,7 @@ async function verFicha(id) {
       </div>
     </div>
 
-    <div class="fc-hero"><span>${compra ? 'Quiere comprar' : 'Está vendiendo'}</span><b>${num(monto, 2)} ${sim}</b></div>
+    <div class="fc-hero"><span>${compra ? 'Quiere comprar' : 'Está vendiendo'}</span><b>${num(monto, 2)} ${sim}</b><i>${sim} BEP-20 · Binance Smart Chain</i></div>
 
     <div class="fc-sec"><div class="fc-t">Acepta que le paguen</div>
       <div class="fc-chips">${String(o.moneda || '').split('·').filter(Boolean).map(p => {
@@ -619,8 +663,11 @@ async function verFicha(id) {
       <div id="fc-dist">${(ubic && ubic.comparte) ? `<div class="mk-hint">Zona: <b>${esc(ubic.zona || 'no indicada')}</b></div><button class="mk-b gris" id="fc-vd" style="margin-top:9px">Ver distancia hasta mí</button>` : `<div class="mk-hint">Esta persona no comparte su ubicación. Puedes pedírsela por el contacto: <b>si se niega, tú decides si sigues</b>.</div>`}</div>
     </div>
 
-    ${(!compra && !mio) ? `<button class="mk-b fc-cta" id="fc-tomar">Reservar esta compra</button>
-      <div class="mk-hint" style="text-align:center;margin-top:7px">Queda apartada para ti <b>24 horas</b>. Si no la arrancas, vuelve a estar disponible.</div>` : ''}
+    ${reservada ? `<div class="fc-reser">
+        <b>${miaReserva ? 'Ya la reservaste' : 'Reservada por otra persona'}</b>
+        ${miaReserva ? 'Contacta ahora a esta persona por cualquiera de las vías de arriba y acuerden el pago. Después continúa desde la pestaña <b>Operaciones</b>.' : 'Si no la arranca en 24 horas, volverá a estar disponible.'}
+      </div>` : ((!compra && !mio) ? `<button class="mk-b fc-cta" id="fc-tomar">Reservar esta compra</button>
+      <div class="mk-hint" style="text-align:center;margin-top:7px">Queda apartada para ti <b>24 horas</b>. Si no la arrancas, vuelve a estar disponible.</div>` : '')}
     ${mio ? `<button class="mk-b gris fc-cta" id="fc-cancel">Cancelar mi publicación</button>` : ''}
     <div class="mk-msg info" id="fc-msg"></div>`;
   $('fc-x3').onclick = cerrar;
