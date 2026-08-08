@@ -1,6 +1,6 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=48';
+import * as wallet from './wallet.js?v=49';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
@@ -83,7 +83,8 @@ function pedirUbicacion() {
     if (!navigator.geolocation) return rej(new Error('sin geo'));
     navigator.geolocation.getCurrentPosition(
       (p) => res({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      () => rej(new Error('denegado')), { timeout: 10000, maximumAge: 600000 });
+      (e) => rej(new Error(e && e.code === 2 ? 'sistema' : 'denegado')),
+      { timeout: 12000, maximumAge: 600000 });
   });
 }
 
@@ -155,6 +156,14 @@ function estilos() {
   #mk-overlay .mk-star{font-size:28px;cursor:pointer;color:#3a424c;line-height:1}
   #mk-overlay .mk-star.on{color:var(--gold,#E8B84B);text-shadow:0 0 10px rgba(232,184,75,.4)}
   #mk-overlay .mk-dist{font-family:var(--mono,monospace);font-size:11px;color:#7fb0ff;text-align:center;padding:9px;border-radius:10px;background:rgba(127,176,255,.08);border:1px solid rgba(127,176,255,.3);margin-top:9px}
+  .mk-dlg-bg{position:fixed;inset:0;z-index:9600;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(3,5,8,.82);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
+  .mk-dlg{width:100%;max-width:430px;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:18px;padding:22px;box-shadow:0 30px 90px rgba(0,0,0,.7);animation:mkIn .18s ease both}
+  .mk-dlg-t{font-family:var(--display,sans-serif);font-weight:800;font-size:18px;color:var(--gold,#E8B84B);margin-bottom:11px}
+  .mk-dlg-d{font-family:var(--sans,sans-serif);font-size:13.5px;color:#b7bdc6;line-height:1.65}
+  .mk-dlg-d b{color:var(--gold,#E8B84B)}
+  .mk-dlg-b{display:flex;gap:9px;margin-top:18px}
+  .mk-dlg-b .mk-b{flex:1;min-width:0;padding:12px;border-radius:11px;font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;cursor:pointer;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;box-shadow:0 3px 0 #8f6a1a}
+  .mk-dlg-b .mk-b.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:var(--gold,#E8B84B);box-shadow:0 3px 0 rgba(0,0,0,.4)}
   #mk-overlay .mk-mapa{margin-top:10px;border-radius:12px;overflow:hidden;border:1px solid #2b3139;background:#0b0e12}
   #mk-overlay .mk-mapa-top{display:flex;justify-content:space-between;align-items:center;padding:10px 13px;font-family:var(--mono,monospace);font-size:11px;color:#7d8794;text-transform:uppercase;letter-spacing:.6px}
   #mk-overlay .mk-mapa-top b{font-family:var(--display,sans-serif);font-size:18px;color:#7fb0ff;letter-spacing:0}
@@ -434,23 +443,21 @@ async function panelVender() {
   if (!cuenta) { box.innerHTML = `<div class="mk-vacio">Conecta tu wallet para publicar una oferta.</div>`; return; }
   box.innerHTML = `<div class="mk-vacio">Cargando…</div>`;
 
-  const [perf, fianza, fmin, limite, ubic] = await Promise.all([
+  const [perf, fianza, fmin, ubic] = await Promise.all([
     lee('perfiles', [cuenta]).catch(() => null),
     lee('fianzaDe', [cuenta]).catch(() => 0n),
     lee('fianzaMinima').catch(() => 0n),
-    lee('limiteDe', [cuenta]).catch(() => 0n),
     lee('ubicacionDe', [cuenta]).catch(() => null)
   ]);
   const tienePerfil = perf && perf.existe;
   const fOk = fianza >= fmin;
-  const lim = limite > (2n ** 200n) ? 'sin límite' : num(f18(limite), 0) + ' USDT';
 
   box.innerHTML = `
   <div class="mk-box">
     <div class="bt">Tu situación</div>
     <div class="mk-row"><span class="k">Perfil</span><span class="v">${tienePerfil ? `<span class="mk-est a">Creado</span>` : `<span class="mk-est d">Falta</span>`}</span></div>
     <div class="mk-row"><span class="k">Fianza depositada</span><span class="v">${num(f18(fianza), 2)} / ${num(f18(fmin), 0)} USDT ${fOk ? '<span class="mk-est a">OK</span>' : '<span class="mk-est d">Falta</span>'}</span></div>
-    <div class="mk-row"><span class="k">Puedes vender hasta</span><span class="v">${lim}</span></div>
+    <div class="mk-row"><span class="k">Cuánto puedes vender</span><span class="v">Sin límite</span></div>
   </div>
 
   ${tienePerfil ? `
@@ -592,14 +599,66 @@ async function publicar() {
   } catch (e) { msg(traducir(e), 'err'); }
 }
 
+/* ── Diálogo propio (para explicar antes/después de los permisos del navegador) ── */
+function dialogo({ titulo, texto, ok = 'Continuar', cancelar = 'Ahora no', soloOk = false }) {
+  return new Promise((res) => {
+    const d = document.createElement('div');
+    d.className = 'mk-dlg-bg';
+    d.innerHTML = `<div class="mk-dlg">
+      <div class="mk-dlg-t">${titulo}</div>
+      <div class="mk-dlg-d">${texto}</div>
+      <div class="mk-dlg-b">
+        ${soloOk ? '' : `<button class="mk-b gris" data-no>${cancelar}</button>`}
+        <button class="mk-b" data-si>${ok}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(d);
+    const cerrar = (v) => { d.remove(); res(v); };
+    d.querySelector('[data-si]').onclick = () => cerrar(true);
+    const no = d.querySelector('[data-no]'); if (no) no.onclick = () => cerrar(false);
+    d.onclick = (e) => { if (e.target === d) cerrar(false); };
+  });
+}
+
 /* ── Ubicación ── */
 async function activarUbicacion() {
   const cuenta = wallet.cuentaActual && wallet.cuentaActual();
   if (!cuenta) { msg('Conecta tu wallet.', 'err'); return; }
-  msg('Pidiendo permiso de ubicación…', 'info');
+
+  // 1) Explicamos ANTES, con nuestra propia ventana
+  const sigue = await dialogo({
+    titulo: 'Compartir tu ubicación',
+    texto: `Ahora tu navegador te va a preguntar si permites la ubicación. Es una ventana suya, no nuestra.<br><br>
+      Guardamos tu posición <b>redondeada a ~1 km</b>: sirve para mostrar tu zona y la distancia, <b>nunca tu dirección exacta</b>.
+      Puedes quitarla cuando quieras.<br><br>
+      Cuando salga el aviso del navegador, toca <b>"Permitir"</b>.`,
+    ok: 'Entendido, continuar'
+  });
+  if (!sigue) return;
+
+  msg('Esperando el permiso del navegador…', 'info');
   let u;
   try { u = await pedirUbicacion(); }
-  catch (_) { msg('No diste permiso de ubicación en el navegador.', 'err'); return; }
+  catch (err) {
+    const motivo = String(err && err.message || '');
+    if (motivo === 'sistema') {
+      await dialogo({ soloOk: true, ok: 'Entendido',
+        titulo: 'La ubicación está apagada en tu equipo',
+        texto: `El permiso lo diste bien, pero <b>tu sistema tiene la ubicación desactivada</b>.<br><br>
+          <b>En Windows:</b> Configuración → Privacidad y seguridad → Ubicación → enciéndela y permite que las aplicaciones de escritorio la usen.<br>
+          <b>En Android:</b> Ajustes → Ubicación → activar.<br>
+          <b>En iPhone:</b> Ajustes → Privacidad → Localización → activar.<br><br>
+          Después vuelve aquí y toca otra vez "Compartir mi ubicación".` });
+    } else {
+      await dialogo({ soloOk: true, ok: 'Entendido',
+        titulo: 'No se pudo obtener tu ubicación',
+        texto: `No diste permiso, o el navegador lo tiene bloqueado para este sitio.<br><br>
+          Para permitirlo: toca el <b>candado 🔒</b> al lado de la dirección web, busca <b>Ubicación</b> y ponlo en <b>Permitir</b>. Luego recarga la página.<br><br>
+          Compartir tu ubicación es <b>opcional</b>: puedes seguir vendiendo sin ella, aunque genera menos confianza.` });
+    }
+    msg('');
+    return;
+  }
   guardarUbic(cuenta, u.lat, u.lon);
   // redondeo a 3 decimales (~1 km): nunca la posición exacta
   const lat = Math.round(u.lat * 1000), lon = Math.round(u.lon * 1000);
