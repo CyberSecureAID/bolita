@@ -5,14 +5,14 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=59';
-import * as wallet from './wallet.js?v=59';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=59';
-import * as perfil from './perfil.js?v=59';
-import * as prizepool from './prizepool.js?v=59';
-import * as tutorial from './tutorial.js?v=59';
-import * as market from './market.js?v=59';
-import * as avisos from './avisos.js?v=59';
+import * as gb from './gridbot.js?v=60';
+import * as wallet from './wallet.js?v=60';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=60';
+import * as perfil from './perfil.js?v=60';
+import * as prizepool from './prizepool.js?v=60';
+import * as tutorial from './tutorial.js?v=60';
+import * as market from './market.js?v=60';
+import * as avisos from './avisos.js?v=60';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -138,6 +138,17 @@ function inyectarEstilo() {
   #colmena-app .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:18px;padding:22px}
   #colmena-app .card h3{font-family:var(--display);color:var(--gold);margin:0 0 4px;font-size:18px}
   #colmena-app .card .sub{color:var(--ink-3);font-size:12.5px;margin:0 0 16px}
+  #colmena-app .v-s{display:none}
+  @media(max-width:560px){
+    #colmena-app .v-l{display:none}
+    #colmena-app .v-s{display:inline}
+    /* Etiquetas en UNA sola línea: los campos quedan siempre alineados */
+    #colmena-app .lab{font-size:9.5px;letter-spacing:.2px;display:flex;align-items:center;gap:4px;flex-wrap:nowrap;white-space:nowrap;min-width:0}
+    #colmena-app .lab>span:first-child{overflow:hidden;text-overflow:ellipsis;min-width:0}
+    #colmena-app .lab .i-btn{flex:0 0 auto}
+    #colmena-app .cols{align-items:start}
+    #colmena-app .paso-box>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  }
   #colmena-app .lab{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-family:var(--mono);font-size:11px;color:var(--acento);margin:16px 0 7px;padding-left:3px;text-transform:uppercase;letter-spacing:.6px}
   #colmena-modal .busy-wrap{display:flex;align-items:center;justify-content:space-between;gap:18px}
   #colmena-modal .busy-tx{flex:1;line-height:1.55;font-size:14px}
@@ -1129,23 +1140,23 @@ function render() {
             <div><div class="lab">Cuadrículas ${iBtn('cuadriculas')}</div>${campoNum('f-niv',{value:20,min:2,max:100,step:1,int:true})}</div>
             <div><div class="lab" style="gap:10px"><span style="display:flex;align-items:center;gap:6px"><span class="inv-lbl">Inv. <span id="f-total-sym">(${moneda(F.quoteId).simbolo})</span></span> ${iBtn('inversion')}</span><span id="f-total-saldo" class="saldo-chip">—</span></div>${campoNum('f-total',{placeholder:'0.00',step:1,min:0})}</div>
           </div>
-          <div class="lab">Gan. cuadrícula % ${iBtn('margen')} <span style="color:var(--ink-3);font-size:11px;font-family:var(--mono)">opcional</span></div>
+          <div class="lab"><span class="v-l">Gan. cuadrícula %</span><span class="v-s">Ganancia %</span> ${iBtn('margen')} <span style="color:var(--ink-3);font-size:11px;font-family:var(--mono)">opcional</span></div>
           ${campoNum('f-margen',{placeholder:'auto',min:0,max:20,step:0.5})}
           <div id="f-margen-nota"></div>
-          <div class="paso-box"><span>Separación entre cuadrículas ${iBtn('separacion')}</span><b id="pv-paso">—</b></div>
+          <div class="paso-box"><span><span class="v-l">Separación entre cuadrículas</span><span class="v-s">Separación</span> ${iBtn('separacion')}</span><b id="pv-paso">—</b></div>
         </div>
         <div id="f-acum" style="${F.tipo==='acum'?'':'display:none'}">
-          <div class="lab">Precio mínimo (hasta dónde compra) ${iBtn('acmin')}<button class="sug" id="fa-sug" type="button">Sugerir</button></div>
+          <div class="lab"><span class="v-l">Precio mínimo (hasta dónde compra)</span><span class="v-s">Precio mínimo</span> ${iBtn('acmin')}<button class="sug" id="fa-sug" type="button">Sugerir</button></div>
           ${campoNum('fa-min',{placeholder:'precio más bajo',pct:0.01})}
           <div class="fila">
-            <div><div class="lab">Nº de compras ${iBtn('acniv')}</div>${campoNum('fa-niv',{value:15,min:2,max:100,step:1,int:true})}</div>
+            <div><div class="lab"><span class="v-l">Nº de compras</span><span class="v-s">Nº compras</span> ${iBtn('acniv')}</div>${campoNum('fa-niv',{value:15,min:2,max:100,step:1,int:true})}</div>
             <div><div class="lab">Inv. (${moneda(F.quoteId).simbolo}) ${iBtn('inversion')}</div>${campoNum('fa-total',{placeholder:'0.00',step:1,min:0})}</div>
           </div>
           <div class="fila">
-            <div><div class="lab">Compra inicial % ${iBtn('acini')}</div>${campoNum('fa-ini',{value:30,min:0,max:100,step:5})}</div>
-            <div><div class="lab">Comprar abajo % ${iBtn('acfactor')}</div>${campoNum('fa-factor',{value:20,min:0,max:200,step:5})}</div>
+            <div><div class="lab"><span class="v-l">Compra inicial %</span><span class="v-s">Inicial %</span> ${iBtn('acini')}</div>${campoNum('fa-ini',{value:30,min:0,max:100,step:5})}</div>
+            <div><div class="lab"><span class="v-l">Comprar abajo %</span><span class="v-s">Abajo %</span> ${iBtn('acfactor')}</div>${campoNum('fa-factor',{value:20,min:0,max:200,step:5})}</div>
           </div>
-          <div class="lab">Vender cuando gane ${iBtn('acobj')}</div>
+          <div class="lab"><span class="v-l">Vender cuando gane</span><span class="v-s">Vender al %</span> ${iBtn('acobj')}</div>
           <div class="seg presets" id="fa-obj" style="grid-template-columns:repeat(5,1fr)">
             <button type="button" data-obj="3">3%</button><button type="button" data-obj="5">5%</button>
             <button type="button" data-obj="10" class="on">10%</button><button type="button" data-obj="15">15%</button><button type="button" data-obj="20">20%</button>
@@ -1163,7 +1174,7 @@ function render() {
         <div id="f-cash" style="${F.tipo==='cash'?'':'display:none'}">
           <div class="cash-note">Vendes <b id="cn-b">${moneda(F.baseId).simbolo}</b> y recibes <b id="cn-q">${moneda(F.quoteId).simbolo}</b> en tu wallet.</div>
           <div class="cash-cant-head">
-            <div class="lab" style="margin:0">Cantidad a vender ${iBtn('cashcant')}</div>
+            <div class="lab" style="margin:0"><span class="v-l">Cantidad a vender</span><span class="v-s">Cantidad</span> ${iBtn('cashcant')}</div>
             <div class="cash-bal"><span id="fc-saldo">—</span><button type="button" class="cash-max" id="fc-max">Máx</button></div>
           </div>
           ${campoNum('fc-cant',{placeholder:'0.00',step:0.01,min:0,suffix:'fc-cant-usd'})}
@@ -1197,18 +1208,18 @@ function render() {
         <div id="f-dca" style="${F.tipo==='dca'?'':'display:none'}">
           <div class="cash-note">Compras <b id="dn-b">${moneda(F.baseId).simbolo}</b> con tu <b id="dn-q">${moneda(F.quoteId).simbolo}</b>, un poco cada cierto tiempo.</div>
           <div class="cash-cant-head">
-            <div class="lab" style="margin:0">Monto por compra ${iBtn('dcamonto')}</div>
+            <div class="lab" style="margin:0"><span class="v-l">Monto por compra</span><span class="v-s">Monto</span> ${iBtn('dcamonto')}</div>
             <div class="cash-bal"><span id="fd-saldo">—</span></div>
           </div>
           ${campoNum('fd-monto',{placeholder:'0.00',step:1,min:0,suffix:'fd-monto-eq'})}
-          <div class="lab" style="margin-top:16px">¿Cada cuánto compra? ${iBtn('dcafrec')}</div>
+          <div class="lab" style="margin-top:16px"><span class="v-l">¿Cada cuánto compra?</span><span class="v-s">Cada cuánto</span> ${iBtn('dcafrec')}</div>
           <div class="seg presets" id="fd-frec" style="grid-template-columns:repeat(4,1fr)">
             <button type="button" data-int="86400">Diario</button>
             <button type="button" data-int="604800" class="on">Semanal</button>
             <button type="button" data-int="1209600">Quincenal</button>
             <button type="button" data-int="2592000">Mensual</button>
           </div>
-          <div class="lab" style="margin-top:16px">¿Cuántas compras? ${iBtn('dcanum')}</div>
+          <div class="lab" style="margin-top:16px"><span class="v-l">¿Cuántas compras?</span><span class="v-s">Nº compras</span> ${iBtn('dcanum')}</div>
           <div class="seg presets" id="fd-num" style="grid-template-columns:repeat(4,1fr)">
             <button type="button" data-n="10">10</button>
             <button type="button" data-n="25">25</button>
@@ -1229,17 +1240,17 @@ function render() {
         <div style="text-align:right"><button class="btn-avz" id="f-toggleavz">${F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas'}</button></div>
         <div class="avz" id="f-avz" style="${F.avanzado ? '' : 'display:none'}">
           <div class="fila">
-            <div><div class="lab">Protección precio % ${iBtn('proteccion')}</div>${campoNum('f-slip',{value:1,step:0.5,min:0,max:10})}</div>
-            <div><div class="lab">Ritmo mín (s) ${iBtn('ritmo')}</div>${campoNum('f-cd',{value:0,step:5,min:0,int:true})}</div>
+            <div><div class="lab"><span class="v-l">Protección precio %</span><span class="v-s">Protección %</span> ${iBtn('proteccion')}</div>${campoNum('f-slip',{value:1,step:0.5,min:0,max:10})}</div>
+            <div><div class="lab"><span class="v-l">Ritmo mín (s)</span><span class="v-s">Ritmo (s)</span> ${iBtn('ritmo')}</div>${campoNum('f-cd',{value:0,step:5,min:0,int:true})}</div>
           </div>
-          <div class="lab">Con "Ganancia por cuadrícula" ${iBtn('margenmodo')}</div>
+          <div class="lab"><span class="v-l">Con "Ganancia por cuadrícula"</span><span class="v-s">Ganancia %</span> ${iBtn('margenmodo')}</div>
           <div class="seg presets" id="f-margenmodo" style="grid-template-columns:1fr 1fr;margin-bottom:10px">
             <button type="button" data-mm="cuadriculas" class="${F.margenModo!=='rango'?'on':''}">Ajustar cuadrículas</button>
             <button type="button" data-mm="rango" class="${F.margenModo==='rango'?'on':''}">Ampliar rango</button>
           </div>
           <div class="fila" id="f-avz-tpsl">
-            <div><div class="lab">Cerrar con ganancia ${iBtn('tp')}</div>${campoNum('f-tp',{placeholder:'off',pct:0.01,min:0})}</div>
-            <div><div class="lab">Protegerme de caídas ${iBtn('sl')}</div>${campoNum('f-sl',{placeholder:'off',pct:0.01,min:0})}</div>
+            <div><div class="lab"><span class="v-l">Cerrar con ganancia</span><span class="v-s">Cerrar al %</span> ${iBtn('tp')}</div>${campoNum('f-tp',{placeholder:'off',pct:0.01,min:0})}</div>
+            <div><div class="lab"><span class="v-l">Protegerme de caídas</span><span class="v-s">Protección</span> ${iBtn('sl')}</div>${campoNum('f-sl',{placeholder:'off',pct:0.01,min:0})}</div>
           </div>
         </div>
         <button class="btn btn-verde mt" id="f-crear">Encender el bot</button>
