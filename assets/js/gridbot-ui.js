@@ -5,14 +5,14 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=63';
-import * as wallet from './wallet.js?v=63';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=63';
-import * as perfil from './perfil.js?v=63';
-import * as prizepool from './prizepool.js?v=63';
-import * as tutorial from './tutorial.js?v=63';
-import * as market from './market.js?v=63';
-import * as avisos from './avisos.js?v=63';
+import * as gb from './gridbot.js?v=64';
+import * as wallet from './wallet.js?v=64';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=64';
+import * as perfil from './perfil.js?v=64';
+import * as prizepool from './prizepool.js?v=64';
+import * as tutorial from './tutorial.js?v=64';
+import * as market from './market.js?v=64';
+import * as avisos from './avisos.js?v=64';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -85,24 +85,27 @@ function inyectarEstilo() {
     --ac-l:#f7db8d; --ac-m:#E8B84B; --ac-d:#c79426; --ac-s:#8f6a1a; --ac-t:#3a2800;  /* set 3D del acento (pintarTipo) */
     font-family:var(--sans);color:var(--ink);position:relative;isolation:isolate;
     background:#0b0e11;min-height:100vh;overflow-x:hidden}
-  #colmena-app .c-hdr{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+  #colmena-app .c-hdr{max-width:100%;overflow:hidden;position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
     gap:12px;padding:14px 22px;background:rgba(11,14,17,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
   #colmena-app .c-brand{display:inline-flex;align-items:center;gap:9px;font-family:var(--display);font-weight:700;font-size:20px;color:var(--gold);text-decoration:none;letter-spacing:.3px;min-width:0}
   #colmena-app .c-logo{height:32px;width:auto;flex:0 0 auto;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.55))}
   #colmena-app .c-brand-tx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-  #colmena-app .c-hdr-r{display:flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0;flex-wrap:nowrap}
+  #colmena-app .c-hdr-r{display:flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0;flex-wrap:nowrap;overflow:visible}
+  /* El botón del header se ajusta a su texto. Sin esto, la regla general
+     .btn{width:100%} lo estira a todo el ancho y saca el header de la pantalla. */
+  #colmena-app .c-hdr .hdr-btn,#colmena-app .c-hdr-r .hdr-btn{width:auto;flex:0 0 auto;white-space:nowrap}
   #colmena-app .c-hdr-r>button,#colmena-app .c-hdr-r>a{flex:0 0 auto;white-space:nowrap}
   /* Si no cabe todo (p. ej. sin wallet conectada), se ocultan los textos antes de montarse */
-  @media(min-width:561px) and (max-width:1080px){
+  @media(min-width:561px) and (max-width:1240px){
     #colmena-app .c-prize-tx,#colmena-app .c-market-tx,#colmena-app .c-lot-tx{display:none}
     #colmena-app .c-swap,#colmena-app .c-prize,#colmena-app .c-market,#colmena-app .c-loteria,#colmena-app .c-perfil{padding:0 9px}
   }
-  @media(min-width:561px) and (max-width:900px){
+  @media(min-width:561px) and (max-width:1050px){
     #colmena-app .c-swap-tx{display:none}
     #colmena-app .c-ticker{max-width:170px}
   }
   /* ── Cinta Prize Pool (publicidad propia) ── */
-  #colmena-app .c-ticker{flex:1 1 auto;min-width:0;max-width:290px;height:44px;margin:0 0 0 16px;margin-right:auto;padding:0;border:none;background:transparent;overflow:hidden;position:relative;cursor:pointer;display:block;border-radius:5px;
+  #colmena-app .c-ticker{flex:1 1 0;min-width:0;max-width:290px;height:44px;margin:0 0 0 16px;margin-right:auto;padding:0;border:none;background:transparent;overflow:hidden;position:relative;cursor:pointer;display:block;border-radius:5px;
     -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22%,#000 78%,transparent 100%);-webkit-mask-repeat:no-repeat;-webkit-mask-size:100% 100%;
             mask-image:linear-gradient(90deg,transparent 0,#000 22%,#000 78%,transparent 100%);mask-repeat:no-repeat;mask-size:100% 100%}
   #colmena-app .c-ticker-img{height:100%;width:auto;max-width:none;display:block;will-change:transform;animation:ctSlide 34s ease-in-out infinite alternate}
