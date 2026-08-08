@@ -1,8 +1,8 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 // La librería vive en ESTE repositorio. Carga directa: sin CDN, sin esperas,
 // sin nada externo que pueda quedarse colgado y dejar la app en 'Cargando…'.
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=71';
-import * as wallet from './wallet.js?v=71';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=72';
+import * as wallet from './wallet.js?v=72';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';

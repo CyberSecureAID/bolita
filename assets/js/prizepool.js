@@ -1,11 +1,11 @@
 // prizepool.js — Módulo Prize Pool (independiente). No toca la lógica de los bots.
 // La librería vive en ESTE repositorio. Carga directa: sin CDN, sin esperas,
 // sin nada externo que pueda quedarse colgado y dejar la app en 'Cargando…'.
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=71';
-import * as wallet from './wallet.js?v=71';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=72';
+import * as wallet from './wallet.js?v=72';
 
 /* ───────── Config ───────── */
-const PRIZEPOOL = '0x75094C2faE55E61B03B4AB0E86026AB11c309C6d';
+const PRIZEPOOL = '0xD0913F0cCda9B0b40da1110e0fe74292138C083A';
 const USDT      = '0x55d398326f99059fF775485246999027B3197955';   // BSC-USD (18 dec)
 const RPCS = [
   'https://bsc-dataseed.binance.org',
@@ -23,7 +23,7 @@ const PP_ABI = [
   'function miReclamo(uint256 round,address who) view returns (uint256 amount,bool yaReclamado)',
   'function participar(string name,string telegram,address inviter) payable',
   'function reclamar(uint256 round)',
-  'function miAporte(address who) view returns (uint256 tickets,uint256 devolucion)',
+  'function miAporte(address who) view returns (uint256 tickets,uint256 devolucion,bool puedeSalir,uint256 cierreSalida)',
   'function abandonarParticipacion()'
 ];
 const ERC20 = [
@@ -155,6 +155,12 @@ function estilos() {
   #pp-overlay .pp-mio .d b{color:#eaecef}
   #pp-overlay .pp-mio-b{width:100%;padding:11px;border-radius:10px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:#b7bdc6;font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;cursor:pointer;min-height:44px}
   #pp-overlay .pp-mio-b:hover{color:var(--rojo,#f6465d);border-color:rgba(246,70,93,.4)}
+  #pp-overlay .pp-mio-av{font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;margin-top:8px;line-height:1.5}
+  #pp-overlay .pp-mio-av b{color:var(--gold-soft,#C9A84B)}
+  #pp-overlay .pp-mio.cerrado{background:rgba(232,184,75,.07);border-color:rgba(232,184,75,.35)}
+  #pp-overlay .pp-mio.cerrado .t{color:var(--gold,#E8B84B)}
+  #pp-overlay .pp-mio-lock{font-family:var(--display,sans-serif);font-weight:800;font-size:13px;color:var(--gold,#E8B84B);padding:11px;border-radius:10px;background:rgba(0,0,0,.25);border:1px dashed rgba(232,184,75,.4)}
+  #pp-overlay .pp-mio-lock span{display:block;font-family:var(--sans,sans-serif);font-weight:400;font-size:11.5px;color:#8b96a3;margin-top:6px;line-height:1.55}
   #pp-overlay .pp-win{margin-top:20px}
   #pp-overlay .pp-win .wt{font-family:var(--mono,monospace);font-size:11px;color:#7d8794;text-transform:uppercase;letter-spacing:.8px;margin-bottom:9px;text-align:center}
   #pp-overlay .pp-w{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid #2b3139;font-family:var(--mono,monospace);font-size:12.5px;margin-bottom:7px;box-shadow:0 2px 0 rgba(0,0,0,.3)}
@@ -237,7 +243,8 @@ function comoFunciona(entrada) {
     ['Participa con ' + entrada + ' USDT', 'Menos que un café. Casi todo va al <em>fondo común de premios</em>; solo una pizca cubre el sistema. Puedes entrar una vez… o varias, tú decides.'],
     ['El fondo crece con cada persona', 'Mientras <em>más gente entra, más grande es el premio</em> — y también <em>más ganadores hay</em>. Todos suman para todos.'],
     ['Se eligen los ganadores', 'Al azar, pero de forma <em>verificable en la blockchain</em>. Nadie hace trampa, ni siquiera nosotros: el sorteo lo hace un sistema público y auditable.'],
-    ['Reclamas tu premio', 'Si ganas, el premio llega <em>directo a tu wallet</em>. Y si no se junta suficiente gente, se te <em>devuelve tu aporte</em>. Reglas claras desde el minuto uno.']
+    ['Reclamas tu premio', 'Si ganas, el premio llega <em>directo a tu wallet</em>. Y si no se junta suficiente gente, se te <em>devuelve tu aporte</em>. Reglas claras desde el minuto uno.'],
+    ['¿Y si me arrepiento?', 'Puedes <em>salirte y recuperar tu aporte</em> cuando quieras… hasta <em>24 horas antes del cierre</em>. En ese último día la salida se bloquea para todos, y es a propósito: así nadie engorda el premio y se marcha justo antes del sorteo. El pozo que ves en la recta final es <em>real y se reparte</em>.']
   ];
   let html = `
   <button class="pp-eco-btn" id="pp-eco-btn">Funcionamiento económico <span class="ar">▼</span></button>
@@ -331,7 +338,7 @@ function render(round, pool, players, minReq, pct, entrada, W, distTxt) {
     <div id="pp-mio"></div>
     <div id="pp-claim-box"></div>
     <div class="pp-win" id="pp-win"></div>
-    <div class="pp-note">Al participar, tu nombre y Telegram quedan registrados on-chain y se muestran si ganas. Participa con responsabilidad.</div>
+    <div class="pp-note">Puedes salirte y recuperar tu aporte hasta 24 h antes del cierre; en el último día la salida se bloquea para todos.<br>Al participar, tu nombre y Telegram quedan registrados on-chain y se muestran si ganas. Participa con responsabilidad.</div>
   </div>
 
   <div class="pp-pane" id="pp-pane-hw">
@@ -408,13 +415,21 @@ async function cargarMiAporte() {
   const cuenta = wallet.cuentaActual && wallet.cuentaActual();
   if (!cuenta) { box.innerHTML = ''; return; }
   try {
-    const [tickets, devolucion] = await leePP('miAporte', [cuenta]);
+    const [tickets, devolucion, puedeSalir, cierreSalida] = await leePP('miAporte', [cuenta]);
     if (Number(tickets) === 0) { box.innerHTML = ''; return; }
-    box.innerHTML = `<div class="pp-mio">
+    const faltan = Number(cierreSalida) - Math.floor(Date.now() / 1000);
+    const hs = Math.max(0, Math.floor(faltan / 3600));
+    const min = Math.max(0, Math.floor((faltan % 3600) / 60));
+    box.innerHTML = `<div class="pp-mio ${puedeSalir ? '' : 'cerrado'}">
       <div class="t">Ya estás participando</div>
       <div class="d">Tienes <b>${Number(tickets)}</b> ${Number(tickets) === 1 ? 'participación' : 'participaciones'} en esta ronda.</div>
-      <button class="pp-mio-b" id="pp-aband">Abandonar y recuperar ${num(fmt(devolucion), 2)} USDT</button>
+      ${puedeSalir
+        ? `<button class="pp-mio-b" id="pp-aband">Abandonar y recuperar ${num(fmt(devolucion), 2)} USDT</button>
+           <div class="pp-mio-av">Podrás salirte durante <b>${hs}h ${min}m</b> más. Después queda bloqueado hasta que salgan los ganadores.</div>`
+        : `<div class="pp-mio-lock">Salida cerrada
+             <span>Estamos en las últimas 24 horas. Nadie puede retirar su aporte hasta que se sorteen los ganadores: así nadie infla el pozo y se va antes del sorteo.</span></div>`}
     </div>`;
+    if (!puedeSalir) return;
     $('pp-aband').onclick = async () => {
       if (!confirm('¿Seguro que quieres abandonar?\n\nSe te devuelve tu aporte al fondo y quedas fuera del sorteo. La comisión de la plataforma no se devuelve.')) return;
       try {
