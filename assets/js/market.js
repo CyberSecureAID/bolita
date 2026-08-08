@@ -1,6 +1,7 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
-import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=60';
+import { ethersListo } from './ethers-carga.js?v=61';
+const ethers = await ethersListo;   // prueba varios CDN: si uno se cae, usa otro
+import * as wallet from './wallet.js?v=61';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
@@ -45,6 +46,8 @@ const ABI = [
   'function caducarDisputa(uint256)',
   'function pedirCancelar(uint256)',
   'function liberarReserva(uint256)',
+  'function abandonarVenta(uint256)',
+  'function retirarTodo() returns (uint256)',
   'function calificar(uint256,uint8)'
 ];
 const ERC20 = [
@@ -70,6 +73,14 @@ const esc = (s) => String(s ?? '').replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': 
 const f18 = (v) => Number(ethers.formatUnits(v, 18));
 const num = (n, d = 2) => Number(n).toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d });
 const simbolo = (t) => TOKENS[String(t).toLowerCase()] || 'Token';
+/** Números grandes en corto: 1.170.000 → 1,17 M · 2.300.000.000 → 2,3 MM */
+function corto(n) {
+  const x = Number(n) || 0;
+  if (x >= 1e9) return num(x / 1e9, 2) + ' MM';
+  if (x >= 1e6) return num(x / 1e6, 2) + ' M';
+  if (x >= 1e5) return num(x, 0);
+  return num(x, x >= 1000 ? 0 : 2);
+}
 const ESTADOS = ['Abierta', 'En curso', 'Completada', 'Cancelada', 'En disputa'];
 const MONEDAS = ['CUP', 'MLC', 'USD', 'MXN', 'COP', 'ARS', 'EUR', 'BRL', 'CAD', 'CLP', 'PEN', 'DOP', 'VES'];
 const METODOS = ['Transferencia', 'Zelle', 'PayPal', 'Saldo movil', 'Efectivo', 'Otro'];
@@ -124,8 +135,9 @@ function estilos() {
   #mk-overlay .mk-title{font-family:var(--display,sans-serif);font-weight:800;font-size:24px;letter-spacing:1.5px;color:var(--gold,#E8B84B);text-transform:uppercase}
   #mk-overlay .mk-title .ln{display:inline-block;width:22px;height:1px;background:var(--gold-soft,#C9A84B);vertical-align:middle;margin:0 11px;opacity:.6}
   #mk-overlay .mk-sub{font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;letter-spacing:1px;margin-top:4px;text-transform:uppercase}
-  #mk-overlay .mk-tabs{display:flex;gap:7px;background:#0b0e12;border:1px solid #2b3139;border-radius:12px;padding:5px;margin-bottom:16px}
-  #mk-overlay .mk-tab{flex:1;padding:10px 6px;border:none;border-radius:8px;background:transparent;color:#b7bdc6;font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;cursor:pointer}
+  #mk-overlay .mk-tabs{display:flex;gap:6px;background:#0b0e12;border:1px solid #2b3139;border-radius:12px;padding:5px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #mk-overlay .mk-tabs::-webkit-scrollbar{display:none}
+  #mk-overlay .mk-tab{flex:1 0 auto;min-height:44px;padding:11px 12px;border:none;border-radius:8px;background:transparent;color:#b7bdc6;font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap}
   #mk-overlay .mk-tab.on{color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.4)}
   #mk-overlay .mk-pane{display:none} #mk-overlay .mk-pane.on{display:block;animation:mkIn .16s ease both}
 
@@ -172,7 +184,7 @@ function estilos() {
   #mk-overlay .mk-mm:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
   /* Chips seleccionables */
   #mk-overlay .mk-chips-sel{display:flex;flex-wrap:wrap;gap:7px}
-  #mk-overlay .mk-cs{padding:9px 13px;border-radius:9px;border:1px solid #2b3139;background:linear-gradient(180deg,#1b2027,#0d1117);color:#b7bdc6;font-family:var(--mono,monospace);font-size:12px;cursor:pointer;font-weight:700}
+  #mk-overlay .mk-cs{min-height:40px;padding:9px 13px;border-radius:9px;border:1px solid #2b3139;background:linear-gradient(180deg,#1b2027,#0d1117);color:#b7bdc6;font-family:var(--mono,monospace);font-size:12px;cursor:pointer;font-weight:700}
   #mk-overlay .mk-cs.on{color:#3a2800;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);border-color:#c79426;box-shadow:0 2px 0 #8f6a1a}
   #mk-overlay .mk-rapidos{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
   #mk-overlay .mk-rp{padding:7px 12px;border-radius:8px;border:1px solid #3a424c;background:rgba(255,255,255,.04);color:var(--gold,#E8B84B);font-family:var(--mono,monospace);font-size:12px;cursor:pointer}
@@ -250,6 +262,8 @@ function estilos() {
   #mk-overlay .op-caja-v b{font-family:var(--display,sans-serif);font-size:24px;color:var(--gold,#E8B84B);margin-right:4px}
   #mk-overlay .op-caja.vacia .op-caja-v b{color:#5f6a75}
   #mk-overlay .op-caja-d{font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;line-height:1.5}
+  #mk-overlay .op-caja-b{margin-top:12px;width:100%;padding:12px;border-radius:11px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:var(--gold,#E8B84B);font-family:var(--display,sans-serif);font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.4)}
+  #mk-overlay .op-caja-b:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
   #mk-overlay .mk-lanza .lz-d{max-width:340px;margin-left:auto;margin-right:auto}
   /* ── Operaciones ── */
   #mk-overlay .op-sec{margin-bottom:20px}
@@ -277,7 +291,7 @@ function estilos() {
   #mk-overlay .op-ct{font-family:var(--mono,monospace);font-size:12px;color:#7fb0ff;background:rgba(127,176,255,.09);border:1px solid rgba(127,176,255,.3);border-radius:10px;padding:10px 12px;margin-bottom:9px;width:100%;word-break:break-word}
   #mk-overlay .op-arb{font-family:var(--mono,monospace);font-size:11px;color:var(--rojo,#f6465d);background:rgba(246,70,93,.09);border:1px solid rgba(246,70,93,.3);border-radius:10px;padding:9px 11px;margin-bottom:9px;width:100%}
   #mk-overlay .op-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}
-  #mk-overlay .op-b{flex:1;min-width:150px;padding:12px 10px;border-radius:11px;font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;cursor:pointer;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;box-shadow:0 3px 0 #8f6a1a}
+  #mk-overlay .op-b{flex:1;min-width:150px;min-height:44px;padding:12px 10px;border-radius:11px;font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;cursor:pointer;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;box-shadow:0 3px 0 #8f6a1a}
   #mk-overlay .op-b:active{transform:translateY(2px);box-shadow:0 1px 0 #8f6a1a}
   #mk-overlay .op-b.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:#b7bdc6;box-shadow:0 3px 0 rgba(0,0,0,.4)}
   .mk-wiz-acts .mk-b.peligro{background:linear-gradient(180deg,#f08a95,#e35d6a 45%,#b8323f);border-color:#d14a58;color:#fff;box-shadow:0 4px 0 #8c2531;text-shadow:0 1px 0 rgba(0,0,0,.3)}
@@ -299,19 +313,20 @@ function estilos() {
 
   #mk-overlay .tj-cab{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
   #mk-overlay .tj-moneda{width:34px;height:34px;flex:0 0 auto;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#0b0e12;border:1px solid #2b3139;box-shadow:0 2px 6px rgba(0,0,0,.5)}
-  #mk-overlay .tj-q{min-width:0;flex:1}
+  #mk-overlay .tj-q{min-width:0;flex:1;overflow:hidden}
   #mk-overlay .tj-nom{font-family:var(--display,sans-serif);font-weight:700;font-size:13.5px;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px}
   #mk-overlay .tj-ok{color:#4d9fff;font-size:10px;flex:0 0 auto}
-  #mk-overlay .tj-red{font-family:var(--mono,monospace);font-size:9px;color:#6b7681;letter-spacing:.5px;margin-top:1px}
+  #mk-overlay .tj-red{font-family:var(--mono,monospace);font-size:9px;color:#6b7681;letter-spacing:.5px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #mk-overlay .tj-tag{flex:0 0 auto;font-family:var(--display,sans-serif);font-weight:800;font-size:9.5px;padding:5px 10px;border-radius:8px;white-space:nowrap;letter-spacing:.3px;box-shadow:0 2px 6px rgba(0,0,0,.5)}
   #mk-overlay .tj-tag.v{background:linear-gradient(180deg,#e35d6a,#b8323f);color:#fff;border:1px solid #d14a58}
   #mk-overlay .tj-tag.c{background:linear-gradient(180deg,#4fd992,#1f9e5f);color:#042415;border:1px solid #34b877}
 
   #mk-overlay .tj-cifra{display:flex;align-items:baseline;gap:5px;margin-top:13px;position:relative;z-index:1}
-  #mk-overlay .tj-cifra b{font-family:var(--display,sans-serif);font-weight:800;font-size:27px;color:var(--gold,#E8B84B);line-height:1;text-shadow:0 2px 5px rgba(0,0,0,.6)}
+  #mk-overlay .tj-cifra{flex-wrap:wrap}
+  #mk-overlay .tj-cifra b{font-family:var(--display,sans-serif);font-weight:800;font-size:clamp(19px,6.4vw,27px);color:var(--gold,#E8B84B);line-height:1;text-shadow:0 2px 5px rgba(0,0,0,.6)}
   #mk-overlay .tj.compra .tj-cifra b{color:#5fe3a1}
   #mk-overlay .tj-cifra span{font-family:var(--mono,monospace);font-size:11px;color:#8b96a3}
-  #mk-overlay .tj-tasa{font-family:var(--mono,monospace);font-size:12px;color:#b7bdc6;margin-top:5px;position:relative;z-index:1}
+  #mk-overlay .tj-tasa{font-family:var(--mono,monospace);font-size:12px;color:#b7bdc6;margin-top:5px;position:relative;z-index:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #mk-overlay .tj-tasa b{color:#eaecef;font-size:13px}
   #mk-overlay .tj-total{font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;margin-top:2px;position:relative;z-index:1}
   #mk-overlay .tj-total b{color:var(--gold-soft,#C9A84B)}
@@ -320,7 +335,7 @@ function estilos() {
   #mk-overlay .tj-pie{display:flex;gap:9px;align-items:center;margin:11px 0 12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);font-family:var(--mono,monospace);font-size:10px;color:#7d8794;position:relative;z-index:1;min-height:12px}
   #mk-overlay .tj-pie .st{color:var(--gold,#E8B84B)}
   #mk-overlay .tj-pie .nuevo{color:#6b7681;border:1px solid #2b3139;border-radius:6px;padding:2px 7px}
-  #mk-overlay .tj-btn{width:100%;margin-top:auto;padding:12px;border-radius:11px;font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;cursor:pointer;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;box-shadow:0 4px 0 #8f6a1a,0 6px 14px rgba(0,0,0,.35);text-shadow:0 1px 0 rgba(255,255,255,.3);position:relative;z-index:1}
+  #mk-overlay .tj-btn{width:100%;margin-top:auto;min-height:44px;padding:12px;border-radius:11px;font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;cursor:pointer;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;box-shadow:0 4px 0 #8f6a1a,0 6px 14px rgba(0,0,0,.35);text-shadow:0 1px 0 rgba(255,255,255,.3);position:relative;z-index:1}
   #mk-overlay .tj-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #8f6a1a}
   #mk-overlay .tj-btn.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:var(--gold,#E8B84B);box-shadow:0 4px 0 rgba(0,0,0,.4);text-shadow:none}
   #mk-overlay .tj.compra .tj-btn{border-color:#34b877;background:linear-gradient(180deg,#8ff0bd,#34d97b 45%,#1f9e5f);color:#042415;box-shadow:0 4px 0 #158043,0 6px 14px rgba(0,0,0,.35)}
@@ -451,7 +466,7 @@ function estilos() {
     #mk-overlay .mk-title{font-size:20px}
     #mk-overlay .mk-2{grid-template-columns:1fr}
     #mk-overlay .mk-b{min-width:100%}
-    #mk-overlay .mk-tab{font-size:11px;padding:9px 3px}
+    #mk-overlay .mk-tab{font-size:11px;padding:11px 10px;min-height:44px}
     #mk-overlay .tx-l{display:none} #mk-overlay .tx-s{display:inline}
     #mk-overlay label{font-size:9.5px;letter-spacing:.4px}
     #mk-overlay .mk-cs{padding:8px 11px;font-size:11px}
@@ -706,10 +721,10 @@ function tarjeta({ o, perf, rep }, cuenta) {
     </div>
 
     <div class="tj-cifra">
-      <b>${num(monto, monto >= 1000 ? 0 : 2)}</b><span>${sim}</span>
+      <b>${corto(monto)}</b><span>${sim}</span>
     </div>
-    ${p1.v > 0 ? `<div class="tj-tasa">a <b>${num(p1.v, p1.v >= 100 ? 0 : 2)}</b> ${esc(p1.m)} c/u</div>` : ''}
-    ${(p1.v > 0 && total > 0) ? `<div class="tj-total">≈ <b>${num(total, total >= 1000 ? 0 : 2)} ${esc(p1.m)}</b> en total</div>` : ''}
+    ${p1.v > 0 ? `<div class="tj-tasa">a <b>${corto(p1.v)}</b> ${esc(p1.m)} c/u</div>` : ''}
+    ${(p1.v > 0 && total > 0) ? `<div class="tj-total">≈ <b>${corto(total)} ${esc(p1.m)}</b> en total</div>` : ''}
     ${otras.length ? `<div class="tj-otras">También: ${otras.map(x => `<b>${num(x.v, x.v >= 100 ? 0 : 2)}</b> ${esc(x.m)}`).join(' · ')}</div>` : ''}
 
     <div class="tj-pie">
@@ -1686,6 +1701,7 @@ async function panelMisOps() {
           <div class="op-caja-t">Tu dinero en la caja fuerte</div>
           <div class="op-caja-v">${hayRet.map(([k, v]) => `<span><b>${num(v, 2)}</b> ${k}</span>`).join('')}</div>
           <div class="op-caja-d">Es tuyo. Vuelve a tu wallet en cuanto canceles la publicación o termine la operación.</div>
+          <button class="op-caja-b" id="op-retirar">Retirar todos mis fondos</button>
         </div>`
       : `<div class="op-caja vacia"><div class="op-caja-t">Tu dinero en la caja fuerte</div><div class="op-caja-v"><span><b>0.00</b></span></div><div class="op-caja-d">Ahora mismo el contrato no retiene nada tuyo.</div></div>`;
 
@@ -1695,6 +1711,20 @@ async function panelMisOps() {
       sec('Publicadas', abiertas, 'Todavía nadie las ha tomado.') +
       sec('Terminadas', fin_, '');
     wireOps();
+    const rt = $('op-retirar');
+    if (rt) rt.onclick = () => confirmar({
+      titulo: '¿Retirar todo lo que tienes en la caja fuerte?',
+      texto: 'Se te devuelve <b>todo tu dinero</b> de una vez, incluida tu fianza.<br><br>A cambio: <b>todas tus publicaciones se cancelan al instante</b> y desaparecen del listado, igual que las reservas donde todavía nadie ha pagado.<br><br>Lo que ya esté a mitad de una operación (con un pago declarado) <b>no se toca</b>: eso hay que terminarlo o resolverlo por disputa.',
+      ok: 'Sí, retirar todo', peligro: true
+    }, async () => {
+      try {
+        msg('Confirma en tu wallet…', 'info');
+        const c = new ethers.Contract(MARKET, ABI, await firmante());
+        await (await c.retirarTodo()).wait();
+        msg('Listo. Tus fondos volvieron a tu wallet.', 'ok');
+        panelMisOps(); listarOfertas();
+      } catch (e) { msg(traducir(e), 'err'); }
+    });
   } catch (e) { box.innerHTML = `<div class="mk-vacio">No se pudo cargar. Revisa tu conexión.</div>`; }
 }
 
@@ -1731,7 +1761,8 @@ function opCard({ o, perfOtro }, cuenta, esOwner) {
           (vencida ? ` <b>La reserva ya venció</b>: puedes devolver la oferta al listado.` : ` Si no arranca, en <b>${hs} h</b> podrás devolverla al listado.`);
         acciones = otroCt ? `<div class="op-ct">${esc(otroCt)}</div>` : '';
         acciones += vencida ? `<button class="op-b" data-liber="${o.id}">Devolver mi oferta al listado</button>` : '';
-        acciones += `<button class="op-b gris" data-canmut="${o.id}">Cancelar de mutuo acuerdo</button>
+        acciones += `<button class="op-b gris" data-aband="${o.id}">Me arrepentí · abandonar venta</button>
+                     <button class="op-b gris" data-canmut="${o.id}">Cancelar de mutuo acuerdo</button>
                      <button class="op-b gris" data-disp="${o.id}">Tengo un problema</button>`;
       }
     } else {
@@ -1811,6 +1842,12 @@ function wireOps() {
   }, () => tx('liberarTramo', b.getAttribute('data-lib'), 'Parte liberada.')));
 
   document.querySelectorAll('[data-disp]').forEach(b => b.onclick = () => pedirMotivo(b.getAttribute('data-disp')));
+
+  document.querySelectorAll('[data-aband]').forEach(b => b.onclick = () => confirmar({
+    titulo: '¿Abandonar esta venta?',
+    texto: 'Te echas atrás antes de que empiece el pago. La operación <b>se cierra</b>, tu cripto <b>vuelve a tu wallet</b> y la publicación <b>desaparece del listado</b>.<br><br>Avisa a la otra persona por el contacto: si ya te mandó el dinero, no uses esto — usa la disputa.',
+    ok: 'Sí, abandonar', peligro: true
+  }, () => tx('abandonarVenta', b.getAttribute('data-aband'), 'Venta abandonada. Tu cripto volvió a tu wallet.')));
 
   document.querySelectorAll('[data-liber]').forEach(b => b.onclick = () => confirmar({
     titulo: 'Devolver tu oferta al listado',
