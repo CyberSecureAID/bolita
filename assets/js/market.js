@@ -1,6 +1,6 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=58';
+import * as wallet from './wallet.js?v=59';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
@@ -14,8 +14,8 @@ const RPCS = [
 ];
 
 const ABI = [
-  'function ordenes(uint256) view returns (tuple(uint256 id,address vendedor,address comprador,address token,uint256 monto,uint256 liberado,uint16 tramos,uint16 tramosHechos,string moneda,string metodo,uint256 precioFiat,uint64 creadaEn,uint64 tomadaEn,uint64 ultimoMovEn,bool tramoPagado,uint8 estado,address arbitro,bool califVendedor,bool califComprador))',
-  'function perfiles(address) view returns (tuple(string nombre,string pais,string moneda,string contacto,bool existe,uint32 ventasOk,uint32 comprasOk,uint32 disputasPerdidas,uint64 sumaEstrellas,uint32 numVotos,uint64 desde))',
+  'function ordenes(uint256) view returns (tuple(uint256 id,address vendedor,address comprador,address token,uint256 monto,uint256 liberado,uint16 tramos,uint16 tramosHechos,string moneda,string metodo,uint256 precioFiat,uint64 creadaEn,uint64 tomadaEn,uint64 ultimoMovEn,bool tramoPagado,uint8 estado,address arbitro,bool califVendedor,bool califComprador,uint8 tipo,string motivo,uint64 disputaEn,bool cancelaV,bool cancelaC))',
+  'function perfiles(address) view returns (tuple(string nombre,string pais,string moneda,string contacto,bool existe,uint32 ventasOk,uint32 comprasOk,uint32 disputasPerdidas,uint64 sumaEstrellas,uint32 numVotos,uint64 desde,bool compartirUbic,int32 lat1e3,int32 lon1e3,string zona,string horario))',
   'function reputacionDe(address) view returns (uint32 ventasOk,uint32 comprasOk,uint32 disputasPerdidas,uint256 estrellasX100,uint32 votos,uint64 desde)',
   'function totalOrdenes() view returns (uint256)',
   'function comisionBnb() view returns (uint256)',
@@ -44,6 +44,7 @@ const ABI = [
   'function anularDisputa(uint256)',
   'function caducarDisputa(uint256)',
   'function pedirCancelar(uint256)',
+  'function liberarReserva(uint256)',
   'function calificar(uint256,uint8)'
 ];
 const ERC20 = [
@@ -241,6 +242,15 @@ function estilos() {
   #mk-overlay .op-motivo span{display:block;font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
   .mk-wiz-c textarea{width:100%;box-sizing:border-box;background:#0b0e12;border:1px solid #2b3139;border-radius:11px;color:#eaecef;font-family:var(--sans,sans-serif);font-size:13.5px;padding:12px;line-height:1.5;resize:vertical}
   .mk-wiz-c textarea:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
+  #mk-overlay .op-caja{background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid rgba(232,184,75,.35);border-radius:14px;padding:15px;margin-bottom:18px;text-align:center;box-shadow:0 4px 0 rgba(0,0,0,.3)}
+  #mk-overlay .op-caja.vacia{border-color:#2b3139}
+  #mk-overlay .op-caja-t{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.9px}
+  #mk-overlay .op-caja-v{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:7px 0 6px}
+  #mk-overlay .op-caja-v span{font-family:var(--mono,monospace);font-size:11px;color:#8b96a3}
+  #mk-overlay .op-caja-v b{font-family:var(--display,sans-serif);font-size:24px;color:var(--gold,#E8B84B);margin-right:4px}
+  #mk-overlay .op-caja.vacia .op-caja-v b{color:#5f6a75}
+  #mk-overlay .op-caja-d{font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;line-height:1.5}
+  #mk-overlay .mk-lanza .lz-d{max-width:340px;margin-left:auto;margin-right:auto}
   /* ── Operaciones ── */
   #mk-overlay .op-sec{margin-bottom:20px}
   #mk-overlay .op-st{font-family:var(--display,sans-serif);font-weight:800;font-size:14px;color:#eaecef;margin-bottom:5px;display:flex;align-items:center;gap:8px}
@@ -281,11 +291,11 @@ function estilos() {
   /* brillo diagonal sutil */
   #mk-overlay .tj::before{content:'';position:absolute;top:-40%;right:-30%;width:120%;height:90%;pointer-events:none;
     background:radial-gradient(ellipse at top right,rgba(232,184,75,.13),transparent 62%)}
-  #mk-overlay .tj.compra::before{background:radial-gradient(ellipse at top right,rgba(77,159,255,.14),transparent 62%)}
+  #mk-overlay .tj.compra::before{background:radial-gradient(ellipse at top right,rgba(52,217,123,.15),transparent 62%)}
   /* franja de color arriba */
   #mk-overlay .tj::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;
     background:linear-gradient(90deg,transparent,var(--gold,#E8B84B),transparent);opacity:.55}
-  #mk-overlay .tj.compra::after{background:linear-gradient(90deg,transparent,#4d9fff,transparent)}
+  #mk-overlay .tj.compra::after{background:linear-gradient(90deg,transparent,#34d97b,transparent)}
 
   #mk-overlay .tj-cab{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
   #mk-overlay .tj-moneda{width:34px;height:34px;flex:0 0 auto;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#0b0e12;border:1px solid #2b3139;box-shadow:0 2px 6px rgba(0,0,0,.5)}
@@ -295,11 +305,11 @@ function estilos() {
   #mk-overlay .tj-red{font-family:var(--mono,monospace);font-size:9px;color:#6b7681;letter-spacing:.5px;margin-top:1px}
   #mk-overlay .tj-tag{flex:0 0 auto;font-family:var(--display,sans-serif);font-weight:800;font-size:9.5px;padding:5px 10px;border-radius:8px;white-space:nowrap;letter-spacing:.3px;box-shadow:0 2px 6px rgba(0,0,0,.5)}
   #mk-overlay .tj-tag.v{background:linear-gradient(180deg,#e35d6a,#b8323f);color:#fff;border:1px solid #d14a58}
-  #mk-overlay .tj-tag.c{background:linear-gradient(180deg,#4d9fff,#2b6fd0);color:#fff;border:1px solid #3f86e0}
+  #mk-overlay .tj-tag.c{background:linear-gradient(180deg,#4fd992,#1f9e5f);color:#042415;border:1px solid #34b877}
 
   #mk-overlay .tj-cifra{display:flex;align-items:baseline;gap:5px;margin-top:13px;position:relative;z-index:1}
   #mk-overlay .tj-cifra b{font-family:var(--display,sans-serif);font-weight:800;font-size:27px;color:var(--gold,#E8B84B);line-height:1;text-shadow:0 2px 5px rgba(0,0,0,.6)}
-  #mk-overlay .tj.compra .tj-cifra b{color:#7fb8ff}
+  #mk-overlay .tj.compra .tj-cifra b{color:#5fe3a1}
   #mk-overlay .tj-cifra span{font-family:var(--mono,monospace);font-size:11px;color:#8b96a3}
   #mk-overlay .tj-tasa{font-family:var(--mono,monospace);font-size:12px;color:#b7bdc6;margin-top:5px;position:relative;z-index:1}
   #mk-overlay .tj-tasa b{color:#eaecef;font-size:13px}
@@ -313,7 +323,7 @@ function estilos() {
   #mk-overlay .tj-btn{width:100%;margin-top:auto;padding:12px;border-radius:11px;font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;cursor:pointer;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;box-shadow:0 4px 0 #8f6a1a,0 6px 14px rgba(0,0,0,.35);text-shadow:0 1px 0 rgba(255,255,255,.3);position:relative;z-index:1}
   #mk-overlay .tj-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #8f6a1a}
   #mk-overlay .tj-btn.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:var(--gold,#E8B84B);box-shadow:0 4px 0 rgba(0,0,0,.4);text-shadow:none}
-  #mk-overlay .tj.compra .tj-btn{border-color:#3f86e0;background:linear-gradient(180deg,#a9d4ff,#4d9fff 45%,#2b6fd0);color:#06213f;box-shadow:0 4px 0 #1a5bb0,0 6px 14px rgba(0,0,0,.35)}
+  #mk-overlay .tj.compra .tj-btn{border-color:#34b877;background:linear-gradient(180deg,#8ff0bd,#34d97b 45%,#1f9e5f);color:#042415;box-shadow:0 4px 0 #158043,0 6px 14px rgba(0,0,0,.35)}
   /* Esqueletos mientras carga */
   #mk-overlay .tj-sk{height:150px;border-radius:16px;border:1px solid #2b3139;background:linear-gradient(90deg,rgba(255,255,255,.03) 25%,rgba(255,255,255,.08) 50%,rgba(255,255,255,.03) 75%);background-size:220% 100%;animation:tjSk 1.1s ease-in-out infinite}
   @keyframes tjSk{0%{background-position:120% 0}100%{background-position:-120% 0}}
@@ -567,12 +577,12 @@ async function buscarDisputas() {
   return ords.filter(o => o && Number(o.estado) === 4);
 }
 async function contarDisputas() {
+  const el = $('mk-nd'); if (!el) return;
+  el.style.display = 'none';                       // por defecto oculto
   try {
     const d = await buscarDisputas();
-    const el = $('mk-nd'); if (!el) return;
-    if (d.length > 0) { el.textContent = String(d.length); el.style.display = 'inline-grid'; }
-    else el.style.display = 'none';
-  } catch (_) {}
+    if (d && d.length > 0) { el.textContent = String(d.length); el.style.display = 'inline-grid'; }
+  } catch (_) { el.style.display = 'none'; }
 }
 async function panelDisputas() {
   const box = $('mk-p6'); if (!box) return;
@@ -608,6 +618,7 @@ async function panelDisputas() {
 /* ── Cómo funciona ── */
 function comoFunciona() {
   const pasos = [
+    ['También puedes publicar que compras', 'Si no encuentras lo que buscas, ve a <em>Comprar</em> y publica tu anuncio: dices cuánto quieres y a cómo lo pagas, y los vendedores te escriben a ti. Sale en verde con la etiqueta <em>Compro</em>. No trabas cripto ni necesitas fianza.'],
     ['¿Qué es esto?', 'Un lugar para <em>vender y comprar cripto entre personas</em>, sin que ninguna tenga que confiar a ciegas en la otra. La plataforma no toca tu dinero: solo lo guarda en una caja fuerte automática mientras hacen el trato.'],
     ['El problema de siempre', 'En los grupos, la pelea es <em>¿quién manda primero?</em> Si mandas tú, te pueden dejar embarcado. Si manda el otro, igual. Aquí eso se acaba.'],
     ['La caja fuerte', 'El vendedor mete su cripto en el contrato. <em>Ya no la tiene él</em>, y tampoco la tenemos nosotros. El comprador lo ve con sus propios ojos y paga tranquilo.'],
@@ -963,7 +974,7 @@ async function panelVender() {
   ${listo ? `
   <div class="mk-box mk-lanza">
     <div class="lz-t">Todo listo para vender</div>
-    <div class="lz-d">Te vamos a hacer unas preguntas cortas, una por una. En menos de un minuto tu oferta está publicada.</div>
+    <div class="lz-d">Unas preguntas cortas y tu oferta queda publicada.</div>
     <button class="mk-b" id="mk-abrir-wiz">Quiero vender</button>
   </div>` : ''}
 
@@ -1468,13 +1479,9 @@ async function panelComprar() {
   if (!cuenta) { box.innerHTML = `<div class="mk-vacio">Conecta tu wallet para publicar que quieres comprar.</div>`; return; }
   box.innerHTML = `
   <div class="mk-box mk-lanza">
-    <div class="lz-t">¿No encuentras lo que buscas?</div>
-    <div class="lz-d">Publica que <b style="color:#7fb8ff">quieres comprar</b> y deja que los vendedores te contacten a ti. Dices cuánto quieres, a cómo lo pagas y por dónde. Cuesta lo mismo: 1 USD en BNB.</div>
+    <div class="lz-t">Todo listo para comprar</div>
+    <div class="lz-d">Unas preguntas cortas y tu anuncio queda publicado.</div>
     <button class="mk-b" id="mk-abrir-cwiz">Quiero comprar</button>
-  </div>
-  <div class="mk-box">
-    <div class="bt">Cómo funciona</div>
-    <div class="op-exp">Tu anuncio sale en la lista con la etiqueta azul <b>Compro</b>. No trabas nada de cripto ni necesitas fianza: es una publicación para que te encuentren. Cuando alguien te escriba, se ponen de acuerdo y esa persona publica la venta con caja fuerte.</div>
   </div>`;
   if ($('mk-abrir-cwiz')) $('mk-abrir-cwiz').onclick = () => abrirAsistenteCompra();
 }
@@ -1539,8 +1546,28 @@ function pasoC(p) {
   if (p === 4) {
     marco(4, 5, '¿En qué moneda pagas y a cómo?', 'Marca la moneda y pon lo que estás dispuesto a pagar.',
       `<div class="wz-ops chicas" id="cz-monedas">${(C.posibles || []).map(m =>
-        `<button class="wz-op ${C.monedas.includes(m) ? 'on' : ''}" data-cmo="${m}"><b>${m}</b><span>${NOMBRE_MONEDA[m] || ''}</span></button>`).join('')}</div>
+        `<button class="wz-op ${C.monedas.includes(m) ? 'on' : ''}" data-cmo="${m}"><b>${m}</b><span>${NOMBRE_MONEDA[m] || ''}</span></button>`).join('')}
+        <button class="wz-op ${C.otraMon ? 'on' : ''}" id="cz-otra"><b>Otra</b><span>Escríbela tú</span></button></div>
+       <div id="cz-otra-box"></div>
        <div id="cz-precios"></div>`);
+    const pintarOtraC = () => {
+      const b = $('cz-otra-box');
+      b.innerHTML = $('cz-otra').classList.contains('on')
+        ? `<label>¿Cuál moneda?</label><input id="cz-otra-in" maxlength="10" placeholder="Ej: CAD" value="${esc(C.otraMon || '')}">` : '';
+      const i = $('cz-otra-in');
+      if (i) i.oninput = () => {
+        const antes = C.otraMon;
+        C.otraMon = i.value.toUpperCase().trim();
+        C.monedas = C.monedas.filter(x => x !== antes);
+        if (C.otraMon) C.monedas = [...C.monedas, C.otraMon];
+        pintar();
+      };
+    };
+    $('cz-otra').onclick = () => {
+      $('cz-otra').classList.toggle('on');
+      if (!$('cz-otra').classList.contains('on')) { C.monedas = C.monedas.filter(x => x !== C.otraMon); C.otraMon = ''; pintar(); }
+      pintarOtraC();
+    };
     const pintar = () => {
       $('cz-precios').innerHTML = C.monedas.map(m => `<label>¿Cuántos <b>${m}</b> pagas por cada <b>1 ${C.sim}</b>?</label>
         <input class="cz-precio" data-cmo="${m}" type="text" inputmode="decimal" placeholder="${['USD','MLC','EUR'].includes(m) ? 'Ej: 1.05' : 'Ej: 380'}" value="${C.precios[m] || ''}">`).join('');
@@ -1551,7 +1578,7 @@ function pasoC(p) {
       C.monedas = C.monedas.includes(m) ? C.monedas.filter(x => x !== m) : [...C.monedas, m];
       pintar();
     });
-    pintar();
+    pintar(); pintarOtraC();
     $('wz-ok').onclick = () => {
       if (C.monedas.length === 0) { wmsg('Marca al menos una moneda.', 'err'); return; }
       for (const m of C.monedas) { if (!(Number(String(C.precios[m] || '').replace(',', '.')) > 0)) { wmsg(`Falta el precio para ${m}.`, 'err'); return; } }
@@ -1643,7 +1670,26 @@ async function panelMisOps() {
     }
     const sec = (tit, arr, nota) => arr.length
       ? `<div class="op-sec"><div class="op-st">${tit} <span>${arr.length}</span></div>${nota ? `<div class="op-nota">${nota}</div>` : ''}${arr.map(d => opCard(d, cuenta, esOwner)).join('')}</div>` : '';
-    box.innerHTML =
+    // Cuánto tiene el contrato retenido que es tuyo
+    let retenido = {};
+    for (const { o } of ords) {
+      const est = Number(o.estado);
+      const soyV = String(o.vendedor).toLowerCase() === String(cuenta).toLowerCase();
+      if (soyV && Number(o.tipo) === 0 && (est === 0 || est === 1 || est === 4)) {
+        const sim = simbolo(o.token);
+        retenido[sim] = (retenido[sim] || 0) + (f18(o.monto) - f18(o.liberado));
+      }
+    }
+    const hayRet = Object.entries(retenido).filter(([, v]) => v > 0);
+    const cajaRet = hayRet.length
+      ? `<div class="op-caja">
+          <div class="op-caja-t">Tu dinero en la caja fuerte</div>
+          <div class="op-caja-v">${hayRet.map(([k, v]) => `<span><b>${num(v, 2)}</b> ${k}</span>`).join('')}</div>
+          <div class="op-caja-d">Es tuyo. Vuelve a tu wallet en cuanto canceles la publicación o termine la operación.</div>
+        </div>`
+      : `<div class="op-caja vacia"><div class="op-caja-t">Tu dinero en la caja fuerte</div><div class="op-caja-v"><span><b>0.00</b></span></div><div class="op-caja-d">Ahora mismo el contrato no retiene nada tuyo.</div></div>`;
+
+    box.innerHTML = cajaRet +
       sec('Te toca a ti', urg, 'Estas operaciones están esperando algo tuyo. Atiéndelas primero.') +
       sec('En curso', curso, 'Estás esperando a la otra persona.') +
       sec('Publicadas', abiertas, 'Todavía nadie las ha tomado.') +
@@ -1678,8 +1724,13 @@ function opCard({ o, perfOtro }, cuenta, esOwner) {
                     <button class="op-b gris" data-disp="${o.id}">No me llegó · abrir disputa</button>`;
       } else {
         titulo = `${esc(otroNom)} reservó tu oferta`;
-        explica = `Ahora te toca <b>contactarlo</b> y ponerte de acuerdo. Cuando te pague la parte ${hechos + 1}, él marcará el pago y tú lo confirmas aquí.`;
+        const venceEn = (Number(o.tomadaEn) + 24 * 3600) * 1000;
+        const vencida = Date.now() > venceEn;
+        const hs = Math.max(0, Math.ceil((venceEn - Date.now()) / 3600000));
+        explica = `Ahora te toca <b>contactarlo</b> y ponerte de acuerdo. Cuando te pague la parte ${hechos + 1}, él marcará el pago y tú lo confirmas aquí.` +
+          (vencida ? ` <b>La reserva ya venció</b>: puedes devolver la oferta al listado.` : ` Si no arranca, en <b>${hs} h</b> podrás devolverla al listado.`);
         acciones = otroCt ? `<div class="op-ct">${esc(otroCt)}</div>` : '';
+        acciones += vencida ? `<button class="op-b" data-liber="${o.id}">Devolver mi oferta al listado</button>` : '';
         acciones += `<button class="op-b gris" data-canmut="${o.id}">Cancelar de mutuo acuerdo</button>
                      <button class="op-b gris" data-disp="${o.id}">Tengo un problema</button>`;
       }
@@ -1760,6 +1811,12 @@ function wireOps() {
   }, () => tx('liberarTramo', b.getAttribute('data-lib'), 'Parte liberada.')));
 
   document.querySelectorAll('[data-disp]').forEach(b => b.onclick = () => pedirMotivo(b.getAttribute('data-disp')));
+
+  document.querySelectorAll('[data-liber]').forEach(b => b.onclick = () => confirmar({
+    titulo: 'Devolver tu oferta al listado',
+    texto: 'La persona que la reservó no arrancó en 24 horas. Tu oferta <b>vuelve a estar visible</b> para todos y tu cripto sigue trabada y segura.',
+    ok: 'Sí, devolverla'
+  }, () => tx('liberarReserva', b.getAttribute('data-liber'), 'Tu oferta volvió al listado.')));
 
   document.querySelectorAll('[data-canmut]').forEach(b => b.onclick = () => confirmar({
     titulo: 'Cancelar de mutuo acuerdo',
