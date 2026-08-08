@@ -43,29 +43,52 @@ if (typeof window !== 'undefined') {
 
 function detectar() {
   if (est.proveedor) return est.proveedor;
+  const c = candidatos();
+  return c.length ? c[0] : null;
+}
 
-  // Elegimos con criterio, no "la primera que aparezca":
-  // hay extensiones rotas que se anuncian como wallet y nunca responden.
-  if (proveedores6963.length > 0) {
-    const nombre = (p) => String(p?.info?.name || p?.info?.rdns || '').toLowerCase();
-    const PREFERIDAS = ['metamask', 'trust', 'coinbase', 'rabby', 'okx', 'bitget', 'binance', 'phantom', 'brave'];
-    for (const clave of PREFERIDAS) {
-      const hit = proveedores6963.find((p) => nombre(p).includes(clave));
-      if (hit?.provider) return hit.provider;
-    }
-    // Ninguna conocida: nos quedamos con la primera que al menos sepa hablar.
-    const usable = proveedores6963.find((p) => typeof p?.provider?.request === 'function');
-    if (usable?.provider) return usable.provider;
+/** Todas las wallets disponibles, ordenadas: primero las conocidas.
+ *  No elegimos a ciegas: luego probamos cuál responde de verdad. */
+function candidatos() {
+  const lista = [];
+  const meter = (p) => { if (p && typeof p.request === 'function' && !lista.includes(p)) lista.push(p); };
+
+  const nombre = (p) => String(p?.info?.name || p?.info?.rdns || '').toLowerCase();
+  const PREFERIDAS = ['metamask', 'trust', 'coinbase', 'rabby', 'okx', 'bitget', 'binance', 'phantom', 'brave'];
+  for (const clave of PREFERIDAS) {
+    proveedores6963.filter((p) => nombre(p).includes(clave)).forEach((p) => meter(p.provider));
   }
+  proveedores6963.forEach((p) => meter(p.provider));           // el resto de las anunciadas
 
-  // Sin EIP-6963: si varias extensiones se pelean por window.ethereum,
-  // buscamos MetaMask dentro de la lista antes de rendirnos.
   const eth = window.ethereum;
   if (eth?.providers?.length) {
-    return eth.providers.find((p) => p?.isMetaMask) || eth.providers[0];
+    eth.providers.filter((p) => p?.isMetaMask).forEach(meter); // MetaMask primero
+    eth.providers.forEach(meter);
   }
-  return eth ?? null;
+  meter(eth);
+  return lista;
 }
+
+/** Pide algo a una wallet con límite de tiempo. */
+function pedir(prov, args, ms) {
+  return Promise.race([
+    prov.request(args),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('sin respuesta')), ms))
+  ]);
+}
+
+/** Devuelve la primera wallet que CONTESTA (no la primera que aparece).
+ *  Así una extensión rota que nunca responde deja de bloquearnos. */
+async function primeraQueResponde(ms = 1200) {
+  const lista = candidatos();
+  if (lista.length === 0) return null;
+  const pruebas = lista.map((prov) =>
+    pedir(prov, { method: 'eth_accounts' }, ms).then((cuentas) => ({ prov, cuentas }))
+  );
+  // La primera que conteste gana; si ninguna contesta, devolvemos null.
+  try { return await Promise.any(pruebas); } catch (_) { return null; }
+}
+
 
 export const hayWallet = () => Boolean(detectar());
 
@@ -151,27 +174,35 @@ function soltarEventos() {
 }
 
 export async function conectar() {
-  const prov = detectar();
+  // 1) Buscamos una wallet que esté VIVA (responde sin abrir ventanas).
+  let prov = est.proveedor;
+  if (!prov) {
+    const r = await primeraQueResponde(1500);
+    prov = r?.prov || null;
+  }
+  // 2) Si ninguna contestó, probamos igual con la mejor candidata:
+  //    puede que esté simplemente dormida y despierte al pedirle permiso.
+  if (!prov) prov = candidatos()[0] || null;
   if (!prov) throw new Error('NO_WALLET');
 
   est.proveedor = prov;
-
-  // Guardar la info del proveedor (nombre e icono) si vino por EIP-6963
   const encontrado = proveedores6963.find((p) => p.provider === prov);
   est.info = encontrado?.info ?? adivinarInfo(prov);
 
+  // Aquí NO ponemos límite: el usuario tiene que aprobar en su wallet y eso tarda.
   const cuentas = await prov.request({ method: 'eth_requestAccounts' });
   if (!cuentas?.length) throw new Error('SIN_CUENTAS');
 
   est.cuenta = cuentas[0];
-  est.chainId = await prov.request({ method: 'eth_chainId' });
+  try { est.chainId = await pedir(prov, { method: 'eth_chainId' }, 3000); } catch (_) {}
 
   engancharEventos(prov);
-  localStorage.removeItem(CLAVE_SALIDA);   // vuelve a reconectar sola
+  localStorage.removeItem(CLAVE_SALIDA);
   avisar();
 
   return est.cuenta;
 }
+
 
 /**
  * Desconecta. Olvida la cuenta, suelta los eventos y borra la sesión, para
@@ -205,36 +236,25 @@ export async function desconectar() {
  * usuario se haya desconectado a mano. Así vuelve el comportamiento de
  * antes sin romper el botón de desconectar.
  */
-/** Pide algo a la wallet, pero se rinde a los 3,5 s.
- *  Hay extensiones rotas cuyas peticiones no responden NUNCA (ni bien ni mal).
- *  Sin este límite, la página se quedaría cargando para siempre. */
-function pedirConLimite(prov, args, ms = 1200) {
-  return Promise.race([
-    prov.request(args),
-    new Promise((_, rej) => setTimeout(() => rej(new Error('wallet no responde')), ms))
-  ]);
-}
-
 export async function reconectarSiProcede() {
   if (localStorage.getItem(CLAVE_SALIDA) === '1') return null;
 
-  const prov = detectar();
-  if (!prov) return null;
+  const r = await primeraQueResponde(1200);
+  if (!r) return null;                       // ninguna wallet contestó a tiempo
 
-  try {
-    const cuentas = await pedirConLimite(prov, { method: 'eth_accounts' });
-    if (cuentas?.length) {
-      est.proveedor = prov;
-      est.cuenta = cuentas[0];
-      est.chainId = await pedirConLimite(prov, { method: 'eth_chainId' });
-      engancharEventos(prov);
-      avisar();
-      return est.cuenta;
-    }
-  } catch { /* nada */ }
+  const { prov, cuentas } = r;
+  if (!cuentas?.length) return null;          // hay wallet, pero sin permiso todavía
 
-  return null;
+  est.proveedor = prov;
+  est.cuenta = cuentas[0];
+  const enc = proveedores6963.find((p) => p.provider === prov);
+  est.info = enc?.info ?? adivinarInfo(prov);
+  try { est.chainId = await pedir(prov, { method: 'eth_chainId' }, 2000); } catch (_) {}
+  engancharEventos(prov);
+  avisar();
+  return est.cuenta;
 }
+
 
 export async function cambiarARedCorrecta() {
   const prov = est.proveedor ?? detectar();
