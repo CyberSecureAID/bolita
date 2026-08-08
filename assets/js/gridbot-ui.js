@@ -5,14 +5,14 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=67';
-import * as wallet from './wallet.js?v=67';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=67';
-import * as perfil from './perfil.js?v=67';
-import * as prizepool from './prizepool.js?v=67';
-import * as tutorial from './tutorial.js?v=67';
-import * as market from './market.js?v=67';
-import * as avisos from './avisos.js?v=67';
+import * as gb from './gridbot.js?v=68';
+import * as wallet from './wallet.js?v=68';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=68';
+import * as perfil from './perfil.js?v=68';
+import * as prizepool from './prizepool.js?v=68';
+import * as tutorial from './tutorial.js?v=68';
+import * as market from './market.js?v=68';
+import * as avisos from './avisos.js?v=68';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -987,6 +987,7 @@ function conectarWallet() {
     if (el) aviso(el, 'err', 'No se pudo conectar: ' + msg + '. Si estás en el móvil, abre esta página desde el navegador de tu wallet (MetaMask o Trust Wallet).', 8000);
   });
 }
+
 function wireHeader() {
   if ($('c-swap')) $('c-swap').onclick = abrirSwap;
   if ($('c-conectar')) $('c-conectar').onclick = conectarWallet;
@@ -2570,15 +2571,7 @@ async function arrancar() {
   // Splash neutro mientras se resuelve si hay wallet conectada (evita el pestañeo del hero).
   host.innerHTML = `<div style="min-height:64vh;display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-family:var(--mono);font-size:13px"><span class="skel" style="width:16px;height:16px;min-width:16px;border-radius:50%;margin-right:10px"></span>Cargando…</div>`;
   wallet.alCambiar(() => render());
-  // Reconectamos la wallet, pero NUNCA esperamos más de 4 segundos.
-  // Hay extensiones de navegador rotas que inyectan una wallet que jamás responde:
-  // sin este límite, la página se quedaría en "Cargando…" para siempre.
-  try {
-    await Promise.race([
-      wallet.reconectarSiProcede(),
-      new Promise((r) => setTimeout(r, 1200))
-    ]);
-  } catch (_) {}
+  try { await wallet.reconectarSiProcede(); } catch (_) {}
   render(); iniciarReloj();
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
