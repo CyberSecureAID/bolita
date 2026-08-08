@@ -1,11 +1,11 @@
 // prizepool.js — Módulo Prize Pool (independiente). No toca la lógica de los bots.
 // La librería vive en ESTE repositorio. Carga directa: sin CDN, sin esperas,
 // sin nada externo que pueda quedarse colgado y dejar la app en 'Cargando…'.
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=72';
-import * as wallet from './wallet.js?v=72';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=73';
+import * as wallet from './wallet.js?v=73';
 
 /* ───────── Config ───────── */
-const PRIZEPOOL = '0xD0913F0cCda9B0b40da1110e0fe74292138C083A';
+const PRIZEPOOL = '0x595CD563F236DAEba21219D60AEF656a750A8132';
 const USDT      = '0x55d398326f99059fF775485246999027B3197955';   // BSC-USD (18 dec)
 const RPCS = [
   'https://bsc-dataseed.binance.org',
