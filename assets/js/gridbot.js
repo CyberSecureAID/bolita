@@ -13,8 +13,9 @@
  * Lo único que deja en el contrato: un tanque de BNB para gas (retirable).
  */
 
-import { ethersListo } from './ethers-carga.js?v=62';
-const ethers = await ethersListo;   // prueba varios CDN: si uno se cae, usa otro
+// La librería vive en ESTE repositorio. Carga directa: sin CDN, sin esperas,
+// sin nada externo que pueda quedarse colgado y dejar la app en 'Cargando…'.
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=63';
 
 // ⚠️ IMPORTANTE: cambia esta dirección por la de tu PROXY de GridBotV2 recién desplegado.
 // (La de abajo es el contrato V1 viejo; con el V2 ya no sirve.)
