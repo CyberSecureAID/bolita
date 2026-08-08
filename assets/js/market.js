@@ -1,6 +1,6 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=52';
+import * as wallet from './wallet.js?v=53';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
@@ -30,6 +30,8 @@ const ABI = [
   'function guardarPerfil(string,string,string,string)',
   'function ubicacionDe(address) view returns (bool comparte,int32 lat1e3,int32 lon1e3,string zona)',
   'function compartirUbicacion(int32,int32,string)',
+  'function guardarHorario(string)',
+  'function crearAnuncioCompra(address,uint256,string,string,uint256) payable returns (uint256)',
   'function ocultarUbicacion()',
   'function depositarFianza(uint256)',
   'function retirarFianza(uint256)',
@@ -198,6 +200,64 @@ function estilos() {
   #mk-overlay .mk-star{font-size:28px;cursor:pointer;color:#3a424c;line-height:1}
   #mk-overlay .mk-star.on{color:var(--gold,#E8B84B);text-shadow:0 0 10px rgba(232,184,75,.4)}
   #mk-overlay .mk-dist{font-family:var(--mono,monospace);font-size:11px;color:#7fb0ff;text-align:center;padding:9px;border-radius:10px;background:rgba(127,176,255,.08);border:1px solid rgba(127,176,255,.3);margin-top:9px}
+  /* ── Tarjetas en cuadrícula ── */
+  #mk-overlay .tj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:11px}
+  #mk-overlay .tj{position:relative;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid #2b3139;border-radius:16px;padding:15px 14px 14px;box-shadow:0 4px 0 rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.04);display:flex;flex-direction:column;gap:10px}
+  #mk-overlay .tj-tag{position:absolute;top:-9px;right:11px;font-family:var(--display,sans-serif);font-weight:800;font-size:10px;padding:5px 10px;border-radius:9px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.55);letter-spacing:.2px}
+  #mk-overlay .tj-tag.v{background:linear-gradient(180deg,#e35d6a,#b8323f);color:#fff;border:1px solid #d14a58}
+  #mk-overlay .tj-tag.c{background:linear-gradient(180deg,#4d9fff,#2b6fd0);color:#fff;border:1px solid #3f86e0}
+  #mk-overlay .tj-top{display:flex;align-items:center;gap:10px;margin-top:4px}
+  #mk-overlay .tj-ava{width:36px;height:36px;flex:0 0 auto;border-radius:11px;display:grid;place-items:center;background:linear-gradient(160deg,#f7db8d,var(--gold,#E8B84B) 55%,#b98614);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:15px}
+  #mk-overlay .tj-ava.grande{width:50px;height:50px;border-radius:14px;font-size:21px}
+  #mk-overlay .tj-q{min-width:0;flex:1}
+  #mk-overlay .tj-nom{font-family:var(--display,sans-serif);font-weight:700;font-size:14px;color:#eaecef;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #mk-overlay .tj-rep{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;display:flex;gap:8px;margin-top:2px}
+  #mk-overlay .tj-rep .st{color:var(--gold,#E8B84B)}
+  #mk-overlay .tj-precios{display:flex;flex-wrap:wrap;gap:5px}
+  #mk-overlay .tj-pr{font-family:var(--mono,monospace);font-size:10.5px;color:var(--gold,#E8B84B);background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.3);border-radius:7px;padding:4px 8px}
+  #mk-overlay .tj-pr b{color:#eaecef}
+  #mk-overlay .tj-partes{font-family:var(--mono,monospace);font-size:10px;color:#7d8794}
+  #mk-overlay .tj-partes b{color:var(--gold-soft,#C9A84B)}
+  #mk-overlay .tj-btn{width:100%;margin-top:auto;padding:11px;border-radius:11px;font-family:var(--display,sans-serif);font-weight:800;font-size:13px;cursor:pointer;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;box-shadow:0 3px 0 #8f6a1a}
+  #mk-overlay .tj-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #8f6a1a}
+  #mk-overlay .tj-btn.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:var(--gold,#E8B84B);box-shadow:0 3px 0 rgba(0,0,0,.4)}
+  /* Esqueletos mientras carga */
+  #mk-overlay .tj-sk{height:150px;border-radius:16px;border:1px solid #2b3139;background:linear-gradient(90deg,rgba(255,255,255,.03) 25%,rgba(255,255,255,.08) 50%,rgba(255,255,255,.03) 75%);background-size:220% 100%;animation:tjSk 1.1s ease-in-out infinite}
+  @keyframes tjSk{0%{background-position:120% 0}100%{background-position:-120% 0}}
+  /* Ficha */
+  #mk-overlay .fc-h,.mk-wiz-c .fc-h{display:flex;align-items:center;gap:13px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid #2b3139;padding-right:38px}
+  .mk-wiz-c .fc-nom{font-family:var(--display,sans-serif);font-weight:800;font-size:19px;color:#eaecef}
+  .mk-wiz-c .fc-sub{font-family:var(--mono,monospace);font-size:11px;color:#7d8794;margin-top:3px}
+  .mk-wiz-c .fc-hero{text-align:center;padding:15px;border-radius:14px;background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid #2b3139;margin-bottom:15px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+  .mk-wiz-c .fc-hero span{display:block;font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:1px}
+  .mk-wiz-c .fc-hero b{display:block;font-family:var(--display,sans-serif);font-weight:800;font-size:27px;color:var(--gold,#E8B84B);margin-top:4px}
+  .mk-wiz-c .fc-sec{margin-bottom:16px}
+  .mk-wiz-c .fc-t{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+  .mk-wiz-c .fc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .mk-wiz-c .fc-chip{font-family:var(--mono,monospace);font-size:11px;color:#b7bdc6;background:rgba(255,255,255,.04);border:1px solid #2b3139;border-radius:8px;padding:6px 10px}
+  .mk-wiz-c .fc-chip.oro{color:var(--gold,#E8B84B);background:rgba(232,184,75,.1);border-color:rgba(232,184,75,.3)}
+  .mk-wiz-c .fc-chip.oro b{color:#eaecef}
+  .mk-wiz-c .fc-pasos{display:flex;flex-direction:column;gap:7px}
+  .mk-wiz-c .fc-p{display:flex;gap:10px;align-items:flex-start;font-family:var(--sans,sans-serif);font-size:12.5px;color:#8b96a3;line-height:1.5;background:rgba(255,255,255,.02);border:1px solid #2b3139;border-radius:10px;padding:10px 12px}
+  .mk-wiz-c .fc-p b{color:var(--gold-soft,#C9A84B)}
+  .mk-wiz-c .fc-p span{flex:0 0 auto;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:11px}
+  .mk-wiz-c .fc-cts{display:flex;flex-direction:column;gap:7px}
+  .mk-wiz-c .fc-ct{display:flex;align-items:center;gap:10px;font-family:var(--mono,monospace);font-size:13px;color:#eaecef;background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid #3a424c;border-radius:11px;padding:11px 13px}
+  .mk-wiz-c .fc-ct .ic{flex:0 0 auto;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:rgba(232,184,75,.13);color:var(--gold,#E8B84B);font-size:13px}
+  /* Aviso bonito (sustituye al texto blanco suelto) */
+  #mk-overlay .mk-msg,.mk-wiz-c .mk-msg{font-family:var(--sans,sans-serif);font-size:12.5px;line-height:1.5;margin-top:12px;text-align:left;min-height:0;padding:0;border-radius:11px;transition:padding .15s}
+  #mk-overlay .mk-msg:empty,.mk-wiz-c .mk-msg:empty{display:none}
+  #mk-overlay .mk-msg.err,.mk-wiz-c .mk-msg.err{color:#ffd9dd;background:rgba(246,70,93,.14);border:1px solid rgba(246,70,93,.42);padding:11px 13px}
+  #mk-overlay .mk-msg.ok,.mk-wiz-c .mk-msg.ok{color:#c9ffdc;background:rgba(46,232,106,.12);border:1px solid rgba(46,232,106,.42);padding:11px 13px}
+  #mk-overlay .mk-msg.info,.mk-wiz-c .mk-msg.info{color:#cfd6de;background:rgba(255,255,255,.05);border:1px solid #3a424c;padding:11px 13px}
+  @media(max-width:560px){
+    #mk-overlay .tj-grid{grid-template-columns:1fr 1fr;gap:9px}
+    #mk-overlay .tj{padding:13px 11px 12px;gap:8px}
+    #mk-overlay .tj-tag{font-size:9px;padding:4px 8px;right:8px}
+    #mk-overlay .tj-nom{font-size:12.5px}
+    #mk-overlay .tj-btn{font-size:11.5px;padding:10px 4px}
+    #mk-overlay .tj-ava{width:30px;height:30px;font-size:13px}
+  }
   /* ── Asistente de venta ── */
   .mk-wiz-bg{position:fixed;inset:0;z-index:9550;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(3,5,8,.85);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
   .mk-wiz-c{width:100%;max-width:460px;max-height:90vh;overflow:auto;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:20px;padding:22px;box-shadow:0 34px 100px rgba(0,0,0,.75);position:relative;animation:mkIn .18s ease both}
@@ -234,7 +294,8 @@ function estilos() {
   .mk-wiz-c .mk-hint{font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;line-height:1.55;margin-top:8px}
   .mk-wiz-c .mk-hint b{color:var(--gold-soft,#C9A84B)}
   .mk-wiz-c .mk-rp{padding:5px 10px;border-radius:7px;border:1px solid #3a424c;background:rgba(255,255,255,.05);color:var(--gold,#E8B84B);font-family:var(--mono,monospace);font-size:11px;cursor:pointer;margin-left:6px}
-  .mk-wiz-c .mk-escala{margin-top:14px;padding:13px;border-radius:12px;background:#0b0e12;border:1px solid #2b3139}
+  .mk-wiz-c .wz-resumen{margin-top:14px;padding:13px 15px;border-radius:12px;background:rgba(232,184,75,.07);border:1px solid rgba(232,184,75,.3);font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.6}
+  .mk-wiz-c .wz-resumen b{color:var(--gold,#E8B84B)}
   #mk-overlay .mk-lanza{text-align:center}
   #mk-overlay .mk-lanza .lz-t{font-family:var(--display,sans-serif);font-weight:800;font-size:18px;color:var(--gold,#E8B84B);margin-bottom:6px}
   #mk-overlay .mk-lanza .lz-d{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.6;margin-bottom:15px}
@@ -386,6 +447,7 @@ function comoFunciona() {
 /* ── Ofertas ── */
 async function listarOfertas() {
   const box = $('mk-p1'); if (!box) return;
+  box.innerHTML = `<div class="tj-grid">${'<div class="tj-sk"></div>'.repeat(4)}</div>`;
   try {
     const total = Number(await lee('totalOrdenes'));
     if (total === 0) { box.innerHTML = `<div class="mk-vacio">Todavía no hay ofertas publicadas.<br>Sé el primero: pasa a "Vender".</div>`; return; }
@@ -405,7 +467,8 @@ async function listarOfertas() {
       return { o, perf, rep };
     }));
     const cuenta = wallet.cuentaActual && wallet.cuentaActual();
-    box.innerHTML = datos.filter(Boolean).map(d => tarjeta(d, cuenta)).join('') || `<div class="mk-vacio">No hay ofertas abiertas.</div>`;
+    const html = datos.filter(Boolean).map(d => tarjeta(d, cuenta)).join('');
+    box.innerHTML = html ? `<div class="tj-grid">${html}</div>` : `<div class="mk-vacio">No hay publicaciones abiertas ahora mismo.</div>`;
     wireTarjetas();
   } catch (e) {
     box.innerHTML = `<div class="mk-vacio">No se pudieron cargar las ofertas.<br>Revisa tu conexión.</div>`;
@@ -421,101 +484,148 @@ function estrellasTxt(rep) {
 function tarjeta({ o, perf, rep }, cuenta) {
   const sim = simbolo(o.token);
   const monto = f18(o.monto);
-  const porTramo = monto / Number(o.tramos);
   const nombre = perf && perf.nombre ? perf.nombre : 'Sin nombre';
   const ini = nombre.trim().charAt(0).toUpperCase() || '?';
   const mio = cuenta && String(cuenta).toLowerCase() === String(o.vendedor).toLowerCase();
-  const precio = Number(o.precioFiat) / 100;
+  const compra = Number(o.tipo) === 1;
+  const conRep = rep && Number(rep.votos) > 0;
+  const conVentas = rep && Number(rep.ventasOk) > 0;
+  const precios = String(o.moneda || '').split('·').filter(Boolean).slice(0, 2)
+    .map(p => { const t = p.trim().split(/\s+/); return `<span class="tj-pr"><b>${esc(t[1] || '')}</b> ${esc(t[0] || '')}</span>`; }).join('');
   return `
-  <div class="mk-of" data-id="${o.id}">
-    <div class="mk-of-top">
-      <div class="mk-ava">${esc(ini)}</div>
-      <div class="mk-quien">
-        <div class="mk-nom">${esc(nombre)} ${perf && perf.pais ? `<span class="mk-est">${esc(perf.pais)}</span>` : ''}</div>
-        <div class="mk-rep">${estrellasTxt(rep)} <span>${rep ? Number(rep.ventasOk) : 0} ventas</span>${rep && Number(rep.disputasPerdidas) > 0 ? `<span style="color:#f6465d">${Number(rep.disputasPerdidas)} disputas</span>` : ''}</div>
+  <div class="tj ${compra ? 'compra' : ''}" data-id="${o.id}">
+    <span class="tj-tag ${compra ? 'c' : 'v'}">${compra ? 'Compro' : 'Vendo'} ${num(monto, monto >= 1000 ? 0 : 2)} ${sim}</span>
+    <div class="tj-top">
+      <div class="tj-ava">${esc(ini)}</div>
+      <div class="tj-q">
+        <div class="tj-nom">${esc(nombre)}</div>
+        ${(conRep || conVentas) ? `<div class="tj-rep">${conRep ? `<span class="st">★ ${(Number(rep.estrellasX100) / 100).toFixed(1)}</span>` : ''}${conVentas ? `<span>${Number(rep.ventasOk)} ventas</span>` : ''}</div>` : ''}
       </div>
-      <div class="mk-monto"><b>${num(monto, 2)}</b><span>${sim}</span></div>
     </div>
-    <div class="mk-chips">
-      ${String(o.moneda || '').split('·').filter(Boolean).map(p => {
-        const t = p.trim().split(/\s+/);
-        return `<span class="mk-chip pr"><b>${esc(t[1] || '')}</b> ${esc(t[0] || '')}</span>`;
-      }).join('')}
-    </div>
-    <div class="mk-chips">
-      ${String(o.metodo || '').split('·').filter(Boolean).map(p => `<span class="mk-chip">${esc(p.trim())}</span>`).join('')}
-      <span class="mk-chip">En <b>${o.tramos}</b> partes de <b>${num(porTramo, 2)}</b></span>
-    </div>
-    <div class="mk-acts">
-      ${mio
-        ? `<button class="mk-b gris" data-cancel="${o.id}">Cancelar mi oferta</button>`
-        : `<button class="mk-b" data-tomar="${o.id}">Comprar</button>
-           <button class="mk-b gris" data-contacto="${o.vendedor}">Ver contacto</button>
-           <button class="mk-b gris" data-dist="${o.vendedor}">Distancia</button>`}
-    </div>
-    <div id="mk-extra-${o.id}"></div>
+    <div class="tj-precios">${precios || '<span class="tj-pr">Ver detalles</span>'}</div>
+    ${compra ? '' : `<div class="tj-partes">En <b>${o.tramos}</b> partes de ${num(monto / Number(o.tramos), 2)}</div>`}
+    <button class="tj-btn${mio ? ' gris' : ''}" data-ver="${o.id}">${mio ? 'Mi publicación' : (compra ? 'Vender a esta persona' : 'Comprar')}</button>
   </div>`;
 }
 
 function wireTarjetas() {
-  document.querySelectorAll('[data-tomar]').forEach(b => b.onclick = () => tomar(b.getAttribute('data-tomar')));
-  document.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => cancelar(b.getAttribute('data-cancel')));
-  document.querySelectorAll('[data-contacto]').forEach(b => b.onclick = () => verContacto(b.getAttribute('data-contacto'), b));
-  document.querySelectorAll('[data-dist]').forEach(b => b.onclick = () => verDistancia(b.getAttribute('data-dist'), b));
+  document.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => verFicha(b.getAttribute('data-ver')));
 }
 
-async function verContacto(dir, btn) {
-  const cont = btn.closest('.mk-of').querySelector('[id^="mk-extra-"]');
-  try {
-    const p = await lee('perfiles', [dir]);
-    cont.innerHTML = `<div class="mk-dist" style="color:#E8B84B;background:rgba(232,184,75,.08);border-color:rgba(232,184,75,.3)">Contacto: <b>${esc(p.contacto || 'no publicado')}</b></div>`;
-  } catch (_) { cont.innerHTML = `<div class="mk-dist">No se pudo leer el contacto.</div>`; }
-}
-
-async function verDistancia(dir, btn) {
-  const cont = btn.closest('.mk-of').querySelector('[id^="mk-extra-"]');
+/* ── Ficha completa (al tocar Comprar) ── */
+async function verFicha(id) {
   const cuenta = wallet.cuentaActual && wallet.cuentaActual();
-  if (!cuenta) { cont.innerHTML = `<div class="mk-dist">Conecta tu wallet primero.</div>`; return; }
-  cont.innerHTML = `<div class="mk-dist">Consultando…</div>`;
+  const d = document.createElement('div');
+  d.id = 'mk-ficha'; d.className = 'mk-wiz-bg';
+  d.innerHTML = `<div class="mk-wiz-c"><button class="mk-wiz-x" id="fc-x">✕</button><div class="mk-vacio">Cargando…</div></div>`;
+  document.body.appendChild(d);
+  const cerrar = () => d.remove();
+  $('fc-x').onclick = cerrar;
+  d.onclick = (e) => { if (e.target === d) cerrar(); };
 
-  // 1) ¿La otra persona permitió compartir su ubicación?
-  let u;
-  try { u = await lee('ubicacionDe', [dir]); } catch (_) { u = null; }
-  if (!u || !u.comparte) {
-    cont.innerHTML = `<div class="mk-dist">Esta persona <b>no ha activado</b> compartir su ubicación.<br>
-      Para verla, ella debe activarlo en su perfil (pestaña "Vender"). Puedes pedírselo por el contacto:
-      <b>si se niega, tú decides si sigues adelante</b>.</div>`;
-    return;
-  }
-  const suya = { lat: Number(u.lat1e3) / 1000, lon: Number(u.lon1e3) / 1000 };
+  let o, perf, rep, ubic;
+  try {
+    o = await lee('ordenes', [id]);
+    [perf, rep, ubic] = await Promise.all([
+      lee('perfiles', [o.vendedor]).catch(() => null),
+      lee('reputacionDe', [o.vendedor]).catch(() => null),
+      lee('ubicacionDe', [o.vendedor]).catch(() => null)
+    ]);
+  } catch (_) { d.querySelector('.mk-wiz-c').innerHTML = `<button class="mk-wiz-x" id="fc-x2">✕</button><div class="mk-vacio">No se pudo cargar.</div>`; $('fc-x2').onclick = cerrar; return; }
 
-  // 2) Mi ubicación (para calcular la distancia; se queda en mi dispositivo)
+  const compra = Number(o.tipo) === 1;
+  const sim = simbolo(o.token);
+  const monto = f18(o.monto);
+  const tramos = Number(o.tramos) || 1;
+  const nombre = (perf && perf.nombre) || 'Sin nombre';
+  const conRep = rep && Number(rep.votos) > 0;
+  const contactos = String((perf && perf.contacto) || '').split('·').map(x => x.trim()).filter(Boolean);
+  const mio = cuenta && String(cuenta).toLowerCase() === String(o.vendedor).toLowerCase();
+
+  const iconoDe = (t) => {
+    const l = t.toLowerCase();
+    if (l.startsWith('telegram')) return '✈';
+    if (l.startsWith('whatsapp')) return '✆';
+    if (l.startsWith('tel')) return '☎';
+    return '•';
+  };
+
+  d.querySelector('.mk-wiz-c').innerHTML = `
+    <button class="mk-wiz-x" id="fc-x3">✕</button>
+    <div class="fc-h">
+      <div class="tj-ava grande">${esc(nombre.trim().charAt(0).toUpperCase() || '?')}</div>
+      <div>
+        <div class="fc-nom">${esc(nombre)}</div>
+        <div class="fc-sub">${conRep ? `★ ${(Number(rep.estrellasX100) / 100).toFixed(1)} · ` : ''}${rep ? Number(rep.ventasOk) : 0} ventas completadas${(perf && perf.pais) ? ` · ${esc(perf.pais)}` : ''}</div>
+      </div>
+    </div>
+
+    <div class="fc-hero"><span>${compra ? 'Quiere comprar' : 'Está vendiendo'}</span><b>${num(monto, 2)} ${sim}</b></div>
+
+    <div class="fc-sec"><div class="fc-t">Acepta que le paguen</div>
+      <div class="fc-chips">${String(o.moneda || '').split('·').filter(Boolean).map(p => {
+        const t = p.trim().split(/\s+/);
+        return `<span class="fc-chip oro"><b>${esc(t[1] || '')}</b> ${esc(t[0] || '')} por 1 ${sim}</span>`;
+      }).join('')}</div>
+      <div class="fc-chips">${String(o.metodo || '').split('·').filter(Boolean).map(p => `<span class="fc-chip">${esc(p.trim())}</span>`).join('')}</div>
+    </div>
+
+    ${compra ? '' : `<div class="fc-sec"><div class="fc-t">Cómo funciona esta compra</div>
+      <div class="fc-pasos">
+        <div class="fc-p"><span>1</span>Te pones en contacto con ${esc(nombre)} por donde prefiera.</div>
+        <div class="fc-p"><span>2</span>Sus ${num(monto, 2)} ${sim} ya están <b>trabados aquí</b>: no puede llevárselos.</div>
+        <div class="fc-p"><span>3</span>Le pagas la primera parte (${num(monto / tramos, 2)} ${sim} equivalente). Él confirma y se te libera.</div>
+        <div class="fc-p"><span>4</span>Se repite hasta completar las ${tramos} partes. Si algo falla, solo arriesgas una parte.</div>
+      </div></div>`}
+
+    <div class="fc-sec"><div class="fc-t">Cómo contactarlo</div>
+      ${contactos.length ? `<div class="fc-cts">${contactos.map(c => `<div class="fc-ct"><span class="ic">${iconoDe(c)}</span>${esc(c)}</div>`).join('')}</div>`
+        : `<div class="mk-hint">No dejó datos de contacto.</div>`}
+      ${(perf && perf.horario) ? `<div class="mk-hint">Horario: <b>${esc(perf.horario)}</b></div>` : ''}
+    </div>
+
+    <div class="fc-sec"><div class="fc-t">Dónde está</div>
+      <div id="fc-dist">${(ubic && ubic.comparte) ? `<div class="mk-hint">Zona: <b>${esc(ubic.zona || 'no indicada')}</b></div><button class="mk-b gris" id="fc-vd" style="margin-top:9px">Ver distancia hasta mí</button>` : `<div class="mk-hint">Esta persona no comparte su ubicación. Puedes pedírsela por el contacto: <b>si se niega, tú decides si sigues</b>.</div>`}</div>
+    </div>
+
+    ${(!compra && !mio) ? `<button class="mk-b" id="fc-tomar" style="margin-top:6px">Aceptar y empezar la compra</button>
+      <div class="mk-hint" style="text-align:center;margin-top:7px">Al aceptar, reservas esta oferta y empieza el proceso por partes.</div>` : ''}
+    ${mio ? `<button class="mk-b gris" id="fc-cancel" style="margin-top:6px">Cancelar mi publicación</button>` : ''}
+    <div class="mk-msg info" id="fc-msg"></div>`;
+  $('fc-x3').onclick = cerrar;
+
+  const fmsg = (t, c) => { const m = $('fc-msg'); if (m) { m.className = 'mk-msg ' + (c || 'info'); m.textContent = t; } };
+  if ($('fc-vd')) $('fc-vd').onclick = () => distanciaEn('fc-dist', o.vendedor, ubic);
+  if ($('fc-tomar')) $('fc-tomar').onclick = async () => {
+    if (!cuenta) { fmsg('Conecta tu wallet primero.', 'err'); return; }
+    try {
+      fmsg('Confirma en tu wallet…', 'info');
+      const c = new ethers.Contract(MARKET, ABI, await firmante());
+      await (await c.tomarOrden(o.id, ARBITRO)).wait();
+      cerrar(); msg('¡Listo! Ve a "Operaciones" para seguir el proceso.', 'ok'); listarOfertas();
+    } catch (e) { fmsg(traducir(e), 'err'); }
+  };
+  if ($('fc-cancel')) $('fc-cancel').onclick = async () => {
+    try {
+      fmsg('Confirma en tu wallet…', 'info');
+      const c = new ethers.Contract(MARKET, ABI, await firmante());
+      await (await c.cancelarOrden(o.id)).wait();
+      cerrar(); msg('Publicación cancelada.', 'ok'); listarOfertas();
+    } catch (e) { fmsg(traducir(e), 'err'); }
+  };
+}
+
+async function distanciaEn(contId, dir, u) {
+  const cont = $(contId); if (!cont) return;
+  const cuenta = wallet.cuentaActual && wallet.cuentaActual();
+  if (!cuenta) { cont.innerHTML = `<div class="mk-hint">Conecta tu wallet.</div>`; return; }
   let mia = leerUbic(cuenta);
   if (!mia) {
     try { mia = await pedirUbicacion(); guardarUbic(cuenta, mia.lat, mia.lon); }
-    catch (_) {
-      cont.innerHTML = `<div class="mk-dist">Esta persona está en <b>${esc(u.zona || 'zona no indicada')}</b>.<br>Da permiso de ubicación para ver a cuántos kilómetros estás.</div>`;
-      return;
-    }
+    catch (_) { cont.innerHTML = `<div class="mk-hint">Necesitas dar permiso de ubicación para ver la distancia.</div>`; return; }
   }
-  const km = kmEntre(mia, suya);
-  cont.innerHTML = mapaHTML(mia, suya, km, u.zona);
-}
-
-/// Mapa con OpenStreetMap (gratis, sin clave). Marca ambos puntos y la distancia.
-function mapaHTML(a, b, km, zona) {
-  const minLat = Math.min(a.lat, b.lat), maxLat = Math.max(a.lat, b.lat);
-  const minLon = Math.min(a.lon, b.lon), maxLon = Math.max(a.lon, b.lon);
-  const mLat = Math.max(0.05, (maxLat - minLat) * 0.35), mLon = Math.max(0.05, (maxLon - minLon) * 0.35);
-  const bbox = [minLon - mLon, minLat - mLat, maxLon + mLon, maxLat + mLat].join(',');
-  const url = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${a.lat},${a.lon}`;
-  const ver = `https://www.openstreetmap.org/directions?from=${a.lat},${a.lon}&to=${b.lat},${b.lon}`;
-  return `<div class="mk-mapa">
-    <div class="mk-mapa-top"><span>${zona ? esc(zona) : 'Distancia entre ustedes'}</span><b>${km} km</b></div>
-    <iframe class="mk-iframe" src="${url}" loading="lazy" referrerpolicy="no-referrer"></iframe>
-    <div class="mk-mapa-pie">${km < 30 ? 'Están cerca: podrían verse en persona.' : 'Están lejos: hagan el trato solo por los tramos.'}
-      <a href="${ver}" target="_blank" rel="noopener">Ver ruta ↗</a></div>
-  </div>`;
+  const suya = { lat: Number(u.lat1e3) / 1000, lon: Number(u.lon1e3) / 1000 };
+  cont.innerHTML = mapaHTML(mia, suya, kmEntre(mia, suya), u.zona);
 }
 
 /* ── Tomar / cancelar ── */
@@ -805,7 +915,7 @@ const NOMBRE_MONEDA = {
 let W = null;   // datos que va armando el asistente
 
 export function abrirAsistente() {
-  W = { token: USDT, sim: 'USDT', cant: 0, tramos: 5, cobros: [], datos: {}, monedas: [], precios: {} };
+  W = { token: USDT, tokSel: null, sim: 'USDT', cant: 0, tramos: 5, cobros: [], datos: {}, monedas: [], precios: {}, contactos: {}, horario: '' };
   pintarPaso(1);
 }
 function cerrarWiz() { const e = $('mk-wiz'); if (e) e.remove(); }
@@ -840,22 +950,22 @@ function wmsg(t, c) { const m = $('wz-msg'); if (m) { m.className = 'mk-msg ' + 
 /* Paso 1 · Qué vendes */
 function pintarPaso(p) {
   if (p === 1) {
-    marco(1, 6, '¿Qué vas a vender?', 'Elige la moneda digital que tienes en tu wallet.',
+    marco(1, 8, '¿Qué vas a vender?', 'Elige la moneda digital que tienes en tu wallet.',
       `<div class="wz-ops">
-        <button class="wz-op ${W.token === USDT ? 'on' : ''}" data-tok="${USDT}" data-sim="USDT"><b>USDT</b><span>Tether · la más usada</span></button>
-        <button class="wz-op ${W.token === USDC ? 'on' : ''}" data-tok="${USDC}" data-sim="USDC"><b>USDC</b><span>USD Coin</span></button>
+        <button class="wz-op ${W.tokSel === USDT ? 'on' : ''}" data-tok="${USDT}" data-sim="USDT"><b>USDT</b><span>Tether · la más usada</span></button>
+        <button class="wz-op ${W.tokSel === USDC ? 'on' : ''}" data-tok="${USDC}" data-sim="USDC"><b>USDC</b><span>USD Coin</span></button>
       </div>`, { atras: false });
     document.querySelectorAll('[data-tok]').forEach(b => b.onclick = () => {
       document.querySelectorAll('[data-tok]').forEach(x => x.classList.remove('on'));
-      b.classList.add('on'); W.token = b.getAttribute('data-tok'); W.sim = b.getAttribute('data-sim');
+      b.classList.add('on'); W.tokSel = b.getAttribute('data-tok'); W.token = W.tokSel; W.sim = b.getAttribute('data-sim');
     });
-    $('wz-ok').onclick = () => pintarPaso(2);
+    $('wz-ok').onclick = () => { if (!W.tokSel) { wmsg('Elige qué vas a vender.', 'err'); return; } pintarPaso(2); };
     return;
   }
 
   /* Paso 2 · Cuánto */
   if (p === 2) {
-    marco(2, 6, `¿Cuánto ${W.sim} vas a vender?`, 'Escribe la cantidad total. Después la dividiremos en partes.',
+    marco(2, 8, `¿Cuánto ${W.sim} vas a vender?`, 'Escribe la cantidad total. Después la dividiremos en partes.',
       `<div class="mk-step-in">
         <button type="button" class="mk-mm" data-mm="-">−</button>
         <input id="wz-cant" type="text" inputmode="decimal" placeholder="0.00" value="${W.cant || ''}">
@@ -893,16 +1003,14 @@ function pintarPaso(p) {
   /* Paso 3 · Partes */
   if (p === 3) {
     const ops = [10, 5, 4, 3, 2];
-    marco(3, 6, 'Divide tu venta en partes',
+    marco(3, 8, 'Divide tu venta en partes',
       'Tu dinero <b>no se entrega de golpe</b>. Sale por partes: cobras una, confirmas, y se libera. Así, si alguien te intenta estafar, <b>solo alcanza una parte</b>.',
       `<div class="wz-ops chicas" id="wz-tramos">${ops.map(t =>
         `<button class="wz-op ${W.tramos === t ? 'on' : ''}" data-tr="${t}"><b>${t} partes</b><span>${t === 5 ? 'Recomendado' : (t === 10 ? 'Máxima seguridad' : (t === 2 ? 'Mínimo' : '&nbsp;'))}</span></button>`).join('')}</div>
-      <div class="mk-escala" id="wz-escala"></div>`);
+      <div class="wz-resumen" id="wz-escala"></div>`);
     const pintar = () => {
       const por = W.cant / W.tramos;
-      $('wz-escala').innerHTML = `<div class="mk-escala-t"><span>Se entrega en <b>${W.tramos}</b> partes</span><span>Cada parte: <b>${num(por, 2)} ${W.sim}</b></span></div>
-        <div class="mk-escala-bar">${Array.from({ length: W.tramos }, (_, i) => `<div class="mk-escala-p">${i + 1}</div>`).join('')}</div>
-        <div class="mk-hint" style="margin-top:9px"><b>Máximo en riesgo: ${num(por, 2)} ${W.sim}</b>, no ${num(W.cant, 2)}.</div>`;
+      $('wz-escala').innerHTML = `Cada parte será de <b>${num(por, 2)} ${W.sim}</b>. Si algo saliera mal, lo máximo en riesgo es esa parte, no los ${num(W.cant, 2)}.`;
     };
     document.querySelectorAll('[data-tr]').forEach(b => b.onclick = () => {
       document.querySelectorAll('[data-tr]').forEach(x => x.classList.remove('on'));
@@ -916,7 +1024,7 @@ function pintarPaso(p) {
 
   /* Paso 4 · Cómo te pagan (el método manda) */
   if (p === 4) {
-    marco(4, 6, '¿Cómo quieres que te paguen?', 'Marca todas las formas que aceptes. Puedes elegir varias.',
+    marco(4, 8, '¿Cómo quieres que te paguen?', 'Marca todas las formas que aceptes. Puedes elegir varias.',
       `<div class="wz-ops" id="wz-cobros">${COBROS.map(c =>
         `<button class="wz-op ${W.cobros.includes(c.id) ? 'on' : ''}" data-co="${c.id}"><b>${c.nom}</b><span>${c.desc}</span></button>`).join('')}</div>
       <div id="wz-datos"></div>`);
@@ -948,15 +1056,26 @@ function pintarPaso(p) {
 
   /* Paso 5 · En qué moneda */
   if (p === 5) {
-    marco(5, 6, '¿En qué moneda te pagan?', 'Según lo que elegiste, estas son las que tienen sentido. Marca las que aceptes.',
+    marco(5, 8, '¿En qué moneda te pagan?', 'Según lo que elegiste, estas son las que tienen sentido. Marca las que aceptes.',
       `<div class="wz-ops chicas" id="wz-monedas">${(W.posibles || []).map(m =>
-        `<button class="wz-op ${W.monedas.includes(m) ? 'on' : ''}" data-mo="${m}"><b>${m}</b><span>${NOMBRE_MONEDA[m] || ''}</span></button>`).join('')}</div>`);
+        `<button class="wz-op ${W.monedas.includes(m) ? 'on' : ''}" data-mo="${m}"><b>${m}</b><span>${NOMBRE_MONEDA[m] || ''}</span></button>`).join('')}
+        <button class="wz-op ${W.otraMon ? 'on' : ''}" id="wz-otra"><b>Otra</b><span>Escríbela tú</span></button></div>
+      <div id="wz-otra-box"></div>`);
+    const pintarOtra = () => {
+      const b = $('wz-otra-box');
+      b.innerHTML = $('wz-otra').classList.contains('on')
+        ? `<label>¿Cuál moneda?</label><input id="wz-otra-in" maxlength="10" placeholder="Ej: CAD" value="${esc(W.otraMon || '')}">` : '';
+      const i = $('wz-otra-in'); if (i) i.oninput = () => { W.otraMon = i.value.toUpperCase().trim(); };
+    };
+    $('wz-otra').onclick = () => { $('wz-otra').classList.toggle('on'); if (!$('wz-otra').classList.contains('on')) W.otraMon = ''; pintarOtra(); };
+    pintarOtra();
     document.querySelectorAll('[data-mo]').forEach(b => b.onclick = () => {
       const m = b.getAttribute('data-mo');
       b.classList.toggle('on');
       W.monedas = W.monedas.includes(m) ? W.monedas.filter(x => x !== m) : [...W.monedas, m];
     });
     $('wz-ok').onclick = () => {
+      if (W.otraMon && !W.monedas.includes(W.otraMon)) W.monedas = [...W.monedas.filter(m => (W.posibles || []).includes(m)), W.otraMon];
       if (W.monedas.length === 0) { wmsg('Marca al menos una moneda.', 'err'); return; }
       pintarPaso(6);
     };
@@ -966,23 +1085,67 @@ function pintarPaso(p) {
 
   /* Paso 6 · Precio de cada moneda */
   if (p === 6) {
-    marco(6, 6, '¿A cómo lo vendes?', 'Pon tu precio para cada moneda que aceptas.',
+    marco(6, 8, '¿A cómo lo vendes?', 'Pon tu precio para cada moneda que aceptas.',
       W.monedas.map(m => `<label>¿Cuántos <b>${m}</b> por cada <b>1 ${W.sim}</b>?</label>
         <input class="wz-precio" data-mo="${m}" type="text" inputmode="decimal" placeholder="${['USD','MLC','EUR'].includes(m) ? 'Ej: 1.10' : 'Ej: 390'}" value="${W.precios[m] || ''}">
         <div class="mk-hint">${['USD','MLC','EUR'].includes(m) ? `Si lo vendes a la par pon <b>1.00</b>; si más caro, <b>1.10</b>, <b>1.20</b>…` : `Es la tasa de hoy.`}</div>`).join(''),
-      { seguir: 'Publicar oferta' });
+      );
     document.querySelectorAll('.wz-precio').forEach(i => i.oninput = () => { W.precios[i.getAttribute('data-mo')] = i.value; });
-    $('wz-ok').onclick = publicarWiz;
+    $('wz-ok').onclick = () => {
+      for (const m of W.monedas) {
+        const v = Number(String(W.precios[m] || '').replace(',', '.')) || 0;
+        if (!(v > 0)) { wmsg(`Falta el precio para ${m}.`, 'err'); return; }
+      }
+      pintarPaso(7);
+    };
     $('wz-atras').onclick = () => pintarPaso(5);
+    return;
+  }
+
+  /* Paso 7 · Cómo te contactan (OBLIGATORIO) */
+  if (p === 7) {
+    const VIAS = [
+      { id: 'Telegram', lab: 'Usuario de Telegram', ph: '@tuusuario' },
+      { id: 'WhatsApp', lab: 'Número de WhatsApp', ph: '+53 5xxxxxxx' },
+      { id: 'Teléfono', lab: 'Teléfono para llamadas', ph: '+53 5xxxxxxx' }
+    ];
+    marco(7, 8, '¿Cómo quieren que te contacten?', 'Pon al menos una vía. Sin esto nadie puede cerrar el trato contigo.',
+      VIAS.map(v => `<label>${v.lab}</label><input class="wz-ct" data-ct="${v.id}" maxlength="40" placeholder="${v.ph}" value="${esc(W.contactos[v.id] || '')}">`).join('') +
+      `<label>¿En qué horario prefieres que te escriban? <span style="text-transform:none;letter-spacing:0;color:#5f6a75">(opcional)</span></label>
+       <input id="wz-hora" maxlength="40" placeholder="Ej: 9am a 8pm" value="${esc(W.horario || '')}">`);
+    document.querySelectorAll('.wz-ct').forEach(i => i.oninput = () => { W.contactos[i.getAttribute('data-ct')] = i.value; });
+    const h = $('wz-hora'); if (h) h.oninput = () => { W.horario = h.value; };
+    $('wz-ok').onclick = () => {
+      const hay = Object.values(W.contactos).filter(v => String(v || '').trim()).length;
+      if (hay === 0) { wmsg('Pon al menos una forma de contacto.', 'err'); return; }
+      pintarPaso(8);
+    };
+    $('wz-atras').onclick = () => pintarPaso(6);
+    return;
+  }
+
+  /* Paso 8 · Ubicación (opcional) y publicar */
+  if (p === 8) {
+    marco(8, 8, 'Tu ubicación (opcional)', 'Compartirla genera confianza: quien vea tu oferta sabrá tu zona y a cuántos kilómetros está.',
+      `<button class="mk-b gris" id="wz-mas" style="width:100%">¿Cómo funciona esto?</button>
+       <div id="wz-mas-box"></div>
+       <div class="wz-ops" style="margin-top:12px">
+         <button class="wz-op ${W.compartirU ? 'on' : ''}" id="wz-si-u"><b>Sí, compartir mi zona</b><span>Se guarda redondeada a ~1 km</span></button>
+         <button class="wz-op ${W.compartirU === false ? 'on' : ''}" id="wz-no-u"><b>No, ahora no</b><span>Puedes activarlo después</span></button>
+       </div>`, { seguir: 'Publicar oferta' });
+    $('wz-mas').onclick = () => {
+      const b = $('wz-mas-box');
+      b.innerHTML = b.innerHTML ? '' : `<div class="mk-hint" style="margin-top:10px">Guardamos tu posición <b>redondeada a ~1 km</b>, nunca tu dirección exacta. Sirve para que la otra persona vea tu zona y la distancia. Es <b>opcional</b> y la puedes quitar cuando quieras. Quien no la comparte, suele generar más dudas.</div>`;
+    };
+    $('wz-si-u').onclick = () => { W.compartirU = true; $('wz-si-u').classList.add('on'); $('wz-no-u').classList.remove('on'); };
+    $('wz-no-u').onclick = () => { W.compartirU = false; $('wz-no-u').classList.add('on'); $('wz-si-u').classList.remove('on'); };
+    $('wz-ok').onclick = publicarWiz;
+    $('wz-atras').onclick = () => pintarPaso(7);
     return;
   }
 }
 
 async function publicarWiz() {
-  for (const m of W.monedas) {
-    const v = Number(String(W.precios[m] || '').replace(',', '.')) || 0;
-    if (!(v > 0)) { wmsg(`Falta el precio para ${m}.`, 'err'); return; }
-  }
   const moneda = W.monedas.map(m => `${m} ${Number(String(W.precios[m]).replace(',', '.'))}`).join(' · ').slice(0, 160);
   const metodo = W.cobros.map(id => {
     const d = (W.datos[id] || '').trim();
@@ -994,6 +1157,19 @@ async function publicarWiz() {
   try {
     const signer = await firmante();
     const cuenta = await signer.getAddress();
+    const c0 = new ethers.Contract(MARKET, ABI, signer);
+
+    // Guardar contactos (con su plataforma) y horario en el perfil
+    const cts = Object.entries(W.contactos).filter(([, v]) => String(v || '').trim())
+      .map(([k, v]) => `${k}: ${String(v).trim()}`).join(' · ').slice(0, 200);
+    const p = await lee('perfiles', [cuenta]).catch(() => null);
+    if (cts && (!p || p.contacto !== cts)) {
+      wmsg('Guardando tus datos de contacto…', 'info');
+      await (await c0.guardarPerfil(p && p.nombre ? p.nombre : 'Usuario', (p && p.pais) || '', (p && p.moneda) || W.monedas[0] || '', cts)).wait();
+    }
+    if (W.horario && (!p || p.horario !== W.horario)) {
+      try { wmsg('Guardando tu horario…', 'info'); await (await c0.guardarHorario(W.horario.slice(0, 40))).wait(); } catch (_) {}
+    }
     const monto = ethers.parseUnits(String(W.cant), 18);
     if (monto % BigInt(W.tramos) !== 0n) { wmsg('Cambia un poco la cantidad: no se divide exacta entre las partes.', 'err'); btn.disabled = false; return; }
 
@@ -1010,6 +1186,21 @@ async function publicarWiz() {
     wmsg('Confirma la publicación (1 USD en BNB)…', 'info');
     const c = new ethers.Contract(MARKET, ABI, signer);
     await (await c.crearOrden(W.token, monto, W.tramos, moneda, metodo, Math.round(primero * 100), { value: fee })).wait();
+    // Ubicación, si la aceptó
+    if (W.compartirU) {
+      try {
+        wmsg('Guardando tu zona…', 'info');
+        const u = await pedirUbicacion();
+        guardarUbic(cuenta, u.lat, u.lon);
+        let zona = '';
+        try {
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${u.lat}&lon=${u.lon}&zoom=10`, { headers: { 'Accept-Language': 'es' } });
+          const j = await r.json(); const a = j.address || {};
+          zona = [a.city || a.town || a.village || a.county || a.state, a.country].filter(Boolean).join(', ').slice(0, 40);
+        } catch (_) {}
+        await (await c0.compartirUbicacion(Math.round(u.lat * 1000), Math.round(u.lon * 1000), zona)).wait();
+      } catch (_) {}
+    }
     cerrarWiz();
     msg('¡Oferta publicada! Ya la puede ver todo el mundo.', 'ok');
     $('mk-t1').click(); listarOfertas();
