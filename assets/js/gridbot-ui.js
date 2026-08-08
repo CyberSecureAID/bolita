@@ -5,14 +5,14 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=68';
-import * as wallet from './wallet.js?v=68';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=68';
-import * as perfil from './perfil.js?v=68';
-import * as prizepool from './prizepool.js?v=68';
-import * as tutorial from './tutorial.js?v=68';
-import * as market from './market.js?v=68';
-import * as avisos from './avisos.js?v=68';
+import * as gb from './gridbot.js?v=69';
+import * as wallet from './wallet.js?v=69';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=69';
+import * as perfil from './perfil.js?v=69';
+import * as prizepool from './prizepool.js?v=69';
+import * as tutorial from './tutorial.js?v=69';
+import * as market from './market.js?v=69';
+import * as avisos from './avisos.js?v=69';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -2571,8 +2571,23 @@ async function arrancar() {
   // Splash neutro mientras se resuelve si hay wallet conectada (evita el pestañeo del hero).
   host.innerHTML = `<div style="min-height:64vh;display:flex;align-items:center;justify-content:center;color:var(--ink-3);font-family:var(--mono);font-size:13px"><span class="skel" style="width:16px;height:16px;min-width:16px;border-radius:50%;margin-right:10px"></span>Cargando…</div>`;
   wallet.alCambiar(() => render());
-  try { await wallet.reconectarSiProcede(); } catch (_) {}
+  // La página se dibuja SIEMPRE. Si una extensión de wallet no contesta
+  // (pasa cuando MetaMask u otra wallet queda en mal estado tras actualizarse),
+  // seguimos adelante: nunca un "Cargando…" eterno.
+  let walletMuda = false;
+  try {
+    await Promise.race([
+      wallet.reconectarSiProcede(),
+      new Promise((r) => setTimeout(() => { walletMuda = true; r(); }, 2500))
+    ]);
+  } catch (_) {}
   render(); iniciarReloj();
+  if (walletMuda && !wallet.cuentaActual()) {
+    setTimeout(() => {
+      const el = $('c-hero-msg') || $('c-msg');
+      if (el) aviso(el, 'err', 'Tu extensión de wallet no está respondiendo. Abre MetaMask desde la barra del navegador y desbloquéala, o reinicia el navegador. Puedes seguir usando la página mientras tanto.', 12000);
+    }, 400);
+  }
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
 else arrancar();

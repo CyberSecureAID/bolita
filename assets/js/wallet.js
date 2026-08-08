@@ -43,9 +43,29 @@ if (typeof window !== 'undefined') {
 
 function detectar() {
   if (est.proveedor) return est.proveedor;
+
+  // Preferimos MetaMask de verdad. Las wallets integradas del navegador
+  // (p. ej. la de Brave) se anuncian aunque no estén configuradas y no responden.
+  const esBrave = (p) => !!(p && (p.isBraveWallet || p.isBrave));
+  const esMM = (p) => !!(p && p.isMetaMask && !esBrave(p));
+
+  const mm = proveedores6963.find((d) => esMM(d.provider)
+    || String(d?.info?.rdns || '').toLowerCase() === 'io.metamask');
+  if (mm?.provider) return mm.provider;
+
+  const eth = window.ethereum;
+  if (eth?.providers?.length) {
+    const m = eth.providers.find(esMM);
+    if (m) return m;
+  }
+  if (esMM(eth)) return eth;
+
+  const otra = proveedores6963.find((d) => !esBrave(d.provider));
+  if (otra?.provider) return otra.provider;
   if (proveedores6963.length > 0) return proveedores6963[0].provider;
-  return window.ethereum ?? null;
+  return eth ?? null;
 }
+
 
 
 
