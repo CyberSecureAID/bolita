@@ -1,6 +1,6 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=53';
+import * as wallet from './wallet.js?v=54';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
@@ -93,6 +93,18 @@ function pedirUbicacion() {
       { timeout: 12000, maximumAge: 600000 });
   });
 }
+
+/* ── Logos ── */
+const LOGO = {
+  USDT: `<svg viewBox="0 0 32 32" width="100%" height="100%"><circle cx="16" cy="16" r="16" fill="#26A17B"/><path fill="#fff" d="M17.9 17.4v0c-.1 0-.7.1-1.9.1-1 0-1.7 0-2 0v0c-3.6-.2-6.2-.8-6.2-1.5s2.7-1.3 6.2-1.5v2.3c.3 0 1.1.1 2 .1 1.2 0 1.8-.1 1.9-.1v-2.3c3.6.2 6.2.8 6.2 1.5s-2.7 1.3-6.2 1.5m0-3.2v-2h4.7v-3.1H9.4v3.1h4.7v2C10.3 14.4 7.4 15.2 7.4 16.1s2.9 1.7 6.7 1.9v6.6h3.8v-6.6c3.8-.2 6.7-1 6.7-1.9s-2.9-1.7-6.7-1.9"/></svg>`,
+  USDC: `<svg viewBox="0 0 32 32" width="100%" height="100%"><circle cx="16" cy="16" r="16" fill="#2775CA"/><path fill="#fff" d="M20.3 18.5c0-2.3-1.4-3.1-4.1-3.4-2-.3-2.4-.8-2.4-1.7s.7-1.6 2-1.6c1.2 0 1.8.4 2.1 1.4.1.2.3.3.4.3h1.1c.2 0 .4-.2.4-.4v0c-.3-1.5-1.5-2.6-3-2.8V8.7c0-.2-.2-.4-.4-.4h-1c-.2 0-.4.2-.4.4v1.5c-2 .3-3.2 1.6-3.2 3.3 0 2.2 1.3 3.1 4 3.4 1.9.3 2.5.7 2.5 1.8s-.9 1.8-2.2 1.8c-1.7 0-2.3-.7-2.5-1.7 0-.2-.2-.3-.4-.3h-1.2c-.2 0-.4.2-.4.4v0c.3 1.7 1.4 2.9 3.4 3.2v1.5c0 .2.2.4.4.4h1c.2 0 .4-.2.4-.4v-1.5c2-.3 3.3-1.7 3.3-3.6z"/><path fill="#fff" d="M12.9 25.5c-4.1-1.5-6.2-6.1-4.7-10.2.8-2.2 2.5-3.9 4.7-4.7.2-.1.3-.3.3-.5v-.9c0-.2-.1-.4-.3-.4-.1 0-.2 0-.3 0-5 1.6-7.7 6.9-6.1 11.9.9 2.9 3.2 5.2 6.1 6.1.2.1.4 0 .5-.2.1-.1.1-.1.1-.2v-.9c0-.2-.2-.4-.3-.5zm6.5-17.2c-.2-.1-.4 0-.5.2-.1.1-.1.1-.1.2v.9c0 .2.2.4.3.5 4.1 1.5 6.2 6.1 4.7 10.2-.8 2.2-2.5 3.9-4.7 4.7-.2.1-.3.3-.3.5v.9c0 .2.1.4.3.4.1 0 .2 0 .3 0 5-1.6 7.7-6.9 6.1-11.9-.9-2.9-3.2-5.2-6.1-6.2z"/></svg>`
+};
+const ICOCT = {
+  Telegram: `<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M21.9 4.3 18.7 19c-.2 1.1-.9 1.3-1.8.8l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.3-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.2 12.7 1.4 11.2c-1-.3-1.1-1 .2-1.5L20.5 2.4c.9-.3 1.6.2 1.4 1.9z"/></svg>`,
+  WhatsApp: `<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1-.3-.1-.5-.1-.7.1-.2.3-.7 1-.9 1.2-.2.2-.3.2-.6.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.4-.5c.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5 0-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.5.3-.7.3-1.4.2-1.5-.1-.1-.3-.2-.6-.3zM12 2C6.5 2 2 6.5 2 12c0 1.8.5 3.4 1.3 4.9L2 22l5.3-1.4c1.4.8 3 1.2 4.7 1.2 5.5 0 10-4.5 10-10S17.5 2 12 2z"/></svg>`,
+  'Teléfono': `<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.4.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .7-.2 1l-2.3 2.2z"/></svg>`
+};
+const logoMoneda = (t) => LOGO[simbolo(t)] || '';
 
 /* ── Estilos ── */
 function estilos() {
@@ -200,13 +212,30 @@ function estilos() {
   #mk-overlay .mk-star{font-size:28px;cursor:pointer;color:#3a424c;line-height:1}
   #mk-overlay .mk-star.on{color:var(--gold,#E8B84B);text-shadow:0 0 10px rgba(232,184,75,.4)}
   #mk-overlay .mk-dist{font-family:var(--mono,monospace);font-size:11px;color:#7fb0ff;text-align:center;padding:9px;border-radius:10px;background:rgba(127,176,255,.08);border:1px solid rgba(127,176,255,.3);margin-top:9px}
+  /* Evita que el navegador pinte de blanco los campos (autorrelleno) */
+  #mk-overlay input:-webkit-autofill,.mk-wiz-c input:-webkit-autofill,
+  #mk-overlay input:-webkit-autofill:focus,.mk-wiz-c input:-webkit-autofill:focus{
+    -webkit-text-fill-color:#eaecef!important;-webkit-box-shadow:0 0 0 1000px #0b0e12 inset!important;caret-color:#eaecef;transition:background-color 9999s ease-in-out 0s}
+  #mk-overlay input,.mk-wiz-c input{color-scheme:dark}
+  .mk-wiz-c label .op{text-transform:none;letter-spacing:0;color:#5f6a75}
+  /* Botón desplegable de la ficha */
+  .mk-wiz-c .fc-desp{width:100%;padding:12px;border-radius:11px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:var(--gold,#E8B84B);font-family:var(--display,sans-serif);font-weight:700;font-size:13.5px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;gap:8px}
+  .mk-wiz-c .fc-desp .ar{font-size:9px;transition:transform .2s}
+  .mk-wiz-c .fc-desp.open .ar{transform:rotate(180deg)}
+  .mk-wiz-c .fc-desp + .fc-pasos{margin-top:9px}
+  .mk-wiz-c .fc-cta{display:block;width:100%;margin:16px auto 0;text-align:center;padding:14px;border-radius:12px;font-family:var(--display,sans-serif);font-weight:800;font-size:15px;cursor:pointer;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;box-shadow:0 4px 0 #8f6a1a}
+  .mk-wiz-c .fc-cta.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:var(--gold,#E8B84B);box-shadow:0 4px 0 rgba(0,0,0,.4)}
+  /* Logo de la moneda */
+  #mk-overlay .tj-moneda,.mk-wiz-c .tj-moneda{width:38px;height:38px;flex:0 0 auto;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#0b0e12;border:1px solid #2b3139}
+  .mk-wiz-c .tj-moneda.grande{width:50px;height:50px}
+  .mk-wiz-c .fc-ct .ic{display:grid;place-items:center}
   /* ── Tarjetas en cuadrícula ── */
   #mk-overlay .tj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:11px}
   #mk-overlay .tj{position:relative;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid #2b3139;border-radius:16px;padding:15px 14px 14px;box-shadow:0 4px 0 rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.04);display:flex;flex-direction:column;gap:10px}
-  #mk-overlay .tj-tag{position:absolute;top:-9px;right:11px;font-family:var(--display,sans-serif);font-weight:800;font-size:10px;padding:5px 10px;border-radius:9px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.55);letter-spacing:.2px}
+  #mk-overlay .tj-tag{position:absolute;top:10px;right:10px;font-family:var(--display,sans-serif);font-weight:800;font-size:10px;padding:5px 10px;border-radius:9px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.55);letter-spacing:.2px}
   #mk-overlay .tj-tag.v{background:linear-gradient(180deg,#e35d6a,#b8323f);color:#fff;border:1px solid #d14a58}
   #mk-overlay .tj-tag.c{background:linear-gradient(180deg,#4d9fff,#2b6fd0);color:#fff;border:1px solid #3f86e0}
-  #mk-overlay .tj-top{display:flex;align-items:center;gap:10px;margin-top:4px}
+  #mk-overlay .tj-top{display:flex;align-items:center;gap:10px;margin-top:26px}
   #mk-overlay .tj-ava{width:36px;height:36px;flex:0 0 auto;border-radius:11px;display:grid;place-items:center;background:linear-gradient(160deg,#f7db8d,var(--gold,#E8B84B) 55%,#b98614);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:15px}
   #mk-overlay .tj-ava.grande{width:50px;height:50px;border-radius:14px;font-size:21px}
   #mk-overlay .tj-q{min-width:0;flex:1}
@@ -253,7 +282,9 @@ function estilos() {
   @media(max-width:560px){
     #mk-overlay .tj-grid{grid-template-columns:1fr 1fr;gap:9px}
     #mk-overlay .tj{padding:13px 11px 12px;gap:8px}
-    #mk-overlay .tj-tag{font-size:9px;padding:4px 8px;right:8px}
+    #mk-overlay .tj-tag{font-size:8.5px;padding:4px 7px;right:8px;top:8px}
+    #mk-overlay .tj-top{margin-top:24px}
+    #mk-overlay .tj-moneda{width:30px;height:30px}
     #mk-overlay .tj-nom{font-size:12.5px}
     #mk-overlay .tj-btn{font-size:11.5px;padding:10px 4px}
     #mk-overlay .tj-ava{width:30px;height:30px;font-size:13px}
@@ -392,7 +423,7 @@ export async function abrirMarket() {
   <button class="mk-x" id="mk-x">✕</button>
   <div class="mk-head">
     <div class="mk-title"><span class="ln"></span>Marketplace<span class="ln"></span></div>
-    <div class="mk-sub">Compra y vende con caja fuerte y entrega por tramos</div>
+    <div class="mk-sub"><span class="tx-l">Compra y vende con caja fuerte</span><span class="tx-s">Compra y vende</span></div>
   </div>
   <div class="mk-tabs">
     <button class="mk-tab on" id="mk-t1">Ofertas</button>
@@ -405,7 +436,7 @@ export async function abrirMarket() {
   <div class="mk-pane" id="mk-p3"></div>
   <div class="mk-pane" id="mk-p4">${comoFunciona()}</div>
   <div class="mk-msg info" id="mk-msg"></div>
-  <div class="mk-nota">Tu cripto queda trabada en el contrato hasta que confirmes cada tramo. Aurex no custodia fondos ni interviene en el pago en efectivo.</div>`;
+  `;
   $('mk-x').onclick = cerrar;
 
   const tabs = [['mk-t1', 'mk-p1'], ['mk-t2', 'mk-p2'], ['mk-t3', 'mk-p3'], ['mk-t4', 'mk-p4']];
@@ -496,14 +527,13 @@ function tarjeta({ o, perf, rep }, cuenta) {
   <div class="tj ${compra ? 'compra' : ''}" data-id="${o.id}">
     <span class="tj-tag ${compra ? 'c' : 'v'}">${compra ? 'Compro' : 'Vendo'} ${num(monto, monto >= 1000 ? 0 : 2)} ${sim}</span>
     <div class="tj-top">
-      <div class="tj-ava">${esc(ini)}</div>
+      <div class="tj-moneda">${logoMoneda(o.token)}</div>
       <div class="tj-q">
         <div class="tj-nom">${esc(nombre)}</div>
         ${(conRep || conVentas) ? `<div class="tj-rep">${conRep ? `<span class="st">★ ${(Number(rep.estrellasX100) / 100).toFixed(1)}</span>` : ''}${conVentas ? `<span>${Number(rep.ventasOk)} ventas</span>` : ''}</div>` : ''}
       </div>
     </div>
     <div class="tj-precios">${precios || '<span class="tj-pr">Ver detalles</span>'}</div>
-    ${compra ? '' : `<div class="tj-partes">En <b>${o.tramos}</b> partes de ${num(monto / Number(o.tramos), 2)}</div>`}
     <button class="tj-btn${mio ? ' gris' : ''}" data-ver="${o.id}">${mio ? 'Mi publicación' : (compra ? 'Vender a esta persona' : 'Comprar')}</button>
   </div>`;
 }
@@ -544,19 +574,19 @@ async function verFicha(id) {
 
   const iconoDe = (t) => {
     const l = t.toLowerCase();
-    if (l.startsWith('telegram')) return '✈';
-    if (l.startsWith('whatsapp')) return '✆';
-    if (l.startsWith('tel')) return '☎';
+    if (l.startsWith('telegram')) return ICOCT.Telegram;
+    if (l.startsWith('whatsapp')) return ICOCT.WhatsApp;
+    if (l.startsWith('tel')) return ICOCT['Teléfono'];
     return '•';
   };
 
   d.querySelector('.mk-wiz-c').innerHTML = `
     <button class="mk-wiz-x" id="fc-x3">✕</button>
     <div class="fc-h">
-      <div class="tj-ava grande">${esc(nombre.trim().charAt(0).toUpperCase() || '?')}</div>
+      <div class="tj-moneda grande">${logoMoneda(o.token)}</div>
       <div>
         <div class="fc-nom">${esc(nombre)}</div>
-        <div class="fc-sub">${conRep ? `★ ${(Number(rep.estrellasX100) / 100).toFixed(1)} · ` : ''}${rep ? Number(rep.ventasOk) : 0} ventas completadas${(perf && perf.pais) ? ` · ${esc(perf.pais)}` : ''}</div>
+        ${(conRep || (rep && Number(rep.ventasOk) > 0) || (perf && perf.pais)) ? `<div class="fc-sub">${conRep ? `★ ${(Number(rep.estrellasX100) / 100).toFixed(1)} · ` : ''}${(rep && Number(rep.ventasOk) > 0) ? `${Number(rep.ventasOk)} ventas · ` : ''}${(perf && perf.pais) ? esc(perf.pais) : ''}</div>` : ''}
       </div>
     </div>
 
@@ -570,8 +600,9 @@ async function verFicha(id) {
       <div class="fc-chips">${String(o.metodo || '').split('·').filter(Boolean).map(p => `<span class="fc-chip">${esc(p.trim())}</span>`).join('')}</div>
     </div>
 
-    ${compra ? '' : `<div class="fc-sec"><div class="fc-t">Cómo funciona esta compra</div>
-      <div class="fc-pasos">
+    ${compra ? '' : `<div class="fc-sec">
+      <button class="fc-desp" id="fc-como">Cómo funciona esta compra <span class="ar">▼</span></button>
+      <div class="fc-pasos" id="fc-pasos" style="display:none">
         <div class="fc-p"><span>1</span>Te pones en contacto con ${esc(nombre)} por donde prefiera.</div>
         <div class="fc-p"><span>2</span>Sus ${num(monto, 2)} ${sim} ya están <b>trabados aquí</b>: no puede llevárselos.</div>
         <div class="fc-p"><span>3</span>Le pagas la primera parte (${num(monto / tramos, 2)} ${sim} equivalente). Él confirma y se te libera.</div>
@@ -588,21 +619,32 @@ async function verFicha(id) {
       <div id="fc-dist">${(ubic && ubic.comparte) ? `<div class="mk-hint">Zona: <b>${esc(ubic.zona || 'no indicada')}</b></div><button class="mk-b gris" id="fc-vd" style="margin-top:9px">Ver distancia hasta mí</button>` : `<div class="mk-hint">Esta persona no comparte su ubicación. Puedes pedírsela por el contacto: <b>si se niega, tú decides si sigues</b>.</div>`}</div>
     </div>
 
-    ${(!compra && !mio) ? `<button class="mk-b" id="fc-tomar" style="margin-top:6px">Aceptar y empezar la compra</button>
-      <div class="mk-hint" style="text-align:center;margin-top:7px">Al aceptar, reservas esta oferta y empieza el proceso por partes.</div>` : ''}
-    ${mio ? `<button class="mk-b gris" id="fc-cancel" style="margin-top:6px">Cancelar mi publicación</button>` : ''}
+    ${(!compra && !mio) ? `<button class="mk-b fc-cta" id="fc-tomar">Reservar esta compra</button>
+      <div class="mk-hint" style="text-align:center;margin-top:7px">Queda apartada para ti <b>24 horas</b>. Si no la arrancas, vuelve a estar disponible.</div>` : ''}
+    ${mio ? `<button class="mk-b gris fc-cta" id="fc-cancel">Cancelar mi publicación</button>` : ''}
     <div class="mk-msg info" id="fc-msg"></div>`;
   $('fc-x3').onclick = cerrar;
+  const como = $('fc-como');
+  if (como) como.onclick = () => {
+    const p = $('fc-pasos');
+    const ab = p.style.display === 'none';
+    p.style.display = ab ? 'flex' : 'none';
+    como.classList.toggle('open', ab);
+  };
 
   const fmsg = (t, c) => { const m = $('fc-msg'); if (m) { m.className = 'mk-msg ' + (c || 'info'); m.textContent = t; } };
   if ($('fc-vd')) $('fc-vd').onclick = () => distanciaEn('fc-dist', o.vendedor, ubic);
   if ($('fc-tomar')) $('fc-tomar').onclick = async () => {
     if (!cuenta) { fmsg('Conecta tu wallet primero.', 'err'); return; }
+    // El contrato exige perfil (para que el vendedor sepa quién eres y cómo contactarte)
+    let miPerf = null;
+    try { miPerf = await lee('perfiles', [cuenta]); } catch (_) {}
+    if (!miPerf || !miPerf.existe) { cerrar(); pedirPerfilRapido(() => verFicha(o.id)); return; }
     try {
       fmsg('Confirma en tu wallet…', 'info');
       const c = new ethers.Contract(MARKET, ABI, await firmante());
       await (await c.tomarOrden(o.id, ARBITRO)).wait();
-      cerrar(); msg('¡Listo! Ve a "Operaciones" para seguir el proceso.', 'ok'); listarOfertas();
+      cerrar(); msg('¡Reservada para ti por 24 horas! Contacta a la persona y ve a "Operaciones".', 'ok'); listarOfertas();
     } catch (e) { fmsg(traducir(e), 'err'); }
   };
   if ($('fc-cancel')) $('fc-cancel').onclick = async () => {
@@ -626,6 +668,41 @@ async function distanciaEn(contId, dir, u) {
   }
   const suya = { lat: Number(u.lat1e3) / 1000, lon: Number(u.lon1e3) / 1000 };
   cont.innerHTML = mapaHTML(mia, suya, kmEntre(mia, suya), u.zona);
+}
+
+/* ── Perfil rápido (lo necesita quien reserva, para que puedan contactarlo) ── */
+function pedirPerfilRapido(alTerminar) {
+  const d = document.createElement('div');
+  d.className = 'mk-wiz-bg'; d.id = 'mk-perfrap';
+  d.innerHTML = `<div class="mk-wiz-c">
+    <button class="mk-wiz-x" id="pr-x">✕</button>
+    <div class="mk-wiz-t">Antes de reservar</div>
+    <div class="mk-wiz-s">Necesitamos saber quién eres y cómo contactarte. Se guarda una sola vez.</div>
+    <div class="mk-wiz-b">
+      <label>Tu nombre o alias</label><input id="pr-nom" maxlength="32" placeholder="Ej: Jesus">
+      <label>Tu Telegram o WhatsApp</label><input id="pr-ct" maxlength="40" placeholder="@usuario o +53 5xxxxxxx">
+    </div>
+    <div class="mk-wiz-acts"><button class="mk-b" id="pr-ok">Guardar y continuar</button></div>
+    <div class="mk-msg info" id="pr-msg"></div>
+  </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => d.remove();
+  $('pr-x').onclick = cerrar;
+  d.onclick = (e) => { if (e.target === d) cerrar(); };
+  const pm = (t, c) => { const m = $('pr-msg'); if (m) { m.className = 'mk-msg ' + (c || 'info'); m.textContent = t; } };
+  $('pr-ok').onclick = async () => {
+    const nom = ($('pr-nom').value || '').trim();
+    const ct = ($('pr-ct').value || '').trim();
+    if (!nom) { pm('Pon tu nombre.', 'err'); return; }
+    if (!ct) { pm('Pon una forma de contacto.', 'err'); return; }
+    const via = ct.startsWith('@') ? 'Telegram' : 'WhatsApp';
+    try {
+      pm('Confirma en tu wallet…', 'info');
+      const c = new ethers.Contract(MARKET, ABI, await firmante());
+      await (await c.guardarPerfil(nom, '', 'USD', `${via}: ${ct}`)).wait();
+      cerrar(); if (alTerminar) alTerminar();
+    } catch (e) { pm(traducir(e), 'err'); }
+  };
 }
 
 /* ── Tomar / cancelar ── */
@@ -712,19 +789,7 @@ async function panelVender() {
     <button class="mk-b" id="mk-abrir-wiz">Quiero vender</button>
   </div>` : ''}
 
-  ${tienePerfil ? `
-  <div class="mk-box">
-    <div class="bt">Tu ubicación (opcional)</div>
-    <div style="font-family:var(--sans,sans-serif);font-size:12.5px;color:#8b96a3;line-height:1.6;margin-bottom:11px">
-      Si la compartes, quien mire tu oferta verá <b style="color:#E8B84B">tu zona y a cuántos kilómetros está de ti</b>. Genera confianza: el que no la comparte, siempre da más dudas.
-      Se guarda <b style="color:#E8B84B">redondeada a ~1 km</b>, nunca tu dirección exacta, y la puedes quitar cuando quieras.
-    </div>
-    <div class="mk-row"><span class="k">Estado</span><span class="v">${ubic && ubic.comparte ? `<span class="mk-est a">Compartida</span> ${esc(ubic.zona || '')}` : '<span class="mk-est">No compartida</span>'}</span></div>
-    <div class="mk-acts" style="margin-top:11px">
-      <button class="mk-b" id="mk-ubic-on">${ubic && ubic.comparte ? 'Actualizar mi ubicación' : 'Compartir mi ubicación'}</button>
-      ${ubic && ubic.comparte ? '<button class="mk-b gris" id="mk-ubic-off">Dejar de compartir</button>' : ''}
-    </div>
-  </div>` : ''}`;
+`;
 
   if ($('mk-savep')) $('mk-savep').onclick = guardarPerfil;
   if ($('mk-dep')) $('mk-dep').onclick = depositarFianza;
@@ -839,7 +904,7 @@ async function activarUbicacion() {
   const sigue = await dialogo({
     titulo: 'Compartir tu ubicación',
     texto: `Ahora tu navegador te va a preguntar si permites la ubicación. Es una ventana suya, no nuestra.<br><br>
-      Guardamos tu posición <b>redondeada a ~1 km</b>: sirve para mostrar tu zona y la distancia, <b>nunca tu dirección exacta</b>.
+      Guardamos tu posición <b>redondeada a 1 km aprox.</b>: sirve para mostrar tu zona y la distancia, <b>nunca tu dirección exacta</b>.
       Puedes quitarla cuando quieras.<br><br>
       Cuando salga el aviso del navegador, toca <b>"Permitir"</b>.`,
     ok: 'Entendido, continuar'
@@ -1106,13 +1171,19 @@ function pintarPaso(p) {
   if (p === 7) {
     const VIAS = [
       { id: 'Telegram', lab: 'Usuario de Telegram', ph: '@tuusuario' },
-      { id: 'WhatsApp', lab: 'Número de WhatsApp', ph: '+53 5xxxxxxx' },
-      { id: 'Teléfono', lab: 'Teléfono para llamadas', ph: '+53 5xxxxxxx' }
+      { id: 'WhatsApp', lab: 'Número de WhatsApp (opcional)', ph: '+53 5xxxxxxx' },
+      { id: 'Teléfono', lab: 'Teléfono para llamadas (opcional)', ph: 'Suele ser el mismo de WhatsApp' }
     ];
     marco(7, 8, '¿Cómo quieren que te contacten?', 'Pon al menos una vía. Sin esto nadie puede cerrar el trato contigo.',
       VIAS.map(v => `<label>${v.lab}</label><input class="wz-ct" data-ct="${v.id}" maxlength="40" placeholder="${v.ph}" value="${esc(W.contactos[v.id] || '')}">`).join('') +
-      `<label>¿En qué horario prefieres que te escriban? <span style="text-transform:none;letter-spacing:0;color:#5f6a75">(opcional)</span></label>
-       <input id="wz-hora" maxlength="40" placeholder="Ej: 9am a 8pm" value="${esc(W.horario || '')}">`);
+      `<label>¿En qué horario prefieres que te escriban? <span class="op">(opcional)</span></label>
+       <div class="mk-rapidos">${['A cualquier hora', '9am a 6pm', '9am a 9pm', 'Solo por la tarde', 'Solo por la noche'].map(h => `<button type="button" class="mk-rp" data-h="${h}">${h}</button>`).join('')}</div>
+       <input id="wz-hora" maxlength="40" placeholder="O escríbelo tú" value="${esc(W.horario || '')}">
+       <label>Nota para quien te compre <span class="op">(opcional)</span></label>
+       <input id="wz-nota" maxlength="60" placeholder="Ej: solo trato por Telegram, respondo rápido" value="${esc(W.nota || '')}">
+       <div class="mk-hint">Una aclaración o sugerencia para la persona que te vaya a comprar.</div>`);
+    document.querySelectorAll('[data-h]').forEach(b => b.onclick = () => { $('wz-hora').value = b.getAttribute('data-h'); W.horario = b.getAttribute('data-h'); });
+    const nt = $('wz-nota'); if (nt) nt.oninput = () => { W.nota = nt.value; };
     document.querySelectorAll('.wz-ct').forEach(i => i.oninput = () => { W.contactos[i.getAttribute('data-ct')] = i.value; });
     const h = $('wz-hora'); if (h) h.oninput = () => { W.horario = h.value; };
     $('wz-ok').onclick = () => {
@@ -1130,12 +1201,12 @@ function pintarPaso(p) {
       `<button class="mk-b gris" id="wz-mas" style="width:100%">¿Cómo funciona esto?</button>
        <div id="wz-mas-box"></div>
        <div class="wz-ops" style="margin-top:12px">
-         <button class="wz-op ${W.compartirU ? 'on' : ''}" id="wz-si-u"><b>Sí, compartir mi zona</b><span>Se guarda redondeada a ~1 km</span></button>
+         <button class="wz-op ${W.compartirU ? 'on' : ''}" id="wz-si-u"><b>Sí, compartir mi zona</b><span>Se guarda redondeada, sin tu dirección exacta</span></button>
          <button class="wz-op ${W.compartirU === false ? 'on' : ''}" id="wz-no-u"><b>No, ahora no</b><span>Puedes activarlo después</span></button>
        </div>`, { seguir: 'Publicar oferta' });
     $('wz-mas').onclick = () => {
       const b = $('wz-mas-box');
-      b.innerHTML = b.innerHTML ? '' : `<div class="mk-hint" style="margin-top:10px">Guardamos tu posición <b>redondeada a ~1 km</b>, nunca tu dirección exacta. Sirve para que la otra persona vea tu zona y la distancia. Es <b>opcional</b> y la puedes quitar cuando quieras. Quien no la comparte, suele generar más dudas.</div>`;
+      b.innerHTML = b.innerHTML ? '' : `<div class="mk-hint" style="margin-top:10px">Guardamos tu posición <b>redondeada a 1 km aprox.</b>, nunca tu dirección exacta. Sirve para que la otra persona vea tu zona y la distancia. Es <b>opcional</b> y la puedes quitar cuando quieras. Quien no la comparte, suele generar más dudas.</div>`;
     };
     $('wz-si-u').onclick = () => { W.compartirU = true; $('wz-si-u').classList.add('on'); $('wz-no-u').classList.remove('on'); };
     $('wz-no-u').onclick = () => { W.compartirU = false; $('wz-no-u').classList.add('on'); $('wz-si-u').classList.remove('on'); };
@@ -1167,8 +1238,9 @@ async function publicarWiz() {
       wmsg('Guardando tus datos de contacto…', 'info');
       await (await c0.guardarPerfil(p && p.nombre ? p.nombre : 'Usuario', (p && p.pais) || '', (p && p.moneda) || W.monedas[0] || '', cts)).wait();
     }
-    if (W.horario && (!p || p.horario !== W.horario)) {
-      try { wmsg('Guardando tu horario…', 'info'); await (await c0.guardarHorario(W.horario.slice(0, 40))).wait(); } catch (_) {}
+    const hn = [W.horario, W.nota].filter(Boolean).join(' · ').slice(0, 40);
+    if (hn && (!p || p.horario !== hn)) {
+      try { wmsg('Guardando tus preferencias…', 'info'); await (await c0.guardarHorario(hn)).wait(); } catch (_) {}
     }
     const monto = ethers.parseUnits(String(W.cant), 18);
     if (monto % BigInt(W.tramos) !== 0n) { wmsg('Cambia un poco la cantidad: no se divide exacta entre las partes.', 'err'); btn.disabled = false; return; }
