@@ -1,6 +1,6 @@
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.13.4/+esm';
-import * as wallet from './wallet.js?v=49';
+import * as wallet from './wallet.js?v=50';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const USDT   = '0x55d398326f99059fF775485246999027B3197955';
@@ -22,6 +22,7 @@ const ABI = [
   'function comisionBnb() view returns (uint256)',
   'function fianzaDe(address) view returns (uint256)',
   'function fianzaMinima() view returns (uint256)',
+  'function owner() view returns (address)',
   'function limiteDe(address) view returns (uint256)',
   'function misOrdenes(address) view returns (uint256[])',
   'function misCompras(address) view returns (uint256[])',
@@ -144,6 +145,17 @@ function estilos() {
   #mk-overlay .mk-msg.err{color:var(--rojo,#f6465d)} #mk-overlay .mk-msg.ok{color:var(--neon-lit,#2ee86a)} #mk-overlay .mk-msg.info{color:#7d8794}
   #mk-overlay .mk-vacio{font-family:var(--mono,monospace);font-size:13px;color:#7d8794;text-align:center;padding:34px 0;line-height:1.7}
   #mk-overlay .mk-nota{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-align:center;margin-top:14px;line-height:1.6}
+  #mk-overlay .mk-wz{display:flex;align-items:center;gap:6px;margin-bottom:12px}
+  #mk-overlay .mk-wz-p{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;opacity:.5}
+  #mk-overlay .mk-wz-p.now,#mk-overlay .mk-wz-p.ok{opacity:1}
+  #mk-overlay .mk-wz-p .n{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-family:var(--display,sans-serif);font-weight:800;font-size:13px;background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid #3a424c;color:#7d8794}
+  #mk-overlay .mk-wz-p.now .n{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);border-color:#c79426;color:#3a2800;box-shadow:0 3px 0 #8f6a1a}
+  #mk-overlay .mk-wz-p.ok .n{background:rgba(46,232,106,.16);border-color:rgba(46,232,106,.5);color:var(--neon-lit,#2ee86a)}
+  #mk-overlay .mk-wz-p .t{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;line-height:1.3}
+  #mk-overlay .mk-wz-p.now .t{color:var(--gold,#E8B84B)}
+  #mk-overlay .mk-wz-l{width:18px;height:1px;background:#3a424c;flex:0 0 auto;margin-top:-16px}
+  #mk-overlay .mk-guia{font-family:var(--sans,sans-serif);font-size:13px;color:#b7bdc6;line-height:1.6;padding:12px 14px;border-radius:11px;background:rgba(232,184,75,.07);border:1px solid rgba(232,184,75,.3);margin-bottom:13px;text-align:center}
+  @media(max-width:560px){#mk-overlay .mk-wz-p .t{font-size:9px}#mk-overlay .mk-wz-l{width:10px}}
   #mk-overlay .mk-box{background:rgba(255,255,255,.02);border:1px solid #2b3139;border-radius:13px;padding:14px;margin-bottom:12px}
   #mk-overlay .mk-box .bt{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
   #mk-overlay .mk-row{display:flex;justify-content:space-between;gap:10px;font-family:var(--mono,monospace);font-size:12.5px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}
@@ -443,40 +455,35 @@ async function panelVender() {
   if (!cuenta) { box.innerHTML = `<div class="mk-vacio">Conecta tu wallet para publicar una oferta.</div>`; return; }
   box.innerHTML = `<div class="mk-vacio">Cargando…</div>`;
 
-  const [perf, fianza, fmin, ubic] = await Promise.all([
+  const [perf, fianza, fmin, ubic, dueno] = await Promise.all([
     lee('perfiles', [cuenta]).catch(() => null),
     lee('fianzaDe', [cuenta]).catch(() => 0n),
     lee('fianzaMinima').catch(() => 0n),
-    lee('ubicacionDe', [cuenta]).catch(() => null)
+    lee('ubicacionDe', [cuenta]).catch(() => null),
+    lee('owner').catch(() => null)
   ]);
   const tienePerfil = perf && perf.existe;
-  const fOk = fianza >= fmin;
+  const esOwner = dueno && String(dueno).toLowerCase() === String(cuenta).toLowerCase();
+  const fOk = esOwner || fianza >= fmin;   // el owner está exento de fianza
+  const listo = tienePerfil && fOk;
+
+  const pasoActual = !tienePerfil ? 1 : (!fOk ? 2 : 3);
+  const pasoHTML = (nro, txt, ok) =>
+    `<div class="mk-wz-p ${ok ? 'ok' : (pasoActual === nro ? 'now' : '')}"><span class="n">${ok ? '✓' : nro}</span><span class="t">${txt}</span></div>`;
 
   box.innerHTML = `
-  <div class="mk-box">
-    <div class="bt">Tu situación</div>
-    <div class="mk-row"><span class="k">Perfil</span><span class="v">${tienePerfil ? `<span class="mk-est a">Creado</span>` : `<span class="mk-est d">Falta</span>`}</span></div>
-    <div class="mk-row"><span class="k">Fianza depositada</span><span class="v">${num(f18(fianza), 2)} / ${num(f18(fmin), 0)} USDT ${fOk ? '<span class="mk-est a">OK</span>' : '<span class="mk-est d">Falta</span>'}</span></div>
-    <div class="mk-row"><span class="k">Cuánto puedes vender</span><span class="v">Sin límite</span></div>
+  <div class="mk-wz">
+    ${pasoHTML(1, 'Crea tu perfil', tienePerfil)}
+    <div class="mk-wz-l"></div>
+    ${pasoHTML(2, esOwner ? 'Fianza (no aplica)' : 'Deposita la fianza', fOk)}
+    <div class="mk-wz-l"></div>
+    ${pasoHTML(3, 'Publica tu oferta', false)}
   </div>
-
-  ${tienePerfil ? `
-  <div class="mk-box">
-    <div class="bt">Tu ubicación (opcional)</div>
-    <div style="font-family:var(--sans,sans-serif);font-size:12.5px;color:#8b96a3;line-height:1.6;margin-bottom:11px">
-      Si la compartes, quien mire tu oferta verá <b style="color:#E8B84B">tu zona y a cuántos kilómetros está de ti</b>. Genera confianza: el que no la comparte, siempre da más dudas.
-      Se guarda <b style="color:#E8B84B">redondeada a ~1 km</b>, nunca tu dirección exacta, y la puedes quitar cuando quieras.
-    </div>
-    <div class="mk-row"><span class="k">Estado</span><span class="v">${ubic && ubic.comparte ? `<span class="mk-est a">Compartida</span> ${esc(ubic.zona || '')}` : '<span class="mk-est">No compartida</span>'}</span></div>
-    <div class="mk-acts" style="margin-top:11px">
-      <button class="mk-b" id="mk-ubic-on">${ubic && ubic.comparte ? 'Actualizar mi ubicación' : 'Compartir mi ubicación'}</button>
-      ${ubic && ubic.comparte ? '<button class="mk-b gris" id="mk-ubic-off">Dejar de compartir</button>' : ''}
-    </div>
-  </div>` : ''}
+  ${listo ? '' : `<div class="mk-guia">${!tienePerfil ? 'Empieza creando tu perfil aquí abajo. Solo se hace una vez.' : 'Te falta la fianza. Deposítala aquí abajo y enseguida aparecerá el formulario para publicar tu oferta.'}</div>`}
 
   ${!tienePerfil ? `
   <div class="mk-box">
-    <div class="bt">1. Crea tu perfil</div>
+    <div class="bt">Paso 1 · Crea tu perfil</div>
     <div class="mk-2"><div><label>Tu nombre o alias</label><input id="mk-nom" maxlength="32" placeholder="Ej: Jesus"></div>
     <div><label>País</label><input id="mk-pais" maxlength="8" placeholder="CU"></div></div>
     <div class="mk-2"><div><label>Moneda habitual</label><select id="mk-mon">${MONEDAS.map(m => `<option>${m}</option>`).join('')}</select></div>
@@ -486,7 +493,7 @@ async function panelVender() {
 
   ${tienePerfil && !fOk ? `
   <div class="mk-box">
-    <div class="bt">2. Deposita tu fianza</div>
+    <div class="bt">Paso 2 · Deposita tu fianza</div>
     <div style="font-family:var(--mono,monospace);font-size:11.5px;color:#8b96a3;line-height:1.6;margin-bottom:10px">
       La fianza es <b style="color:#E8B84B">tuya</b> y la retiras cuando quieras. Solo respalda a tu comprador si un árbitro determina que hubo estafa.
     </div>
@@ -496,7 +503,7 @@ async function panelVender() {
 
   ${tienePerfil && fOk ? `
   <div class="mk-box">
-    <div class="bt">Publicar oferta</div>
+    <div class="bt">Paso 3 · Publica tu oferta</div>
     <div class="mk-2">
       <div><label>Qué vendes</label><select id="mk-tok"><option value="${USDT}">USDT</option><option value="${USDC}">USDC</option></select></div>
       <div><label>Cantidad</label><input id="mk-cant" type="number" step="any" placeholder="100"></div>
@@ -515,6 +522,20 @@ async function panelVender() {
     <div class="mk-escala" id="mk-escala"></div>
     <button class="mk-b" id="mk-pub" style="margin-top:14px">Publicar oferta</button>
     <div style="font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-align:center;margin-top:9px">Tu cripto queda trabada en el contrato hasta que confirmes cada tramo.</div>
+  </div>` : ''}
+
+  ${tienePerfil ? `
+  <div class="mk-box">
+    <div class="bt">Tu ubicación (opcional)</div>
+    <div style="font-family:var(--sans,sans-serif);font-size:12.5px;color:#8b96a3;line-height:1.6;margin-bottom:11px">
+      Si la compartes, quien mire tu oferta verá <b style="color:#E8B84B">tu zona y a cuántos kilómetros está de ti</b>. Genera confianza: el que no la comparte, siempre da más dudas.
+      Se guarda <b style="color:#E8B84B">redondeada a ~1 km</b>, nunca tu dirección exacta, y la puedes quitar cuando quieras.
+    </div>
+    <div class="mk-row"><span class="k">Estado</span><span class="v">${ubic && ubic.comparte ? `<span class="mk-est a">Compartida</span> ${esc(ubic.zona || '')}` : '<span class="mk-est">No compartida</span>'}</span></div>
+    <div class="mk-acts" style="margin-top:11px">
+      <button class="mk-b" id="mk-ubic-on">${ubic && ubic.comparte ? 'Actualizar mi ubicación' : 'Compartir mi ubicación'}</button>
+      ${ubic && ubic.comparte ? '<button class="mk-b gris" id="mk-ubic-off">Dejar de compartir</button>' : ''}
+    </div>
   </div>` : ''}`;
 
   if ($('mk-savep')) $('mk-savep').onclick = guardarPerfil;
