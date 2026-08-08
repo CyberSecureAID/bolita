@@ -1,8 +1,8 @@
 // prizepool.js — Módulo Prize Pool (independiente). No toca la lógica de los bots.
 // La librería vive en ESTE repositorio. Carga directa: sin CDN, sin esperas,
 // sin nada externo que pueda quedarse colgado y dejar la app en 'Cargando…'.
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=73';
-import * as wallet from './wallet.js?v=73';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=74';
+import * as wallet from './wallet.js?v=74';
 
 /* ───────── Config ───────── */
 const PRIZEPOOL = '0x595CD563F236DAEba21219D60AEF656a750A8132';
@@ -24,7 +24,12 @@ const PP_ABI = [
   'function participar(string name,string telegram,address inviter) payable',
   'function reclamar(uint256 round)',
   'function miAporte(address who) view returns (uint256 tickets,uint256 devolucion,bool puedeSalir,uint256 cierreSalida)',
-  'function abandonarParticipacion()'
+  'function abandonarParticipacion()',
+  'function gasFaltante() view returns (uint256)',
+  'function sorteoAtascado(uint256) view returns (bool)',
+  'function destrabarSorteo(uint256) payable',
+  'function saldoGas() view returns (uint256 enSponsor,uint256 enReserva,uint256 objetivo)',
+  'function owner() view returns (address)'
 ];
 const ERC20 = [
   'function allowance(address,address) view returns (uint256)',
@@ -161,6 +166,27 @@ function estilos() {
   #pp-overlay .pp-mio.cerrado .t{color:var(--gold,#E8B84B)}
   #pp-overlay .pp-mio-lock{font-family:var(--display,sans-serif);font-weight:800;font-size:13px;color:var(--gold,#E8B84B);padding:11px;border-radius:10px;background:rgba(0,0,0,.25);border:1px dashed rgba(232,184,75,.4)}
   #pp-overlay .pp-mio-lock span{display:block;font-family:var(--sans,sans-serif);font-weight:400;font-size:11.5px;color:#8b96a3;margin-top:6px;line-height:1.55}
+  #pp-overlay .pp-gana{margin-top:14px;padding:20px 16px;border-radius:16px;text-align:center;background:linear-gradient(180deg,rgba(46,232,106,.14),rgba(46,232,106,.05));border:1px solid rgba(46,232,106,.5);box-shadow:0 6px 0 rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.08)}
+  #pp-overlay .pp-gana-c{font-size:34px;line-height:1}
+  #pp-overlay .pp-gana-t{font-family:var(--display,sans-serif);font-weight:800;font-size:21px;color:var(--neon-lit,#2ee86a);margin-top:6px}
+  #pp-overlay .pp-gana-m{font-family:var(--display,sans-serif);font-weight:800;font-size:34px;color:#eaecef;line-height:1.1;margin-top:4px}
+  #pp-overlay .pp-gana-m small{font-size:16px;color:#8b96a3}
+  #pp-overlay .pp-gana-d{font-family:var(--sans,sans-serif);font-size:12.5px;color:#8b96a3;margin:7px 0 14px;line-height:1.5}
+  #pp-overlay .pp-gana button{width:100%;padding:14px;border-radius:12px;border:1px solid rgba(46,232,106,.55);background:linear-gradient(180deg,#8ff0bd,#34d97b 50%,#1f9e5f);color:#042415;font-family:var(--display,sans-serif);font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 4px 0 #158043;min-height:48px}
+  #pp-overlay .pp-atasco{margin-top:14px;padding:15px;border-radius:12px;background:rgba(232,184,75,.08);border:1px solid rgba(232,184,75,.4)}
+  #pp-overlay .pp-atasco .t{font-family:var(--display,sans-serif);font-weight:800;font-size:14.5px;color:var(--gold,#E8B84B);text-align:center}
+  #pp-overlay .pp-atasco .d{font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.6;margin:7px 0 11px;text-align:center}
+  #pp-overlay .pp-atasco .d b{color:var(--gold-soft,#C9A84B)}
+  #pp-overlay .pp-gas{margin-top:12px;padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.03);border:1px dashed #3a424c;text-align:center}
+  #pp-overlay .pp-gas span{display:block;font-family:var(--mono,monospace);font-size:9px;color:#6b7681;text-transform:uppercase;letter-spacing:.8px}
+  #pp-overlay .pp-gas b{display:block;font-family:var(--display,sans-serif);font-size:17px;color:var(--neon-lit,#2ee86a);margin:3px 0}
+  #pp-overlay .pp-gas.bajo b{color:var(--gold,#E8B84B)}
+  #pp-overlay .pp-gas i{display:block;font-style:normal;font-family:var(--sans,sans-serif);font-size:10.5px;color:#7d8794;line-height:1.4}
+  @media(max-width:560px){
+    #pp-overlay .pp-gana-m{font-size:28px}
+    #pp-overlay .pp-gana-t{font-size:18px}
+    #pp-overlay .pp-gana-d,#pp-overlay .pp-atasco .d{font-size:11.5px}
+  }
   #pp-overlay .pp-win{margin-top:20px}
   #pp-overlay .pp-win .wt{font-family:var(--mono,monospace);font-size:11px;color:#7d8794;text-transform:uppercase;letter-spacing:.8px;margin-bottom:9px;text-align:center}
   #pp-overlay .pp-w{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid #2b3139;font-family:var(--mono,monospace);font-size:12.5px;margin-bottom:7px;box-shadow:0 2px 0 rgba(0,0,0,.3)}
@@ -300,7 +326,7 @@ export async function abrirPrizePool() {
   $('pp-x').onclick = cerrar;
   cuentaAtras(endTime);
   wireTabs(); wireParticipar();
-  cargarGanadores(); cargarReclamo(); cargarMiAporte();
+  cargarGanadores(); cargarReclamo(); cargarMiAporte(); revisarSorteo(round); panelGasOwner();
 }
 
 function render(round, pool, players, minReq, pct, entrada, W, distTxt) {
@@ -409,6 +435,53 @@ function traducir(e) {
   return 'No se pudo completar. Intenta de nuevo.';
 }
 
+/* ───────── Sorteo atascado por gas: cualquiera puede destrabarlo ───────── */
+async function revisarSorteo(rondaActual) {
+  const box = $('pp-mio'); if (!box) return;
+  try {
+    const anterior = Number(rondaActual) - 1;
+    if (anterior < 1) return;
+    const atascado = await leePP('sorteoAtascado', [anterior]);
+    if (!atascado) return;
+    const falta = await leePP('gasFaltante');
+    const bnb = Number(ethers.formatEther(falta));
+    box.insertAdjacentHTML('afterbegin', `<div class="pp-atasco">
+      <div class="t">El sorteo está esperando</div>
+      <div class="d">La ronda #${anterior} ya cerró, pero al sistema le falta un poquito de gas para sortear. <b>Nadie pierde nada</b>: el dinero sigue guardado.<br>
+      Cualquiera puede destrabarlo poniendo <b>${bnb.toFixed(4)} BNB</b> (unos centavos) y el sorteo se hace al momento.</div>
+      <button class="pp-mio-b" id="pp-destrabar">Destrabar el sorteo (${bnb.toFixed(4)} BNB)</button>
+    </div>`);
+    $('pp-destrabar').onclick = async () => {
+      try {
+        msg('Confirma en tu wallet…', 'info');
+        const c = new ethers.Contract(PRIZEPOOL, PP_ABI, await firmante());
+        await (await c.destrabarSorteo(anterior, { value: falta })).wait();
+        msg('¡Listo! El sorteo ya se está haciendo.', 'ok');
+        setTimeout(() => abrirPrizePool(), 2000);
+      } catch (e) { msg(traducir(e), 'err'); }
+    };
+  } catch (_) {}
+}
+
+/* ───────── Estado del gas: SOLO lo ve el owner ───────── */
+async function panelGasOwner() {
+  const box = $('pp-mio'); if (!box) return;
+  const cuenta = wallet.cuentaActual && wallet.cuentaActual();
+  if (!cuenta) return;
+  try {
+    const dueno = await leePP('owner');
+    if (String(dueno).toLowerCase() !== String(cuenta).toLowerCase()) return;
+    const [enSponsor, enReserva, objetivo] = await leePP('saldoGas');
+    const s = Number(ethers.formatEther(enSponsor)), r = Number(ethers.formatEther(enReserva)), o = Number(ethers.formatEther(objetivo));
+    const ok = (s + r) >= o * 0.5;
+    box.insertAdjacentHTML('beforeend', `<div class="pp-gas ${ok ? '' : 'bajo'}">
+      <span>Gas del sorteo (solo lo ves tú)</span>
+      <b>${(s + r).toFixed(4)} BNB</b>
+      <i>${ok ? 'Suficiente. Se rellena solo con cada participación.' : 'Bajo. Se irá rellenando con las próximas participaciones.'}</i>
+    </div>`);
+  } catch (_) {}
+}
+
 /* ───────── Mi participación (con opción de abandonar) ───────── */
 async function cargarMiAporte() {
   const box = $('pp-mio'); if (!box) return;
@@ -469,7 +542,13 @@ async function cargarReclamo() {
     if (!rnd) return;
     const [amount, ya] = await leePP('miReclamo', [rnd, cuenta]);
     if (amount > 0n && !ya) {
-      box.innerHTML = `<div class="pp-claim">Tienes <b>${num(fmt(amount), 2)} USDT</b> para reclamar de la ronda #${Number(rnd)}.<button id="pp-claim-btn">Reclamar ahora</button></div>`;
+      box.innerHTML = `<div class="pp-gana">
+        <div class="pp-gana-c">🎉</div>
+        <div class="pp-gana-t">¡Ganaste!</div>
+        <div class="pp-gana-m">${num(fmt(amount), 2)} <small>USDT</small></div>
+        <div class="pp-gana-d">Ronda #${Number(rnd)} · el premio es tuyo, va directo a tu wallet.</div>
+        <button id="pp-claim-btn">Cobrar mi premio</button>
+      </div>`;
       $('pp-claim-btn').onclick = async () => {
         try {
           const signer = await firmante();
