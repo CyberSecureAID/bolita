@@ -254,6 +254,15 @@ export async function abrirPerfil() {
     try { await navigator.clipboard.writeText(cuenta); const t = addr.innerHTML; addr.innerHTML = '¡Copiada!'; setTimeout(() => { addr.innerHTML = t; }, 1100); } catch (_) {}
   };
   if ($('pf-reload')) $('pf-reload').onclick = () => abrirPerfil();
+  // Los datos se cargan LO PRIMERO: si algo del interruptor fallara, antes
+  // se quedaba todo en blanco porque nunca se llegaba a pedirlos.
+  cargarDatos(cuenta).catch((e) => {
+    console.warn('[Aurex] perfil:', e);
+    ['pf-pnl','pf-vol','pf-ops','pf-bots','pf-ciclos','pf-tot','pf-cv','pf-desde','pf-gasg','pf-precio','pf-gas','pf-t0','pf-t1','pf-t2','pf-t3']
+      .forEach((id) => { const el = $(id); if (el && el.querySelector('.pf-sk')) el.textContent = '—'; });
+  });
+
+  try {
   const sw = $('pf-push');
   if (sw) {
     const pintar = () => sw.classList.toggle('on', avisos.pushActivado());
@@ -265,8 +274,7 @@ export async function abrirPerfil() {
       pintar();
     };
   }
-
-  cargarDatos(cuenta);
+  } catch (e) { console.warn('[Aurex] interruptor de avisos:', e); }
 }
 
 async function cargarDatos(cuenta) {

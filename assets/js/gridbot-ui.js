@@ -395,9 +395,13 @@ function inyectarEstilo() {
   #colmena-app .seg button.on{background:var(--ac-m);color:var(--ac-t);border-color:var(--ac-d);font-weight:700}
   #colmena-app .avz{border-top:1px solid var(--line-soft);margin-top:18px;padding-top:4px}
   #colmena-app .chart{width:100%;height:auto;display:block;border-radius:14px;background:#0d1117;border:1px solid var(--line-soft)}
-  #colmena-app .pio-acciones{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  #colmena-app .pio-acciones .pio-toggle{flex:1;min-width:150px}
-  @media(max-width:560px){#colmena-app .pio-acciones .btn-compartir{flex:1}}
+  #colmena-app .pio-acciones{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
+  #colmena-app .pio-acciones .pio-toggle{flex:1;min-width:150px;margin:0}
+  /* Misma altura y línea base que "Ver el bot trabajando" */
+  #colmena-app .pio-img{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin:0;padding:0 14px;min-height:40px;border-radius:11px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:var(--gold);font-family:var(--display);font-weight:700;font-size:12.5px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.4);white-space:nowrap}
+  #colmena-app .pio-img:hover{filter:brightness(1.15);border-color:var(--gold-soft)}
+  #colmena-app .pio-img:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+  @media(max-width:560px){#colmena-app .pio-acciones .pio-img{flex:1}}
   #colmena-app .tv-detalle{margin-top:10px}
   #colmena-app .tv-detalle summary{cursor:pointer;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);padding:7px 0;list-style:none}
   #colmena-app .tv-detalle summary::-webkit-details-marker{display:none}
@@ -2541,8 +2545,8 @@ async function tarjeta(cuenta, clave, par, R) {
   else if (tipo === 'dca') _boxes = _boxProxima + _boxCompras + _boxMedio + _boxPosicion + _boxFlotante + _boxGas;
   else if (tipo === 'acum') _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxMedio + _boxVueltas + _boxGas;
   else _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxRango + _boxVueltas + _boxGas;
-  const _compartir = `<button class="btn-compartir" data-acc="compartir" title="Compartir mi resultado">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/></svg>Compartir</button>`;
+  const _compartir = `<button class="pio-img" data-acc="compartir" title="Crear una imagen con tu resultado">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17.5 9 13l3 3 3-2.5 4.5 4"/></svg><span>Mi resultado</span></button>`;
   const _panel = `<div class="pio-acciones"><button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>${_compartir}</div>
     <div class="pio-panel" data-clave="${clave}" data-gan="${(realizado + noRealizado).toFixed(6)}" data-pct="${baseInv > 0 ? (((realizado + noRealizado) / baseInv) * 100).toFixed(2) : 0}" data-dias="${Math.max(1, Math.floor(creadoSeg / 86400))}" data-vueltas="${Number(R.ciclos)}" data-inv="${baseInv}" data-nombre="${nombreBot}">
       <div class="pio-tabs"><button data-tab="grafica" class="on">Gráfica</button><button data-tab="ordenes">Órdenes (${ps.length})</button></div>
