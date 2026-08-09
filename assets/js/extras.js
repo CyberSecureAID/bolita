@@ -44,23 +44,8 @@ export function panelInstalar(ancla) {
         <img class="ip-ico" src="assets/img/aurex-192.png" alt="">
         <div><b>Aurex</b><span>Bots de trading en tu wallet</span></div>
       </div>
-      ${puede
-        ? `<button class="ip-b" id="ip-si">${movil ? 'Instalar en mi teléfono' : 'Instalar en este equipo'}</button>
-           <div class="ip-n">Se abre al instante, con su icono y a pantalla completa.</div>`
-        : iOS
-          ? `<div class="ip-pasos">
-               <div class="ip-p"><span>1</span>Toca el botón <b>Compartir</b> de Safari</div>
-               <div class="ip-p"><span>2</span>Elige <b>Añadir a pantalla de inicio</b></div>
-             </div>`
-          : movil
-            ? `<div class="ip-pasos">
-                 <div class="ip-p"><span>1</span>Abre el menú <b>⋮</b> de tu navegador</div>
-                 <div class="ip-p"><span>2</span>Elige <b>Instalar aplicación</b></div>
-               </div>`
-            : `<div class="ip-pasos">
-                 <div class="ip-p"><span>1</span>Busca el icono <b>⊕</b> en la barra de direcciones</div>
-                 <div class="ip-p"><span>2</span>Elige <b>Instalar Aurex</b></div>
-               </div>`}
+      <button class="ip-b" id="ip-si">Instalar</button>
+      <div class="ip-n" id="ip-nota">Se abre al instante, con su icono y a pantalla completa.</div>
       ${!movil ? `<div class="ip-sep"></div>
         <div class="ip-n">Y en tu teléfono: escanea este código.</div>
         <div class="ip-qr" id="ip-qr"></div>` : ''}
@@ -75,10 +60,26 @@ export function panelInstalar(ancla) {
   d.querySelector('.ip-bg').onclick = cerrarPanel;
   const si = $('ip-si');
   if (si) si.onclick = async () => {
-    if (!_instalador) { cerrarPanel(); return; }
-    _instalador.prompt();
-    try { await _instalador.userChoice; } catch (_) {}
-    _instalador = null; cerrarPanel();
+    if (_instalador) {
+      _instalador.prompt();
+      try { await _instalador.userChoice; } catch (_) {}
+      _instalador = null; cerrarPanel();
+      return;
+    }
+    // El navegador no nos deja instalarla desde aquí: explicamos cómo, solo entonces.
+    const nota = $('ip-nota');
+    if (!nota) return;
+    nota.className = 'ip-pasos';
+    nota.innerHTML = iOS
+      ? `<div class="ip-p"><span>1</span>Toca <b>Compartir</b> en Safari</div>
+         <div class="ip-p"><span>2</span>Elige <b>Añadir a pantalla de inicio</b></div>`
+      : movil
+        ? `<div class="ip-p"><span>1</span>Abre el menú <b>⋮</b> del navegador</div>
+           <div class="ip-p"><span>2</span>Elige <b>Instalar aplicación</b></div>`
+        : `<div class="ip-p"><span>1</span>Mira el icono de instalar en la barra de direcciones</div>
+           <div class="ip-p"><span>2</span>Elige <b>Instalar Aurex</b></div>`;
+    si.textContent = 'Ya está instalada o el navegador no lo permite';
+    si.disabled = true;
   };
 
   const qr = $('ip-qr');
@@ -207,7 +208,8 @@ export async function compartirResultado(datos) {
   if (!blob) return false;
   const archivo = new File([blob], 'aurex.png', { type: 'image/png' });
 
-  if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+  const movil = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (movil && navigator.canShare && navigator.canShare({ files: [archivo] })) {
     try {
       await navigator.share({
         files: [archivo],
@@ -278,6 +280,7 @@ function estilos() {
   #inst-panel .ip-top span{display:block;font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;margin-top:1px}
   #inst-panel .ip-b{width:100%;padding:13px;border-radius:12px;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 4px 0 #8f6a1a;min-height:46px}
   #inst-panel .ip-b:active{transform:translateY(3px);box-shadow:0 1px 0 #8f6a1a}
+  #inst-panel .ip-b:disabled{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:#7d8794;box-shadow:none;font-size:11.5px;cursor:default}
   #inst-panel .ip-n{font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;line-height:1.5;margin-top:10px;text-align:center}
   #inst-panel .ip-pasos{display:flex;flex-direction:column;gap:8px}
   #inst-panel .ip-p{display:flex;align-items:center;gap:9px;font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.4}
