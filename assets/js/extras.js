@@ -84,12 +84,7 @@ export function panelInstalar(ancla) {
   d.querySelector('.ip-bg').onclick = cerrarPanel;
   const si = $('ip-si');
   if (si) si.onclick = async () => {
-    if (_instalador) {
-      _instalador.prompt();
-      try { await _instalador.userChoice; } catch (_) {}
-      _instalador = null; cerrarPanel();
-      return;
-    }
+    if (_instalador) { cerrarPanel(); ventanaPreInstalar(); return; }
     // El navegador no nos deja instalarla desde aquí: explicamos cómo, solo entonces.
     const nota = $('ip-nota');
     if (!nota) return;
@@ -107,6 +102,43 @@ export function panelInstalar(ancla) {
 
   const qr = $('ip-qr');
   if (qr) dibujarQR(qr);
+}
+
+/** Nuestra ventana antes de instalar: presentación bonita con el logo.
+ *  Al aceptar aparece la del navegador, que es obligatoria y no se puede
+ *  sustituir: es el propio sistema quien pide la confirmación final. */
+export function ventanaPreInstalar() {
+  estilos();
+  const prev = $('inst-pre'); if (prev) prev.remove();
+  const d = document.createElement('div');
+  d.id = 'inst-pre';
+  d.innerHTML = `<div class="pi-bg"></div>
+    <div class="pi-c">
+      <img class="pi-ico" src="assets/img/aurex-512.png" alt="">
+      <div class="pi-t">Instalar Aurex</div>
+      <div class="pi-s">Se abrirá en su propia ventana, con su icono, sin barras del navegador y arranca al instante.</div>
+      <div class="pi-vent">
+        <span>✓ Se abre como una aplicación</span>
+        <span>✓ Funciona aunque la red vaya lenta</span>
+        <span>✓ No ocupa casi espacio</span>
+      </div>
+      <div class="pi-acts">
+        <button class="pi-b gris" id="pi-no">Ahora no</button>
+        <button class="pi-b" id="pi-si">Instalar</button>
+      </div>
+      <div class="pi-n">Tu navegador te pedirá una confirmación final.</div>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => { const e = $('inst-pre'); if (e) e.remove(); };
+  d.querySelector('.pi-bg').onclick = cerrar;
+  $('pi-no').onclick = cerrar;
+  $('pi-si').onclick = async () => {
+    cerrar();
+    if (!_instalador) return;
+    _instalador.prompt();
+    try { await _instalador.userChoice; } catch (_) {}
+    _instalador = null;
+  };
 }
 
 /** Ventana con instrucciones visuales, distintas según el navegador. */
@@ -187,7 +219,7 @@ async function dibujarQR(cont) {
   };
   if (window.qrcode) return pinta();
   const sc = document.createElement('script');
-  sc.src = 'assets/js/vendor/qrcode.js?v=102';
+  sc.src = 'assets/js/vendor/qrcode.js?v=103';
   sc.onload = pinta;
   sc.onerror = () => { cont.innerHTML = `<div class="ip-nqr">${url}</div>`; };
   document.head.appendChild(sc);
@@ -535,6 +567,19 @@ function estilos() {
   #inst-guia .gi-txt span b{display:inline;font-size:12.5px;color:var(--gold-soft,#C9A84B)}
   #inst-guia .gi-svg{width:100%;height:auto;display:block;margin:2px 0 18px;border-radius:10px}
   #inst-guia .gi-nota{margin-top:6px;padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.03);border:1px dashed #3a424c;font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;line-height:1.5;text-align:center}
+  #inst-pre{position:fixed;inset:0;z-index:9870;display:flex;align-items:center;justify-content:center;padding:18px}
+  #inst-pre .pi-bg{position:absolute;inset:0;background:rgba(3,5,8,.88);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px)}
+  #inst-pre .pi-c{position:relative;width:100%;max-width:360px;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:22px;padding:28px 22px 20px;box-shadow:0 30px 90px rgba(0,0,0,.82);text-align:center}
+  #inst-pre .pi-ico{width:92px;height:92px;object-fit:contain;filter:drop-shadow(0 8px 22px rgba(232,184,75,.28))}
+  #inst-pre .pi-t{font-family:var(--display,sans-serif);font-weight:800;font-size:23px;color:var(--gold,#E8B84B);margin-top:12px}
+  #inst-pre .pi-s{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.55;margin:8px 0 16px}
+  #inst-pre .pi-vent{display:flex;flex-direction:column;gap:7px;text-align:left;margin-bottom:18px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid #2b3139}
+  #inst-pre .pi-vent span{font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6}
+  #inst-pre .pi-acts{display:flex;gap:9px}
+  #inst-pre .pi-b{flex:1;padding:13px;border-radius:12px;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 4px 0 #8f6a1a;min-height:47px}
+  #inst-pre .pi-b.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:#b7bdc6;box-shadow:0 3px 0 rgba(0,0,0,.4)}
+  #inst-pre .pi-b:active{transform:translateY(2px)}
+  #inst-pre .pi-n{font-family:var(--mono,monospace);font-size:10px;color:#6b7681;margin-top:12px}
   #cop-av{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:9950;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);color:#eaecef;font-family:var(--sans,sans-serif);font-size:13px;padding:12px 18px;border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.7)}
   #hist-av{position:fixed;inset:0;z-index:9850;display:flex;align-items:center;justify-content:center;padding:18px}
   #hist-av .ha-bg{position:absolute;inset:0;background:rgba(3,5,8,.84);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}

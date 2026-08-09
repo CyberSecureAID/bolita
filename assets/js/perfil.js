@@ -1,7 +1,7 @@
 // perfil.js — Panel de cuenta por wallet. Módulo independiente (no toca la lógica existente).
-import * as gb from './gridbot.js?v=102';
-import * as wallet from './wallet.js?v=102';
-import * as avisos from './avisos.js?v=102';
+import * as gb from './gridbot.js?v=103';
+import * as wallet from './wallet.js?v=103';
+import * as avisos from './avisos.js?v=103';
 
 const $ = (id) => document.getElementById(id);
 const num = (n, d = 2) => { const x = Number(n); if (!isFinite(x)) return '—'; return x.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d }); };
@@ -309,7 +309,7 @@ async function cargarDatos(cuenta) {
       ? `<span class="pf-pill pf-on"><i></i>Activa</span>`
       : `<span class="pf-pill pf-off">Inactiva</span>`;
     if ($('pf-precio')) $('pf-precio').textContent = precio > 0n ? `${num(Number(gb.fmtBNB(precio)), 5)} BNB ≈ $1` : '—';
-    if ($('pf-gas')) $('pf-gas').textContent = `${num(Number(gb.fmtBNB(gasWei)), 4)} BNB`;
+    if ($('pf-gas')) $('pf-gas').textContent = `${num(Number(gb.fmtBNB(gasWei)), 5)} BNB`;   // 5 decimales: con 4, 0.00396 se veía como 0.0040
     // Cuánto cuesta cada compra o venta que hace el bot
     gb.gasMinOp().then((minOp) => {
       const bnb = Number(gb.fmtBNB(minOp));

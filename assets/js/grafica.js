@@ -8,7 +8,7 @@
 //   al mover o hacer zoom, las cuadrículas y tu precio de entrada se mueven con
 //   las velas, que es justo lo que hace falta para no perder la referencia.
 
-import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=102';
+import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=103';
 
 const $ = (id) => document.getElementById(id);
 
@@ -140,12 +140,18 @@ async function montar(host, g) {
     autoscaleInfoProvider: (original) => {
       const base = original();
       if (preciosLinea.length === 0) return base;
+      // Incluimos las líneas, pero SIN aplastar las velas: si alguna está muy
+      // lejos (p. ej. un objetivo de venta muy alto), estiramos como mucho el
+      // doble del recorrido de las velas. Antes el gráfico se quedaba plano.
       let min = Math.min(...preciosLinea), max = Math.max(...preciosLinea);
       if (base && base.priceRange) {
-        min = Math.min(min, base.priceRange.minValue);
-        max = Math.max(max, base.priceRange.maxValue);
+        const vMin = base.priceRange.minValue, vMax = base.priceRange.maxValue;
+        const alto = Math.max(vMax - vMin, Math.abs(vMax) * 0.005);
+        const tope = alto * 2.2;                       // hasta aquí estiramos
+        min = Math.max(Math.min(min, vMin), vMin - tope);
+        max = Math.min(Math.max(max, vMax), vMax + tope);
       }
-      const aire = (max - min) * 0.04 || Math.abs(max) * 0.01;
+      const aire = (max - min) * 0.05 || Math.abs(max) * 0.01;
       return { priceRange: { minValue: min - aire, maxValue: max + aire } };
     }
   });
@@ -153,14 +159,6 @@ async function montar(host, g) {
 
   // ── Las cuadrículas: pegadas al precio, se mueven con el gráfico ──
   const esCash = g.tipo === 'cash';
-  // Con muchas cuadrículas las tachuelas se pisan unas a otras y no se sabe
-  // cuál va con cuál. Solo etiquetamos las 4 más cercanas al precio de ahora;
-  // las demás se ven igual como línea, sin tachuela.
-  const refP = Number(g.precio) || Number(g.precioMedio) || 0;
-  const ordenadas = [...g.niveles].filter((x) => Number(x.precio) > 0)
-    .sort((a, b) => Math.abs(Number(a.precio) - refP) - Math.abs(Number(b.precio) - refP));
-  const conTachuela = new Set(ordenadas.slice(0, 4).map((x) => String(x.precio)));
-
   for (const nv of g.niveles) {
     const compra = nv.estado === 1;
     const espera = nv.estado !== 1 && nv.estado !== 2;
@@ -171,7 +169,7 @@ async function montar(host, g) {
       color: compra ? 'rgba(46,232,106,.85)' : (espera ? 'rgba(255,255,255,.28)' : (tp ? '#34d97b' : 'rgba(246,70,93,.8)')),
       lineWidth: tp ? 2 : 1,
       lineStyle: tp ? LineStyle.Solid : LineStyle.Dashed,
-      axisLabelVisible: tp || conTachuela.has(String(nv.precio)),
+      axisLabelVisible: true,
       title: compra ? 'compra' : (espera ? '' : (tp ? 'Take Profit' : 'vende'))
     });
   }

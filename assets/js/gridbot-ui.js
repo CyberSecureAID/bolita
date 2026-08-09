@@ -5,16 +5,16 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=102';
-import * as wallet from './wallet.js?v=102';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=102';
-import * as perfil from './perfil.js?v=102';
-import * as prizepool from './prizepool.js?v=102';
-import * as tutorial from './tutorial.js?v=102';
-import * as market from './market.js?v=102';
-import * as avisos from './avisos.js?v=102';
-import * as grafica from './grafica.js?v=102';
-import * as extras from './extras.js?v=102';
+import * as gb from './gridbot.js?v=103';
+import * as wallet from './wallet.js?v=103';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=103';
+import * as perfil from './perfil.js?v=103';
+import * as prizepool from './prizepool.js?v=103';
+import * as tutorial from './tutorial.js?v=103';
+import * as market from './market.js?v=103';
+import * as avisos from './avisos.js?v=103';
+import * as grafica from './grafica.js?v=103';
+import * as extras from './extras.js?v=103';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -433,11 +433,6 @@ function inyectarEstilo() {
     #colmena-app .lab-sug{gap:6px}
     #colmena-app .lab-sug .sug{font-size:10px;padding:4px 9px}
   }
-  /* El saldo de gas, bien visible (antes estaba escondido dentro del botón "Retirar") */
-  #colmena-app .gas-saldo{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 13px;margin-top:9px;border-radius:11px;background:rgba(232,184,75,.08);border:1px solid rgba(232,184,75,.28)}
-  #colmena-app .gas-saldo span{font-family:var(--mono);font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.7px}
-  #colmena-app .gas-saldo b{font-family:var(--display);font-weight:800;font-size:15px;color:var(--gold);white-space:nowrap}
-  @media(max-width:400px){#colmena-app .gas-saldo{padding:8px 10px}#colmena-app .gas-saldo span{font-size:9px}#colmena-app .gas-saldo b{font-size:13.5px}}
   #colmena-app .btn-conf{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;min-height:48px;padding:0 16px;margin:18px 0 14px;border-radius:13px;border:1px solid var(--ac-d,#2b7fe0);background:linear-gradient(180deg,var(--ac-l,#a9d4ff),var(--ac-m,#4d9fff) 45%,var(--ac-d,#2b7fe0));color:var(--ac-t,#04213f);font-family:var(--display);font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 4px 0 var(--ac-s,#1a5bb0),0 6px 16px rgba(0,0,0,.3)}
   #colmena-app .btn-conf:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ac-s,#1a5bb0)}
   #colmena-app .btn-conf .bc-sel{font-family:var(--mono);font-size:10.5px;padding:3px 10px;border-radius:20px;background:rgba(4,33,63,.22);border:1px solid rgba(4,33,63,.25)}
@@ -1613,14 +1608,13 @@ function render() {
               </div>
               <button class="btn btn-oro" id="f-gasdep">Recargar</button>
             </div>
-            <div class="gas-saldo"><span>Tu gas disponible</span><b id="c-gas">—</b></div>
-            <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret"><span class="gas-rtx">Retirar todo</span></button></div>
+            <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret"><span class="gas-rtx">Retirar <span id="c-gas"><span class="skel">0.00000</span> BNB</span></span></button></div>
           </div>
           <div id="c-gasmsg"></div>
           <div id="c-cash-price" class="cash-price" style="display:none;margin-top:16px;margin-bottom:0">
             <div class="cp-lab" id="cash-price-pair">BNB / USDT</div>
             <div class="cp-val" id="cash-price-val">—</div>
-            <div class="cp-src">precio ahora</div>
+            <div class="cp-src">precio del mercado</div>
           </div>
         </div>
       </div>
@@ -1691,9 +1685,11 @@ function render() {
   // había que recargar la página para ver el gas y los bots actualizados.
   if (window._refrescoAuto) clearInterval(window._refrescoAuto);
   window._refrescoAuto = setInterval(() => {
-    if (document.hidden) return;                 // sin gastar si no estás mirando
+    if (document.hidden) return;                        // no gastamos si no miras
     if (!wallet.cuentaActual()) return;
-    refrescarGas(); refrescarRejillas();
+    // Solo el gas, que es un número suelto. NUNCA redibujamos la lista de bots:
+    // eso cerraba la gráfica abierta y provocaba el parpadeo de la página.
+    refrescarGas();
   }, 45000);
 }
 
@@ -2934,9 +2930,13 @@ async function tarjeta(cuenta, clave, par, R) {
   const invLabel = tipo === 'cash' ? simB : simQ;
   const invValue = tipo === 'cash' ? num((par.cantBase != null ? Number(par.cantBase) : posBase), 6) : num(invertido, 2);
   const _entValida = par.entry != null && precioFmt(par.entry) !== '—';
+  // Dos datos distintos, cada uno con su nombre claro. Antes ponía
+  // "Entrada → Ahora" y, si no había precio de entrada, cambiaba a "Precio
+  // ahora": el cartel bailaba y no se entendía qué era cada número.
   const _boxEntrada = _entValida
-    ? `<div class="pio-box" data-box="entrada"><div class="k">Entrada → Ahora</div><div class="v" style="font-size:14px">${precioFmt(par.entry)} → ${precioFmt(precio)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}" style="${mkt == null ? 'color:var(--ink-3)' : ''}">${mkt == null ? 'precio actual' : sg(mkt) + num(Math.abs(mkt), 2) + '% mercado'}</div></div>`
-    : `<div class="pio-box" data-box="entrada"><div class="k">Precio ahora</div><div class="v" style="font-size:14px">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">precio actual</div></div>`;
+    ? `<div class="pio-box" data-box="entrada"><div class="k">Precio de entrada</div><div class="v" style="font-size:15px">${precioFmt(par.entry)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}" style="${mkt == null ? 'color:var(--ink-3)' : ''}">${mkt == null ? 'al crear el bot' : sg(mkt) + num(Math.abs(mkt), 2) + '% desde entonces'}</div></div>
+       <div class="pio-box" data-box="mercado"><div class="k">Precio del mercado</div><div class="v" style="font-size:15px">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">ahora mismo</div></div>`
+    : `<div class="pio-box" data-box="mercado"><div class="k">Precio del mercado</div><div class="v" style="font-size:15px">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">ahora mismo</div></div>`;
   const _boxFlotante = `<div class="pio-box" data-box="flotante"><div class="k">Flotante ${iBtn('ganancia')}</div><div class="v ${cls(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div><div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>`;
   const _boxGas = `<div class="pio-box" data-box="gas"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>`;
   const _boxGrid = `<div class="pio-box" data-box="realizado"><div class="k">Grid profit ${iBtn('porcuad')}</div><div class="v ${cls(realizado)} numgo" data-to="${Math.abs(realizado)}" data-dec="4" data-pre="${sg(realizado)}">${sg(realizado)}${num(Math.abs(realizado), 4)}</div><div class="v2 ${cls(realizado)}">${sg(pct(realizado))}${num(Math.abs(pct(realizado)), 2)}%</div></div>`;
