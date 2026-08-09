@@ -8,7 +8,7 @@
 //   al mover o hacer zoom, las cuadrículas y tu precio de entrada se mueven con
 //   las velas, que es justo lo que hace falta para no perder la referencia.
 
-import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=78';
+import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=79';
 
 const $ = (id) => document.getElementById(id);
 
@@ -30,10 +30,10 @@ let _n = 0;
 const _pendientes = [];
 
 /** HTML del bloque. La gráfica se dibuja luego con pintar(). */
-export function bloqueGrafica({ simB, simQ, pmin, pmax, niveles, precio, precioMedio, decQ, tipo }) {
+export function bloqueGrafica({ simB, simQ, pmin, pmax, niveles, precio, precioMedio, decQ, tipo, objetivoBps }) {
   const sym = simboloBinance(simB, simQ);
   const id = 'lwc' + (++_n);
-  _pendientes.push({ id, sym, pmin, pmax, niveles: niveles || [], precio, precioMedio, decQ, simB, simQ, tipo });
+  _pendientes.push({ id, sym, pmin, pmax, niveles: niveles || [], precio, precioMedio, decQ, simB, simQ, tipo, objetivoBps });
 
   if (!sym) {
     return `<div class="lwbox sin" id="${id}"><div class="lw-sin">
@@ -138,6 +138,20 @@ async function montar(host, g) {
       lineStyle: LineStyle.Dashed,
       axisLabelVisible: true,
       title: compra ? 'compra' : (espera ? '' : 'vende')
+    });
+  }
+
+  // ── Acumulador: dónde vende TODO de golpe (tu objetivo de salida) ──
+  if (g.tipo === 'acum' && g.precioMedio > 0 && g.objetivoBps > 0) {
+    const pct = Number(g.objetivoBps) / 100;                 // 500 bps = 5%
+    const salida = Number(g.precioMedio) * (1 + pct / 100);
+    velasSerie.createPriceLine({
+      price: salida,
+      color: '#34d97b',
+      lineWidth: 2,
+      lineStyle: LineStyle.Solid,
+      axisLabelVisible: true,
+      title: `vende todo (+${pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(2)}%)`
     });
   }
 

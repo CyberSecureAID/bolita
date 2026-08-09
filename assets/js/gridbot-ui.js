@@ -5,15 +5,15 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=78';
-import * as wallet from './wallet.js?v=78';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=78';
-import * as perfil from './perfil.js?v=78';
-import * as prizepool from './prizepool.js?v=78';
-import * as tutorial from './tutorial.js?v=78';
-import * as market from './market.js?v=78';
-import * as avisos from './avisos.js?v=78';
-import * as grafica from './grafica.js?v=78';
+import * as gb from './gridbot.js?v=79';
+import * as wallet from './wallet.js?v=79';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=79';
+import * as perfil from './perfil.js?v=79';
+import * as prizepool from './prizepool.js?v=79';
+import * as tutorial from './tutorial.js?v=79';
+import * as market from './market.js?v=79';
+import * as avisos from './avisos.js?v=79';
+import * as grafica from './grafica.js?v=79';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -2412,15 +2412,27 @@ async function tarjeta(cuenta, clave, par, R) {
   // Niveles (órdenes) + precio
   let precio = null, pmin = 0, pmax = 0, ps = [];
   const ordenBaseH = Number(gb.fmt(R.ordenBase, decB)) || 1;
+  const ordenQuoteH = Number(gb.fmt(R.ordenQuote, decQ)) || 0;
   try {
     const niveles = await gb.nivelesDe(clave);
     ps = niveles.map((nv) => {
-      const p = Number(gb.fmt(nv.minOutVenta, decQ)) / ordenBaseH; const est = Number(nv.estado);
+      const est = Number(nv.estado);
+      // El precio sale del dato de VENTA o, si no lo hay (cuadrículas de compra
+      // del Acumulador), del dato de COMPRA. Antes solo se miraba el de venta,
+      // y por eso el Acumulador no mostraba ninguna cuadrícula.
+      let p = Number(gb.fmt(nv.minOutVenta, decQ)) / ordenBaseH;
+      if (!(p > 0) && ordenQuoteH > 0) {
+        const outC = Number(gb.fmt(nv.minOutCompra, decB));
+        if (outC > 0) p = ordenQuoteH / outC;
+      }
       return { p, tipo: est === 1 ? 'compra' : est === 2 ? 'venta' : 'off' };
     }).filter((x) => isFinite(x.p) && x.p > 0);
     try { const pr = await gb.precioPar(bAddr, qAddr, decB, decQ); precio = pr.precio; } catch {}
     if (ps.length) { pmin = Math.min(...ps.map((x) => x.p)); pmax = Math.max(...ps.map((x) => x.p)); }
   } catch {}
+  // Objetivo de salida del Acumulador (el % al que vende todo de golpe)
+  let objBps = 0;
+  try { const md = await gb.modoDe(clave); objBps = Number(Array.isArray(md) ? md[1] : 0) || 0; } catch (_) {}
   let ops = []; try { ops = await gb.operacionesDe(cuenta, bAddr, qAddr, decB, decQ); } catch {}
   const chart = ps.length ? dibujar(ps, precio, pmin, pmax, null, ops) : svgVacio(560, 300, 'este bot ya no tiene órdenes');
 
@@ -2486,6 +2498,7 @@ async function tarjeta(cuenta, clave, par, R) {
         ${grafica.bloqueGrafica({
           simB, simQ, pmin, pmax, precio, decQ, tipo,
           precioMedio: (posBase > 0 && costeQ > 0) ? (costeQ / posBase) : 0,
+          objetivoBps: objBps,
           niveles: ps.map((x) => ({ precio: x.p, estado: x.tipo === 'compra' ? 1 : (x.tipo === 'venta' ? 2 : 0) }))
         })}
 
