@@ -425,11 +425,19 @@ function inyectarEstilo() {
   #cmov .cm-b:active{transform:translateY(2px)}
   #cmov .cm-n{font-family:var(--sans);font-size:11px;color:#7d8794;line-height:1.45;margin-top:4px}
   /* Botón único de configuraciones (azul del Smart Grid) */
-  #colmena-app .btn-conf{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;min-height:48px;padding:0 16px;margin-bottom:14px;border-radius:13px;border:1px solid var(--ac-d,#2b7fe0);background:linear-gradient(180deg,var(--ac-l,#a9d4ff),var(--ac-m,#4d9fff) 45%,var(--ac-d,#2b7fe0));color:var(--ac-t,#04213f);font-family:var(--display);font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 4px 0 var(--ac-s,#1a5bb0),0 6px 16px rgba(0,0,0,.3)}
+  #colmena-app .btn-conf{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;min-height:48px;padding:0 16px;margin:18px 0 14px;border-radius:13px;border:1px solid var(--ac-d,#2b7fe0);background:linear-gradient(180deg,var(--ac-l,#a9d4ff),var(--ac-m,#4d9fff) 45%,var(--ac-d,#2b7fe0));color:var(--ac-t,#04213f);font-family:var(--display);font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 4px 0 var(--ac-s,#1a5bb0),0 6px 16px rgba(0,0,0,.3)}
   #colmena-app .btn-conf:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ac-s,#1a5bb0)}
   #colmena-app .btn-conf .bc-sel{font-family:var(--mono);font-size:10.5px;padding:3px 10px;border-radius:20px;background:rgba(4,33,63,.22);border:1px solid rgba(4,33,63,.25)}
   #conf-box{position:fixed;inset:0;z-index:9880;display:flex;align-items:center;justify-content:center;padding:16px}
   #conf-box .cf-bg{position:absolute;inset:0;background:rgba(3,5,8,.88);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  /* Cada bot con su color */
+  #conf-box.tema-acum{--cf:#2ee86a;--cf-l:#8ff0bd}
+  #conf-box.tema-cash{--cf:#E8B84B;--cf-l:#f7db8d}
+  #conf-box.tema-dca{--cf:#b06cff;--cf-l:#d9b8ff}
+  #conf-box.tema-acum .cf-c,#conf-box.tema-cash .cf-c,#conf-box.tema-dca .cf-c{border-color:var(--cf)}
+  #conf-box.tema-acum .cf-t,#conf-box.tema-cash .cf-t,#conf-box.tema-dca .cf-t,
+  #conf-box.tema-acum .cf-saber summary,#conf-box.tema-cash .cf-saber summary,#conf-box.tema-dca .cf-saber summary{color:var(--cf-l)}
+  #conf-box.tema-acum .cf-op:hover,#conf-box.tema-cash .cf-op:hover,#conf-box.tema-dca .cf-op:hover{border-color:var(--cf)}
   #conf-box .cf-c{position:relative;width:100%;max-width:470px;max-height:calc(100vh - 32px);overflow-y:auto;background:linear-gradient(180deg,#141c28,#0b0e12);border:1px solid var(--ac-m,#4d9fff);border-radius:20px;padding:24px 18px 20px;box-shadow:0 30px 90px rgba(0,0,0,.8)}
   #conf-box .cf-x{position:absolute;top:13px;right:13px;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;line-height:1;padding:0;background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6;cursor:pointer;font-size:14px}
   #conf-box .cf-t{font-family:var(--display);font-weight:800;font-size:20px;color:var(--ac-l,#a9d4ff);padding-right:40px}
@@ -1424,7 +1432,7 @@ function render() {
             <span class="v-l">Configuraciones rentables</span><span class="v-s">Configuración</span>
             <span class="bc-sel" id="f-conf-sel">${F.preset ? NOMBRE_PRESET[F.preset] : 'elegir'}</span>
           </button>
-          <div class="lab">Rango de precio ${iBtn('rango')}<button class="sug" id="f-sug" type="button">Sugerir</button></div>
+          <div class="lab">Rango de precio ${iBtn('rango')}</div>
           <div class="fila">${campoNum('f-min',{placeholder:'precio bajo',pct:0.005})}${campoNum('f-max',{placeholder:'precio alto',pct:0.005})}</div>
           <div class="fila">
             <div><div class="lab">Cuadrículas ${iBtn('cuadriculas')}</div>${campoNum('f-niv',{value:20,min:2,max:100,step:1,int:true})}</div>
@@ -1436,6 +1444,7 @@ function render() {
           <div class="paso-box"><span><span class="v-l">Separación entre cuadrículas</span><span class="v-s">Separación</span> ${iBtn('separacion')}</span><b id="pv-paso">—</b></div>
         </div>
         <div id="f-acum" style="${F.tipo==='acum'?'':'display:none'}">
+          <button type="button" class="btn-conf" data-conf-bot="acum"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg><span class="v-l">Configuraciones rentables</span><span class="v-s">Configuración</span><span class="bc-sel" id="conf-sel-acum">elegir</span></button>
           <div class="lab"><span class="v-l">Precio mínimo (hasta dónde compra)</span><span class="v-s">Precio mínimo</span> ${iBtn('acmin')}<button class="sug" id="fa-sug" type="button">Sugerir</button></div>
           ${campoNum('fa-min',{placeholder:'precio más bajo',pct:0.01})}
           <div class="fila">
@@ -1462,6 +1471,7 @@ function render() {
           </div>
         </div>
         <div id="f-cash" style="${F.tipo==='cash'?'':'display:none'}">
+          <button type="button" class="btn-conf" data-conf-bot="cash"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg><span class="v-l">Configuraciones rentables</span><span class="v-s">Configuración</span><span class="bc-sel" id="conf-sel-cash">elegir</span></button>
           <div class="cash-note">Vendes <b id="cn-b">${moneda(F.baseId).simbolo}</b> y recibes <b id="cn-q">${moneda(F.quoteId).simbolo}</b> en tu wallet.</div>
           <div class="cash-cant-head">
             <div class="lab" style="margin:0"><span class="v-l">Cantidad a vender</span><span class="v-s">Cantidad</span> ${iBtn('cashcant')}</div>
@@ -1497,6 +1507,7 @@ function render() {
           </div>
         </div>
         <div id="f-dca" style="${F.tipo==='dca'?'':'display:none'}">
+          <button type="button" class="btn-conf" data-conf-bot="dca"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg><span class="v-l">Configuraciones rentables</span><span class="v-s">Configuración</span><span class="bc-sel" id="conf-sel-dca">elegir</span></button>
           <div class="cash-note">Compras <b id="dn-b">${moneda(F.baseId).simbolo}</b> con tu <b id="dn-q">${moneda(F.quoteId).simbolo}</b>, un poco cada cierto tiempo.</div>
           <div class="cash-cant-head">
             <div class="lab" style="margin:0"><span class="v-l">Monto por compra</span><span class="v-s">Monto</span> ${iBtn('dcamonto')}</div>
@@ -1617,8 +1628,9 @@ function render() {
     recomputarPorMargen(); actualizarVista();
   });
   ['f-min','f-max','f-margen'].forEach((id) => { const e = $(id); if (e) e.oninput = () => { asegurarRentable(); actualizarVista(); }; });
-  $('f-sug').onclick = sugerirRango;
+  if ($('f-sug')) $('f-sug').onclick = sugerirRango;   // ya no está en el formulario, vive en la ventana de configuraciones
   if ($('f-abrir-conf')) $('f-abrir-conf').onclick = ventanaConfiguraciones;
+  document.querySelectorAll(`#${APP} [data-conf-bot]`).forEach((b) => b.onclick = () => ventanaConfBot(b.dataset.confBot));
   document.querySelectorAll(`#${APP} #f-tipo button`).forEach((b) => b.onclick = () => { F.tipo = b.dataset.tipo; pintarTipo(); });
   document.querySelectorAll(`#${APP} #fa-obj button`).forEach((b) => b.onclick = () => {
     document.querySelectorAll(`#${APP} #fa-obj button`).forEach((x) => x.classList.remove('on')); b.classList.add('on');
@@ -1657,6 +1669,14 @@ function render() {
   wireSteppers(host);
 
   cargarPrecio(); refrescarGas(); refrescarSaldoInversion(); refrescarRejillas();
+  // Los datos se refrescan solos: el keeper opera en segundo plano y antes
+  // había que recargar la página para ver el gas y los bots actualizados.
+  if (window._refrescoAuto) clearInterval(window._refrescoAuto);
+  window._refrescoAuto = setInterval(() => {
+    if (document.hidden) return;                 // sin gastar si no estás mirando
+    if (!wallet.cuentaActual()) return;
+    refrescarGas(); refrescarRejillas();
+  }, 45000);
 }
 
 /* ================================================================== */
@@ -1720,6 +1740,96 @@ function asesorar(total, n, pasoPct, ordenQuote, netPorVuelta) {
   else nota = 'Configuración equilibrada para este capital. La estimación depende de cuánto se mueva el mercado.';
   $('as-nota').textContent = nota;
 }
+/* Configuraciones para los otros tres bots, con su porqué económico. */
+const CONF_BOTS = {
+  acum: {
+    titulo: 'Configuraciones del Accumulator',
+    porque: `<p>Este bot <b>compra más cuanto más barato está</b>. Cada compra que hace abajo baja tu precio medio de entrada, así que no necesitas que el mercado vuelva a lo más alto para ganar: basta con que suba un poco desde tu promedio.</p>
+      <p><b>Por qué es rentable:</b> vende <b>toda la posición de una vez</b>, así que solo paga comisiones una vez por ciclo, no en cada compra. Eso lo hace muy eficiente frente a un grid.</p>
+      <p><b>Consejos:</b><br>· Un objetivo del <b>8-12%</b> es el punto dulce: se alcanza a menudo y deja buen margen.<br>· El precio mínimo, <b>lejos</b>: si el mercado cae por debajo, el bot se queda sin comprar.<br>· Compra más abajo (factor alto) hace que tu promedio baje más rápido.</p>`,
+    ops: [
+      { id: 'prudente', n: 'Prudente', d: 'Objetivo cercano, sale rápido y repite. Ideal para empezar.', c: { obj: 5, niv: 6, ini: 25, factor: 30, caida: 20 }, r: 'Vende con +5%. Cierra ciclos a menudo.' },
+      { id: 'medio', n: 'Equilibrado', d: 'El punto dulce entre frecuencia y ganancia. Recomendado.', c: { obj: 10, niv: 8, ini: 20, factor: 40, caida: 30 }, r: 'Vende con +10%. Buen equilibrio.' },
+      { id: 'paciente', n: 'Paciente', d: 'Objetivo alto y mucho margen para comprar en caídas grandes.', c: { obj: 18, niv: 10, ini: 15, factor: 55, caida: 45 }, r: 'Vende con +18%. Menos ciclos, más ganancia cada uno.' }
+    ]
+  },
+  cash: {
+    titulo: 'Configuraciones del Cash Out',
+    porque: `<p>Pone una <b>orden de venta a un precio concreto</b> y la vigila día y noche. Cuando el mercado lo toca, vende y el dinero llega a tu wallet.</p>
+      <p><b>Por qué es rentable:</b> solo hace <b>una operación</b>, así que paga comisiones una sola vez (unos 0,03 USDT). Todo lo que suba por encima de eso es tuyo.</p>
+      <p><b>Consejos:</b><br>· Un objetivo entre <b>+3% y +10%</b> se suele alcanzar en días.<br>· Por encima del +25% puedes esperar semanas o no llegar nunca.<br>· No es una apuesta: si no llega, tu moneda sigue siendo tuya.</p>`,
+    ops: [
+      { id: 'rapido', n: 'Rápido', d: 'Un objetivo cercano que el mercado suele tocar en pocos días.', c: { obj: 3 }, r: 'Vende con +3% de subida.' },
+      { id: 'normal', n: 'Equilibrado', d: 'El más usado: buena ganancia sin esperar demasiado.', c: { obj: 7 }, r: 'Vende con +7% de subida.' },
+      { id: 'ambicioso', n: 'Ambicioso', d: 'Para quien no tiene prisa y busca una subida fuerte.', c: { obj: 15 }, r: 'Vende con +15% de subida.' }
+    ]
+  },
+  dca: {
+    titulo: 'Configuraciones del DCA',
+    porque: `<p>Compra <b>una cantidad fija cada cierto tiempo</b>, pase lo que pase. Unas veces compras caro y otras barato, y tu precio medio se suaviza.</p>
+      <p><b>Por qué funciona:</b> elimina el peor error, que es meter todo el dinero justo antes de una caída. No intenta adivinar el mercado.</p>
+      <p><b>Consejos:</b><br>· <b>Semanal o mensual rinde más que diario</b>: cada compra paga gas, y comprando a diario el gas se come la ventaja.<br>· Que cada compra sea de <b>al menos 10 USDT</b>, si no, las comisiones pesan demasiado.<br>· Su fuerza está en el tiempo: piensa en meses, no en días.</p>`,
+    ops: [
+      { id: 'semanal', n: 'Semanal', d: 'Una compra por semana. El mejor equilibrio entre coste y suavizado.', c: { frec: 604800, num: 52 }, r: 'Un año comprando cada semana.' },
+      { id: 'quincenal', n: 'Quincenal', d: 'Cada dos semanas. Menos comisiones, buen promedio.', c: { frec: 1209600, num: 26 }, r: 'Un año comprando cada 15 días.' },
+      { id: 'mensual', n: 'Mensual', d: 'Una vez al mes. El más barato en comisiones.', c: { frec: 2592000, num: 24 }, r: 'Dos años comprando cada mes.' }
+    ]
+  }
+};
+
+/** Ventana de configuraciones para acumulador, cash out y DCA. */
+function ventanaConfBot(tipo) {
+  const CB = CONF_BOTS[tipo]; if (!CB) return;
+  const prev = $('conf-box'); if (prev) prev.remove();
+  const d = document.createElement('div');
+  d.id = 'conf-box';
+  d.className = 'tema-' + tipo;
+  d.innerHTML = `<div class="cf-bg"></div>
+    <div class="cf-c">
+      <button class="cf-x" aria-label="Cerrar">✕</button>
+      <div class="cf-t">${CB.titulo}</div>
+      <div class="cf-s">Elige una y seguimos. Después puedes ajustar lo que quieras.</div>
+      <div class="cf-lista">
+        ${CB.ops.map((o) => `<button class="cf-op" data-cb="${o.id}">
+          <div class="cf-cab"><b>${o.n}</b></div>
+          <div class="cf-d">${o.d}</div>
+          <div class="cf-gana">${o.r}</div>
+        </button>`).join('')}
+      </div>
+      <details class="cf-saber"><summary>¿Por qué este bot da ganancia?</summary><div class="cf-txt">${CB.porque}</div></details>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => { const e = $('conf-box'); if (e) e.remove(); };
+  d.querySelector('.cf-bg').onclick = cerrar;
+  d.querySelector('.cf-x').onclick = cerrar;
+  d.querySelectorAll('[data-cb]').forEach((b) => b.onclick = () => {
+    const op = CB.ops.find((x) => x.id === b.dataset.cb);
+    if (op) aplicarConfBot(tipo, op);
+    cerrar();
+  });
+}
+
+/** Vuelca la configuración elegida en los campos del formulario. */
+function aplicarConfBot(tipo, op) {
+  const set = (id, v) => { const e = $(id); if (e) { e.value = String(v); e.dispatchEvent(new Event('input', { bubbles: true })); } };
+  if (tipo === 'acum') {
+    set('fa-obj-val', op.c.obj); set('fa-niv', op.c.niv);
+    set('fa-ini', op.c.ini); set('fa-factor', op.c.factor);
+    if (F.precio > 0) set('fa-min', +(F.precio * (1 - op.c.caida / 100)).toPrecision(6));
+    document.querySelectorAll(`#${APP} #fa-obj button`).forEach((b) => b.classList.toggle('on', Number(b.dataset.obj) === op.c.obj));
+    if (typeof previewAcum === 'function') previewAcum();
+  } else if (tipo === 'cash') {
+    const b = document.querySelector(`#${APP} [data-cobj="${op.c.obj}"]`);
+    if (b) b.click(); else set('fc-obj-val', op.c.obj);
+    if (typeof previewCash === 'function') previewCash();
+  } else if (tipo === 'dca') {
+    set('fd-frec', op.c.frec); set('fd-num', op.c.num);
+    const sel = $('fd-frec'); if (sel && sel.tagName === 'SELECT') { sel.value = String(op.c.frec); sel.dispatchEvent(new Event('change', { bubbles: true })); }
+    if (typeof previewDCA === 'function') previewDCA();
+  }
+  const sel = $('conf-sel-' + tipo); if (sel) sel.textContent = op.n;
+}
+
 /** Ventana con las configuraciones auditadas y lo que rinde cada una. */
 function ventanaConfiguraciones() {
   const prev = $('conf-box'); if (prev) prev.remove();
@@ -1776,7 +1886,7 @@ function ventanaConfiguraciones() {
   d.querySelector('.cf-x').onclick = cerrar;
   d.querySelectorAll('[data-conf]').forEach((b) => b.onclick = () => { aplicarPreset(b.dataset.conf); cerrar(); });
   const sug = $('cf-sug');
-  if (sug) sug.onclick = () => { cerrar(); const s2 = $('f-sug'); if (s2) s2.click(); };
+  if (sug) sug.onclick = () => { cerrar(); sugerirRango(); };
 }
 
 function aplicarPreset(id) {
