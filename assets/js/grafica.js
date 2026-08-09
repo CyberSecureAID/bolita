@@ -119,11 +119,34 @@ async function montar(host, g) {
     localization: { locale: 'es', priceFormatter: (p) => Number(p).toFixed(dec) }
   });
 
+  // Todas las líneas que vamos a pintar (cuadrículas, entrada, objetivo).
+  // La escala tiene que INCLUIRLAS: si no, quedan fuera de la vista y parece
+  // que la línea se despega de su etiqueta. Era justo lo que pasaba.
+  const preciosLinea = [];
+  (g.niveles || []).forEach((nv) => { const p = Number(nv.precio); if (p > 0) preciosLinea.push(p); });
+  (g.compras || []).forEach((p) => { if (Number(p) > 0) preciosLinea.push(Number(p)); });
+  if (g.precioMedio > 0) preciosLinea.push(Number(g.precioMedio));
+  if (g.tipo === 'acum' && g.precioMedio > 0 && g.objetivoBps > 0) {
+    preciosLinea.push(Number(g.precioMedio) * (1 + Number(g.objetivoBps) / 10000));
+  }
+
   const velasSerie = chart.addCandlestickSeries({
     upColor: '#2ee86a', downColor: '#f6465d',
     borderUpColor: '#2ee86a', borderDownColor: '#f6465d',
     wickUpColor: '#2ee86a', wickDownColor: '#f6465d',
-    priceFormat: { type: 'price', precision: dec, minMove: Math.pow(10, -dec) }
+    priceFormat: { type: 'price', precision: dec, minMove: Math.pow(10, -dec) },
+    // La escala se estira para que quepan las velas Y todas nuestras líneas.
+    autoscaleInfoProvider: (original) => {
+      const base = original();
+      if (preciosLinea.length === 0) return base;
+      let min = Math.min(...preciosLinea), max = Math.max(...preciosLinea);
+      if (base && base.priceRange) {
+        min = Math.min(min, base.priceRange.minValue);
+        max = Math.max(max, base.priceRange.maxValue);
+      }
+      const aire = (max - min) * 0.04 || Math.abs(max) * 0.01;
+      return { priceRange: { minValue: min - aire, maxValue: max + aire } };
+    }
   });
   velasSerie.setData(datos);
 

@@ -425,6 +425,14 @@ function inyectarEstilo() {
   #cmov .cm-b:active{transform:translateY(2px)}
   #cmov .cm-n{font-family:var(--sans);font-size:11px;color:#7d8794;line-height:1.45;margin-top:4px}
   /* Botón único de configuraciones (azul del Smart Grid) */
+  /* Etiqueta con botón "Sugerir": ocupa su fila y nunca se sale */
+  #colmena-app .lab-sug{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap;white-space:normal}
+  #colmena-app .lab-sug .lab-tx{display:flex;align-items:center;gap:5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #colmena-app .lab-sug .sug{flex:0 0 auto;margin:0}
+  @media(max-width:560px){
+    #colmena-app .lab-sug{gap:6px}
+    #colmena-app .lab-sug .sug{font-size:10px;padding:4px 9px}
+  }
   #colmena-app .btn-conf{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;min-height:48px;padding:0 16px;margin:18px 0 14px;border-radius:13px;border:1px solid var(--ac-d,#2b7fe0);background:linear-gradient(180deg,var(--ac-l,#a9d4ff),var(--ac-m,#4d9fff) 45%,var(--ac-d,#2b7fe0));color:var(--ac-t,#04213f);font-family:var(--display);font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 4px 0 var(--ac-s,#1a5bb0),0 6px 16px rgba(0,0,0,.3)}
   #colmena-app .btn-conf:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ac-s,#1a5bb0)}
   #colmena-app .btn-conf .bc-sel{font-family:var(--mono);font-size:10.5px;padding:3px 10px;border-radius:20px;background:rgba(4,33,63,.22);border:1px solid rgba(4,33,63,.25)}
@@ -785,6 +793,10 @@ function inyectarEstilo() {
     #colmena-app .i-btn{margin-right:2px}
     #colmena-app .lab{padding-right:2px}
     #colmena-app .paso-box{gap:6px;padding:11px 12px}
+    /* Ninguna etiqueta se sale por la derecha, ni con el icono de ayuda */
+    #colmena-app .lab{max-width:100%;overflow:hidden}
+    #colmena-app .lab .i-btn{margin-right:0}
+    #colmena-app .lab-sug .lab-tx{max-width:calc(100% - 78px)}
     #colmena-app .paso-box>span{min-width:0;flex:1}
     #colmena-app .paso-box .i-btn{flex:0 0 auto}
     #colmena-app .wrap{padding:18px 12px 50px}
@@ -1445,7 +1457,7 @@ function render() {
         </div>
         <div id="f-acum" style="${F.tipo==='acum'?'':'display:none'}">
           <button type="button" class="btn-conf" data-conf-bot="acum"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg><span class="v-l">Configuraciones rentables</span><span class="v-s">Configuración</span><span class="bc-sel" id="conf-sel-acum">elegir</span></button>
-          <div class="lab"><span class="v-l">Precio mínimo (hasta dónde compra)</span><span class="v-s">Precio mínimo</span> ${iBtn('acmin')}<button class="sug" id="fa-sug" type="button">Sugerir</button></div>
+          <div class="lab lab-sug"><span class="lab-tx"><span class="v-l">Precio mínimo (hasta dónde compra)</span><span class="v-s">Precio mínimo</span> ${iBtn('acmin')}</span><button class="sug" id="fa-sug" type="button">Sugerir</button></div>
           ${campoNum('fa-min',{placeholder:'precio más bajo',pct:0.01})}
           <div class="fila">
             <div><div class="lab"><span class="v-l">Nº de compras</span><span class="v-s">Nº compras</span> ${iBtn('acniv')}</div>${campoNum('fa-niv',{value:15,min:2,max:100,step:1,int:true})}</div>
@@ -1744,9 +1756,14 @@ function asesorar(total, n, pasoPct, ordenQuote, netPorVuelta) {
 const CONF_BOTS = {
   acum: {
     titulo: 'Configuraciones del Accumulator',
-    porque: `<p>Este bot <b>compra más cuanto más barato está</b>. Cada compra que hace abajo baja tu precio medio de entrada, así que no necesitas que el mercado vuelva a lo más alto para ganar: basta con que suba un poco desde tu promedio.</p>
-      <p><b>Por qué es rentable:</b> vende <b>toda la posición de una vez</b>, así que solo paga comisiones una vez por ciclo, no en cada compra. Eso lo hace muy eficiente frente a un grid.</p>
-      <p><b>Consejos:</b><br>· Un objetivo del <b>8-12%</b> es el punto dulce: se alcanza a menudo y deja buen margen.<br>· El precio mínimo, <b>lejos</b>: si el mercado cae por debajo, el bot se queda sin comprar.<br>· Compra más abajo (factor alto) hace que tu promedio baje más rápido.</p>`,
+    porque: `<p><b>Qué hace, en simple.</b> Imagina que quieres comprar una moneda pero no sabes si va a bajar más. En vez de gastar todo tu dinero de golpe, el bot lo va soltando poco a poco cada vez que el precio baja. Y cuanto más barato está, más compra.</p>
+      <p><b>Por qué eso ayuda.</b> Si compras 10 monedas a 100 y luego 10 a 80, no necesitas que vuelva a 100 para recuperar: tu precio medio es 90. El bot hace eso solo. A esto se le llama <b>bajar tu precio medio</b>, y es lo único que hace este bot.</p>
+      <p><b>Cuándo vende.</b> No vende por partes. Espera a que <b>todo lo que compró</b> valga el porcentaje que tú fijaste (por ejemplo un 10% más de lo que te costó) y ahí vende de una vez. Como vende una sola vez, paga comisiones una sola vez.</p>
+      <p><b>Qué puede salir mal, sin adornos:</b><br>
+      · Si el precio <b>sigue bajando y no vuelve a subir</b>, el bot no vende y te quedas con la moneda comprada, valiendo menos de lo que pagaste. No pierdes el dinero de golpe, pero está ahí abajo esperando.<br>
+      · Si el precio <b>cae por debajo del mínimo que pusiste</b>, deja de comprar y no puede seguir bajando tu promedio.<br>
+      · <b>Nada garantiza que el precio suba.</b> Este bot ordena tus compras y espera con paciencia; no adivina el mercado.</p>
+      <p><b>Tres consejos concretos:</b><br>· Un objetivo del <b>8-12%</b> se alcanza con bastante frecuencia. Por encima del 25% puedes esperar mucho tiempo.<br>· Pon el precio mínimo <b>bien abajo</b>, para que tenga margen de compra si hay una caída fuerte.<br>· Úsalo con monedas grandes y conocidas, que tienen más probabilidad de recuperarse que una moneda pequeña.</p>`,
     ops: [
       { id: 'prudente', n: 'Prudente', d: 'Objetivo cercano, sale rápido y repite. Ideal para empezar.', c: { obj: 5, niv: 6, ini: 25, factor: 30, caida: 20 }, r: 'Vende con +5%. Cierra ciclos a menudo.' },
       { id: 'medio', n: 'Equilibrado', d: 'El punto dulce entre frecuencia y ganancia. Recomendado.', c: { obj: 10, niv: 8, ini: 20, factor: 40, caida: 30 }, r: 'Vende con +10%. Buen equilibrio.' },
@@ -1755,9 +1772,14 @@ const CONF_BOTS = {
   },
   cash: {
     titulo: 'Configuraciones del Cash Out',
-    porque: `<p>Pone una <b>orden de venta a un precio concreto</b> y la vigila día y noche. Cuando el mercado lo toca, vende y el dinero llega a tu wallet.</p>
-      <p><b>Por qué es rentable:</b> solo hace <b>una operación</b>, así que paga comisiones una sola vez (unos 0,03 USDT). Todo lo que suba por encima de eso es tuyo.</p>
-      <p><b>Consejos:</b><br>· Un objetivo entre <b>+3% y +10%</b> se suele alcanzar en días.<br>· Por encima del +25% puedes esperar semanas o no llegar nunca.<br>· No es una apuesta: si no llega, tu moneda sigue siendo tuya.</p>`,
+    porque: `<p><b>Qué hace, en simple.</b> Tú dices "cuando esta moneda llegue a este precio, véndemela". El bot se queda vigilando el mercado día y noche, y en cuanto lo toca, vende y te manda el dinero a tu wallet.</p>
+      <p><b>Por qué es útil.</b> No hace falta que estés pendiente del móvil ni que te despiertes de madrugada. El precio puede tocarse a las 4 de la mañana y el bot lo hará igual.</p>
+      <p><b>Por qué apenas cuesta.</b> Solo hace <b>una operación</b>, así que paga comisiones una sola vez: unos <b>0,03 USDT</b> entre la red y el exchange. Todo lo que suba por encima de eso queda para ti.</p>
+      <p><b>Qué puede salir mal, sin adornos:</b><br>
+      · <b>El precio puede no llegar nunca.</b> Entonces el bot no hace nada y tu moneda sigue siendo tuya, ni más ni menos.<br>
+      · Si el mercado <b>sube mucho más</b> de tu objetivo, ya habrás vendido y te habrás quedado sin esa subida extra.<br>
+      · Si el precio <b>baja</b>, el bot no te protege: solo vende hacia arriba. Para eso está el stop loss, si lo activas.</p>
+      <p><b>Tres consejos concretos:</b><br>· Entre <b>+3% y +10%</b> suele tocarse en días.<br>· Por encima del <b>+25%</b> puedes esperar semanas, o no llegar.<br>· Piensa a qué precio estarías contento vendiendo, y pon ese. No busques el máximo perfecto: nadie lo acierta.</p>`,
     ops: [
       { id: 'rapido', n: 'Rápido', d: 'Un objetivo cercano que el mercado suele tocar en pocos días.', c: { obj: 3 }, r: 'Vende con +3% de subida.' },
       { id: 'normal', n: 'Equilibrado', d: 'El más usado: buena ganancia sin esperar demasiado.', c: { obj: 7 }, r: 'Vende con +7% de subida.' },
@@ -1766,9 +1788,14 @@ const CONF_BOTS = {
   },
   dca: {
     titulo: 'Configuraciones del DCA',
-    porque: `<p>Compra <b>una cantidad fija cada cierto tiempo</b>, pase lo que pase. Unas veces compras caro y otras barato, y tu precio medio se suaviza.</p>
-      <p><b>Por qué funciona:</b> elimina el peor error, que es meter todo el dinero justo antes de una caída. No intenta adivinar el mercado.</p>
-      <p><b>Consejos:</b><br>· <b>Semanal o mensual rinde más que diario</b>: cada compra paga gas, y comprando a diario el gas se come la ventaja.<br>· Que cada compra sea de <b>al menos 10 USDT</b>, si no, las comisiones pesan demasiado.<br>· Su fuerza está en el tiempo: piensa en meses, no en días.</p>`,
+    porque: `<p><b>Qué hace, en simple.</b> Compra la misma cantidad cada cierto tiempo (por ejemplo 20 USDT todos los lunes), sin mirar si el precio está alto o bajo. Siempre igual, pase lo que pase.</p>
+      <p><b>Por qué eso ayuda.</b> Nadie sabe cuándo es el mejor momento para comprar, ni los profesionales. Comprando siempre un poco, unas veces te tocará caro y otras barato, y acabas con un <b>precio medio razonable</b> en vez de haberlo apostado todo a un solo día.</p>
+      <p><b>Lo que evita.</b> El error más caro que comete la gente: meter todos sus ahorros justo antes de una caída. Con esto es imposible que te pase.</p>
+      <p><b>Qué puede salir mal, sin adornos:</b><br>
+      · <b>No es magia.</b> Si la moneda baja durante años, tu precio medio bajará también, pero seguirás en pérdida.<br>
+      · <b>Si el mercado solo sube</b>, habrías ganado más comprando todo al principio. Esto reduce el riesgo, y a cambio reduce el máximo posible.<br>
+      · Este bot <b>solo compra, no vende</b>. Tú decides cuándo salir.</p>
+      <p><b>Tres consejos concretos:</b><br>· <b>Semanal o mensual, no diario.</b> Cada compra paga gas de la red; comprando a diario ese coste se come la ventaja.<br>· Que cada compra sea de <b>10 USDT o más</b>, para que la comisión pese poco.<br>· Su fuerza está en el tiempo. Esto se piensa en <b>meses</b>, no en días.</p>`,
     ops: [
       { id: 'semanal', n: 'Semanal', d: 'Una compra por semana. El mejor equilibrio entre coste y suavizado.', c: { frec: 604800, num: 52 }, r: 'Un año comprando cada semana.' },
       { id: 'quincenal', n: 'Quincenal', d: 'Cada dos semanas. Menos comisiones, buen promedio.', c: { frec: 1209600, num: 26 }, r: 'Un año comprando cada 15 días.' },
@@ -1871,12 +1898,19 @@ function ventanaConfiguraciones() {
       <details class="cf-saber">
         <summary>¿Por qué este bot da ganancia?</summary>
         <div class="cf-txt">
-          <p>El bot parte tu dinero en <b>cuadrículas</b> repartidas en un rango de precio. Compra en cada cuadrícula cuando el precio baja hasta ella, y la vende cuando sube a la siguiente. Cada ida y vuelta deja una pequeña ganancia, y el mercado sube y baja muchas veces al día.</p>
-          <p><b>La clave está en la separación.</b> Cada vuelta paga el gas de la red (unos 0,025 USDT) y la comisión del exchange. Si las cuadrículas están demasiado juntas, esa ganancia no cubre las comisiones y el bot <b>no venderá</b>: tu contrato tiene prohibido vender con pérdida. Por eso estas configuraciones ya vienen con la separación calculada.</p>
-          <p><b>Tres consejos:</b><br>
-          · <b>Cuanto más dinero por cuadrícula, mejor</b>. El gas cuesta lo mismo tanto si mueves 2 USDT como 20.<br>
-          · <b>El precio de ahora debe quedar dentro del rango</b>, si no, el bot no tiene dónde operar.<br>
-          · <b>Si el mercado se va lejos y sale del rango</b>, el bot se queda quieto esperando. No pierde tu dinero: conserva la moneda comprada.</p>
+          <p><b>Qué es una cuadrícula.</b> Imagina una escalera de precios. Pones el escalón más bajo (por ejemplo 500) y el más alto (700), y el bot reparte escalones entre medias. Cada escalón es una <b>cuadrícula</b>.</p>
+          <p><b>Qué hace el bot.</b> Muy sencillo: <b>cuando el precio baja a un escalón, compra. Cuando sube al siguiente, vende.</b> Y vuelta a empezar. Nada más. Compra barato, vende un poquito más caro, una y otra vez.</p>
+          <p><b>De dónde sale la ganancia.</b> De la diferencia entre un escalón y el siguiente. Si compra a 600 y vende a 615, esos 15 son tuyos (menos comisiones). El precio de una moneda sube y baja muchas veces al día, así que puede repetirlo varias veces en la misma jornada. <b>No necesita que el precio suba en general</b>: le basta con que se mueva arriba y abajo.</p>
+          <p><b>La clave: la separación entre escalones.</b> Cada compra-venta paga el gas de la red (unos 0,025 USDT) y la comisión del exchange. Si los escalones están demasiado juntos, esa ganancia no cubre las comisiones. Cuando eso pasa, <b>el bot no vende</b>: está programado para no vender con pérdida. Por eso las configuraciones de arriba ya vienen con la separación calculada.</p>
+          <p><b>Qué puede salir mal, sin adornos:</b><br>
+          · <b>Si el precio se sale del rango por abajo</b>, el bot habrá comprado en todos los escalones y se queda quieto con la moneda, que vale menos de lo que pagaste. Tu dinero sigue ahí, en forma de moneda, pero en pérdida hasta que vuelva.<br>
+          · <b>Si se sale por arriba</b>, habrá vendido todo y dejará de operar. Ganaste, pero te quedas fuera de la subida.<br>
+          · <b>Si el mercado se queda plano</b> y no toca ningún escalón, el bot no hace nada y no gana nada.<br>
+          · <b>Nada garantiza ganancias.</b> Esta estrategia funciona bien cuando el precio se mueve dentro de un rango, y funciona mal cuando se va en una sola dirección y no vuelve.</p>
+          <p><b>Tres consejos concretos:</b><br>
+          · <b>Cuanto más dinero por cuadrícula, mejor.</b> El gas cuesta lo mismo tanto si mueves 2 USDT como 20, así que con órdenes pequeñas se lo come todo.<br>
+          · <b>El precio de ahora debe quedar dentro del rango</b>, y a poder ser por el medio. Si no, el bot no tiene dónde operar.<br>
+          · <b>Rango amplio para dormir tranquilo</b>, rango estrecho para operar más. Lo primero es más seguro; lo segundo, más activo pero se sale antes.</p>
         </div>
       </details>
     </div>`;
@@ -2322,7 +2356,7 @@ function pintarTipo() {
   { const as = $('c-acum-side'); if (as) as.style.display = t === 'acum' ? '' : 'none'; }
   { const cs = $('c-cash-side'); if (cs) cs.style.display = t === 'cash' ? '' : 'none'; }
   { const ds = $('c-dca-side'); if (ds) ds.style.display = t === 'dca' ? '' : 'none'; }
-  { const cp = $('c-cash-price'); if (cp) cp.style.display = (t === 'cash' || t === 'dca') ? '' : 'none'; }
+  { const cp = $('c-cash-price'); if (cp) cp.style.display = ''; }   // el precio de ahora sirve en los cuatro bots
   { const av = $('f-toggleavz'); if (av && av.parentElement) av.parentElement.style.display = t === 'dca' ? 'none' : ''; }
   const prev = document.querySelector(`#${APP} .prev`); if (prev) prev.style.display = noGrid ? 'none' : '';
   const tpsl = $('f-avz-tpsl'); if (tpsl) tpsl.style.display = noGrid ? 'none' : '';
