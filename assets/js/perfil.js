@@ -80,7 +80,16 @@ function estilos() {
 
   /* Secciones */
   #perfil-overlay .pf-sec{margin-bottom:16px}
-  #perfil-overlay .pf-sect{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.9px;margin-bottom:8px}
+  #perfil-overlay .pf-sect{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.9px;margin-bottom:8px;margin-top:20px}
+  /* Textos: versión corta en el móvil */
+  #perfil-overlay .tx-s{display:none}
+  @media(max-width:560px){
+    #perfil-overlay .tx-l{display:none}
+    #perfil-overlay .tx-s{display:inline}
+    #perfil-overlay .pf-sect{text-align:center;margin-top:22px;margin-bottom:10px}
+    #perfil-overlay .pf-note{font-size:11px;line-height:1.5;text-align:center;padding:0 4px}
+    #perfil-overlay .pf-setname{font-size:12.5px}
+  }
   #perfil-overlay .pf-box{background:rgba(255,255,255,.02);border:1px solid #2b3139;border-radius:13px;padding:4px 14px}
   #perfil-overlay .pf-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.055);font-family:var(--mono,monospace);font-size:12.5px}
   #perfil-overlay .pf-row:last-child{border-bottom:none}
@@ -146,7 +155,7 @@ function pintarNombre(cuenta) {
   const nom = leerNombre(cuenta);
   cont.innerHTML = nom
     ? `<span class="pf-nombre">${esc(nom)}</span><button class="pf-pen" id="pf-pen" title="Editar nombre">${iconoPen()}</button>`
-    : `<button class="pf-setname" id="pf-set">Ponle un nombre a tu cuenta ${iconoPen()}</button>`;
+    : `<button class="pf-setname" id="pf-set"><span class="tx-l">Ponle un nombre a tu cuenta</span><span class="tx-s">Ponle un nombre</span> ${iconoPen()}</button>`;
   const editar = () => {
     cont.innerHTML = `<div class="pf-nameedit"><input class="pf-inp" id="pf-inp" maxlength="24" value="${esc(nom)}" placeholder="Tu nombre o alias"><button class="pf-savebtn" id="pf-save">Guardar</button></div>`;
     const inp = $('pf-inp'); inp.focus(); inp.select();
@@ -219,7 +228,7 @@ export async function abrirPerfil() {
   </div>
 
   <div class="pf-acts">
-    <a class="pf-act" href="https://bscscan.com/address/${cuenta}" target="_blank" rel="noopener">Ver en BscScan ↗</a>
+    <a class="pf-act" href="https://bscscan.com/address/${cuenta}" target="_blank" rel="noopener"><span class="tx-l">Ver en BscScan ↗</span><span class="tx-s">BscScan ↗</span></a>
     <button class="pf-act" id="pf-reload">Actualizar datos</button>
   </div>
 
@@ -245,7 +254,7 @@ export async function abrirPerfil() {
     </div>
     <div class="d">Vendrá activada: tu suscripción se renovará sola y no tendrás que acordarte cada mes. Podrás desactivarla cuando quieras (se firmará en la blockchain).</div>
   </div>
-  <div class="pf-note">Los datos se leen directamente de la blockchain. Tu nombre se guarda solo en este dispositivo.</div>`;
+  <div class="pf-note"><span class="tx-l">Los datos se leen directamente de la blockchain. Tu nombre se guarda solo en este dispositivo.</span><span class="tx-s">Datos leídos de la blockchain. Tu nombre solo se guarda en este dispositivo.</span></div>`;
 
   $('pf-x').onclick = cerrar;
   pintarNombre(cuenta);

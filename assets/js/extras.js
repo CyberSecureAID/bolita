@@ -28,7 +28,31 @@ function marcarBoton(listo) {
 function cerrarPanel() { const p = $('inst-panel'); if (p) p.remove(); }
 
 /** Panel desplegable bajo el botón "Instalar". */
+/** En el móvil el botón comparte el enlace de Aurex; en el ordenador, instala. */
+export async function compartirEnlace() {
+  const url = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const texto = 'Bots de trading en cripto sin custodia.\n\n' +
+    'Aurex te deja usar bots (Smart Grid, Accumulator, Cash Out y DCA) con tu dinero SIEMPRE en tu propia wallet. ' +
+    'Sin registro, sin KYC y sin dejar tus fondos en manos de nadie.\n\n' + url;
+  try {
+    if (navigator.share) { await navigator.share({ title: 'Aurex Finance', text: texto }); return true; }
+  } catch (_) { return false; }
+  try { await navigator.clipboard.writeText(texto); avisoCopiado(); return true; } catch (_) {}
+  return false;
+}
+
+function avisoCopiado() {
+  estilos();
+  const d = document.createElement('div');
+  d.id = 'cop-av';
+  d.textContent = 'Enlace copiado. Pégalo donde quieras.';
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 2600);
+}
+
 export function panelInstalar(ancla) {
+  // En el teléfono no ofrecemos instalar: compartimos el enlace, que es lo útil.
+  if (/android|iphone|ipad|ipod/i.test(navigator.userAgent)) { compartirEnlace(); return; }
   estilos();
   if ($('inst-panel')) { cerrarPanel(); return; }
 
@@ -231,51 +255,114 @@ export async function compartirResultado(datos) {
    Un archivo CSV que abre Excel, Google Sheets o cualquier hoja de cálculo,
    con todas las operaciones que ha cerrado el bot. */
 
-function csvSeguro(v) {
-  const t = String(v ?? '');
-  return /[";\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
-}
+const esc_ = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const fecha_ = (seg) => seg ? new Date(seg * 1000).toLocaleString('es', {
+  day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+}) : '—';
 
-/** Descarga el historial de operaciones del bot. */
-export function descargarHistorial({ par, tipo, operaciones, moneda, base, creado }) {
-  const ops = operaciones || [];
-  const lineas = [];
+/* Explicación de cada bot, para que quien reciba el archivo lo entienda. */
+const COMO_FUNCIONA = {
+  grid: ['Smart Grid',
+    'Reparte tu dinero en varias cuadrículas dentro de un rango de precio. Compra en cada cuadrícula cuando el precio baja hasta ella y vende cuando sube a la siguiente. Cada par compra-venta completo es una vuelta, y deja una pequeña ganancia. El bot solo vende si la ganancia cubre la comisión de red y deja beneficio.'],
+  acum: ['Accumulator',
+    'Compra poco a poco mientras el precio baja, y compra más cuanto más barato está. Así rebaja tu precio medio de entrada. No vende por partes: espera a que TODA tu posición esté en el porcentaje de ganancia que fijaste, y entonces vende de golpe.'],
+  cash: ['Cash Out',
+    'Vigila el precio y vende tu posición completa cuando alcanza el objetivo que marcaste (Take Profit). Sirve para asegurar una ganancia sin estar pendiente del mercado.'],
+  dca: ['DCA',
+    'Compra una cantidad fija cada cierto tiempo, sin importar el precio. Al comprar caro y barato alternadamente, tu precio medio se suaviza y reduces el riesgo de entrar todo en un mal momento.']
+};
 
-  lineas.push('Aurex Finance - Historial del bot');
-  lineas.push('Par;' + csvSeguro(par));
-  lineas.push('Estrategia;' + csvSeguro(tipo));
-  lineas.push('Generado;' + new Date().toLocaleString('es'));
-  if (creado) lineas.push('Bot creado;' + csvSeguro(creado));
-  lineas.push('Operaciones cerradas;' + ops.length);
-  lineas.push('');
+/** Descarga el historial del bot como hoja de cálculo con formato. */
+export function descargarHistorial(d) {
+  const ops = d.operaciones || [];
+  const compras = ops.filter((o) => o.compra);
+  const ventas = ops.filter((o) => !o.compra);
+  const info = COMO_FUNCIONA[d.claseBot] || [d.tipo || 'Bot', ''];
+  const mon = d.moneda || '', bas = d.base || '';
+  const nEs = (v, dec = 8) => String(Number(v ?? 0).toFixed(dec)).replace('.', ',');
 
-  lineas.push(['#', 'Tipo', 'Precio (' + (moneda || '') + ')', 'Cantidad (' + (base || '') + ')', 'Total (' + (moneda || '') + ')', 'Bloque'].join(';'));
+  const G = '#C9A84B', VERDE = '#0f7a3d', ROJO = '#a3243a';
+  const th = `background:#12161c;color:${G};font-weight:bold;border:1px solid #2b3139;padding:6px 9px;font-size:11pt`;
+  const td = 'border:1px solid #d5d9de;padding:5px 9px;font-size:11pt';
 
-  if (ops.length === 0) {
-    lineas.push('');
-    lineas.push('Este bot todavia no ha cerrado ninguna operacion.');
-    lineas.push('Cuando el precio alcance una de tus cuadriculas, aparecera aqui.');
-  } else {
-    ops.forEach((o, i) => {
-      const cant = Number(o.cantidad ?? 0);
-      const precio = Number(o.precio ?? 0);
-      lineas.push([
-        i + 1,
-        o.compra ? 'Compra' : 'Venta',
-        precio.toFixed(8).replace('.', ','),
-        cant ? cant.toFixed(8).replace('.', ',') : '',
-        cant ? (cant * precio).toFixed(4).replace('.', ',') : '',
-        o.bloque ?? ''
-      ].join(';'));
-    });
-  }
+  const filaOp = (o, i) => {
+    const cant = Number(o.cantidad ?? 0), pr = Number(o.precio ?? 0);
+    const col = o.compra ? VERDE : ROJO;
+    const fondo = o.compra ? '#eaf7ef' : '#fdeef1';
+    return `<tr>
+      <td style="${td};text-align:center">${i + 1}</td>
+      <td style="${td};background:${fondo};color:${col};font-weight:bold">${o.compra ? 'COMPRA' : 'VENTA'}</td>
+      <td style="${td};text-align:right">${nEs(pr)}</td>
+      <td style="${td};text-align:right">${cant ? nEs(cant) : ''}</td>
+      <td style="${td};text-align:right">${cant ? nEs(cant * pr, 4) : ''}</td>
+      <td style="${td};text-align:center;color:#7d8794">${o.bloque ?? ''}</td>
+    </tr>`;
+  };
 
-  // El BOM hace que Excel respete las tildes.
-  const texto = '\uFEFF' + lineas.join('\r\n');
-  const blob = new Blob([texto], { type: 'text/csv;charset=utf-8;' });
+  // El DCA merece su propio calendario de compras.
+  const bloqueDCA = (d.claseBot === 'dca' && compras.length)
+    ? `<tr><td colspan="6" style="height:16px"></td></tr>
+       <tr><td colspan="6" style="${th};font-size:12pt">CALENDARIO DE COMPRAS</td></tr>
+       <tr>
+         <td style="${th}">#</td><td style="${th}" colspan="2">Precio (${esc_(mon)})</td>
+         <td style="${th}">Cantidad (${esc_(bas)})</td><td style="${th}" colspan="2">Coste (${esc_(mon)})</td>
+       </tr>
+       ${compras.map((o, i) => `<tr>
+         <td style="${td};text-align:center">${i + 1}</td>
+         <td style="${td};text-align:right" colspan="2">${nEs(o.precio)}</td>
+         <td style="${td};text-align:right">${nEs(o.cantidad ?? 0)}</td>
+         <td style="${td};text-align:right" colspan="2">${nEs(Number(o.cantidad ?? 0) * Number(o.precio ?? 0), 4)}</td>
+       </tr>`).join('')}` : '';
+
+  const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">
+    <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+    <x:Name>Historial</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+    </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+    </head><body>
+    <table cellspacing="0" cellpadding="0" style="font-family:Calibri,Arial,sans-serif;border-collapse:collapse">
+      <colgroup><col width="55"><col width="95"><col width="150"><col width="150"><col width="150"><col width="110"></colgroup>
+
+      <tr><td colspan="6" style="background:#0b0e11;color:${G};font-size:22pt;font-weight:bold;padding:14px 12px;letter-spacing:2px">AUREX FINANCE</td></tr>
+      <tr><td colspan="6" style="background:#0b0e11;color:#8b96a3;font-size:10pt;padding:0 12px 12px">Bots de trading en tu propia wallet · sin custodia</td></tr>
+      <tr><td colspan="6" style="height:10px"></td></tr>
+
+      <tr><td colspan="6" style="${th};font-size:14pt">HISTORIAL DEL BOT</td></tr>
+      <tr><td style="${td};font-weight:bold" colspan="2">Par</td><td style="${td}" colspan="4">${esc_(d.par)}</td></tr>
+      <tr><td style="${td};font-weight:bold" colspan="2">Tipo de bot</td><td style="${td}" colspan="4">${esc_(info[0])}</td></tr>
+      <tr><td style="${td};font-weight:bold" colspan="2">Bot creado el</td><td style="${td}" colspan="4">${fecha_(d.creado)}</td></tr>
+      <tr><td style="${td};font-weight:bold" colspan="2">Informe generado</td><td style="${td}" colspan="4">${new Date().toLocaleString('es')}</td></tr>
+      <tr><td style="${td};font-weight:bold" colspan="2">Operaciones cerradas</td><td style="${td}" colspan="4">${ops.length}  (${compras.length} compras · ${ventas.length} ventas)</td></tr>
+      <tr><td style="${td};font-weight:bold" colspan="2">Vueltas completas</td><td style="${td}" colspan="4">${d.ciclos ?? 0}</td></tr>
+      <tr><td style="${td};font-weight:bold" colspan="2">Invertido</td><td style="${td}" colspan="4">${nEs(d.invertido, 2)} ${esc_(mon)}</td></tr>
+      <tr><td style="${td};font-weight:bold" colspan="2">Resultado</td><td style="${td};color:${Number(d.ganancia) >= 0 ? VERDE : ROJO};font-weight:bold" colspan="4">${Number(d.ganancia) >= 0 ? '+' : ''}${nEs(d.ganancia, 2)} ${esc_(mon)}</td></tr>
+
+      <tr><td colspan="6" style="height:14px"></td></tr>
+      <tr><td colspan="6" style="${th};font-size:12pt">CÓMO FUNCIONA ESTE BOT</td></tr>
+      <tr><td colspan="6" style="${td};background:#f7f8fa;color:#333">${esc_(info[1])}</td></tr>
+
+      <tr><td colspan="6" style="height:14px"></td></tr>
+      <tr><td colspan="6" style="${th};font-size:12pt">OPERACIONES CONCLUIDAS</td></tr>
+      <tr>
+        <td style="${th};text-align:center">#</td>
+        <td style="${th}">Tipo</td>
+        <td style="${th};text-align:right">Precio (${esc_(mon)})</td>
+        <td style="${th};text-align:right">Cantidad (${esc_(bas)})</td>
+        <td style="${th};text-align:right">Total (${esc_(mon)})</td>
+        <td style="${th};text-align:center">Bloque</td>
+      </tr>
+      ${ops.length
+        ? ops.map(filaOp).join('')
+        : `<tr><td colspan="6" style="${td};background:#fff8e6;color:#8a6d1f;text-align:center">Este bot todavía no ha cerrado ninguna operación.<br>En cuanto el precio alcance una de tus cuadrículas, aparecerá aquí.</td></tr>`}
+      ${bloqueDCA}
+
+      <tr><td colspan="6" style="height:18px"></td></tr>
+      <tr><td colspan="6" style="color:#8b96a3;font-size:9pt;padding:8px 10px;border-top:1px solid #d5d9de">Datos leídos directamente de la blockchain (BNB Smart Chain). Aurex no custodia fondos.<br>cybersecureaid.github.io/bot-algoritmico</td></tr>
+    </table></body></html>`;
+
+  const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `aurex-historial-${String(par || 'bot').replace('/', '-')}.csv`;
+  a.download = `aurex-${String(d.par || 'bot').replace('/', '-')}-${new Date().toISOString().slice(0, 10)}.xls`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
   return ops.length;
@@ -364,6 +451,7 @@ function estilos() {
   #inst-panel .ip-nqr{color:#333;font-size:9.5px;word-break:break-all;padding:8px}
   .btn-compartir{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 15px;border-radius:11px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:var(--gold,#E8B84B);font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.4);min-height:40px}
   .btn-compartir:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+  #cop-av{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:9950;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);color:#eaecef;font-family:var(--sans,sans-serif);font-size:13px;padding:12px 18px;border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.7)}
   #hist-av{position:fixed;inset:0;z-index:9850;display:flex;align-items:center;justify-content:center;padding:18px}
   #hist-av .ha-bg{position:absolute;inset:0;background:rgba(3,5,8,.84);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
   #hist-av .ha-c{position:relative;width:100%;max-width:380px;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:18px;padding:22px}
