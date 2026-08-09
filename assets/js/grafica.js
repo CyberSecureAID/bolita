@@ -8,7 +8,7 @@
 //   al mover o hacer zoom, las cuadrículas y tu precio de entrada se mueven con
 //   las velas, que es justo lo que hace falta para no perder la referencia.
 
-import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=80';
+import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=81';
 
 const $ = (id) => document.getElementById(id);
 
@@ -30,10 +30,10 @@ let _n = 0;
 const _pendientes = [];
 
 /** HTML del bloque. La gráfica se dibuja luego con pintar(). */
-export function bloqueGrafica({ simB, simQ, pmin, pmax, niveles, precio, precioMedio, decQ, tipo, objetivoBps }) {
+export function bloqueGrafica({ simB, simQ, pmin, pmax, niveles, precio, precioMedio, decQ, tipo, objetivoBps, compras }) {
   const sym = simboloBinance(simB, simQ);
   const id = 'lwc' + (++_n);
-  _pendientes.push({ id, sym, pmin, pmax, niveles: niveles || [], precio, precioMedio, decQ, simB, simQ, tipo, objetivoBps });
+  _pendientes.push({ id, sym, pmin, pmax, niveles: niveles || [], precio, precioMedio, decQ, simB, simQ, tipo, objetivoBps, compras: compras || [] });
 
   if (!sym) {
     return `<div class="lwbox sin" id="${id}"><div class="lw-sin">
@@ -128,16 +128,31 @@ async function montar(host, g) {
   velasSerie.setData(datos);
 
   // ── Las cuadrículas: pegadas al precio, se mueven con el gráfico ──
+  const esCash = g.tipo === 'cash';
   for (const nv of g.niveles) {
     const compra = nv.estado === 1;
     const espera = nv.estado !== 1 && nv.estado !== 2;
+    // En Cash Out la venta ES el objetivo de ganancia: se llama Take Profit y va en verde.
+    const tp = esCash && !compra && !espera;
     velasSerie.createPriceLine({
       price: Number(nv.precio),
-      color: compra ? 'rgba(46,232,106,.85)' : (espera ? 'rgba(255,255,255,.28)' : 'rgba(246,70,93,.8)'),
-      lineWidth: 1,
-      lineStyle: LineStyle.Dashed,
+      color: compra ? 'rgba(46,232,106,.85)' : (espera ? 'rgba(255,255,255,.28)' : (tp ? '#34d97b' : 'rgba(246,70,93,.8)')),
+      lineWidth: tp ? 2 : 1,
+      lineStyle: tp ? LineStyle.Solid : LineStyle.Dashed,
       axisLabelVisible: true,
-      title: compra ? 'compra' : (espera ? '' : 'vende')
+      title: compra ? 'compra' : (espera ? '' : (tp ? 'Take Profit' : 'vende'))
+    });
+  }
+
+  // ── DCA: los precios a los que ya compró ──
+  for (const pc of (g.compras || [])) {
+    velasSerie.createPriceLine({
+      price: Number(pc),
+      color: 'rgba(77,159,255,.7)',
+      lineWidth: 1,
+      lineStyle: LineStyle.Dotted,
+      axisLabelVisible: true,
+      title: 'compró'
     });
   }
 

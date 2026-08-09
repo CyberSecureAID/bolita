@@ -5,15 +5,15 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=80';
-import * as wallet from './wallet.js?v=80';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=80';
-import * as perfil from './perfil.js?v=80';
-import * as prizepool from './prizepool.js?v=80';
-import * as tutorial from './tutorial.js?v=80';
-import * as market from './market.js?v=80';
-import * as avisos from './avisos.js?v=80';
-import * as grafica from './grafica.js?v=80';
+import * as gb from './gridbot.js?v=81';
+import * as wallet from './wallet.js?v=81';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=81';
+import * as perfil from './perfil.js?v=81';
+import * as prizepool from './prizepool.js?v=81';
+import * as tutorial from './tutorial.js?v=81';
+import * as market from './market.js?v=81';
+import * as avisos from './avisos.js?v=81';
+import * as grafica from './grafica.js?v=81';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -2435,6 +2435,9 @@ async function tarjeta(cuenta, clave, par, R) {
     // Si es un acumulador antiguo (sin esa configuración), preferimos no pintar
     // cuadrículas a pintarlas mal: se verán solo la entrada y la salida.
     if (par.tipo === 'acum' && !(par.pMin > 0 && par.nivelesAcum >= 1)) ps = [];
+    // DCA: compra por TIEMPO, no por precio. No tiene cuadrículas que dibujar;
+    // lo útil es ver a qué precios ya compró y su precio medio.
+    if (par.tipo === 'dca') ps = [];
     if ((par.tipo === 'acum') && par.pMin > 0 && par.entry > 0 && par.nivelesAcum >= 1) {
       const nA = Number(par.nivelesAcum), pTop = Number(par.entry) * 0.999, pM = Number(par.pMin);
       if (pTop > pM) {
@@ -2509,7 +2512,7 @@ async function tarjeta(cuenta, clave, par, R) {
   else if (tipo === 'dca') _boxes = _boxProxima + _boxCompras + _boxMedio + _boxPosicion + _boxFlotante + _boxGas;
   else if (tipo === 'acum') _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxMedio + _boxVueltas + _boxGas;
   else _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxRango + _boxVueltas + _boxGas;
-  const _panel = (tipo === 'dca') ? '' : `<button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
+  const _panel = `<button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
     <div class="pio-panel" data-clave="${clave}">
       <div class="pio-tabs"><button data-tab="grafica" class="on">Gráfica</button><button data-tab="ordenes">Órdenes (${ps.length})</button></div>
       <div class="tab-grafica">
@@ -2517,6 +2520,9 @@ async function tarjeta(cuenta, clave, par, R) {
           simB, simQ, pmin, pmax, precio, decQ, tipo,
           precioMedio: (posBase > 0 && costeQ > 0) ? (costeQ / posBase) : 0,
           objetivoBps: objBps,
+          compras: (tipo === 'dca')
+            ? [...new Set(ops.filter((o) => o.compra).map((o) => Number(o.precio.toFixed(8))))].slice(-12)
+            : [],
           niveles: ps.map((x) => ({ precio: x.p, estado: x.tipo === 'compra' ? 1 : (x.tipo === 'venta' ? 2 : 0) }))
         })}
 
