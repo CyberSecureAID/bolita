@@ -1,0 +1,45 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aurex · diagnóstico</title>
+<style>
+body{margin:0;background:#0b0e11;color:#eaecef;font-family:system-ui,sans-serif;padding:18px}
+h1{color:#E8B84B;font-size:19px;margin:0 0 4px}
+p.sub{color:#7d8794;font-size:12.5px;margin:0 0 16px}
+.f{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #2b3139;font-size:13.5px}
+.f b{color:#8b96a3;font-weight:400}
+.ok{color:#2ee86a}.no{color:#f6465d}.med{color:#E8B84B}
+pre{background:#12161c;border:1px solid #2b3139;border-radius:10px;padding:11px;font-size:11px;color:#b7bdc6;white-space:pre-wrap;word-break:break-word;margin-top:14px}
+button{width:100%;margin-top:14px;padding:14px;border-radius:12px;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,#E8B84B 45%,#c79426);color:#3a2800;font-weight:800;font-size:15px;cursor:pointer}
+a{color:#E8B84B}
+</style></head><body>
+<h1>Diagnóstico de conexión</h1>
+<p class="sub">Comparte esta pantalla si la wallet no conecta.</p>
+<div id="out"></div>
+<button id="probar">Probar WalletConnect</button>
+<pre id="log">—</pre>
+<p style="text-align:center;margin-top:16px"><a href="./index.html">← Volver a Aurex</a></p>
+<script type="module">
+const out=document.getElementById('out'), log=document.getElementById('log');
+const fila=(k,v,c)=>out.insertAdjacentHTML('beforeend',`<div class="f"><b>${k}</b><span class="${c||''}">${v}</span></div>`);
+const pwa = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+fila('Modo', pwa?'App instalada':'Navegador', pwa?'med':'ok');
+fila('Wallet en el navegador', window.ethereum?'Sí':'No', window.ethereum?'ok':'med');
+fila('Conexión', navigator.onLine?'Sí':'No', navigator.onLine?'ok':'no');
+fila('Dirección', location.origin, '');
+fila('Ruta', location.pathname, '');
+try{
+  const r = await fetch('./assets/js/vendor/walletconnect.umd.js?d='+Date.now(), {method:'HEAD'});
+  fila('Pieza WalletConnect', r.ok?('Disponible ('+r.status+')'):('Falta ('+r.status+')'), r.ok?'ok':'no');
+}catch(e){ fila('Pieza WalletConnect','No se pudo comprobar','no'); }
+document.getElementById('probar').onclick = async () => {
+  log.textContent='Cargando la pieza (850 KB)…';
+  try{
+    const w = await import('./assets/js/wallet.js?diag='+Date.now());
+    log.textContent='Pieza lista. Abriendo WalletConnect…';
+    const c = await w.conectarWalletConnect();
+    log.textContent='✅ CONECTADO: '+c;
+  }catch(e){
+    log.textContent='❌ '+(e?.message||e)+'\n\n'+(e?.stack||'').slice(0,400);
+  }
+};
+</script></body></html>
