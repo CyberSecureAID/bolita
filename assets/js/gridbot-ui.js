@@ -87,7 +87,7 @@ function inyectarEstilo() {
     --ac-l:#f7db8d; --ac-m:#E8B84B; --ac-d:#c79426; --ac-s:#8f6a1a; --ac-t:#3a2800;  /* set 3D del acento (pintarTipo) */
     font-family:var(--sans);color:var(--ink);position:relative;isolation:isolate;
     background:#0b0e11;min-height:100vh;overflow-x:hidden}
-  #colmena-app .c-hdr{max-width:100%;overflow:hidden;position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+  #colmena-app .c-hdr{max-width:100%;overflow:visible;position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
     gap:12px;padding:14px 22px;background:rgba(11,14,17,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
   #colmena-app .c-brand{display:inline-flex;align-items:center;gap:9px;font-family:var(--display);font-weight:700;font-size:20px;color:var(--gold);text-decoration:none;letter-spacing:.3px;min-width:0}
   #colmena-app .c-logo{height:32px;width:auto;flex:0 0 auto;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.55))}
@@ -98,6 +98,8 @@ function inyectarEstilo() {
   #colmena-app .c-hdr .hdr-btn,#colmena-app .c-hdr-r .hdr-btn{width:auto;flex:0 0 auto;white-space:nowrap}
   #colmena-app .c-hdr-r>button,#colmena-app .c-hdr-r>a{flex:0 0 auto;white-space:nowrap}
   /* Si no cabe todo (p. ej. sin wallet conectada), se ocultan los textos antes de montarse */
+  /* El recorte solo en pantallas grandes: en el móvil taparía el menú. */
+  @media(min-width:900px){#colmena-app .c-hdr{overflow:hidden}}
   @media(min-width:561px) and (max-width:1240px){
     #colmena-app .c-prize-tx,#colmena-app .c-market-tx,#colmena-app .c-lot-tx{display:none}
     #colmena-app .c-swap,#colmena-app .c-prize,#colmena-app .c-market,#colmena-app .c-loteria,#colmena-app .c-perfil{padding:0 9px}
@@ -663,6 +665,11 @@ function inyectarEstilo() {
   #colmena-app .pio-pair{letter-spacing:-.3px;font-size:21px;text-shadow:0 0 18px rgba(232,184,75,.15)}
   #colmena-app .pio-sub .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--neon-lit);box-shadow:0 0 10px var(--neon-lit),0 0 4px #fff;margin-right:5px;vertical-align:middle;animation:cpulse 1.2s ease-in-out infinite}
   #colmena-app .pio-tag{backdrop-filter:blur(4px);letter-spacing:.3px}
+  /* Los tres botones iguales: mismo ancho, misma altura, mismo relieve */
+  #colmena-app .pio-tags{display:flex;gap:6px;align-items:stretch}
+  #colmena-app .pio-tag{min-width:92px;height:30px;flex:0 0 auto}
+  #colmena-app .pio-tag.grey{box-shadow:0 2px 0 rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.1)}
+  @media(max-width:560px){#colmena-app .pio-tags{gap:5px}#colmena-app .pio-tag{min-width:0;flex:1;height:28px}}
   /* Banda de P&L premium (con brillo que barre) */
   #colmena-app .pio-band{min-height:116px;border:1px solid rgba(232,184,75,.14);background:radial-gradient(140% 160% at 0% 0%,rgba(24,31,35,.97),rgba(6,9,11,.98));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
   #colmena-app .pio-band .r{background:linear-gradient(125deg,var(--neon-dim),var(--neon-lit) 52%,var(--neon));box-shadow:-28px 0 60px rgba(46,232,106,.35)}
@@ -2588,8 +2595,8 @@ async function tarjeta(cuenta, clave, par, R) {
   else if (tipo === 'dca') _boxes = _boxProxima + _boxCompras + _boxMedio + _boxPosicion + _boxFlotante + _boxGas;
   else if (tipo === 'acum') _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxMedio + _boxVueltas + _boxGas;
   else _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxRango + _boxVueltas + _boxGas;
-  const _compartir = `<button class="pio-img" data-acc="compartir" title="Crear una imagen con tu resultado">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17.5 9 13l3 3 3-2.5 4.5 4"/></svg><span>Mi resultado</span></button>`;
+  const _compartir = `<button class="pio-img" data-acc="historial" title="Descargar todas las operaciones del bot">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg><span>Historial</span></button>`;
   const _panel = `<div class="pio-acciones"><button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>${_compartir}</div>
     <div class="pio-panel" data-clave="${clave}" data-gan="${(realizado + noRealizado).toFixed(6)}" data-pct="${baseInv > 0 ? (((realizado + noRealizado) / baseInv) * 100).toFixed(2) : 0}" data-dias="${Math.max(1, Math.floor(creadoSeg / 86400))}" data-vueltas="${Number(R.ciclos)}" data-inv="${baseInv}" data-nombre="${nombreBot}">
       <div class="pio-tabs"><button data-tab="grafica" class="on">Gráfica</button><button data-tab="ordenes">Órdenes (${ps.length})</button></div>
@@ -2774,20 +2781,22 @@ function enganchar(cuenta) {
     if (shareBtn) shareBtn.onclick = () => compartirBot(el);
     el.querySelectorAll('[data-acc]').forEach((btn) => btn.onclick = async () => {
       const acc = btn.dataset.acc;
-      if (acc === 'compartir') {
-        const r = el;                       // 'b' era la dirección del token, no el botón
-        try {
-        extras.compartirResultado({
-          par: `${r.dataset.sb}/${r.dataset.sq}`,
-          tipo: r.dataset.nombre || 'Bot Aurex',
-          ganancia: Number(r.dataset.gan) || 0,
-          pct: Number(r.dataset.pct) || 0,
-          moneda: r.dataset.sq || '',
-          dias: r.dataset.dias,
-          vueltas: r.dataset.vueltas,
-          invertido: Number(r.dataset.inv) || 0
+      if (acc === 'historial') {
+        const r = el;
+        extras.avisoHistorial(async () => {
+          let ops = [];
+          try {
+            const mb = MONEDAS[r.dataset.sb], mq = MONEDAS[r.dataset.sq];
+            ops = await gb.operacionesDe(cuenta, b, q, mb?.decimals ?? 18, mq?.decimals ?? 18);
+          } catch (e) { console.warn('[Aurex] historial:', e); }
+          extras.descargarHistorial({
+            par: `${r.dataset.sb}/${r.dataset.sq}`,
+            tipo: r.dataset.nombre || 'Bot Aurex',
+            moneda: r.dataset.sq || '',
+            base: r.dataset.sb || '',
+            operaciones: ops
           });
-        } catch (e) { console.warn('[Aurex] compartir:', e); }
+        });
         return;
       }
       if (acc === 'toggle-panel') {

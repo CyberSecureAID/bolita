@@ -227,6 +227,78 @@ export async function compartirResultado(datos) {
   return true;
 }
 
+/* ══════════════ HISTORIAL EN EXCEL ══════════════
+   Un archivo CSV que abre Excel, Google Sheets o cualquier hoja de cálculo,
+   con todas las operaciones que ha cerrado el bot. */
+
+function csvSeguro(v) {
+  const t = String(v ?? '');
+  return /[";\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+
+/** Descarga el historial de operaciones del bot. */
+export function descargarHistorial({ par, tipo, operaciones, moneda, base, creado }) {
+  const ops = operaciones || [];
+  const lineas = [];
+
+  lineas.push('Aurex Finance - Historial del bot');
+  lineas.push('Par;' + csvSeguro(par));
+  lineas.push('Estrategia;' + csvSeguro(tipo));
+  lineas.push('Generado;' + new Date().toLocaleString('es'));
+  if (creado) lineas.push('Bot creado;' + csvSeguro(creado));
+  lineas.push('Operaciones cerradas;' + ops.length);
+  lineas.push('');
+
+  lineas.push(['#', 'Tipo', 'Precio (' + (moneda || '') + ')', 'Cantidad (' + (base || '') + ')', 'Total (' + (moneda || '') + ')', 'Bloque'].join(';'));
+
+  if (ops.length === 0) {
+    lineas.push('');
+    lineas.push('Este bot todavia no ha cerrado ninguna operacion.');
+    lineas.push('Cuando el precio alcance una de tus cuadriculas, aparecera aqui.');
+  } else {
+    ops.forEach((o, i) => {
+      const cant = Number(o.cantidad ?? 0);
+      const precio = Number(o.precio ?? 0);
+      lineas.push([
+        i + 1,
+        o.compra ? 'Compra' : 'Venta',
+        precio.toFixed(8).replace('.', ','),
+        cant ? cant.toFixed(8).replace('.', ',') : '',
+        cant ? (cant * precio).toFixed(4).replace('.', ',') : '',
+        o.bloque ?? ''
+      ].join(';'));
+    });
+  }
+
+  // El BOM hace que Excel respete las tildes.
+  const texto = '\uFEFF' + lineas.join('\r\n');
+  const blob = new Blob([texto], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `aurex-historial-${String(par || 'bot').replace('/', '-')}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  return ops.length;
+}
+
+/** Aviso antes de descargar, para que nadie se sorprenda. */
+export function avisoHistorial(alAceptar) {
+  estilos();
+  const d = document.createElement('div');
+  d.id = 'hist-av';
+  d.innerHTML = `<div class="ha-bg"></div>
+    <div class="ha-c">
+      <div class="ha-t">Descargar tu historial</div>
+      <div class="ha-s">Se guarda una hoja de cálculo con <b>todas las operaciones que el bot ha cerrado</b>: compras, ventas, precios y cantidades.<br><br>Si aún no ha cerrado ninguna, el archivo se descargará vacío, indicándolo.</div>
+      <div class="ha-acts"><button class="ha-b gris" data-no>Volver</button><button class="ha-b" data-si>Descargar</button></div>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => d.remove();
+  d.querySelector('.ha-bg').onclick = cerrar;
+  d.querySelector('[data-no]').onclick = cerrar;
+  d.querySelector('[data-si]').onclick = () => { cerrar(); alAceptar(); };
+}
+
 /* ══════════════ 3) NÚMEROS QUE SUBEN CONTANDO ══════════════ */
 export function contar(el, hasta, { dec = 2, ms = 900, prefijo = '', sufijo = '' } = {}) {
   if (!el) return;
@@ -291,6 +363,15 @@ function estilos() {
   #inst-panel .ip-qr svg{width:100%;height:auto;display:block}
   #inst-panel .ip-nqr{color:#333;font-size:9.5px;word-break:break-all;padding:8px}
   .btn-compartir{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 15px;border-radius:11px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:var(--gold,#E8B84B);font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.4);min-height:40px}
-  .btn-compartir:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}`;
+  .btn-compartir:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+  #hist-av{position:fixed;inset:0;z-index:9850;display:flex;align-items:center;justify-content:center;padding:18px}
+  #hist-av .ha-bg{position:absolute;inset:0;background:rgba(3,5,8,.84);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
+  #hist-av .ha-c{position:relative;width:100%;max-width:380px;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:18px;padding:22px}
+  #hist-av .ha-t{font-family:var(--display,sans-serif);font-weight:800;font-size:19px;color:var(--gold,#E8B84B);text-align:center}
+  #hist-av .ha-s{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.6;margin:10px 0 18px}
+  #hist-av .ha-s b{color:#eaecef}
+  #hist-av .ha-acts{display:flex;gap:9px}
+  #hist-av .ha-b{flex:1;padding:13px;border-radius:11px;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 3px 0 #8f6a1a;min-height:46px}
+  #hist-av .ha-b.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:#b7bdc6;box-shadow:0 3px 0 rgba(0,0,0,.4)}`;
   document.head.appendChild(s);
 }
