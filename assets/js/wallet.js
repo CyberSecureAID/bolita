@@ -50,13 +50,18 @@ function cargarWC() {
     window.global = window.global || window;
     window.process = window.process || { env: {}, version: '', nextTick: (f) => setTimeout(f, 0) };
     window.Buffer = window.Buffer || undefined;
-    const sc = document.createElement('script');
-    // Ruta absoluta desde la raíz del sitio: funciona igual en la app instalada.
-    sc.src = new URL('vendor/walletconnect.umd.js?v=84', new URL('./', import.meta.url)).href;
-    sc.async = true;
-    sc.onload = () => res(!!window['@walletconnect/ethereum-provider']);
-    sc.onerror = () => res(false);
-    document.head.appendChild(sc);
+    const base = new URL('./', import.meta.url);
+    const traer = (archivo) => new Promise((ok) => {
+      const sc = document.createElement('script');
+      sc.src = new URL('vendor/' + archivo, base).href;
+      sc.async = true;
+      sc.onload = () => ok(true);
+      sc.onerror = () => ok(false);
+      document.head.appendChild(sc);
+    });
+    // El generador de QR hace falta para el ordenador (en el móvil no molesta).
+    Promise.all([traer('walletconnect.umd.js?v=85'), traer('qrcode.js?v=85')])
+      .then(() => res(!!window['@walletconnect/ethereum-provider']));
     setTimeout(() => res(!!window['@walletconnect/ethereum-provider']), 25000);   // conexiones lentas
   });
   return _wcCargando;
@@ -67,22 +72,28 @@ export function necesitaWalletConnect() {
   return !window.ethereum && proveedores6963.length === 0;
 }
 
-/** Conecta por WalletConnect. Abre la wallet del móvil o muestra un QR. */
+/** Conecta por WalletConnect con NUESTRA propia ventana.
+ *  No usamos el modal de la librería porque necesita un paquete extra que
+ *  no incluimos: sin él la petición se quedaba sin interfaz y se reiniciaba
+ *  sola ("Connection request reset"). Así controlamos todo nosotros:
+ *  en el móvil abrimos la wallet directamente, en el ordenador mostramos un QR. */
 export async function conectarWalletConnect() {
   if (!(await cargarWC())) {
-    throw new Error('WC_CARGA: no se pudo descargar la pieza de conexión (850 KB). Revisa tu conexión e inténtalo otra vez.');
+    throw new Error('WC_CARGA: no se pudo descargar la pieza de conexión. Revisa tu conexión e inténtalo otra vez.');
   }
   const ns = window['@walletconnect/ethereum-provider'];
   const EthereumProvider = ns && (ns.EthereumProvider || ns.default);
   if (!EthereumProvider) throw new Error('WC_LIB: la pieza de conexión no se cargó bien. Recarga la app.');
 
-  if (!_wcProv) {
-    try {
-      _wcProv = await EthereumProvider.init({
+  // Sesión nueva cada vez: evita restos de intentos anteriores.
+  if (_wcProv) { try { await _wcProv.disconnect(); } catch (_) {} _wcProv = null; }
+
+  try {
+    _wcProv = await EthereumProvider.init({
       projectId: WC_PROJECT_ID,
-      chains: [56],                       // BNB Smart Chain
+      chains: [56],
       optionalChains: [56],
-      showQrModal: true,                  // QR en ordenador, enlace directo en móvil
+      showQrModal: false,                 // la ventana la ponemos nosotros
       rpcMap: { 56: 'https://bsc-dataseed.binance.org' },
       metadata: {
         name: 'Aurex Finance',
@@ -90,18 +101,26 @@ export async function conectarWalletConnect() {
         url: location.origin + location.pathname.replace(/[^/]*$/, ''),
         icons: [location.origin + location.pathname.replace(/[^/]*$/, '') + 'assets/img/apple-touch-icon.png']
       }
-      });
-    } catch (e) {
-      throw new Error('WC_INIT: ' + (e?.message || e));
-    }
-  }
+    });
+  } catch (e) { throw new Error('WC_INIT: ' + (e?.message || e)); }
 
-  try { await _wcProv.connect(); }
-  catch (e) {
+  // Cuando la librería nos da el enlace, abrimos nuestra ventana.
+  let cerrarVentana = null;
+  const alTenerEnlace = (uri) => { cerrarVentana = ventanaWC(uri); };
+  _wcProv.on('display_uri', alTenerEnlace);
+
+  try {
+    await _wcProv.connect();
+  } catch (e) {
     const m = String(e?.message || e || '');
-    if (/reject|denied|cancel|closed/i.test(m)) throw new Error('Cancelaste la conexión.');
+    if (cerrarVentana) cerrarVentana();
+    if (/reject|denied|cancel|closed|rejected/i.test(m)) throw new Error('Cancelaste la conexión en tu wallet.');
     throw new Error('WC_CONN: ' + m);
+  } finally {
+    try { _wcProv.off('display_uri', alTenerEnlace); } catch (_) {}
   }
+  if (cerrarVentana) cerrarVentana();
+
   const cuentas = _wcProv.accounts || [];
   if (!cuentas.length) throw new Error('SIN_CUENTAS');
 
@@ -115,6 +134,78 @@ export async function conectarWalletConnect() {
   avisar();
   return est.cuenta;
 }
+
+/* Nuestra ventana: botones de wallet en el móvil, QR en el ordenador. */
+function ventanaWC(uri) {
+  const movil = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+  const enlaces = [
+    { n: 'MetaMask', u: 'metamask://wc?uri=' + encodeURIComponent(uri), alt: 'https://metamask.app.link/wc?uri=' + encodeURIComponent(uri) },
+    { n: 'Trust Wallet', u: 'trust://wc?uri=' + encodeURIComponent(uri), alt: 'https://link.trustwallet.com/wc?uri=' + encodeURIComponent(uri) },
+    { n: 'SafePal', u: 'safepalwallet://wc?uri=' + encodeURIComponent(uri), alt: 'https://link.safepal.io/wc?uri=' + encodeURIComponent(uri) },
+    { n: 'Otra wallet', u: 'wc://wc?uri=' + encodeURIComponent(uri), alt: uri }
+  ];
+
+  estilosWC();
+  const d = document.createElement('div');
+  d.id = 'wcbox';
+  d.innerHTML = `<div class="wcb-bg"></div>
+    <div class="wcb-c">
+      <button class="wcb-x" aria-label="Cerrar">✕</button>
+      <div class="wcb-t">Conecta tu wallet</div>
+      <div class="wcb-s">${movil ? 'Toca tu wallet: se abrirá para que apruebes y volverás aquí.' : 'Escanea este código con la wallet de tu teléfono.'}</div>
+      ${movil
+        ? `<div class="wcb-l">${enlaces.map((e) => `<a class="wcb-b" href="${e.u}" data-alt="${e.alt}">${e.n}</a>`).join('')}</div>`
+        : `<div class="wcb-qr" id="wcb-qr"></div>
+           <button class="wcb-copiar" id="wcb-copiar">Copiar enlace</button>`}
+    </div>`;
+  document.body.appendChild(d);
+
+  const cerrar = () => { const e = document.getElementById('wcbox'); if (e) e.remove(); };
+  d.querySelector('.wcb-bg').onclick = cerrar;
+  d.querySelector('.wcb-x').onclick = cerrar;
+
+  if (movil) {
+    // Si el enlace directo no abre nada, probamos el enlace universal.
+    d.querySelectorAll('.wcb-b').forEach((a) => a.addEventListener('click', () => {
+      const alt = a.getAttribute('data-alt');
+      setTimeout(() => { if (!document.hidden && alt) location.href = alt; }, 1200);
+    }));
+  } else {
+    try {
+      const qr = window.qrcode(0, 'L');
+      qr.addData(uri); qr.make();
+      document.getElementById('wcb-qr').innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
+    } catch (_) {
+      document.getElementById('wcb-qr').innerHTML = '<div class="wcb-nqr">No se pudo dibujar el código. Usa "Copiar enlace" y pégalo en tu wallet.</div>';
+    }
+    const cp = document.getElementById('wcb-copiar');
+    if (cp) cp.onclick = async () => {
+      try { await navigator.clipboard.writeText(uri); cp.textContent = '¡Copiado!'; setTimeout(() => { cp.textContent = 'Copiar enlace'; }, 1500); } catch (_) {}
+    };
+  }
+  return cerrar;
+}
+
+function estilosWC() {
+  if (document.getElementById('wcbox-css')) return;
+  const s = document.createElement('style'); s.id = 'wcbox-css';
+  s.textContent = `
+  #wcbox{position:fixed;inset:0;z-index:9900;display:flex;align-items:center;justify-content:center;padding:18px}
+  #wcbox .wcb-bg{position:absolute;inset:0;background:rgba(3,5,8,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  #wcbox .wcb-c{position:relative;width:100%;max-width:360px;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid #C9A84B;border-radius:20px;padding:24px 20px;box-shadow:0 30px 90px rgba(0,0,0,.8);text-align:center}
+  #wcbox .wcb-x{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6;cursor:pointer;font-size:14px}
+  #wcbox .wcb-t{font-family:'Chakra Petch',sans-serif;font-weight:800;font-size:20px;color:#E8B84B}
+  #wcbox .wcb-s{font-size:13px;color:#8b96a3;line-height:1.55;margin:7px 0 18px}
+  #wcbox .wcb-l{display:flex;flex-direction:column;gap:9px}
+  #wcbox .wcb-b{display:block;padding:15px;border-radius:13px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:#eaecef;font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:15px;text-decoration:none;box-shadow:0 3px 0 rgba(0,0,0,.4)}
+  #wcbox .wcb-b:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+  #wcbox .wcb-qr{background:#fff;border-radius:14px;padding:12px;display:grid;place-items:center}
+  #wcbox .wcb-qr svg{width:100%;height:auto;max-width:240px;display:block}
+  #wcbox .wcb-nqr{color:#333;font-size:12px;padding:20px;line-height:1.5}
+  #wcbox .wcb-copiar{width:100%;margin-top:12px;padding:12px;border-radius:11px;border:1px solid #3a424c;background:transparent;color:#E8B84B;font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:13px;cursor:pointer}`;
+  document.head.appendChild(s);
+}
+
 const idDe = (d) => String(d?.info?.rdns || d?.info?.uuid || d?.info?.name || '').toLowerCase();
 const prefGuardada = () => { try { return localStorage.getItem(CLAVE_PREF) || ''; } catch (_) { return ''; } };
 const guardarPref = (id) => { try { id ? localStorage.setItem(CLAVE_PREF, id) : localStorage.removeItem(CLAVE_PREF); } catch (_) {} };
