@@ -5,15 +5,15 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=77';
-import * as wallet from './wallet.js?v=77';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=77';
-import * as perfil from './perfil.js?v=77';
-import * as prizepool from './prizepool.js?v=77';
-import * as tutorial from './tutorial.js?v=77';
-import * as market from './market.js?v=77';
-import * as avisos from './avisos.js?v=77';
-import * as grafica from './grafica.js?v=77';
+import * as gb from './gridbot.js?v=78';
+import * as wallet from './wallet.js?v=78';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=78';
+import * as perfil from './perfil.js?v=78';
+import * as prizepool from './prizepool.js?v=78';
+import * as tutorial from './tutorial.js?v=78';
+import * as market from './market.js?v=78';
+import * as avisos from './avisos.js?v=78';
+import * as grafica from './grafica.js?v=78';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -2479,15 +2479,16 @@ async function tarjeta(cuenta, clave, par, R) {
   else if (tipo === 'dca') _boxes = _boxProxima + _boxCompras + _boxMedio + _boxPosicion + _boxFlotante + _boxGas;
   else if (tipo === 'acum') _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxMedio + _boxVueltas + _boxGas;
   else _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxRango + _boxVueltas + _boxGas;
-  const _panel = (tipo === 'cash' || tipo === 'acum' || tipo === 'dca') ? '' : `<button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
+  const _panel = (tipo === 'dca') ? '' : `<button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
     <div class="pio-panel" data-clave="${clave}">
       <div class="pio-tabs"><button data-tab="grafica" class="on">Gráfica</button><button data-tab="ordenes">Órdenes (${ps.length})</button></div>
       <div class="tab-grafica">
         ${grafica.bloqueGrafica({
-          simB, simQ, pmin, pmax, precio, decQ,
+          simB, simQ, pmin, pmax, precio, decQ, tipo,
+          precioMedio: (posBase > 0 && costeQ > 0) ? (costeQ / posBase) : 0,
           niveles: ps.map((x) => ({ precio: x.p, estado: x.tipo === 'compra' ? 1 : (x.tipo === 'venta' ? 2 : 0) }))
         })}
-        <details class="tv-detalle"><summary>Ver el esquema de cuadrículas</summary><div class="trail-chart">${chart}</div></details>
+
         <div class="leg"><span style="color:var(--neon-lit)">● esperando comprar</span><span style="color:var(--rojo)">● comprado, esperando vender</span><span>● en espera</span></div></div>
       <div class="tab-ordenes" style="display:none"><div class="ord-list">${ordRows}</div></div>
     </div>`;

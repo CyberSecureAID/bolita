@@ -1,166 +1,179 @@
-// grafica.js — Gráfica real (TradingView) con las cuadrículas del bot encima.
-// Módulo independiente: no toca la lógica existente.
+// grafica.js — Gráfica real de velas con las cuadrículas del bot dibujadas encima.
+// Módulo independiente. Usa Lightweight Charts (de TradingView, código abierto)
+// alojado en NUESTRO repo, y las velas reales de Binance.
 //
-// CÓMO FUNCIONA
-//   · Abajo va el gráfico de velas real del par, de TradingView.
-//   · Encima ponemos un "velo" transparente con las líneas de tus cuadrículas,
-//     colocadas por precio y con el color de su estado.
-//   · El velo se alinea con la escala de precios del gráfico: usamos el mismo
-//     rango (mínimo y máximo del bot) para que las líneas caigan donde toca.
+// POR QUÉ ASÍ Y NO CON EL WIDGET DE TRADINGVIEW
+//   El widget gratuito va dentro de un marco cerrado: no se le puede dibujar
+//   nada ni saber su zoom. Con esta librería las líneas quedan PEGADAS al precio:
+//   al mover o hacer zoom, las cuadrículas y tu precio de entrada se mueven con
+//   las velas, que es justo lo que hace falta para no perder la referencia.
+
+import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=78';
 
 const $ = (id) => document.getElementById(id);
 
-/* Pares que TradingView tiene en Binance (los más comunes en BSC). */
-const PARES = {
-  'BNB/USDT': 'BINANCE:BNBUSDT', 'BNB/BUSD': 'BINANCE:BNBUSDT',
-  'BTC/USDT': 'BINANCE:BTCUSDT', 'BTCB/USDT': 'BINANCE:BTCUSDT',
-  'ETH/USDT': 'BINANCE:ETHUSDT', 'CAKE/USDT': 'BINANCE:CAKEUSDT',
-  'XRP/USDT': 'BINANCE:XRPUSDT', 'ADA/USDT': 'BINANCE:ADAUSDT',
-  'DOGE/USDT': 'BINANCE:DOGEUSDT', 'SOL/USDT': 'BINANCE:SOLUSDT',
-  'LINK/USDT': 'BINANCE:LINKUSDT', 'DOT/USDT': 'BINANCE:DOTUSDT',
-  'MATIC/USDT': 'BINANCE:MATICUSDT', 'AVAX/USDT': 'BINANCE:AVAXUSDT',
-  'LTC/USDT': 'BINANCE:LTCUSDT', 'TRX/USDT': 'BINANCE:TRXUSDT',
-  'SHIB/USDT': 'BINANCE:SHIBUSDT', 'UNI/USDT': 'BINANCE:UNIUSDT',
-  'ATOM/USDT': 'BINANCE:ATOMUSDT', 'NEAR/USDT': 'BINANCE:NEARUSDT',
-  'FIL/USDT': 'BINANCE:FILUSDT', 'INJ/USDT': 'BINANCE:INJUSDT',
-  'USDC/USDT': 'BINANCE:USDCUSDT', 'TWT/USDT': 'BINANCE:TWTUSDT'
-};
+/* Pares que Binance sirve (la inmensa mayoría de lo que se opera en BSC). */
+const ALIAS = { WBNB: 'BNB', BTCB: 'BTC', WETH: 'ETH', BSCUSD: 'USDT', 'BSC-USD': 'USDT' };
+const norm = (s) => ALIAS[String(s || '').toUpperCase()] || String(s || '').toUpperCase();
 
-/** Busca el símbolo de TradingView del par. null si no lo tiene. */
-export function simboloTV(simB, simQ) {
-  const b = String(simB || '').toUpperCase().replace(/^W/, '');   // WBNB → BNB
-  const q = String(simQ || '').toUpperCase();
-  const directo = PARES[`${b}/${q}`];
-  if (directo) return directo;
-  if (q === 'USDT' || q === 'BUSD' || q === 'USDC') return `BINANCE:${b}USDT`;
+/** Símbolo de Binance para el par. null si no lo tiene. */
+export function simboloBinance(simB, simQ) {
+  const b = norm(simB), q = norm(simQ);
+  if (!b || !q || b === q) return null;
+  if (q === 'USDT' || q === 'BUSD' || q === 'USDC' || q === 'BNB' || q === 'BTC') {
+    return b + (q === 'BUSD' || q === 'USDC' ? 'USDT' : q);
+  }
   return null;
 }
 
 let _n = 0;
+const _pendientes = [];
 
-/** Devuelve el HTML del bloque: gráfica + velo con cuadrículas. */
-export function bloqueGrafica({ simB, simQ, pmin, pmax, niveles, precio, decQ }) {
-  const sym = simboloTV(simB, simQ);
-  const id = 'tvg' + (++_n);
+/** HTML del bloque. La gráfica se dibuja luego con pintar(). */
+export function bloqueGrafica({ simB, simQ, pmin, pmax, niveles, precio, precioMedio, decQ, tipo }) {
+  const sym = simboloBinance(simB, simQ);
+  const id = 'lwc' + (++_n);
+  _pendientes.push({ id, sym, pmin, pmax, niveles: niveles || [], precio, precioMedio, decQ, simB, simQ, tipo });
+
   if (!sym) {
-    return `<div class="tvbox sin"><div class="tv-sin">
+    return `<div class="lwbox sin" id="${id}"><div class="lw-sin">
       <b>${String(simB || '')}/${String(simQ || '')}</b>
-      <span>Esta moneda no tiene gráfica pública. Abajo tienes tus cuadrículas y sus precios.</span>
-    </div>${veloHTML({ pmin, pmax, niveles, precio, decQ, solo: true })}</div>`;
+      <span>Esta moneda no cotiza en Binance, así que no hay velas públicas. Abajo tienes tus cuadrículas con sus precios exactos.</span>
+    </div></div>
+    <div class="lw-pie">Tus cuadrículas salen del contrato: son las de verdad</div>`;
   }
-  return `<div class="tvbox" data-tv="${id}" data-sym="${sym}">
-    <div class="tv-host" id="${id}"></div>
-    ${veloHTML({ pmin, pmax, niveles, precio, decQ })}
-    <div class="tv-pie">Gráfica real de ${String(simB).toUpperCase()}. Las líneas son <b>tus cuadrículas</b>, colocadas por su precio.</div>
-  </div>`;
-}
-
-/* El velo: líneas de cuadrícula colocadas por precio. */
-function veloHTML({ pmin, pmax, niveles, precio, decQ, solo = false }) {
-  const min = Number(pmin), max = Number(pmax);
-  if (!(max > min)) return '';
-  // Dejamos un 8% de aire arriba y abajo: así ninguna línea queda pegada al borde.
-  const y = (p) => 8 + (1 - (Number(p) - min) / (max - min)) * 84;
-  const fmt = (p) => Number(p).toLocaleString('es', { maximumFractionDigits: Math.min(Number(decQ) || 4, 8) });
-
-  const lineas = (niveles || []).map((nv) => {
-    const py = y(nv.precio);
-    if (py < 0 || py > 100) return '';
-    const cls = nv.estado === 1 ? 'compra' : (nv.estado === 2 ? 'venta' : 'espera');
-    return `<div class="tv-lin ${cls}" style="top:${py.toFixed(2)}%">
-      <span class="tv-precio">${fmt(nv.precio)}</span>
-    </div>`;
-  }).join('');
-
-  const pyAhora = precio > 0 ? y(precio) : null;
-  const ahora = (pyAhora !== null && pyAhora >= 0 && pyAhora <= 100)
-    ? `<div class="tv-ahora" style="top:${pyAhora.toFixed(2)}%"><span>${fmt(precio)} ahora</span></div>` : '';
-
-  return `<div class="tv-velo ${solo ? 'solo' : ''}">${lineas}${ahora}</div>`;
+  return `<div class="lwbox" id="${id}"><div class="lw-cargando">Cargando gráfica…</div></div>
+    <div class="lw-pie" id="${id}-pie">Velas reales de <b>${norm(simB)}/${norm(simQ)}</b> · las líneas son <b>tus cuadrículas</b> y se mueven con el gráfico</div>`;
 }
 
 /* ── Estilos ── */
 function estilos() {
-  if ($('tvg-css')) return;
-  const s = document.createElement('style'); s.id = 'tvg-css';
+  if ($('lwc-css')) return;
+  const s = document.createElement('style'); s.id = 'lwc-css';
   s.textContent = `
-  .tvbox{position:relative;width:100%;height:300px;border-radius:14px;overflow:hidden;background:#0b0e12;border:1px solid var(--line,#2b3139)}
-  .tvbox.sin{height:auto;min-height:230px;display:flex;flex-direction:column}
-  .tv-host{position:absolute;inset:0}
-  .tv-host iframe{border:none!important}
-  .tv-sin{padding:16px;text-align:center}
-  .tv-sin b{display:block;font-family:var(--display,sans-serif);font-size:16px;color:var(--gold,#E8B84B)}
-  .tv-sin span{display:block;font-family:var(--sans,sans-serif);font-size:11.5px;color:var(--ink-3,#7d8794);margin-top:5px;line-height:1.5}
-  /* el velo deja pasar el ratón al gráfico */
-  .tv-velo{position:absolute;inset:0;pointer-events:none;z-index:2}
-  .tv-velo.solo{position:relative;height:180px;margin:0 12px 12px}
-  .tv-lin{position:absolute;left:0;right:0;height:0;border-top:1px dashed rgba(255,255,255,.28)}
-  .tv-lin.compra{border-top-color:rgba(46,232,106,.75)}
-  .tv-lin.venta{border-top-color:rgba(246,70,93,.7)}
-  .tv-lin.espera{border-top-color:rgba(255,255,255,.22)}
-  .tv-precio{position:absolute;left:6px;top:-9px;font-family:var(--mono,monospace);font-size:9px;padding:1px 6px;border-radius:5px;background:rgba(11,14,18,.82);color:#cfd6de;border:1px solid rgba(255,255,255,.12);white-space:nowrap}
-  .tv-lin.compra .tv-precio{color:#8ff0bd;border-color:rgba(46,232,106,.4)}
-  .tv-lin.venta .tv-precio{color:#ffb3bd;border-color:rgba(246,70,93,.4)}
-  .tv-ahora{position:absolute;left:0;right:0;height:0;border-top:1.5px solid var(--gold,#E8B84B);box-shadow:0 0 10px rgba(232,184,75,.45)}
-  .tv-ahora span{position:absolute;right:6px;top:-9px;font-family:var(--mono,monospace);font-size:9px;padding:1px 7px;border-radius:5px;background:var(--gold,#E8B84B);color:#3a2800;font-weight:700;white-space:nowrap}
-  .tv-pie{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:5px 10px;font-family:var(--mono,monospace);font-size:9px;color:#8b96a3;background:linear-gradient(180deg,transparent,rgba(11,14,18,.9) 55%);text-align:center}
-  .tv-pie b{color:var(--gold-soft,#C9A84B)}
-  @media(max-width:560px){
-    .tvbox{height:250px}
-    .tv-precio,.tv-ahora span{font-size:8px;padding:1px 4px}
-    .tv-pie{font-size:8px}
-  }`;
+  .lwbox{position:relative;width:100%;height:340px;border-radius:14px;overflow:hidden;background:#0b0e12;border:1px solid var(--line,#2b3139)}
+  .lwbox.sin{height:auto;min-height:120px;display:flex;align-items:center;justify-content:center}
+  .lw-cargando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--ink-3,#7d8794);font-family:var(--mono,monospace);font-size:11px}
+  .lw-sin{padding:18px;text-align:center}
+  .lw-sin b{display:block;font-family:var(--display,sans-serif);font-size:16px;color:var(--gold,#E8B84B)}
+  .lw-sin span{display:block;font-family:var(--sans,sans-serif);font-size:11.5px;color:var(--ink-3,#7d8794);margin-top:6px;line-height:1.55;max-width:330px}
+  .lw-pie{padding:8px 10px 2px;font-family:var(--mono,monospace);font-size:9.5px;color:#8b96a3;text-align:center;line-height:1.5}
+  .lw-pie b{color:var(--gold-soft,#C9A84B)}
+  .lw-tf{display:flex;gap:5px;justify-content:center;margin-top:8px}
+  .lw-tf button{padding:5px 11px;border-radius:8px;border:1px solid var(--line,#2b3139);background:rgba(255,255,255,.04);color:var(--ink-3,#7d8794);font-family:var(--mono,monospace);font-size:10px;cursor:pointer;min-height:30px}
+  .lw-tf button.on{background:rgba(232,184,75,.14);border-color:rgba(232,184,75,.45);color:var(--gold,#E8B84B)}
+  @media(max-width:560px){.lwbox{height:280px}.lw-pie{font-size:8.5px}}`;
   document.head.appendChild(s);
 }
 
-/* ── Cargar el widget de TradingView (una sola vez) ── */
-let _tvCargando = null;
-function cargarTV() {
-  if (window.TradingView) return Promise.resolve(true);
-  if (_tvCargando) return _tvCargando;
-  _tvCargando = new Promise((res) => {
-    const sc = document.createElement('script');
-    sc.src = 'https://s3.tradingview.com/tv.js';
-    sc.async = true;
-    sc.onload = () => res(true);
-    sc.onerror = () => res(false);      // si no carga, se queda solo el velo
-    document.head.appendChild(sc);
-    setTimeout(() => res(!!window.TradingView), 8000);
-  });
-  return _tvCargando;
+/* Decimales según el tamaño del precio: 556.49 y no 556.4994673215 */
+function decimales(p) {
+  const v = Math.abs(Number(p) || 0);
+  if (v >= 1000) return 2;
+  if (v >= 1) return 4;
+  if (v >= 0.01) return 5;
+  if (v >= 0.0001) return 7;
+  return 9;
 }
 
-/** Pinta las gráficas que haya en pantalla. Se puede llamar varias veces. */
+/* Velas de Binance */
+async function velas(sym, intervalo = '1h', limite = 300) {
+  const url = `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${intervalo}&limit=${limite}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('binance ' + r.status);
+  const d = await r.json();
+  return d.map((k) => ({
+    time: Math.floor(k[0] / 1000),
+    open: +k[1], high: +k[2], low: +k[3], close: +k[4]
+  }));
+}
+
+/** Dibuja las gráficas pendientes que ya estén en pantalla. */
 export async function pintar(raiz) {
   estilos();
-  const cajas = [...(raiz || document).querySelectorAll('.tvbox[data-tv]')].filter((c) => !c.dataset.listo);
-  if (cajas.length === 0) return;
-  const ok = await cargarTV();
-  for (const caja of cajas) {
-    caja.dataset.listo = '1';
-    const host = caja.querySelector('.tv-host');
-    if (!ok || !window.TradingView) {
-      if (host) host.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#7d8794;font-family:var(--mono,monospace);font-size:11px;text-align:center;padding:14px">No se pudo cargar la gráfica.<br>Tus cuadrículas y precios siguen abajo.</div>`;
-      continue;
+  const cola = _pendientes.splice(0, _pendientes.length);
+  for (const g of cola) {
+    const host = (raiz || document).querySelector('#' + g.id) || $(g.id);
+    if (!host || host.dataset.listo) continue;
+    if (!g.sym) { host.dataset.listo = '1'; continue; }
+    host.dataset.listo = '1';
+    try { await montar(host, g); }
+    catch (e) {
+      host.innerHTML = `<div class="lw-cargando">No se pudo cargar la gráfica.<br>Vuelve a intentarlo en un momento.</div>`;
     }
-    try {
-      new window.TradingView.widget({
-        container_id: caja.querySelector('.tv-host').id,
-        symbol: caja.dataset.sym,
-        interval: '60',
-        timezone: 'Etc/UTC',
-        theme: 'dark',
-        style: '1',
-        locale: 'es',
-        toolbar_bg: '#0b0e12',
-        hide_top_toolbar: true,
-        hide_legend: false,
-        hide_side_toolbar: true,
-        allow_symbol_change: false,
-        save_image: false,
-        withdateranges: false,
-        autosize: true
-      });
-    } catch (_) {}
+  }
+}
+
+async function montar(host, g) {
+  const dec = decimales(g.pmax || g.precio || 1);
+  const datos = await velas(g.sym, '1h', 300);
+  host.innerHTML = '';
+
+  const chart = createChart(host, {
+    layout: { background: { color: '#0b0e12' }, textColor: '#8b96a3', fontSize: 10 },
+    grid: { vertLines: { color: 'rgba(255,255,255,.04)' }, horzLines: { color: 'rgba(255,255,255,.04)' } },
+    rightPriceScale: { borderColor: '#2b3139', scaleMargins: { top: 0.12, bottom: 0.12 } },
+    timeScale: { borderColor: '#2b3139', timeVisible: true, secondsVisible: false },
+    crosshair: { mode: 0 },
+    handleScroll: true, handleScale: true,
+    localization: { locale: 'es', priceFormatter: (p) => Number(p).toFixed(dec) }
+  });
+
+  const velasSerie = chart.addCandlestickSeries({
+    upColor: '#2ee86a', downColor: '#f6465d',
+    borderUpColor: '#2ee86a', borderDownColor: '#f6465d',
+    wickUpColor: '#2ee86a', wickDownColor: '#f6465d',
+    priceFormat: { type: 'price', precision: dec, minMove: Math.pow(10, -dec) }
+  });
+  velasSerie.setData(datos);
+
+  // ── Las cuadrículas: pegadas al precio, se mueven con el gráfico ──
+  for (const nv of g.niveles) {
+    const compra = nv.estado === 1;
+    const espera = nv.estado !== 1 && nv.estado !== 2;
+    velasSerie.createPriceLine({
+      price: Number(nv.precio),
+      color: compra ? 'rgba(46,232,106,.85)' : (espera ? 'rgba(255,255,255,.28)' : 'rgba(246,70,93,.8)'),
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      axisLabelVisible: true,
+      title: compra ? 'compra' : (espera ? '' : 'vende')
+    });
+  }
+
+  // ── Tu precio de entrada: la línea dorada, la referencia que no se pierde ──
+  if (g.precioMedio > 0) {
+    velasSerie.createPriceLine({
+      price: Number(g.precioMedio),
+      color: '#E8B84B',
+      lineWidth: 2,
+      lineStyle: LineStyle.Solid,
+      axisLabelVisible: true,
+      title: 'tu entrada'
+    });
+  }
+
+  // Encaje inicial: que se vean las cuadrículas y algo de historia.
+  chart.timeScale().fitContent();
+  const ro = new ResizeObserver(() => chart.applyOptions({ width: host.clientWidth, height: host.clientHeight }));
+  ro.observe(host);
+  chart.applyOptions({ width: host.clientWidth, height: host.clientHeight });
+
+  // Botones de temporalidad
+  const pie = $(g.id + '-pie');
+  if (pie && !pie.dataset.tf) {
+    pie.dataset.tf = '1';
+    const tf = document.createElement('div');
+    tf.className = 'lw-tf';
+    tf.innerHTML = ['15m', '1h', '4h', '1d'].map((t) => `<button data-tf="${t}" class="${t === '1h' ? 'on' : ''}">${t}</button>`).join('');
+    pie.after(tf);
+    tf.querySelectorAll('[data-tf]').forEach((b) => b.onclick = async () => {
+      tf.querySelectorAll('[data-tf]').forEach((x) => x.classList.remove('on'));
+      b.classList.add('on');
+      try {
+        velasSerie.setData(await velas(g.sym, b.getAttribute('data-tf'), 300));
+        chart.timeScale().fitContent();
+      } catch (_) {}
+    });
   }
 }
