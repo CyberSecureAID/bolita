@@ -5,14 +5,14 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=75';
-import * as wallet from './wallet.js?v=75';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=75';
-import * as perfil from './perfil.js?v=75';
-import * as prizepool from './prizepool.js?v=75';
-import * as tutorial from './tutorial.js?v=75';
-import * as market from './market.js?v=75';
-import * as avisos from './avisos.js?v=75';
+import * as gb from './gridbot.js?v=76';
+import * as wallet from './wallet.js?v=76';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=76';
+import * as perfil from './perfil.js?v=76';
+import * as prizepool from './prizepool.js?v=76';
+import * as tutorial from './tutorial.js?v=76';
+import * as market from './market.js?v=76';
+import * as avisos from './avisos.js?v=76';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -1104,6 +1104,14 @@ function enCristiano(e) {
   return 'No se pudo completar. Inténtalo de nuevo en un momento.';
 }
 
+/** Avisa al keeper que vigile esta cuenta (así ejecuta sus bots).
+ *  Si falla, no pasa nada: el bot queda creado igual. */
+const KEEPER_URL = 'https://bolita-keeper-bot.yamicelanvivesqui.workers.dev';
+function avisarKeeper(cuenta) {
+  if (!cuenta) return;
+  try { fetch(`${KEEPER_URL}/registrar?u=${cuenta}`, { mode: 'cors' }).catch(() => {}); } catch (_) {}
+}
+
 function conectarWallet() {
   Promise.resolve().then(() => wallet.conectar()).catch((e) => {
     const el = $('c-hero-msg') || $('c-msg');
@@ -1793,6 +1801,7 @@ async function onCrear() {
     }
     i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu bot con tu configuración y empieza a vigilar el mercado.<br><br>Confirma en tu wallet.`);
     await gb.crearRejilla(config);
+    avisarKeeper(wallet.cuentaActual());
 
     recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, entry: config._Pnow, creadoLocal: Date.now(), botId });
     modalDone('¡Bot encendido!', `Tu bot ya está trabajando en ${simboloDe(p.base)}/${quote.simbolo}. Recuerda tener <b>gas</b> cargado para que pueda operar. Lo verás abajo en "Mis bots".`);
@@ -2019,6 +2028,7 @@ async function onCrearAcum() {
     if (aB < baseNeed) { i++; modalBusy(`<b>Paso ${i} de ${pasos} — Permiso de ${base.simbolo}.</b><br>Para que pueda vender todo lo acumulado.<br><br>Confirma en tu wallet.`); await gb.aprobarToken(p.base, baseNeed); }
     i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu acumulador y hace la compra inicial.<br><br>Confirma en tu wallet.`);
     await gb.crearRejilla(config);
+    avisarKeeper(wallet.cuentaActual());
     recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'acum', objetivo: p.objetivoPct, botId });
     modalDone('¡Acumulador encendido!', `Ya está comprando en la caída en ${base.simbolo}. Venderá todo al llegar a <b>+${num(p.objetivoPct * 100, 1)}%</b>. Ten <b>gas</b> cargado para que opere. Lo verás en "Mis bots".`);
     refrescarRejillas(); refrescarSaldoInversion();
@@ -2131,6 +2141,7 @@ async function onCrearCashOut() {
     await pasoWallet('Encender el bot', 'Última firma: se crea tu Cash Out y queda vigilando el precio.<br><br>Toca <b>Continuar</b> y confirma en tu wallet.');
     modalBusy('Encendiendo tu bot… firma en tu wallet.');
     await gb.crearRejilla(config);
+    avisarKeeper(wallet.cuentaActual());
     recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total: config._valorActual, cantBase: cantidad, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'cash', targetPrice, botId });
     modalDone('¡Cash Out encendido!', `Cuando ${base.simbolo} llegue a <b>${precioFmt(targetPrice)}</b>, venderá y recibirás ${quote.simbolo} en tu wallet. Ten <b>gas</b> cargado para que pueda operar. Lo verás en "Mis bots".`);
     refrescarRejillas();
@@ -2198,6 +2209,7 @@ async function onCrearDCA() {
     if (aQ < quoteNeed) { i++; modalBusy(`<b>Paso ${i} de ${pasos} — Permiso de ${quote.simbolo}.</b><br>Le das permiso al bot para comprar con tus ${quote.simbolo} en cada ciclo (puedes revocarlo cuando quieras).<br><br>Confirma en tu wallet.`); await gb.aprobarToken(p.quote, quoteNeed); }
     i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu DCA y hace la primera compra ahora.<br><br>Confirma en tu wallet.`);
     await gb.crearRejilla(config);
+    avisarKeeper(wallet.cuentaActual());
     recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total: monto, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'dca', intervalo, comprasMax, botId });
     modalDone('¡DCA encendido!', `Comprará ${num(monto, 2)} ${quote.simbolo} de ${base.simbolo} ${frecNombre(intervalo)}. La primera compra ya se hizo. Ten <b>gas</b> cargado y <b>${quote.simbolo}</b> en tu wallet. Lo verás en "Mis bots".`);
     refrescarRejillas();
