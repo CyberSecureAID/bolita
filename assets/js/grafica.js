@@ -8,7 +8,7 @@
 //   al mover o hacer zoom, las cuadrículas y tu precio de entrada se mueven con
 //   las velas, que es justo lo que hace falta para no perder la referencia.
 
-import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=101';
+import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=102';
 
 const $ = (id) => document.getElementById(id);
 
@@ -69,7 +69,8 @@ function estilos() {
 /* Decimales según el tamaño del precio: 556.49 y no 556.4994673215 */
 function decimales(p) {
   const v = Math.abs(Number(p) || 0);
-  if (v >= 1000) return 2;
+  if (v >= 100) return 2;          // 592.00, no 592.0000: las tachuelas eran enormes
+  if (v >= 10) return 3;
   if (v >= 1) return 4;
   if (v >= 0.01) return 5;
   if (v >= 0.0001) return 7;
@@ -112,7 +113,7 @@ async function montar(host, g) {
   const chart = createChart(host, {
     layout: { background: { color: '#0b0e12' }, textColor: '#8b96a3', fontSize: 10 },
     grid: { vertLines: { color: 'rgba(255,255,255,.04)' }, horzLines: { color: 'rgba(255,255,255,.04)' } },
-    rightPriceScale: { borderColor: '#2b3139', scaleMargins: { top: 0.12, bottom: 0.12 } },
+    rightPriceScale: { borderColor: '#2b3139', scaleMargins: { top: 0.16, bottom: 0.16 } },
     timeScale: { borderColor: '#2b3139', timeVisible: true, secondsVisible: false },
     crosshair: { mode: 0 },
     handleScroll: true, handleScale: true,
@@ -152,6 +153,14 @@ async function montar(host, g) {
 
   // ── Las cuadrículas: pegadas al precio, se mueven con el gráfico ──
   const esCash = g.tipo === 'cash';
+  // Con muchas cuadrículas las tachuelas se pisan unas a otras y no se sabe
+  // cuál va con cuál. Solo etiquetamos las 4 más cercanas al precio de ahora;
+  // las demás se ven igual como línea, sin tachuela.
+  const refP = Number(g.precio) || Number(g.precioMedio) || 0;
+  const ordenadas = [...g.niveles].filter((x) => Number(x.precio) > 0)
+    .sort((a, b) => Math.abs(Number(a.precio) - refP) - Math.abs(Number(b.precio) - refP));
+  const conTachuela = new Set(ordenadas.slice(0, 4).map((x) => String(x.precio)));
+
   for (const nv of g.niveles) {
     const compra = nv.estado === 1;
     const espera = nv.estado !== 1 && nv.estado !== 2;
@@ -162,7 +171,7 @@ async function montar(host, g) {
       color: compra ? 'rgba(46,232,106,.85)' : (espera ? 'rgba(255,255,255,.28)' : (tp ? '#34d97b' : 'rgba(246,70,93,.8)')),
       lineWidth: tp ? 2 : 1,
       lineStyle: tp ? LineStyle.Solid : LineStyle.Dashed,
-      axisLabelVisible: true,
+      axisLabelVisible: tp || conTachuela.has(String(nv.precio)),
       title: compra ? 'compra' : (espera ? '' : (tp ? 'Take Profit' : 'vende'))
     });
   }

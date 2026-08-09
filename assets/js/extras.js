@@ -187,7 +187,7 @@ async function dibujarQR(cont) {
   };
   if (window.qrcode) return pinta();
   const sc = document.createElement('script');
-  sc.src = 'assets/js/vendor/qrcode.js?v=101';
+  sc.src = 'assets/js/vendor/qrcode.js?v=102';
   sc.onload = pinta;
   sc.onerror = () => { cont.innerHTML = `<div class="ip-nqr">${url}</div>`; };
   document.head.appendChild(sc);

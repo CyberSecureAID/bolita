@@ -15,7 +15,7 @@
 
 // La librería vive en ESTE repositorio. Carga directa: sin CDN, sin esperas,
 // sin nada externo que pueda quedarse colgado y dejar la app en 'Cargando…'.
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=101';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=102';
 
 // ⚠️ IMPORTANTE: cambia esta dirección por la de tu PROXY de GridBotV2 recién desplegado.
 // (La de abajo es el contrato V1 viejo; con el V2 ya no sirve.)
