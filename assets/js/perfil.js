@@ -307,19 +307,31 @@ async function cargarDatos(cuenta) {
     return;
   }
 
-  const datos = await Promise.all(claves.map(async (k) => {
-    const [R, md] = await Promise.all([
-      gb.resumenK(k).catch(() => null),
-      gb.modoDe(k).catch(() => null)
-    ]);
-    return { R, md };
-  }));
+  // De 4 en 4, no todos a la vez: con muchos bots, los servidores públicos
+  // rechazan la avalancha de peticiones y devolvían todo en cero.
+  const conReintento = async (fn) => {
+    for (let i = 0; i < 3; i++) {
+      try { return await fn(); } catch (_) { await new Promise((r) => setTimeout(r, 250 * (i + 1))); }
+    }
+    return null;
+  };
+  const datos = [];
+  const TANDA = 4;
+  for (let i = 0; i < claves.length; i += TANDA) {
+    const trozo = claves.slice(i, i + TANDA);
+    const res = await Promise.all(trozo.map(async (k) => {
+      const R = await conReintento(() => gb.resumenK(k));
+      const md = await conReintento(() => gb.modoDe(k));
+      return { R, md };
+    }));
+    datos.push(...res);
+  }
 
   const quotes = [...new Set(datos.filter((d) => d.R).map((d) => String(d.R.quote || '').toLowerCase()))];
   const decs = {};
-  await Promise.all(quotes.map(async (q) => {
+  for (const q of quotes) {
     try { decs[q] = (await gb.infoToken(q)).decimals; } catch (_) { decs[q] = 18; }
-  }));
+  }
 
   let activos = 0, ops = 0, ciclos = 0, compras = 0, ventas = 0;
   let pnl = 0, vol = 0, gasGas = 0, creadaMin = 0;

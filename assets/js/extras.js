@@ -45,7 +45,7 @@ export function panelInstalar(ancla) {
         <div><b>Aurex</b><span>Bots de trading en tu wallet</span></div>
       </div>
       ${puede
-        ? `<button class="ip-b" id="ip-si">Instalar la app</button>
+        ? `<button class="ip-b" id="ip-si">${movil ? 'Instalar en mi teléfono' : 'Instalar en este equipo'}</button>
            <div class="ip-n">Se abre al instante, con su icono y a pantalla completa.</div>`
         : iOS
           ? `<div class="ip-pasos">
@@ -57,8 +57,13 @@ export function panelInstalar(ancla) {
                  <div class="ip-p"><span>1</span>Abre el menú <b>⋮</b> de tu navegador</div>
                  <div class="ip-p"><span>2</span>Elige <b>Instalar aplicación</b></div>
                </div>`
-            : `<div class="ip-n">Instálala también en tu teléfono: escanea este código.</div>
-               <div class="ip-qr" id="ip-qr"></div>`}
+            : `<div class="ip-pasos">
+                 <div class="ip-p"><span>1</span>Busca el icono <b>⊕</b> en la barra de direcciones</div>
+                 <div class="ip-p"><span>2</span>Elige <b>Instalar Aurex</b></div>
+               </div>`}
+      ${!movil ? `<div class="ip-sep"></div>
+        <div class="ip-n">Y en tu teléfono: escanea este código.</div>
+        <div class="ip-qr" id="ip-qr"></div>` : ''}
     </div>`;
   document.body.appendChild(d);
 
@@ -278,6 +283,7 @@ function estilos() {
   #inst-panel .ip-p{display:flex;align-items:center;gap:9px;font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.4}
   #inst-panel .ip-p b{color:var(--gold,#E8B84B)}
   #inst-panel .ip-p span{flex:0 0 auto;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:11px}
+  #inst-panel .ip-sep{height:1px;background:rgba(255,255,255,.08);margin:14px 0 10px}
   #inst-panel .ip-qr{background:#fff;border-radius:12px;padding:9px;margin-top:10px}
   #inst-panel .ip-qr svg{width:100%;height:auto;display:block}
   #inst-panel .ip-nqr{color:#333;font-size:9.5px;word-break:break-all;padding:8px}

@@ -395,7 +395,7 @@ function inyectarEstilo() {
   #colmena-app .seg button.on{background:var(--ac-m);color:var(--ac-t);border-color:var(--ac-d);font-weight:700}
   #colmena-app .avz{border-top:1px solid var(--line-soft);margin-top:18px;padding-top:4px}
   #colmena-app .chart{width:100%;height:auto;display:block;border-radius:14px;background:#0d1117;border:1px solid var(--line-soft)}
-  #colmena-app .pio-acciones{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
+  #colmena-app .pio-acciones{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;margin-top:14px}
   #colmena-app .pio-acciones .pio-toggle{flex:1;min-width:150px;margin:0}
   /* Misma altura y línea base que "Ver el bot trabajando" */
   #colmena-app .pio-img{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin:0;padding:0 14px;min-height:40px;border-radius:11px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:var(--gold);font-family:var(--display);font-weight:700;font-size:12.5px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.4);white-space:nowrap}
@@ -2732,7 +2732,8 @@ function enganchar(cuenta) {
     el.querySelectorAll('[data-acc]').forEach((btn) => btn.onclick = async () => {
       const acc = btn.dataset.acc;
       if (acc === 'compartir') {
-        const r = b.closest('.rej');
+        const r = el;                       // 'b' era la dirección del token, no el botón
+        try {
         extras.compartirResultado({
           par: `${r.dataset.sb}/${r.dataset.sq}`,
           tipo: r.dataset.nombre || 'Bot Aurex',
@@ -2742,7 +2743,8 @@ function enganchar(cuenta) {
           dias: r.dataset.dias,
           vueltas: r.dataset.vueltas,
           invertido: Number(r.dataset.inv) || 0
-        });
+          });
+        } catch (e) { console.warn('[Aurex] compartir:', e); }
         return;
       }
       if (acc === 'toggle-panel') {
