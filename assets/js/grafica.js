@@ -8,7 +8,7 @@
 //   al mover o hacer zoom, las cuadrículas y tu precio de entrada se mueven con
 //   las velas, que es justo lo que hace falta para no perder la referencia.
 
-import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=79';
+import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=80';
 
 const $ = (id) => document.getElementById(id);
 
@@ -106,7 +106,7 @@ export async function pintar(raiz) {
 
 async function montar(host, g) {
   const dec = decimales(g.pmax || g.precio || 1);
-  const datos = await velas(g.sym, '1h', 300);
+  const datos = await velas(g.sym, '1d', 300);
   host.innerHTML = '';
 
   const chart = createChart(host, {
@@ -179,7 +179,7 @@ async function montar(host, g) {
     pie.dataset.tf = '1';
     const tf = document.createElement('div');
     tf.className = 'lw-tf';
-    tf.innerHTML = ['15m', '1h', '4h', '1d'].map((t) => `<button data-tf="${t}" class="${t === '1h' ? 'on' : ''}">${t}</button>`).join('');
+    tf.innerHTML = ['1h', '4h', '1d', '1w'].map((t) => `<button data-tf="${t}" class="${t === '1d' ? 'on' : ''}">${t}</button>`).join('');
     pie.after(tf);
     tf.querySelectorAll('[data-tf]').forEach((b) => b.onclick = async () => {
       tf.querySelectorAll('[data-tf]').forEach((x) => x.classList.remove('on'));

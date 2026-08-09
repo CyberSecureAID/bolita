@@ -5,15 +5,15 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=79';
-import * as wallet from './wallet.js?v=79';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=79';
-import * as perfil from './perfil.js?v=79';
-import * as prizepool from './prizepool.js?v=79';
-import * as tutorial from './tutorial.js?v=79';
-import * as market from './market.js?v=79';
-import * as avisos from './avisos.js?v=79';
-import * as grafica from './grafica.js?v=79';
+import * as gb from './gridbot.js?v=80';
+import * as wallet from './wallet.js?v=80';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=80';
+import * as perfil from './perfil.js?v=80';
+import * as prizepool from './prizepool.js?v=80';
+import * as tutorial from './tutorial.js?v=80';
+import * as market from './market.js?v=80';
+import * as avisos from './avisos.js?v=80';
+import * as grafica from './grafica.js?v=80';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -2035,7 +2035,8 @@ async function onCrearAcum() {
     i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu acumulador y hace la compra inicial.<br><br>Confirma en tu wallet.`);
     await gb.crearRejilla(config);
     avisarKeeper(wallet.cuentaActual());
-    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'acum', objetivo: p.objetivoPct, botId });
+    recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'acum', objetivo: p.objetivoPct, botId,
+      pMin: p.pMin, nivelesAcum: p.niveles, factorAcum: p.factorPct });
     modalDone('¡Acumulador encendido!', `Ya está comprando en la caída en ${base.simbolo}. Venderá todo al llegar a <b>+${num(p.objetivoPct * 100, 1)}%</b>. Ten <b>gas</b> cargado para que opere. Lo verás en "Mis bots".`);
     refrescarRejillas(); refrescarSaldoInversion();
   } catch (e) {
@@ -2427,6 +2428,23 @@ async function tarjeta(cuenta, clave, par, R) {
       }
       return { p, tipo: est === 1 ? 'compra' : est === 2 ? 'venta' : 'off' };
     }).filter((x) => isFinite(x.p) && x.p > 0);
+
+    // ACUMULADOR: cada cuadrícula gasta una cantidad distinta, así que el precio
+    // no se puede deducir del contrato. Lo reconstruimos con la configuración
+    // que guardamos al crearlo: reparto geométrico entre el mínimo y la entrada.
+    // Si es un acumulador antiguo (sin esa configuración), preferimos no pintar
+    // cuadrículas a pintarlas mal: se verán solo la entrada y la salida.
+    if (par.tipo === 'acum' && !(par.pMin > 0 && par.nivelesAcum >= 1)) ps = [];
+    if ((par.tipo === 'acum') && par.pMin > 0 && par.entry > 0 && par.nivelesAcum >= 1) {
+      const nA = Number(par.nivelesAcum), pTop = Number(par.entry) * 0.999, pM = Number(par.pMin);
+      if (pTop > pM) {
+        const hechos = Number(R.comprasHechas || 0);
+        ps = Array.from({ length: nA }, (_, i) => {
+          const t = nA === 1 ? 1 : i / (nA - 1);
+          return { p: pM * Math.pow(pTop / pM, t), tipo: i >= nA - hechos ? 'off' : 'compra' };
+        });
+      }
+    }
     try { const pr = await gb.precioPar(bAddr, qAddr, decB, decQ); precio = pr.precio; } catch {}
     if (ps.length) { pmin = Math.min(...ps.map((x) => x.p)); pmax = Math.max(...ps.map((x) => x.p)); }
   } catch {}
@@ -2743,7 +2761,14 @@ async function arrancar() {
   if (!$(APP)) return;
   const host = $(APP);
   // Splash neutro mientras se resuelve si hay wallet conectada (evita el pestañeo del hero).
-  host.innerHTML = `<div style="min-height:64vh;background:var(--bg,#0b0e11);display:flex;align-items:center;justify-content:center"><span style="width:22px;height:22px;border-radius:50%;border:2px solid rgba(232,184,75,.25);border-top-color:var(--gold,#E8B84B);display:inline-block;animation:spin .7s linear infinite"></span></div>`;
+  // Sin pantalla de carga: dejamos el fondo negro y ya. Si la wallet responde
+  // rápido (lo normal), el usuario no ve ningún parpadeo. El círculo solo
+  // aparece si de verdad tarda más de medio segundo.
+  host.innerHTML = `<div id="c-boot" style="min-height:64vh;background:#0b0e11"></div>`;
+  const _tBoot = setTimeout(() => {
+    const bx = $('c-boot');
+    if (bx) bx.innerHTML = `<div style="min-height:64vh;display:flex;align-items:center;justify-content:center"><span style="width:22px;height:22px;border-radius:50%;border:2px solid rgba(232,184,75,.25);border-top-color:#E8B84B;display:inline-block;animation:spin .7s linear infinite"></span></div>`;
+  }, 500);
   wallet.alCambiar(() => render());
   // La página se dibuja SIEMPRE. Si una extensión de wallet no contesta
   // (pasa cuando MetaMask u otra wallet queda en mal estado tras actualizarse),
@@ -2755,6 +2780,7 @@ async function arrancar() {
       new Promise((r) => setTimeout(() => { walletMuda = true; r(); }, 2500))
     ]);
   } catch (_) {}
+  clearTimeout(_tBoot);
   render(); iniciarReloj();
   if (walletMuda && !wallet.cuentaActual()) {
     setTimeout(() => {
