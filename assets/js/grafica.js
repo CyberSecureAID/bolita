@@ -8,7 +8,7 @@
 //   al mover o hacer zoom, las cuadrículas y tu precio de entrada se mueven con
 //   las velas, que es justo lo que hace falta para no perder la referencia.
 
-import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=85';
+import { createChart, LineStyle } from './vendor/lightweight-charts.mjs?v=100';
 
 const $ = (id) => document.getElementById(id);
 
