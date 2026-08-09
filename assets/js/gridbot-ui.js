@@ -5,14 +5,15 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=76';
-import * as wallet from './wallet.js?v=76';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=76';
-import * as perfil from './perfil.js?v=76';
-import * as prizepool from './prizepool.js?v=76';
-import * as tutorial from './tutorial.js?v=76';
-import * as market from './market.js?v=76';
-import * as avisos from './avisos.js?v=76';
+import * as gb from './gridbot.js?v=77';
+import * as wallet from './wallet.js?v=77';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=77';
+import * as perfil from './perfil.js?v=77';
+import * as prizepool from './prizepool.js?v=77';
+import * as tutorial from './tutorial.js?v=77';
+import * as market from './market.js?v=77';
+import * as avisos from './avisos.js?v=77';
+import * as grafica from './grafica.js?v=77';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -392,6 +393,11 @@ function inyectarEstilo() {
   #colmena-app .seg button.on{background:var(--ac-m);color:var(--ac-t);border-color:var(--ac-d);font-weight:700}
   #colmena-app .avz{border-top:1px solid var(--line-soft);margin-top:18px;padding-top:4px}
   #colmena-app .chart{width:100%;height:auto;display:block;border-radius:14px;background:#0d1117;border:1px solid var(--line-soft)}
+  #colmena-app .tv-detalle{margin-top:10px}
+  #colmena-app .tv-detalle summary{cursor:pointer;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);padding:7px 0;list-style:none}
+  #colmena-app .tv-detalle summary::-webkit-details-marker{display:none}
+  #colmena-app .tv-detalle summary:before{content:'▸ ';color:var(--gold)}
+  #colmena-app .tv-detalle[open] summary:before{content:'▾ '}
   #colmena-app #c-chart{position:relative;background:url('assets/img/marco-rejilla.webp') center/100% 100% no-repeat;padding:11% 11%;box-sizing:border-box}
   #colmena-app #c-chart .chart{background:transparent;border:none;border-radius:0}
   #colmena-app .hint{font-family:var(--sans);font-size:12px;line-height:1.5;color:var(--ink-2);background:rgba(232,184,75,.05);border:1px solid var(--line-soft);border-left:2px solid var(--gold-soft);border-radius:8px;padding:9px 12px;margin:12px 0 4px}
@@ -2476,7 +2482,12 @@ async function tarjeta(cuenta, clave, par, R) {
   const _panel = (tipo === 'cash' || tipo === 'acum' || tipo === 'dca') ? '' : `<button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
     <div class="pio-panel" data-clave="${clave}">
       <div class="pio-tabs"><button data-tab="grafica" class="on">Gráfica</button><button data-tab="ordenes">Órdenes (${ps.length})</button></div>
-      <div class="tab-grafica"><div class="trail-chart">${chart}</div>
+      <div class="tab-grafica">
+        ${grafica.bloqueGrafica({
+          simB, simQ, pmin, pmax, precio, decQ,
+          niveles: ps.map((x) => ({ precio: x.p, estado: x.tipo === 'compra' ? 1 : (x.tipo === 'venta' ? 2 : 0) }))
+        })}
+        <details class="tv-detalle"><summary>Ver el esquema de cuadrículas</summary><div class="trail-chart">${chart}</div></details>
         <div class="leg"><span style="color:var(--neon-lit)">● esperando comprar</span><span style="color:var(--rojo)">● comprado, esperando vender</span><span>● en espera</span></div></div>
       <div class="tab-ordenes" style="display:none"><div class="ord-list">${ordRows}</div></div>
     </div>`;
@@ -2650,6 +2661,7 @@ function enganchar(cuenta) {
       if (acc === 'toggle-panel') {
         const panel = el.querySelector('.pio-panel'); const abrir = !panel.classList.contains('open');
         panel.classList.toggle('open', abrir); btn.textContent = abrir ? 'Ocultar ▴' : 'Ver el bot trabajando ▾';
+        if (abrir) { try { grafica.pintar(panel); } catch (_) {} }
         if (abrir) arrancarTrail(panel.dataset.clave, { base: b, quote: q }, parseFloat(el.dataset.pmin), parseFloat(el.dataset.pmax), Number(el.dataset.decb), Number(el.dataset.decq), cuenta);
         else { const t = TRAILS.get(panel.dataset.clave); if (t?.timer) { clearInterval(t.timer); TRAILS.delete(panel.dataset.clave); } }
         return;
