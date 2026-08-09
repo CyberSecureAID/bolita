@@ -8,23 +8,23 @@
  *   · Si hay versión nueva, se descarga sola y se aplica al recargar.
  */
 
-const VERSION = 'aurex-v101';
+const VERSION = 'aurex-v102';
 const APP = [
   './',
   './index.html',
   './manifest-aurex.webmanifest',
-  './assets/js/gridbot-ui.js?v=101',
-  './assets/js/gridbot.js?v=101',
-  './assets/js/wallet.js?v=101',
-  './assets/js/tokens.js?v=101',
-  './assets/js/perfil.js?v=101',
-  './assets/js/prizepool.js?v=101',
-  './assets/js/tutorial.js?v=101',
-  './assets/js/market.js?v=101',
-  './assets/js/avisos.js?v=101',
-  './assets/js/grafica.js?v=101',
-  './assets/js/vendor/ethers-6.13.4.min.js?v=101',
-  './assets/js/vendor/lightweight-charts.mjs?v=101'
+  './assets/js/gridbot-ui.js?v=102',
+  './assets/js/gridbot.js?v=102',
+  './assets/js/wallet.js?v=102',
+  './assets/js/tokens.js?v=102',
+  './assets/js/perfil.js?v=102',
+  './assets/js/prizepool.js?v=102',
+  './assets/js/tutorial.js?v=102',
+  './assets/js/market.js?v=102',
+  './assets/js/avisos.js?v=102',
+  './assets/js/grafica.js?v=102',
+  './assets/js/vendor/ethers-6.13.4.min.js?v=102',
+  './assets/js/vendor/lightweight-charts.mjs?v=102'
   // walletconnect.umd.js NO se guarda: pesa 850 KB y solo hace falta si el
   // usuario conecta desde la app instalada. Se descarga en ese momento.
 ];
