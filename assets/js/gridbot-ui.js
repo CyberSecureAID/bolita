@@ -61,12 +61,20 @@ const moneda = (id) => MONEDAS[id];
 const FEE_CICLO = 0.0015; // V3: 0.05%×2 PancakeSwap + nuestra comisión en 0
 const GAS_OP_USD = 0.012; // ~coste de gas por operación en BSC hoy (~0.05 gwei)
 const VOL_DIARIA = { BNB: 0.04, BTCB: 0.025, ETH: 0.035, SOL: 0.06, DOGE: 0.08, XRP: 0.06, CAKE: 0.07, LINK: 0.06, ADA: 0.06, BABYDOGE: 0.10 }; // volatilidad diaria típica (estimada)
+/* Configuraciones auditadas: cada cuadrícula deja beneficio REAL después de
+   pagar el gas de la red y la comisión del exchange, incluso con 50 USDT.
+   Antes "Activo" (40 cuadrículas en ±12%) perdía dinero en cada vuelta: las
+   cuadrículas quedaban al 0,6% y las comisiones se comían la ganancia. */
 const PRESETS = {
-  tranquilo:   { rango: 0.30, grids: 14 },  // pocas ops, cada cuadrícula grande → rinde con poco capital, aguanta meses
-  equilibrado: { rango: 0.20, grids: 24 },
-  activo:      { rango: 0.12, grids: 40 },   // más ops, más sensible; pide más capital por cuadrícula
-  volatil:     { rango: 0.45, grids: 26 },   // monedas volátiles: rango amplio + cuadrículas medias (aguanta sin salirse)
+  tranquilo:   { rango: 0.40, grids: 24, sep: 3.59, ops: 'pocas', desc: 'Rango muy amplio. Opera menos veces, pero cada vuelta deja bastante y aguanta meses sin salirse del rango.' },
+  equilibrado: { rango: 0.28, grids: 20, sep: 2.92, ops: 'medias', desc: 'El término medio. Buen número de operaciones y cada una con ganancia holgada. Si no sabes cuál elegir, esta.' },
+  activo:      { rango: 0.16, grids: 14, sep: 2.33, ops: 'muchas', desc: 'Rango ceñido al precio de hoy. Opera más seguido, pero si el mercado se va lejos puede salirse del rango.' },
+  volatil:     { rango: 0.60, grids: 30, sep: 4.73, ops: 'pocas', desc: 'Para monedas que se mueven mucho. Rango enorme para que no se le escape el precio.' }
 };
+const NOMBRE_PRESET = { tranquilo: 'Tranquilo', equilibrado: 'Equilibrado', activo: 'Activo', volatil: 'Volátil' };
+/* Coste real de una vuelta (comprar + vender) medido en la red. */
+const GAS_VUELTA_USD = 0.025;
+const COM_DEX = 0.001;          // 0,05% por swap, ida y vuelta
 const CARET = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23C9A84B' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E";
 
 /* ================================================================== */
@@ -416,6 +424,45 @@ function inyectarEstilo() {
   #cmov .cm-b.oro{border-color:#c79426;background:linear-gradient(180deg,#f7db8d,var(--gold) 45%,#c79426);color:#3a2800;box-shadow:0 4px 0 #8f6a1a}
   #cmov .cm-b:active{transform:translateY(2px)}
   #cmov .cm-n{font-family:var(--sans);font-size:11px;color:#7d8794;line-height:1.45;margin-top:4px}
+  /* Botón único de configuraciones (azul del Smart Grid) */
+  #colmena-app .btn-conf{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;min-height:48px;padding:0 16px;margin-bottom:14px;border-radius:13px;border:1px solid var(--ac-d,#2b7fe0);background:linear-gradient(180deg,var(--ac-l,#a9d4ff),var(--ac-m,#4d9fff) 45%,var(--ac-d,#2b7fe0));color:var(--ac-t,#04213f);font-family:var(--display);font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 4px 0 var(--ac-s,#1a5bb0),0 6px 16px rgba(0,0,0,.3)}
+  #colmena-app .btn-conf:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ac-s,#1a5bb0)}
+  #colmena-app .btn-conf .bc-sel{font-family:var(--mono);font-size:10.5px;padding:3px 10px;border-radius:20px;background:rgba(4,33,63,.22);border:1px solid rgba(4,33,63,.25)}
+  #conf-box{position:fixed;inset:0;z-index:9880;display:flex;align-items:center;justify-content:center;padding:16px}
+  #conf-box .cf-bg{position:absolute;inset:0;background:rgba(3,5,8,.88);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  #conf-box .cf-c{position:relative;width:100%;max-width:470px;max-height:calc(100vh - 32px);overflow-y:auto;background:linear-gradient(180deg,#141c28,#0b0e12);border:1px solid var(--ac-m,#4d9fff);border-radius:20px;padding:24px 18px 20px;box-shadow:0 30px 90px rgba(0,0,0,.8)}
+  #conf-box .cf-x{position:absolute;top:13px;right:13px;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;line-height:1;padding:0;background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6;cursor:pointer;font-size:14px}
+  #conf-box .cf-t{font-family:var(--display);font-weight:800;font-size:20px;color:var(--ac-l,#a9d4ff);padding-right:40px}
+  #conf-box .cf-s{font-family:var(--sans);font-size:12.5px;color:#8b96a3;margin:5px 0 16px;line-height:1.5}
+  #conf-box .cf-s b{color:#eaecef}
+  #conf-box .cf-lista{display:flex;flex-direction:column;gap:10px}
+  #conf-box .cf-op{width:100%;text-align:left;padding:14px;border-radius:14px;border:1px solid #2b3139;background:linear-gradient(180deg,#1b2430,#0d1117);cursor:pointer;color:var(--ink)}
+  #conf-box .cf-op:hover{border-color:var(--ac-m,#4d9fff)}
+  #conf-box .cf-op.on{border-color:var(--ac-m,#4d9fff);background:linear-gradient(180deg,rgba(77,159,255,.16),rgba(77,159,255,.05))}
+  #conf-box .cf-cab{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  #conf-box .cf-cab b{font-family:var(--display);font-weight:800;font-size:16px;color:#eaecef}
+  #conf-box .cf-ops{font-family:var(--mono);font-size:9.5px;color:var(--ac-l,#a9d4ff);background:rgba(77,159,255,.14);border:1px solid rgba(77,159,255,.3);border-radius:20px;padding:2px 9px}
+  #conf-box .cf-d{font-family:var(--sans);font-size:12px;color:#8b96a3;line-height:1.5;margin:6px 0 9px}
+  #conf-box .cf-nums{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:9px}
+  #conf-box .cf-nums span{font-family:var(--display);font-weight:700;font-size:13px;color:#eaecef}
+  #conf-box .cf-nums i{display:block;font-style:normal;font-family:var(--mono);font-size:8.5px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px}
+  #conf-box .cf-gana{font-family:var(--sans);font-size:11.5px;color:var(--neon-lit,#2ee86a);background:rgba(46,232,106,.09);border:1px solid rgba(46,232,106,.28);border-radius:9px;padding:8px 10px;line-height:1.45}
+  #conf-box .cf-gana.mal{color:var(--gold,#E8B84B);background:rgba(232,184,75,.09);border-color:rgba(232,184,75,.3)}
+  #conf-box .cf-sug{width:100%;margin-top:12px;padding:12px;border-radius:11px;border:1px solid #3a424c;background:transparent;color:var(--ac-l,#a9d4ff);font-family:var(--display);font-weight:700;font-size:13px;cursor:pointer;min-height:44px}
+  #conf-box .cf-saber{margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px}
+  #conf-box .cf-saber summary{cursor:pointer;font-family:var(--display);font-weight:700;font-size:13.5px;color:var(--ac-l,#a9d4ff);list-style:none;padding:4px 0}
+  #conf-box .cf-saber summary::-webkit-details-marker{display:none}
+  #conf-box .cf-saber summary:before{content:'▸ '}
+  #conf-box .cf-saber[open] summary:before{content:'▾ '}
+  #conf-box .cf-txt p{font-family:var(--sans);font-size:12.5px;color:#8b96a3;line-height:1.65;margin:9px 0}
+  #conf-box .cf-txt b{color:#eaecef}
+  @media(max-width:560px){
+    #conf-box .cf-c{padding:20px 14px 16px;border-radius:18px}
+    #conf-box .cf-t{font-size:17px}
+    #conf-box .cf-cab b{font-size:15px}
+    #conf-box .cf-d{font-size:11.5px}
+    #conf-box .cf-nums{gap:11px}
+  }
   #colmena-app .mb-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
   #colmena-app .mb-cab h3{margin:0}
   #colmena-app .c-cupo{display:inline-flex;align-items:baseline;gap:7px;padding:6px 13px;border-radius:20px;background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.35);cursor:help}
@@ -572,7 +619,11 @@ function inyectarEstilo() {
   #colmena-app .seg.presets button:active{transform:translateY(2px);box-shadow:0 0 0 rgba(0,0,0,.35)}
   #colmena-app .seg.presets button:hover{border-color:var(--acento);color:var(--ink)}
   #colmena-app .seg.presets button.on{background:linear-gradient(180deg,var(--ac-l),var(--ac-m) 50%,var(--ac-d));color:var(--ac-t);border-color:var(--ac-d);font-weight:800;box-shadow:0 2px 0 var(--ac-s),inset 0 1px 0 rgba(255,255,255,.4);text-shadow:0 1px 0 rgba(255,255,255,.3)}
-  #colmena-app .asesor{margin-top:12px;background:linear-gradient(180deg,#12161c,#0b0e11);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:0 6px 18px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.03)}
+  /* Mismo marco que la tarjeta de "precio ahora", para que todo combine */
+  #colmena-app .asesor{position:relative;margin-top:12px;background:url('assets/img/marco-precio.webp') center/100% 100% no-repeat;border:none;border-radius:0;padding:7% 9%;box-shadow:none;transition:filter .18s ease}
+  #colmena-app .asesor:hover{filter:drop-shadow(0 10px 24px rgba(0,0,0,.45))}
+  #colmena-app .as-marco{position:relative;margin-top:12px;background:url('assets/img/marco-precio.webp') center/100% 100% no-repeat;border:none!important;border-radius:0!important;padding:7% 9%!important;box-shadow:none!important;transition:filter .18s ease}
+  #colmena-app .as-marco:hover{filter:drop-shadow(0 10px 24px rgba(0,0,0,.45))}
   #colmena-app .asesor .as-top{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
   #colmena-app .asesor .as-top b{color:var(--acento)}
   #colmena-app .asesor .as-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -1368,13 +1419,11 @@ function render() {
           </button>
         </div>
         <div id="f-grid" style="${F.tipo!=='grid'?'display:none':''}">
-          <div class="lab">Estrategia ${iBtn('estrategia')}</div>
-          <div class="seg presets" id="f-preset">
-            <button type="button" data-preset="tranquilo" class="${F.preset==='tranquilo'?'on':''}">Tranquilo</button>
-            <button type="button" data-preset="equilibrado" class="${F.preset==='equilibrado'?'on':''}">Equilibrado</button>
-            <button type="button" data-preset="activo" class="${F.preset==='activo'?'on':''}">Activo</button>
-            <button type="button" data-preset="volatil" class="${F.preset==='volatil'?'on':''}">Volátil</button>
-          </div>
+          <button type="button" class="btn-conf" id="f-abrir-conf">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+            <span class="v-l">Configuraciones rentables</span><span class="v-s">Configuración</span>
+            <span class="bc-sel" id="f-conf-sel">${F.preset ? NOMBRE_PRESET[F.preset] : 'elegir'}</span>
+          </button>
           <div class="lab">Rango de precio ${iBtn('rango')}<button class="sug" id="f-sug" type="button">Sugerir</button></div>
           <div class="fila">${campoNum('f-min',{placeholder:'precio bajo',pct:0.005})}${campoNum('f-max',{placeholder:'precio alto',pct:0.005})}</div>
           <div class="fila">
@@ -1403,7 +1452,7 @@ function render() {
             <button type="button" data-obj="10" class="on">10%</button><button type="button" data-obj="15">15%</button><button type="button" data-obj="20">20%</button>
           </div>
           ${campoNum('fa-obj-val',{value:10,min:0.5,max:100,step:0.5})}
-          <div class="asesor" id="fa-prev" style="margin-top:12px">
+          <div class="asesor as-marco" id="fa-prev">
             <div class="as-top"><b>Resumen del acumulador</b></div>
             <div class="as-grid">
               <div><span>Compra inicial (a mercado)</span><b id="fa-p-ini">—</b></div>
@@ -1441,6 +1490,7 @@ function render() {
               <div class="cr-row"><span>Vendes</span><b id="fc-p-cant">—</b></div>
               <div class="cr-row"><span>Valor ahora</span><b id="fc-p-valor">—</b></div>
               <div class="cr-row"><span>Recibirás al objetivo</span><b id="fc-p-recibe">—</b></div>
+              <div class="cr-row"><span>Comisión de la venta</span><b id="fc-p-com">—</b></div>
               <div class="cr-row cr-gan"><span>Ganancia estimada</span><b id="fc-p-gan" class="pos">—</b></div>
             </div>
             <div class="cr-note">Vende solo cuando el precio llegue a tu objetivo y recibe <b id="fc-p-est">${moneda(F.quoteId).simbolo}</b> en tu wallet.<br><span style="opacity:.75">Ten esa moneda agregada en tu wallet para verla — llega igual.</span></div>
@@ -1568,7 +1618,7 @@ function render() {
   });
   ['f-min','f-max','f-margen'].forEach((id) => { const e = $(id); if (e) e.oninput = () => { asegurarRentable(); actualizarVista(); }; });
   $('f-sug').onclick = sugerirRango;
-  document.querySelectorAll(`#${APP} #f-preset button`).forEach((b) => b.onclick = () => aplicarPreset(b.dataset.preset));
+  if ($('f-abrir-conf')) $('f-abrir-conf').onclick = ventanaConfiguraciones;
   document.querySelectorAll(`#${APP} #f-tipo button`).forEach((b) => b.onclick = () => { F.tipo = b.dataset.tipo; pintarTipo(); });
   document.querySelectorAll(`#${APP} #fa-obj button`).forEach((b) => b.onclick = () => {
     document.querySelectorAll(`#${APP} #fa-obj button`).forEach((x) => x.classList.remove('on')); b.classList.add('on');
@@ -1670,11 +1720,70 @@ function asesorar(total, n, pasoPct, ordenQuote, netPorVuelta) {
   else nota = 'Configuración equilibrada para este capital. La estimación depende de cuánto se mueva el mercado.';
   $('as-nota').textContent = nota;
 }
+/** Ventana con las configuraciones auditadas y lo que rinde cada una. */
+function ventanaConfiguraciones() {
+  const prev = $('conf-box'); if (prev) prev.remove();
+  const inv = Math.max(0, Number(String($('f-total')?.value || '').replace(',', '.')) || 0);
+  const usada = inv > 0 ? inv : 200;
+
+  const cuenta = (p) => {
+    const orden = usada / p.grids;
+    const bruto = orden * (p.sep / 100);
+    const neto = bruto - (GAS_VUELTA_USD + orden * COM_DEX);
+    return { orden, neto, ok: neto > 0 };
+  };
+
+  const tarjeta = (id) => {
+    const p = PRESETS[id], c = cuenta(p);
+    return `<button class="cf-op ${F.preset === id ? 'on' : ''}" data-conf="${id}">
+      <div class="cf-cab"><b>${NOMBRE_PRESET[id]}</b><span class="cf-ops">${p.ops} operaciones</span></div>
+      <div class="cf-d">${p.desc}</div>
+      <div class="cf-nums">
+        <span><i>rango</i>±${(p.rango * 100).toFixed(0)}%</span>
+        <span><i>cuadrículas</i>${p.grids}</span>
+        <span><i>separación</i>${p.sep.toFixed(2)}%</span>
+      </div>
+      <div class="cf-gana ${c.ok ? '' : 'mal'}">
+        ${c.ok ? `Cada vuelta te deja ≈ <b>${c.neto.toFixed(3)} USDT</b> ya libres de comisiones` : `Con ${usada.toFixed(0)} USDT las comisiones se comen la ganancia. Sube la inversión.`}
+      </div>
+    </button>`;
+  };
+
+  const d = document.createElement('div');
+  d.id = 'conf-box';
+  d.innerHTML = `<div class="cf-bg"></div>
+    <div class="cf-c">
+      <button class="cf-x" aria-label="Cerrar">✕</button>
+      <div class="cf-t">Configuraciones rentables</div>
+      <div class="cf-s">Calculado con <b>${usada.toFixed(0)} USDT</b>${inv > 0 ? '' : ' (pon tu inversión para afinar)'}. Elige una y seguimos.</div>
+      <div class="cf-lista">${['tranquilo', 'equilibrado', 'activo', 'volatil'].map(tarjeta).join('')}</div>
+      <button class="cf-sug" id="cf-sug">Sugerir según el precio de ahora</button>
+      <details class="cf-saber">
+        <summary>¿Por qué este bot da ganancia?</summary>
+        <div class="cf-txt">
+          <p>El bot parte tu dinero en <b>cuadrículas</b> repartidas en un rango de precio. Compra en cada cuadrícula cuando el precio baja hasta ella, y la vende cuando sube a la siguiente. Cada ida y vuelta deja una pequeña ganancia, y el mercado sube y baja muchas veces al día.</p>
+          <p><b>La clave está en la separación.</b> Cada vuelta paga el gas de la red (unos 0,025 USDT) y la comisión del exchange. Si las cuadrículas están demasiado juntas, esa ganancia no cubre las comisiones y el bot <b>no venderá</b>: tu contrato tiene prohibido vender con pérdida. Por eso estas configuraciones ya vienen con la separación calculada.</p>
+          <p><b>Tres consejos:</b><br>
+          · <b>Cuanto más dinero por cuadrícula, mejor</b>. El gas cuesta lo mismo tanto si mueves 2 USDT como 20.<br>
+          · <b>El precio de ahora debe quedar dentro del rango</b>, si no, el bot no tiene dónde operar.<br>
+          · <b>Si el mercado se va lejos y sale del rango</b>, el bot se queda quieto esperando. No pierde tu dinero: conserva la moneda comprada.</p>
+        </div>
+      </details>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => { const e = $('conf-box'); if (e) e.remove(); };
+  d.querySelector('.cf-bg').onclick = cerrar;
+  d.querySelector('.cf-x').onclick = cerrar;
+  d.querySelectorAll('[data-conf]').forEach((b) => b.onclick = () => { aplicarPreset(b.dataset.conf); cerrar(); });
+  const sug = $('cf-sug');
+  if (sug) sug.onclick = () => { cerrar(); const s2 = $('f-sug'); if (s2) s2.click(); };
+}
+
 function aplicarPreset(id) {
   if (!F.precio) { aviso($('c-msg'), 'err', 'Espera a que cargue el precio y vuelve a intentar.'); return; }
   const p = PRESETS[id]; if (!p) return;
   F.preset = id;
-  document.querySelectorAll(`#${APP} #f-preset button`).forEach((b) => b.classList.toggle('on', b.dataset.preset === id));
+  const sel = $('f-conf-sel'); if (sel) sel.textContent = NOMBRE_PRESET[id] || 'elegir';
   $('f-min').value = Number((F.precio * (1 - p.rango)).toPrecision(6));
   $('f-max').value = Number((F.precio * (1 + p.rango)).toPrecision(6));
   $('f-niv').value = p.grids;
@@ -2237,8 +2346,14 @@ function previewCash() {
     setT('fc-p-cant', num(cant, 6) + ' ' + simB);
     setT('fc-p-valor', num(valor, 2) + ' ' + simQ);
     setT('fc-p-recibe', num(proceeds, 2) + ' ' + simQ);
-    const gan = $('fc-p-gan'); if (gan) { gan.textContent = (g >= 0 ? '+' : '') + num(g, 2) + ' ' + simQ; gan.className = g >= 0 ? 'pos' : 'neg'; }
+    // Lo que se lleva la red y el exchange al vender, para que no sorprenda.
+    const comision = proceeds * 0.0005 + GAS_VUELTA_USD / 2;
+    setT('fc-p-com', '≈ ' + num(comision, 3) + ' ' + simQ);
+    const neto = g - comision;
+    const gan = $('fc-p-gan');
+    if (gan) { gan.textContent = (neto >= 0 ? '+' : '') + num(neto, 2) + ' ' + simQ; gan.className = neto >= 0 ? 'pos' : 'neg'; }
   } else {
+    setT('fc-p-com', '—');
     setT('fc-p-cant', cant > 0 ? num(cant, 6) + ' ' + simB : '—');
     setT('fc-p-valor', (cant > 0 && F.precio) ? num(cant * F.precio, 2) + ' ' + simQ : '—');
     setT('fc-p-recibe', '—');
