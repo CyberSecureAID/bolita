@@ -5,16 +5,16 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=100';
-import * as wallet from './wallet.js?v=100';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=100';
-import * as perfil from './perfil.js?v=100';
-import * as prizepool from './prizepool.js?v=100';
-import * as tutorial from './tutorial.js?v=100';
-import * as market from './market.js?v=100';
-import * as avisos from './avisos.js?v=100';
-import * as grafica from './grafica.js?v=100';
-import * as extras from './extras.js?v=100';
+import * as gb from './gridbot.js?v=101';
+import * as wallet from './wallet.js?v=101';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=101';
+import * as perfil from './perfil.js?v=101';
+import * as prizepool from './prizepool.js?v=101';
+import * as tutorial from './tutorial.js?v=101';
+import * as market from './market.js?v=101';
+import * as avisos from './avisos.js?v=101';
+import * as grafica from './grafica.js?v=101';
+import * as extras from './extras.js?v=101';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -433,6 +433,11 @@ function inyectarEstilo() {
     #colmena-app .lab-sug{gap:6px}
     #colmena-app .lab-sug .sug{font-size:10px;padding:4px 9px}
   }
+  /* El saldo de gas, bien visible (antes estaba escondido dentro del botón "Retirar") */
+  #colmena-app .gas-saldo{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 13px;margin-top:9px;border-radius:11px;background:rgba(232,184,75,.08);border:1px solid rgba(232,184,75,.28)}
+  #colmena-app .gas-saldo span{font-family:var(--mono);font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.7px}
+  #colmena-app .gas-saldo b{font-family:var(--display);font-weight:800;font-size:15px;color:var(--gold);white-space:nowrap}
+  @media(max-width:400px){#colmena-app .gas-saldo{padding:8px 10px}#colmena-app .gas-saldo span{font-size:9px}#colmena-app .gas-saldo b{font-size:13.5px}}
   #colmena-app .btn-conf{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;min-height:48px;padding:0 16px;margin:18px 0 14px;border-radius:13px;border:1px solid var(--ac-d,#2b7fe0);background:linear-gradient(180deg,var(--ac-l,#a9d4ff),var(--ac-m,#4d9fff) 45%,var(--ac-d,#2b7fe0));color:var(--ac-t,#04213f);font-family:var(--display);font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 4px 0 var(--ac-s,#1a5bb0),0 6px 16px rgba(0,0,0,.3)}
   #colmena-app .btn-conf:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ac-s,#1a5bb0)}
   #colmena-app .btn-conf .bc-sel{font-family:var(--mono);font-size:10.5px;padding:3px 10px;border-radius:20px;background:rgba(4,33,63,.22);border:1px solid rgba(4,33,63,.25)}
@@ -1457,7 +1462,7 @@ function render() {
         </div>
         <div id="f-acum" style="${F.tipo==='acum'?'':'display:none'}">
           <button type="button" class="btn-conf" data-conf-bot="acum"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg><span class="v-l">Configuraciones rentables</span><span class="v-s">Configuración</span><span class="bc-sel" id="conf-sel-acum">elegir</span></button>
-          <div class="lab lab-sug"><span class="lab-tx"><span class="v-l">Precio mínimo (hasta dónde compra)</span><span class="v-s">Precio mínimo</span> ${iBtn('acmin')}</span><button class="sug" id="fa-sug" type="button">Sugerir</button></div>
+          <div class="lab"><span class="v-l">Precio mínimo (hasta dónde compra)</span><span class="v-s">Precio mínimo</span> ${iBtn('acmin')}</div>
           ${campoNum('fa-min',{placeholder:'precio más bajo',pct:0.01})}
           <div class="fila">
             <div><div class="lab"><span class="v-l">Nº de compras</span><span class="v-s">Nº compras</span> ${iBtn('acniv')}</div>${campoNum('fa-niv',{value:15,min:2,max:100,step:1,int:true})}</div>
@@ -1608,7 +1613,8 @@ function render() {
               </div>
               <button class="btn btn-oro" id="f-gasdep">Recargar</button>
             </div>
-            <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret"><span class="gas-rtx">Retirar <span id="c-gas"><span class="skel">0.00000</span> BNB</span></span></button></div>
+            <div class="gas-saldo"><span>Tu gas disponible</span><b id="c-gas">—</b></div>
+            <div class="gas-sep"><button class="btn btn-linea btn-max" id="f-gasret"><span class="gas-rtx">Retirar todo</span></button></div>
           </div>
           <div id="c-gasmsg"></div>
           <div id="c-cash-price" class="cash-price" style="display:none;margin-top:16px;margin-bottom:0">
@@ -1698,11 +1704,14 @@ async function cargarPrecio() {
   const base = moneda(F.baseId), quote = moneda(F.quoteId);
   try { const r = await gb.precioPar(gb.dirDe(base), gb.dirDe(quote), base.decimals, quote.decimals); F.precio = r.precio; F.rutas = r.rutas; }
   catch { F.precio = null; }
+  pintarPrecioAhora();                    // la tarjeta del precio, en los cuatro bots
   if (F.tipo === 'cash') previewCash();
   if (F.tipo === 'dca') previewDCA();
+  if (F.tipo === 'acum' && typeof previewAcum === 'function') previewAcum();
   actualizarVista();
 }
 function actualizarVista() {
+  pintarPrecioAhora();
   if ($('c-chart')) $('c-chart').innerHTML = graficaPreview();
   if ($('pv-precio')) $('pv-precio').textContent = precioFmt(F.precio);
   const pMin = parseFloat($('f-min')?.value), pMax = parseFloat($('f-max')?.value);
@@ -2357,6 +2366,7 @@ function pintarTipo() {
   { const cs = $('c-cash-side'); if (cs) cs.style.display = t === 'cash' ? '' : 'none'; }
   { const ds = $('c-dca-side'); if (ds) ds.style.display = t === 'dca' ? '' : 'none'; }
   { const cp = $('c-cash-price'); if (cp) cp.style.display = ''; }   // el precio de ahora sirve en los cuatro bots
+  pintarPrecioAhora();
   { const av = $('f-toggleavz'); if (av && av.parentElement) av.parentElement.style.display = t === 'dca' ? 'none' : ''; }
   const prev = document.querySelector(`#${APP} .prev`); if (prev) prev.style.display = noGrid ? 'none' : '';
   const tpsl = $('f-avz-tpsl'); if (tpsl) tpsl.style.display = noGrid ? 'none' : '';
@@ -2470,6 +2480,17 @@ function setCantCash(v) {
   inp.value = v > 0 ? Number(v.toPrecision(8)) : '';
   previewCash();
 }
+/** Rellena la tarjeta de "precio ahora". Vale para los cuatro bots.
+ *  Antes solo la rellenaban Cash Out y DCA: en Smart Grid y Acumulador
+ *  la tarjeta salía, pero vacía. */
+function pintarPrecioAhora() {
+  const cpv = $('cash-price-val'), cpp = $('cash-price-pair');
+  if (!cpv && !cpp) return;
+  const simB = moneda(F.baseId).simbolo, simQ = moneda(F.quoteId).simbolo;
+  if (cpp) cpp.textContent = simB + ' / ' + simQ;
+  if (cpv) cpv.textContent = F.precio > 0 ? precioFmt(F.precio) + ' ' + simQ : '—';
+}
+
 function previewCash() {
   const cant = parseFloat($('fc-cant')?.value) || 0;
   const modoObj = F.cashModo || 'pct';
