@@ -8,23 +8,23 @@
  *   · Si hay versión nueva, se descarga sola y se aplica al recargar.
  */
 
-const VERSION = 'aurex-v99';
+const VERSION = 'aurex-v100';
 const APP = [
   './',
   './index.html',
   './manifest-aurex.webmanifest',
-  './assets/js/gridbot-ui.js?v=85',
-  './assets/js/gridbot.js?v=85',
-  './assets/js/wallet.js?v=85',
-  './assets/js/tokens.js?v=85',
-  './assets/js/perfil.js?v=85',
-  './assets/js/prizepool.js?v=85',
-  './assets/js/tutorial.js?v=85',
-  './assets/js/market.js?v=85',
-  './assets/js/avisos.js?v=85',
-  './assets/js/grafica.js?v=85',
-  './assets/js/vendor/ethers-6.13.4.min.js?v=85',
-  './assets/js/vendor/lightweight-charts.mjs?v=85'
+  './assets/js/gridbot-ui.js?v=100',
+  './assets/js/gridbot.js?v=100',
+  './assets/js/wallet.js?v=100',
+  './assets/js/tokens.js?v=100',
+  './assets/js/perfil.js?v=100',
+  './assets/js/prizepool.js?v=100',
+  './assets/js/tutorial.js?v=100',
+  './assets/js/market.js?v=100',
+  './assets/js/avisos.js?v=100',
+  './assets/js/grafica.js?v=100',
+  './assets/js/vendor/ethers-6.13.4.min.js?v=100',
+  './assets/js/vendor/lightweight-charts.mjs?v=100'
   // walletconnect.umd.js NO se guarda: pesa 850 KB y solo hace falta si el
   // usuario conecta desde la app instalada. Se descarga en ese momento.
 ];
@@ -40,9 +40,13 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
+    // Fuera TODO lo guardado de versiones anteriores.
     const claves = await caches.keys();
     await Promise.all(claves.filter((k) => k !== VERSION).map((k) => caches.delete(k)));
     await self.clients.claim();
+    // Y recargamos las pestañas abiertas, para que nadie se quede con lo viejo.
+    const pestanas = await self.clients.matchAll({ type: 'window' });
+    for (const p of pestanas) { try { p.navigate(p.url); } catch (_) {} }
   })());
 });
 
