@@ -162,8 +162,16 @@ function inyectarEstilo() {
   #wsel .wsel-bg{position:absolute;inset:0}
   #wsel .wsel-p{position:absolute;width:250px;max-width:calc(100vw - 20px);background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft);border-radius:16px;padding:9px;box-shadow:0 22px 60px rgba(0,0,0,.72);animation:wselIn .14s ease both}
   @keyframes wselIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
-  #wsel .wsel-t{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.9px;padding:6px 9px 8px}
-  #wsel .wsel-b{width:100%;display:flex;align-items:center;gap:10px;padding:11px;border-radius:11px;border:1px solid transparent;background:transparent;color:var(--ink);font-family:var(--display);font-weight:700;font-size:14px;cursor:pointer;text-align:left;min-height:46px}
+  #wsel .wsel-t{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.9px;padding:6px 9px 10px}
+  #wsel .wsel-b:last-child{margin-bottom:0}
+  /* Etiqueta del botón: "Instalar" en ordenador, "Compartir" en el móvil */
+  #colmena-app .lbl-mov{display:none!important}
+  #colmena-app .lbl-pc{display:inline}
+  @media(max-width:560px){
+    #colmena-app .lbl-pc{display:none!important}
+    #colmena-app .lbl-mov{display:inline!important}
+  }
+  #wsel .wsel-b{width:100%;display:flex;align-items:center;gap:10px;padding:11px;margin-bottom:6px;border-radius:11px;border:1px solid transparent;background:transparent;color:var(--ink);font-family:var(--display);font-weight:700;font-size:14px;cursor:pointer;text-align:left;min-height:46px}
   #wsel .wsel-b:hover{background:rgba(255,255,255,.06);border-color:var(--line)}
   #wsel .wsel-b.on{background:rgba(232,184,75,.1);border-color:rgba(232,184,75,.4)}
   #wsel .wsel-b img,#wsel .wsel-i{width:26px;height:26px;border-radius:7px;flex:0 0 auto;object-fit:contain;background:rgba(255,255,255,.06)}
@@ -1065,7 +1073,7 @@ function headerHTML() {
       <button class="c-swap" id="c-swap" type="button" aria-label="Intercambiar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10 3 6l4-4"/><path d="M3 6h14"/><path d="m17 14 4 4-4 4"/><path d="M21 18H7"/></svg><span class="c-swap-tx">Swap</span></button>
       <button class="c-prize" id="c-prize" type="button" aria-label="Prize Pool"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg><span class="c-prize-tx">Prize Pool</span></button>
       <button class="c-market" id="c-market" type="button" aria-label="Marketplace"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18l-1.5 10.5a2 2 0 0 1-2 1.5H6.5a2 2 0 0 1-2-1.5L3 9z"/><path d="M8 9V6a4 4 0 0 1 8 0v3"/></svg><span class="c-market-tx">Market</span></button>
-      <button class="c-loteria" id="c-instalar" type="button" aria-label="Instalar la app"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="c-lot-tx"><span class="tx-l">Instalar</span><span class="tx-s">Compartir</span></span></button>
+      <button class="c-loteria" id="c-instalar" type="button" aria-label="Instalar la app"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="c-lot-tx"><span class="lbl-pc">Instalar</span><span class="lbl-mov">Compartir</span></span></button>
       ${right}
     </div>
     <button class="c-menu-btn" id="c-menu-btn" type="button" aria-label="Menú"><span></span><span></span><span></span></button>

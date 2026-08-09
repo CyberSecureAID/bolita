@@ -94,15 +94,26 @@ export function panelInstalar(ancla) {
     const nota = $('ip-nota');
     if (!nota) return;
     nota.className = 'ip-pasos';
+    // Cada navegador lo pone en un sitio distinto: se lo decimos exacto.
+    const ua = navigator.userAgent;
+    const esBrave = !!navigator.brave || /Brave/i.test(ua);
+    const esEdge = /Edg\//.test(ua);
+    const esChrome = /Chrome/.test(ua) && !esEdge && !esBrave;
     nota.innerHTML = iOS
       ? `<div class="ip-p"><span>1</span>Toca <b>Compartir</b> en Safari</div>
          <div class="ip-p"><span>2</span>Elige <b>Añadir a pantalla de inicio</b></div>`
       : movil
         ? `<div class="ip-p"><span>1</span>Abre el menú <b>⋮</b> del navegador</div>
            <div class="ip-p"><span>2</span>Elige <b>Instalar aplicación</b></div>`
-        : `<div class="ip-p"><span>1</span>Mira el icono de instalar en la barra de direcciones</div>
-           <div class="ip-p"><span>2</span>Elige <b>Instalar Aurex</b></div>`;
-    si.textContent = 'Ya está instalada o el navegador no lo permite';
+        : esBrave
+          ? `<div class="ip-p"><span>1</span>Arriba, a la derecha de la barra de búsqueda, busca un <b>cuadrito con una flecha</b> hacia arriba</div>
+             <div class="ip-p"><span>2</span>Tócalo y elige <b>Instalar</b></div>`
+          : esChrome
+            ? `<div class="ip-p"><span>1</span>Arriba, al lado de la <b>estrella</b> de favoritos, verás una píldora azul <b>Abrir en la app</b></div>
+               <div class="ip-p"><span>2</span>Tócala para instalarla</div>`
+            : `<div class="ip-p"><span>1</span>Arriba, a la derecha de la barra de búsqueda, busca el <b>icono de instalar</b></div>
+               <div class="ip-p"><span>2</span>Elige <b>Instalar Aurex</b></div>`;
+    si.textContent = 'Ya está instalada';
     si.disabled = true;
   };
 
@@ -441,10 +452,10 @@ function estilos() {
   #inst-panel .ip-b:active{transform:translateY(3px);box-shadow:0 1px 0 #8f6a1a}
   #inst-panel .ip-b:disabled{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:#7d8794;box-shadow:none;font-size:11.5px;cursor:default}
   #inst-panel .ip-n{font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;line-height:1.5;margin-top:10px;text-align:center}
-  #inst-panel .ip-pasos{display:flex;flex-direction:column;gap:8px}
-  #inst-panel .ip-p{display:flex;align-items:center;gap:9px;font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.4}
+  #inst-panel .ip-pasos{display:flex;flex-direction:column;gap:9px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+  #inst-panel .ip-p{display:flex;align-items:flex-start;gap:9px;font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.5;text-align:left}
   #inst-panel .ip-p b{color:var(--gold,#E8B84B)}
-  #inst-panel .ip-p span{flex:0 0 auto;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:11px}
+  #inst-panel .ip-p span{flex:0 0 auto;margin-top:1px;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:11px}
   #inst-panel .ip-sep{height:1px;background:rgba(255,255,255,.08);margin:14px 0 10px}
   #inst-panel .ip-qr{background:#fff;border-radius:12px;padding:9px;margin-top:10px}
   #inst-panel .ip-qr svg{width:100%;height:auto;display:block}
