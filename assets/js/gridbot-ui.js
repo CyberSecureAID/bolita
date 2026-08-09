@@ -5,15 +5,16 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=81';
-import * as wallet from './wallet.js?v=81';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=81';
-import * as perfil from './perfil.js?v=81';
-import * as prizepool from './prizepool.js?v=81';
-import * as tutorial from './tutorial.js?v=81';
-import * as market from './market.js?v=81';
-import * as avisos from './avisos.js?v=81';
-import * as grafica from './grafica.js?v=81';
+import * as gb from './gridbot.js?v=82';
+import * as wallet from './wallet.js?v=82';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=82';
+import * as perfil from './perfil.js?v=82';
+import * as prizepool from './prizepool.js?v=82';
+import * as tutorial from './tutorial.js?v=82';
+import * as market from './market.js?v=82';
+import * as avisos from './avisos.js?v=82';
+import * as grafica from './grafica.js?v=82';
+import * as extras from './extras.js?v=82';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -393,6 +394,9 @@ function inyectarEstilo() {
   #colmena-app .seg button.on{background:var(--ac-m);color:var(--ac-t);border-color:var(--ac-d);font-weight:700}
   #colmena-app .avz{border-top:1px solid var(--line-soft);margin-top:18px;padding-top:4px}
   #colmena-app .chart{width:100%;height:auto;display:block;border-radius:14px;background:#0d1117;border:1px solid var(--line-soft)}
+  #colmena-app .pio-acciones{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  #colmena-app .pio-acciones .pio-toggle{flex:1;min-width:150px}
+  @media(max-width:560px){#colmena-app .pio-acciones .btn-compartir{flex:1}}
   #colmena-app .tv-detalle{margin-top:10px}
   #colmena-app .tv-detalle summary{cursor:pointer;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);padding:7px 0;list-style:none}
   #colmena-app .tv-detalle summary::-webkit-details-marker{display:none}
@@ -1138,6 +1142,7 @@ function wireHeader() {
   tutorial.wireFila(document);
   if ($('c-market')) $('c-market').onclick = () => { avisos.limpiarPunto(); market.abrirMarket(); };
   try { avisos.iniciar(); } catch (_) {}
+  try { extras.iniciarInstalacion(); } catch (_) {}
   const hdr = document.querySelector('#colmena-app .c-hdr');
   if ($('c-menu-btn') && hdr) $('c-menu-btn').onclick = (e) => { e.stopPropagation(); hdr.classList.toggle('open'); };
   if (hdr) { const hr = hdr.querySelector('.c-hdr-r'); if (hr) hr.addEventListener('click', () => hdr.classList.remove('open')); }
@@ -2512,8 +2517,10 @@ async function tarjeta(cuenta, clave, par, R) {
   else if (tipo === 'dca') _boxes = _boxProxima + _boxCompras + _boxMedio + _boxPosicion + _boxFlotante + _boxGas;
   else if (tipo === 'acum') _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxMedio + _boxVueltas + _boxGas;
   else _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxRango + _boxVueltas + _boxGas;
-  const _panel = `<button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>
-    <div class="pio-panel" data-clave="${clave}">
+  const _compartir = `<button class="btn-compartir" data-acc="compartir" title="Compartir mi resultado">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M12 3v13"/><path d="M8 7l4-4 4 4"/></svg>Compartir</button>`;
+  const _panel = `<div class="pio-acciones"><button class="pio-toggle" data-acc="toggle-panel">Ver el bot trabajando ▾</button>${_compartir}</div>
+    <div class="pio-panel" data-clave="${clave}" data-gan="${(realizado + noRealizado).toFixed(6)}" data-pct="${baseInv > 0 ? (((realizado + noRealizado) / baseInv) * 100).toFixed(2) : 0}" data-dias="${Math.max(1, Math.floor(creadoSeg / 86400))}" data-vueltas="${Number(R.ciclos)}" data-inv="${baseInv}" data-nombre="${nombreBot}">
       <div class="pio-tabs"><button data-tab="grafica" class="on">Gráfica</button><button data-tab="ordenes">Órdenes (${ps.length})</button></div>
       <div class="tab-grafica">
         ${grafica.bloqueGrafica({
@@ -2696,6 +2703,20 @@ function enganchar(cuenta) {
     if (shareBtn) shareBtn.onclick = () => compartirBot(el);
     el.querySelectorAll('[data-acc]').forEach((btn) => btn.onclick = async () => {
       const acc = btn.dataset.acc;
+      if (acc === 'compartir') {
+        const r = b.closest('.rej');
+        extras.compartirResultado({
+          par: `${r.dataset.sb}/${r.dataset.sq}`,
+          tipo: r.dataset.nombre || 'Bot Aurex',
+          ganancia: Number(r.dataset.gan) || 0,
+          pct: Number(r.dataset.pct) || 0,
+          moneda: r.dataset.sq || '',
+          dias: r.dataset.dias,
+          vueltas: r.dataset.vueltas,
+          invertido: Number(r.dataset.inv) || 0
+        });
+        return;
+      }
       if (acc === 'toggle-panel') {
         const panel = el.querySelector('.pio-panel'); const abrir = !panel.classList.contains('open');
         panel.classList.toggle('open', abrir); btn.textContent = abrir ? 'Ocultar ▴' : 'Ver el bot trabajando ▾';
