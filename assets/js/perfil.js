@@ -80,6 +80,11 @@ function estilos() {
 
   /* Secciones */
   #perfil-overlay .pf-sec{margin-bottom:16px}
+  #perfil-overlay .pf-coste{text-align:center;padding:15px}
+  #perfil-overlay .pf-coste-t{font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794}
+  #perfil-overlay .pf-coste-v{font-family:var(--display,sans-serif);font-size:17px;color:#eaecef;margin:6px 0 4px}
+  #perfil-overlay .pf-coste-v b{color:var(--gold,#E8B84B)}
+  #perfil-overlay .pf-coste-d{font-family:var(--sans,sans-serif);font-size:11px;color:#7d8794;line-height:1.45}
   #perfil-overlay .pf-sect{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.9px;margin-bottom:8px;margin-top:20px}
   /* Textos: versión corta en el móvil */
   #perfil-overlay .tx-s{display:none}
@@ -233,6 +238,13 @@ export async function abrirPerfil() {
   </div>
 
   <div class="pf-sec">
+    <div class="pf-sect">Coste por operación</div>
+    <div class="pf-box pf-coste">
+      <div class="pf-coste-t">Cada compra o venta que hace un bot</div>
+      <div class="pf-coste-v" id="pf-costeop">—</div>
+      <div class="pf-coste-d" id="pf-opsrest">Se descuenta de tu gas, no de tu inversión.</div>
+    </div>
+
     <div class="pf-sect">Notificaciones</div>
     <div class="pf-box">
       <div class="pf-row">
@@ -298,6 +310,17 @@ async function cargarDatos(cuenta) {
       : `<span class="pf-pill pf-off">Inactiva</span>`;
     if ($('pf-precio')) $('pf-precio').textContent = precio > 0n ? `${num(Number(gb.fmtBNB(precio)), 5)} BNB ≈ $1` : '—';
     if ($('pf-gas')) $('pf-gas').textContent = `${num(Number(gb.fmtBNB(gasWei)), 4)} BNB`;
+    // Cuánto cuesta cada compra o venta que hace el bot
+    gb.gasMinOp().then((minOp) => {
+      const bnb = Number(gb.fmtBNB(minOp));
+      if (!$('pf-costeop') || !(bnb > 0)) return;
+      const usd = precio > 0n ? bnb / Number(gb.fmtBNB(precio)) : 0;
+      $('pf-costeop').innerHTML = `≈ <b>${num(bnb, 5)} BNB</b>${usd > 0 ? ` · unos ${num(usd, 2)} USD` : ''}`;
+      const ops = Math.floor(Number(gb.fmtBNB(gasWei)) / bnb);
+      if ($('pf-opsrest')) $('pf-opsrest').textContent = ops > 0
+        ? `Con tu gas actual te alcanza para unas ${ops} operaciones más`
+        : 'Recarga gas para que tus bots sigan operando';
+    }).catch(() => {});
   }).catch(() => {});
 
   // 2) Bots: todo en paralelo (antes iba uno detrás de otro).

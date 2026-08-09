@@ -416,6 +416,13 @@ function inyectarEstilo() {
   #cmov .cm-b.oro{border-color:#c79426;background:linear-gradient(180deg,#f7db8d,var(--gold) 45%,#c79426);color:#3a2800;box-shadow:0 4px 0 #8f6a1a}
   #cmov .cm-b:active{transform:translateY(2px)}
   #cmov .cm-n{font-family:var(--sans);font-size:11px;color:#7d8794;line-height:1.45;margin-top:4px}
+  #colmena-app .mb-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  #colmena-app .mb-cab h3{margin:0}
+  #colmena-app .c-cupo{display:inline-flex;align-items:baseline;gap:7px;padding:6px 13px;border-radius:20px;background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.35);cursor:help}
+  #colmena-app .c-cupo b{font-family:var(--display);font-weight:800;font-size:14px;color:var(--gold)}
+  #colmena-app .c-cupo span{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+  #colmena-app .c-cupo.lleno{background:rgba(246,70,93,.1);border-color:rgba(246,70,93,.4)}
+  #colmena-app .c-cupo.lleno b{color:var(--rojo)}
   #colmena-app .pio-acciones{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;margin-top:14px}
   #colmena-app .pio-acciones .pio-toggle{flex:1;min-width:150px;margin:0}
   /* Misma altura y línea base que "Ver el bot trabajando" */
@@ -1539,7 +1546,7 @@ function render() {
         </div>
       </div>
     </div>
-    <div class="colmenas card"><h3>Mis bots</h3><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
+    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><span class="c-cupo" id="c-cupo"><b>—</b><span>bots activos</span></span></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
     ${footerHTML()}
   </div>`;
 
@@ -1840,6 +1847,59 @@ async function asegurarSuscripcion(cuenta) {
   await gb.suscribir();
   return true;
 }
+/* ── Cupo de bots ──────────────────────────────────────────────────────────
+   Ocho bots por persona: dos de cada estrategia. Es un límite generoso para
+   el usuario y sostenible para el sistema (el keeper revisa TODOS los bots
+   de TODOS los usuarios cada minuto). */
+const CUPO_TOTAL = 8;
+const CUPO_POR_TIPO = 2;
+const NOMBRE_TIPO = { grid: 'Smart Grid', acum: 'Accumulator', cash: 'Cash Out', dca: 'DCA' };
+
+/** Cuenta los bots activos del usuario, por tipo. */
+async function contarBots(cuenta) {
+  const r = { total: 0, grid: 0, acum: 0, cash: 0, dca: 0 };
+  try {
+    const claves = await gb.misRejillas(cuenta);
+    for (const k of claves) {
+      try {
+        const R = await gb.resumenK(k);
+        if (!R.activa) continue;
+        r.total++;
+        let m = 0;
+        try { const md = await gb.modoDe(k); m = Number(Array.isArray(md) ? md[0] : 0); } catch (_) {}
+        const t = m === 1 ? 'acum' : m === 2 ? 'cash' : m === 3 ? 'dca' : 'grid';
+        r[t]++;
+      } catch (_) {}
+    }
+  } catch (_) {}
+  return r;
+}
+
+/** ¿Puede crear otro bot de este tipo? Devuelve el motivo si no. */
+async function cupoLibre(cuenta, tipo) {
+  const c = await contarBots(cuenta);
+  if (c.total >= CUPO_TOTAL) {
+    return { ok: false, motivo: `Has llegado al máximo de ${CUPO_TOTAL} bots a la vez. Cancela alguno para crear otro.`, c };
+  }
+  if ((c[tipo] || 0) >= CUPO_POR_TIPO) {
+    return { ok: false, motivo: `Ya tienes ${CUPO_POR_TIPO} bots ${NOMBRE_TIPO[tipo]}. Cancela uno para crear otro de este tipo.`, c };
+  }
+  return { ok: true, c };
+}
+
+/** Cápsula "3 de 8" en la cabecera de tus bots. */
+async function pintarCupo(cuenta) {
+  const el = $('c-cupo');
+  if (!el || !cuenta) return;
+  const c = await contarBots(cuenta);
+  const lleno = c.total >= CUPO_TOTAL;
+  el.className = 'c-cupo' + (lleno ? ' lleno' : '');
+  el.innerHTML = lleno
+    ? `<b>${c.total}/${CUPO_TOTAL}</b><span>máximo alcanzado</span>`
+    : `<b>${c.total}/${CUPO_TOTAL}</b><span>bots activos</span>`;
+  el.title = `Smart Grid ${c.grid}/${CUPO_POR_TIPO} · Accumulator ${c.acum}/${CUPO_POR_TIPO} · Cash Out ${c.cash}/${CUPO_POR_TIPO} · DCA ${c.dca}/${CUPO_POR_TIPO}`;
+}
+
 async function onCrear() {
   if (F.tipo === 'acum') return onCrearAcum();
   if (F.tipo === 'cash') return onCrearCashOut();
@@ -1897,6 +1957,9 @@ async function onCrear() {
       await gb.aprobarToken(p.base, baseNeed);
     }
     i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu bot con tu configuración y empieza a vigilar el mercado.<br><br>Confirma en tu wallet.`);
+    // Cupo: máximo {CUPO_TOTAL} bots y {CUPO_POR_TIPO} de cada tipo.
+    const _cupo = await cupoLibre(cuenta, 'grid');
+    if (!_cupo.ok) { modalError(_cupo.motivo); return; }
     await gb.crearRejilla(config);
     avisarKeeper(wallet.cuentaActual());
 
@@ -2124,6 +2187,9 @@ async function onCrearAcum() {
     if (aQ < quoteNeed) { i++; modalBusy(`<b>Paso ${i} de ${pasos} — Permiso de ${quote.simbolo}.</b><br>Para que el bot compre cuando el precio baje.<br><br>Confirma en tu wallet.`); await gb.aprobarToken(p.quote, quoteNeed); }
     if (aB < baseNeed) { i++; modalBusy(`<b>Paso ${i} de ${pasos} — Permiso de ${base.simbolo}.</b><br>Para que pueda vender todo lo acumulado.<br><br>Confirma en tu wallet.`); await gb.aprobarToken(p.base, baseNeed); }
     i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu acumulador y hace la compra inicial.<br><br>Confirma en tu wallet.`);
+    // Cupo: máximo {CUPO_TOTAL} bots y {CUPO_POR_TIPO} de cada tipo.
+    const _cupo = await cupoLibre(cuenta, 'acum');
+    if (!_cupo.ok) { modalError(_cupo.motivo); return; }
     await gb.crearRejilla(config);
     avisarKeeper(wallet.cuentaActual());
     recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'acum', objetivo: p.objetivoPct, botId,
@@ -2238,6 +2304,9 @@ async function onCrearCashOut() {
     // Paso final: encender (firma aparte)
     await pasoWallet('Encender el bot', 'Última firma: se crea tu Cash Out y queda vigilando el precio.<br><br>Toca <b>Continuar</b> y confirma en tu wallet.');
     modalBusy('Encendiendo tu bot… firma en tu wallet.');
+    // Cupo: máximo {CUPO_TOTAL} bots y {CUPO_POR_TIPO} de cada tipo.
+    const _cupo = await cupoLibre(cuenta, 'cash');
+    if (!_cupo.ok) { modalError(_cupo.motivo); return; }
     await gb.crearRejilla(config);
     avisarKeeper(wallet.cuentaActual());
     recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total: config._valorActual, cantBase: cantidad, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'cash', targetPrice, botId });
@@ -2306,6 +2375,9 @@ async function onCrearDCA() {
     const pasos = (aQ < quoteNeed ? 1 : 0) + 1; let i = 0;
     if (aQ < quoteNeed) { i++; modalBusy(`<b>Paso ${i} de ${pasos} — Permiso de ${quote.simbolo}.</b><br>Le das permiso al bot para comprar con tus ${quote.simbolo} en cada ciclo (puedes revocarlo cuando quieras).<br><br>Confirma en tu wallet.`); await gb.aprobarToken(p.quote, quoteNeed); }
     i++; modalBusy(`<b>Paso ${i} de ${pasos} — Encender.</b><br>Se crea tu DCA y hace la primera compra ahora.<br><br>Confirma en tu wallet.`);
+    // Cupo: máximo {CUPO_TOTAL} bots y {CUPO_POR_TIPO} de cada tipo.
+    const _cupo = await cupoLibre(cuenta, 'dca');
+    if (!_cupo.ok) { modalError(_cupo.motivo); return; }
     await gb.crearRejilla(config);
     avisarKeeper(wallet.cuentaActual());
     recordarPar(cuenta, config.base, config.quote, { decQuote: quote.decimals, decBase: base.decimals, simBase: base.simbolo, simQuote: quote.simbolo, total: monto, entry: config._Pnow, creadoLocal: Date.now(), tipo: 'dca', intervalo, comprasMax, botId });
@@ -2421,6 +2493,7 @@ async function refrescarRejillas() {
         </div>`;
     const irC = $('c-ir-crear');
     if (irC) irC.onclick = () => { const t = document.querySelector('#colmena-app .bot-tab'); if (t) { t.click(); t.scrollIntoView({ behavior: 'smooth', block: 'center' }); } };
+    pintarCupo(cuenta);
     enganchar(cuenta);
     wireMinCancel(cont);
     activarContadores();
