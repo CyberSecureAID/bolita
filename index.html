@@ -31,13 +31,16 @@
   <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
   <link rel="stylesheet" href="assets/css/styles.css">
   <style>
-    html, body { background: var(--bg); margin: 0; min-height: 100%; }
+    /* Negro del bot desde el primer instante. Antes heredaba el verde de la
+       Bolita (--bg: #030B08) y se veía un destello verde al entrar. */
+    html, body { background: #0b0e11; margin: 0; min-height: 100%; }
+    #colmena-app { background: #0b0e11; }
     #colmena-app { min-height: 100vh; }
   </style>
 </head>
 <body>
   <div id="colmena-app"></div>
-  <script type="module" src="assets/js/gridbot-ui.js?v=79"></script>
+  <script type="module" src="assets/js/gridbot-ui.js?v=80"></script>
   <script>
   /* Red de seguridad: si en 20 s la app no arrancó (CDN caído, red lenta), avisamos
      en vez de dejar un "Cargando…" eterno. */
