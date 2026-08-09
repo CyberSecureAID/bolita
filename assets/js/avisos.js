@@ -2,8 +2,8 @@
 // Módulo independiente. No usa servidores: lee los eventos directamente de la blockchain.
 // La librería vive en ESTE repositorio. Carga directa: sin CDN, sin esperas,
 // sin nada externo que pueda quedarse colgado y dejar la app en 'Cargando…'.
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=82';
-import * as wallet from './wallet.js?v=82';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=83';
+import * as wallet from './wallet.js?v=83';
 
 const MARKET = '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18';
 const RPCS = [

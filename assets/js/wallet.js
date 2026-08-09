@@ -33,6 +33,73 @@ const est = {
 
 const proveedores6963 = [];
 const CLAVE_PREF = 'aurex-wallet';
+
+/* ══════════════ WalletConnect ══════════════
+   Sirve cuando NO hay wallet dentro del navegador: la app instalada en el
+   teléfono, o un ordenador sin extensión. El usuario aprueba en su wallet
+   (que se abre encima) o escanea un QR, y vuelve aquí con la sesión lista.
+   La librería pesa, así que se carga SOLO al pulsar conectar.            */
+const WC_PROJECT_ID = 'd71edd60ffa5f29b2c6e1b366797bc2f';
+let _wcProv = null, _wcCargando = null;
+
+function cargarWC() {
+  if (window['@walletconnect/ethereum-provider']) return Promise.resolve(true);
+  if (_wcCargando) return _wcCargando;
+  _wcCargando = new Promise((res) => {
+    // La librería espera variables que en el navegador no existen.
+    window.global = window.global || window;
+    window.process = window.process || { env: {}, version: '', nextTick: (f) => setTimeout(f, 0) };
+    const sc = document.createElement('script');
+    sc.src = new URL('./vendor/walletconnect.umd.js', import.meta.url).href;
+    sc.onload = () => res(true);
+    sc.onerror = () => res(false);
+    document.head.appendChild(sc);
+    setTimeout(() => res(!!window['@walletconnect/ethereum-provider']), 15000);
+  });
+  return _wcCargando;
+}
+
+/** ¿Merece la pena ofrecer WalletConnect? (no hay wallet dentro del navegador) */
+export function necesitaWalletConnect() {
+  return !window.ethereum && proveedores6963.length === 0;
+}
+
+/** Conecta por WalletConnect. Abre la wallet del móvil o muestra un QR. */
+export async function conectarWalletConnect() {
+  if (!(await cargarWC())) throw new Error('No se pudo cargar WalletConnect');
+  const ns = window['@walletconnect/ethereum-provider'];
+  const EthereumProvider = ns.EthereumProvider || ns.default;
+
+  if (!_wcProv) {
+    _wcProv = await EthereumProvider.init({
+      projectId: WC_PROJECT_ID,
+      chains: [56],                       // BNB Smart Chain
+      optionalChains: [56],
+      showQrModal: true,                  // QR en ordenador, enlace directo en móvil
+      rpcMap: { 56: 'https://bsc-dataseed.binance.org' },
+      metadata: {
+        name: 'Aurex Finance',
+        description: 'Bots que compran barato y venden caro por ti, en tu propia wallet.',
+        url: location.origin,
+        icons: [location.origin + '/bot-algoritmico/assets/img/apple-touch-icon.png']
+      }
+    });
+  }
+
+  await _wcProv.connect();
+  const cuentas = _wcProv.accounts || [];
+  if (!cuentas.length) throw new Error('SIN_CUENTAS');
+
+  est.proveedor = _wcProv;
+  est.cuenta = cuentas[0];
+  est.chainId = '0x38';
+  est.info = { name: 'WalletConnect', icon: '' };
+  engancharEventos(_wcProv);
+  guardarPref('walletconnect');
+  try { localStorage.removeItem(CLAVE_SALIDA); } catch (_) {}
+  avisar();
+  return est.cuenta;
+}
 const idDe = (d) => String(d?.info?.rdns || d?.info?.uuid || d?.info?.name || '').toLowerCase();
 const prefGuardada = () => { try { return localStorage.getItem(CLAVE_PREF) || ''; } catch (_) { return ''; } };
 const guardarPref = (id) => { try { id ? localStorage.setItem(CLAVE_PREF, id) : localStorage.removeItem(CLAVE_PREF); } catch (_) {} };

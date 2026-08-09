@@ -5,16 +5,16 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=82';
-import * as wallet from './wallet.js?v=82';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=82';
-import * as perfil from './perfil.js?v=82';
-import * as prizepool from './prizepool.js?v=82';
-import * as tutorial from './tutorial.js?v=82';
-import * as market from './market.js?v=82';
-import * as avisos from './avisos.js?v=82';
-import * as grafica from './grafica.js?v=82';
-import * as extras from './extras.js?v=82';
+import * as gb from './gridbot.js?v=83';
+import * as wallet from './wallet.js?v=83';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=83';
+import * as perfil from './perfil.js?v=83';
+import * as prizepool from './prizepool.js?v=83';
+import * as tutorial from './tutorial.js?v=83';
+import * as market from './market.js?v=83';
+import * as avisos from './avisos.js?v=83';
+import * as grafica from './grafica.js?v=83';
+import * as extras from './extras.js?v=83';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -165,6 +165,7 @@ function inyectarEstilo() {
   #wsel .wsel-b:hover{background:rgba(255,255,255,.06);border-color:var(--line)}
   #wsel .wsel-b.on{background:rgba(232,184,75,.1);border-color:rgba(232,184,75,.4)}
   #wsel .wsel-b img,#wsel .wsel-i{width:26px;height:26px;border-radius:7px;flex:0 0 auto;object-fit:contain;background:rgba(255,255,255,.06)}
+  #wsel .wsel-i.wc{display:grid;place-items:center;background:rgba(59,153,252,.16);color:#3b99fc}
   #wsel .wsel-b b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #wsel .wsel-ok{font-family:var(--mono);font-size:8.5px;color:var(--neon-lit);background:rgba(46,232,106,.14);border:1px solid rgba(46,232,106,.4);border-radius:7px;padding:2px 7px;flex:0 0 auto}
   #wsel .wsel-v{font-family:var(--sans);font-size:12px;color:var(--ink-3);line-height:1.55;padding:10px}
@@ -1070,13 +1071,17 @@ function abrirSelectorWallet(ancla) {
   d.innerHTML = `<div class="wsel-bg"></div>
     <div class="wsel-p">
       <div class="wsel-t">Tus wallets</div>
-      ${lista.length ? lista.map((w) => `
+      ${lista.map((w) => `
         <button class="wsel-b ${w.activa ? 'on' : ''}" data-w="${escT(w.id)}">
           ${w.icono ? `<img src="${escT(w.icono)}" alt="">` : '<span class="wsel-i"></span>'}
           <b>${escT(w.nombre)}</b>
           ${w.activa ? '<span class="wsel-ok">Conectada</span>' : ''}
-        </button>`).join('')
-        : '<div class="wsel-v">No detectamos otras wallets instaladas.<br>Instala MetaMask, Trust, Phantom o SafePal y aparecerán aquí.</div>'}
+        </button>`).join('')}
+      <button class="wsel-b" data-wc="1">
+        <span class="wsel-i wc"><svg viewBox="0 0 32 32" width="18" height="18" fill="currentColor"><path d="M8.4 11.7c4.2-4.1 11-4.1 15.2 0l.5.5c.2.2.2.5 0 .7l-1.7 1.7c-.1.1-.3.1-.4 0l-.7-.7c-2.9-2.9-7.7-2.9-10.6 0l-.8.7c-.1.1-.3.1-.4 0L7.8 12.9c-.2-.2-.2-.5 0-.7l.6-.5zm18.8 3.5 1.5 1.5c.2.2.2.5 0 .7l-6.8 6.7c-.2.2-.5.2-.7 0L16.4 19c0-.1-.1-.1-.2 0l-4.8 4.8c-.2.2-.5.2-.7 0l-6.8-6.7c-.2-.2-.2-.5 0-.7l1.5-1.5c.2-.2.5-.2.7 0l4.8 4.8c.1.1.2.1.2 0l4.8-4.8c.2-.2.5-.2.7 0l4.8 4.8c.1.1.2.1.2 0l4.8-4.8c.2-.2.5-.2.7 0z"/></svg></span>
+        <b>Otra wallet (QR)</b>
+      </button>
+      ${lista.length === 0 ? '<div class="wsel-v">No hay wallets en este navegador. Usa la opción de arriba para conectar desde tu teléfono.</div>' : ''}
     </div>`;
   document.body.appendChild(d);
   // colocar justo debajo de la cápsula
@@ -1087,6 +1092,8 @@ function abrirSelectorWallet(ancla) {
 
   const cerrar = () => d.remove();
   d.querySelector('.wsel-bg').onclick = cerrar;
+  const bwc = d.querySelector('[data-wc]');
+  if (bwc) bwc.onclick = () => { cerrar(); hacerConexion(() => wallet.conectarWalletConnect()); };
   d.querySelectorAll('[data-w]').forEach((b) => b.onclick = () => {
     const id = b.getAttribute('data-w'); cerrar();
     Promise.resolve().then(() => wallet.conectarCon(id)).catch((e) => {
@@ -1122,12 +1129,24 @@ function avisarKeeper(cuenta) {
   try { fetch(`${KEEPER_URL}/registrar?u=${cuenta}`, { mode: 'cors' }).catch(() => {}); } catch (_) {}
 }
 
-function conectarWallet() {
-  Promise.resolve().then(() => wallet.conectar()).catch((e) => {
+function hacerConexion(fn) {
+  Promise.resolve().then(fn).catch((e) => {
     const el = $('c-hero-msg') || $('c-msg');
     console.warn('[Aurex] detalle técnico:', e);
-    if (el) aviso(el, 'err', enCristiano(e) + ' Si estás en el móvil, abre esta página desde el navegador de tu wallet.', 8000);
+    if (el) aviso(el, 'err', enCristiano(e), 8000);
   });
+}
+
+function conectarWallet() {
+  // Sin wallet dentro del navegador (app instalada en el móvil, o un PC sin
+  // extensión): WalletConnect abre la wallet del teléfono o muestra un QR.
+  try {
+    if (wallet.necesitaWalletConnect && wallet.necesitaWalletConnect()) {
+      hacerConexion(() => wallet.conectarWalletConnect());
+      return;
+    }
+  } catch (_) {}
+  hacerConexion(() => wallet.conectar());
 }
 
 function wireHeader() {
