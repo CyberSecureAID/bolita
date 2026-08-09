@@ -67,6 +67,25 @@ function cargarWC() {
   return _wcCargando;
 }
 
+/** Abre esta misma página DENTRO del navegador de MetaMask o Trust.
+ *  Es la vía que nunca falla en el móvil: allí la wallet está inyectada y
+ *  conecta al instante. No necesita librerías ni servidores intermedios. */
+export function abrirEnWalletMovil(cual) {
+  const limpia = (location.host + location.pathname).replace(/\/$/, '');
+  const destinos = {
+    metamask: 'https://metamask.app.link/dapp/' + limpia,
+    trust: 'https://link.trustwallet.com/open_url?coin_id=20000714&url=' + encodeURIComponent(location.href),
+    safepal: 'https://link.safepal.io/dapp?url=' + encodeURIComponent(location.href)
+  };
+  const url = destinos[cual] || destinos.metamask;
+  location.href = url;
+}
+
+/** ¿Estamos en un móvil? */
+export function esMovil() {
+  return /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
 /** ¿Merece la pena ofrecer WalletConnect? (no hay wallet dentro del navegador) */
 export function necesitaWalletConnect() {
   return !window.ethereum && proveedores6963.length === 0;

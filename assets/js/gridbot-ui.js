@@ -395,6 +395,17 @@ function inyectarEstilo() {
   #colmena-app .seg button.on{background:var(--ac-m);color:var(--ac-t);border-color:var(--ac-d);font-weight:700}
   #colmena-app .avz{border-top:1px solid var(--line-soft);margin-top:18px;padding-top:4px}
   #colmena-app .chart{width:100%;height:auto;display:block;border-radius:14px;background:#0d1117;border:1px solid var(--line-soft)}
+  #cmov{position:fixed;inset:0;z-index:9900;display:flex;align-items:flex-end;justify-content:center}
+  #cmov .cm-bg{position:absolute;inset:0;background:rgba(3,5,8,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  #cmov .cm-c{position:relative;width:100%;max-width:420px;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft);border-radius:22px 22px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -20px 60px rgba(0,0,0,.75);text-align:center}
+  #cmov .cm-x{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6;cursor:pointer}
+  #cmov .cm-t{font-family:var(--display);font-weight:800;font-size:20px;color:var(--gold)}
+  #cmov .cm-s{font-family:var(--sans);font-size:12.5px;color:#8b96a3;margin:5px 0 16px}
+  #cmov .cm-eti{font-family:var(--mono);font-size:9.5px;color:#6b7681;text-transform:uppercase;letter-spacing:.9px;text-align:left;margin:14px 0 8px}
+  #cmov .cm-b{display:block;width:100%;margin-bottom:8px;padding:15px;border-radius:13px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:#eaecef;font-family:var(--display);font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.4);min-height:50px}
+  #cmov .cm-b.oro{border-color:#c79426;background:linear-gradient(180deg,#f7db8d,var(--gold) 45%,#c79426);color:#3a2800;box-shadow:0 4px 0 #8f6a1a}
+  #cmov .cm-b:active{transform:translateY(2px)}
+  #cmov .cm-n{font-family:var(--sans);font-size:11px;color:#7d8794;line-height:1.45;margin-top:4px}
   #colmena-app .pio-acciones{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;margin-top:14px}
   #colmena-app .pio-acciones .pio-toggle{flex:1;min-width:150px;margin:0}
   /* Misma altura y línea base que "Ver el bot trabajando" */
@@ -1146,15 +1157,47 @@ function hacerConexion(fn) {
 }
 
 function conectarWallet() {
-  // Sin wallet dentro del navegador (app instalada en el móvil, o un PC sin
-  // extensión): WalletConnect abre la wallet del teléfono o muestra un QR.
   try {
     if (wallet.necesitaWalletConnect && wallet.necesitaWalletConnect()) {
+      // En el móvil damos DOS caminos: abrir la web dentro de la wallet (nunca
+      // falla) o WalletConnect. Antes solo había WalletConnect y si fallaba,
+      // el usuario se quedaba sin poder conectar.
+      if (wallet.esMovil && wallet.esMovil()) { opcionesMovil(); return; }
       hacerConexion(() => wallet.conectarWalletConnect());
       return;
     }
   } catch (_) {}
   hacerConexion(() => wallet.conectar());
+}
+
+/* Ventana con las dos vías para conectar desde el teléfono */
+function opcionesMovil() {
+  const prev = $('cmov'); if (prev) prev.remove();
+  const d = document.createElement('div');
+  d.id = 'cmov';
+  d.innerHTML = `<div class="cm-bg"></div>
+    <div class="cm-c">
+      <button class="cm-x" aria-label="Cerrar">✕</button>
+      <div class="cm-t">Conecta tu wallet</div>
+      <div class="cm-s">Elige cómo quieres hacerlo.</div>
+
+      <div class="cm-eti">Lo más sencillo</div>
+      <button class="cm-b oro" data-abrir="metamask">Abrir en MetaMask</button>
+      <button class="cm-b" data-abrir="trust">Abrir en Trust Wallet</button>
+      <button class="cm-b" data-abrir="safepal">Abrir en SafePal</button>
+      <div class="cm-n">Se abre Aurex dentro de tu wallet y conecta solo.</div>
+
+      <div class="cm-eti">O sin salir de aquí</div>
+      <button class="cm-b" data-wc="1">Conectar con WalletConnect</button>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => { const e = $('cmov'); if (e) e.remove(); };
+  d.querySelector('.cm-bg').onclick = cerrar;
+  d.querySelector('.cm-x').onclick = cerrar;
+  d.querySelectorAll('[data-abrir]').forEach((b) => b.onclick = () => {
+    wallet.abrirEnWalletMovil(b.getAttribute('data-abrir'));
+  });
+  d.querySelector('[data-wc]').onclick = () => { cerrar(); hacerConexion(() => wallet.conectarWalletConnect()); };
 }
 
 function wireHeader() {
