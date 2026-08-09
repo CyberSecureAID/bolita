@@ -1,0 +1,24 @@
+{
+  "name": "Aurex Finance — Bots de trading en tu wallet",
+  "short_name": "Aurex",
+  "description": "Bots que compran barato y venden caro por ti, en tu propia wallet. Sin custodia y sin KYC.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0e11",
+  "theme_color": "#0b0e11",
+  "lang": "es",
+  "dir": "ltr",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    { "src": "assets/img/favicon-32.png",      "sizes": "32x32",   "type": "image/png" },
+    { "src": "assets/img/apple-touch-icon.png","sizes": "180x180", "type": "image/png" },
+    { "src": "assets/img/logo-samurai.webp",   "sizes": "512x512", "type": "image/webp", "purpose": "any" },
+    { "src": "assets/img/logo-samurai.webp",   "sizes": "512x512", "type": "image/webp", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Mis bots",   "url": "./index.html#bots",   "description": "Ver cómo van tus bots" },
+    { "name": "Marketplace","url": "./index.html#market", "description": "Comprar y vender entre personas" }
+  ]
+}
