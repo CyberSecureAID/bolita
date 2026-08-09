@@ -94,31 +94,85 @@ export function panelInstalar(ancla) {
     const nota = $('ip-nota');
     if (!nota) return;
     nota.className = 'ip-pasos';
-    // Cada navegador lo pone en un sitio distinto: se lo decimos exacto.
-    const ua = navigator.userAgent;
-    const esBrave = !!navigator.brave || /Brave/i.test(ua);
-    const esEdge = /Edg\//.test(ua);
-    const esChrome = /Chrome/.test(ua) && !esEdge && !esBrave;
-    nota.innerHTML = iOS
-      ? `<div class="ip-p"><span>1</span>Toca <b>Compartir</b> en Safari</div>
-         <div class="ip-p"><span>2</span>Elige <b>Añadir a pantalla de inicio</b></div>`
-      : movil
-        ? `<div class="ip-p"><span>1</span>Abre el menú <b>⋮</b> del navegador</div>
-           <div class="ip-p"><span>2</span>Elige <b>Instalar aplicación</b></div>`
-        : esBrave
-          ? `<div class="ip-p"><span>1</span>Arriba, a la derecha de la barra de búsqueda, busca un <b>cuadrito con una flecha</b> hacia arriba</div>
-             <div class="ip-p"><span>2</span>Tócalo y elige <b>Instalar</b></div>`
-          : esChrome
-            ? `<div class="ip-p"><span>1</span>Arriba, al lado de la <b>estrella</b> de favoritos, verás una píldora azul <b>Abrir en la app</b></div>
-               <div class="ip-p"><span>2</span>Tócala para instalarla</div>`
-            : `<div class="ip-p"><span>1</span>Arriba, a la derecha de la barra de búsqueda, busca el <b>icono de instalar</b></div>
-               <div class="ip-p"><span>2</span>Elige <b>Instalar Aurex</b></div>`;
+    // En vez de un muro de texto, un botón que abre instrucciones con dibujos.
     si.textContent = 'Ya está instalada';
     si.disabled = true;
+    nota.className = 'ip-n';
+    nota.innerHTML = '';
+    if (!movil && !$('ip-comor')) {
+      si.insertAdjacentHTML('afterend', '<button class="ip-b sec" id="ip-comor">Cómo instalarla</button>');
+      $('ip-comor').onclick = () => { cerrarPanel(); ventanaInstrucciones(); };
+    }
   };
 
   const qr = $('ip-qr');
   if (qr) dibujarQR(qr);
+}
+
+/** Ventana con instrucciones visuales, distintas según el navegador. */
+export function ventanaInstrucciones() {
+  estilos();
+  const prev = $('inst-guia'); if (prev) prev.remove();
+  const ua = navigator.userAgent;
+  const esBrave = !!navigator.brave || /Brave/i.test(ua);
+  const esEdge = /Edg\//.test(ua);
+  const esChrome = /Chrome/.test(ua) && !esEdge && !esBrave;
+  const nav = esBrave ? 'Brave' : esChrome ? 'Chrome' : esEdge ? 'Edge' : 'tu navegador';
+
+  // Dibujo de la barra del navegador señalando dónde está el icono.
+  const barra = (tipo) => `
+    <svg viewBox="0 0 420 62" class="gi-svg">
+      <rect x="0" y="0" width="420" height="62" rx="10" fill="#1b2027" stroke="#2b3139"/>
+      <rect x="14" y="17" width="300" height="28" rx="14" fill="#0b0e12" stroke="#2b3139"/>
+      <text x="30" y="36" fill="#7d8794" font-family="monospace" font-size="11">cybersecureaid.github.io</text>
+      ${tipo === 'chrome'
+        ? `<rect x="322" y="19" width="66" height="24" rx="12" fill="#1a73e8"/>
+           <circle cx="334" cy="31" r="6" fill="#E8B84B"/>
+           <text x="344" y="35" fill="#fff" font-family="system-ui" font-size="9">Abrir…</text>
+           <circle cx="322" cy="31" r="21" fill="none" stroke="#E8B84B" stroke-width="2.5" stroke-dasharray="4 3"><animate attributeName="r" values="21;25;21" dur="1.6s" repeatCount="indefinite"/></circle>`
+        : `<rect x="352" y="21" width="20" height="20" rx="4" fill="none" stroke="#b7bdc6" stroke-width="1.8"/>
+           <path d="M357 36 L367 26 M367 26 h-5 M367 26 v5" stroke="#b7bdc6" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+           <circle cx="362" cy="31" r="19" fill="none" stroke="#E8B84B" stroke-width="2.5" stroke-dasharray="4 3"><animate attributeName="r" values="19;23;19" dur="1.6s" repeatCount="indefinite"/></circle>`}
+    </svg>`;
+
+  const d = document.createElement('div');
+  d.id = 'inst-guia';
+  d.innerHTML = `<div class="gi-bg"></div>
+    <div class="gi-c">
+      <button class="gi-x" aria-label="Cerrar">✕</button>
+      <div class="gi-t">Instalar Aurex en tu equipo</div>
+      <div class="gi-s">Estás usando <b>${nav}</b>. Sigue estos pasos.</div>
+
+      <div class="gi-paso">
+        <div class="gi-num">1</div>
+        <div class="gi-txt">
+          <b>Mira arriba, a la derecha de la barra de búsqueda</b>
+          <span>${esChrome
+            ? 'Verás una píldora azul que dice «Abrir en la app», con el icono de Aurex.'
+            : 'Verás un cuadradito con una flecha que apunta hacia arriba.'}</span>
+        </div>
+      </div>
+      ${barra(esChrome ? 'chrome' : 'brave')}
+
+      <div class="gi-paso">
+        <div class="gi-num">2</div>
+        <div class="gi-txt"><b>Haz clic ahí</b><span>Se abrirá Aurex como una aplicación, en su propia ventana.</span></div>
+      </div>
+
+      <div class="gi-paso">
+        <div class="gi-num">3</div>
+        <div class="gi-txt">
+          <b>Déjala fija en la barra de tareas</b>
+          <span>Con Aurex ya abierta, busca su icono abajo en la barra de tareas de Windows, haz <b>clic derecho</b> y elige <b>«Anclar a la barra de tareas»</b>. Así la tendrás siempre a un clic.</span>
+        </div>
+      </div>
+
+      <div class="gi-nota">Si no ves ese icono, es que Aurex ya está instalada. Búscala en tu menú de inicio.</div>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => d.remove();
+  d.querySelector('.gi-bg').onclick = cerrar;
+  d.querySelector('.gi-x').onclick = cerrar;
 }
 
 /* QR de la web, para instalarla en el teléfono desde el ordenador. */
@@ -457,11 +511,30 @@ function estilos() {
   #inst-panel .ip-p b{color:var(--gold,#E8B84B)}
   #inst-panel .ip-p span{flex:0 0 auto;margin-top:1px;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:11px}
   #inst-panel .ip-sep{height:1px;background:rgba(255,255,255,.08);margin:14px 0 10px}
+  #inst-panel .ip-b.sec{margin-top:9px;background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:var(--gold,#E8B84B);box-shadow:0 3px 0 rgba(0,0,0,.4);font-size:13px}
+  #inst-panel .ip-b.sec:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+  /* El panel nunca se sale de la pantalla: si no cabe, se desplaza */
+  #inst-panel .ip-c{max-height:calc(100vh - 90px);overflow-y:auto}
   #inst-panel .ip-qr{background:#fff;border-radius:12px;padding:9px;margin-top:10px}
   #inst-panel .ip-qr svg{width:100%;height:auto;display:block}
   #inst-panel .ip-nqr{color:#333;font-size:9.5px;word-break:break-all;padding:8px}
   .btn-compartir{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 15px;border-radius:11px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:var(--gold,#E8B84B);font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.4);min-height:40px}
   .btn-compartir:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+  #inst-guia{position:fixed;inset:0;z-index:9860;display:flex;align-items:center;justify-content:center;padding:18px}
+  #inst-guia .gi-bg{position:absolute;inset:0;background:rgba(3,5,8,.88);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  #inst-guia .gi-c{position:relative;width:100%;max-width:480px;max-height:calc(100vh - 40px);overflow-y:auto;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:20px;padding:26px 22px 22px;box-shadow:0 30px 90px rgba(0,0,0,.8)}
+  #inst-guia .gi-x{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;line-height:1;background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6;cursor:pointer;font-size:14px;padding:0}
+  #inst-guia .gi-x:hover{color:#eaecef;border-color:var(--gold-soft,#C9A84B)}
+  #inst-guia .gi-t{font-family:var(--display,sans-serif);font-weight:800;font-size:21px;color:var(--gold,#E8B84B);padding-right:40px}
+  #inst-guia .gi-s{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;margin:6px 0 18px}
+  #inst-guia .gi-s b{color:#eaecef}
+  #inst-guia .gi-paso{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+  #inst-guia .gi-num{flex:0 0 auto;width:27px;height:27px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:13px}
+  #inst-guia .gi-txt b{display:block;font-family:var(--display,sans-serif);font-weight:800;font-size:14.5px;color:#eaecef;line-height:1.35}
+  #inst-guia .gi-txt span{display:block;font-family:var(--sans,sans-serif);font-size:12.5px;color:#8b96a3;line-height:1.55;margin-top:3px}
+  #inst-guia .gi-txt span b{display:inline;font-size:12.5px;color:var(--gold-soft,#C9A84B)}
+  #inst-guia .gi-svg{width:100%;height:auto;display:block;margin:2px 0 18px;border-radius:10px}
+  #inst-guia .gi-nota{margin-top:6px;padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.03);border:1px dashed #3a424c;font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;line-height:1.5;text-align:center}
   #cop-av{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:9950;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);color:#eaecef;font-family:var(--sans,sans-serif);font-size:13px;padding:12px 18px;border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.7)}
   #hist-av{position:fixed;inset:0;z-index:9850;display:flex;align-items:center;justify-content:center;padding:18px}
   #hist-av .ha-bg{position:absolute;inset:0;background:rgba(3,5,8,.84);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
