@@ -5,40 +5,97 @@ const $ = (id) => document.getElementById(id);
 const num = (n, d = 2) => Number(n).toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 /* ══════════════ 1) INSTALAR LA APP ══════════════ */
+/* Nada de banners que tapan la pantalla: el usuario abre el panel cuando
+   quiere, desde el botón "Instalar" del menú. */
 let _instalador = null;
-const CLAVE_NO = 'aurex-no-instalar';
 
 export function iniciarInstalacion() {
-  estilos();
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    _instalador = e;
-    mostrarBanner();
-  });
-  window.addEventListener('appinstalled', () => { ocultarBanner(); _instalador = null; });
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _instalador = e; marcarBoton(true); });
+  window.addEventListener('appinstalled', () => { _instalador = null; marcarBoton(false); cerrarPanel(); });
+  // Si ya está instalada, el botón sobra.
+  if (yaInstalada()) marcarBoton(false);
 }
 
-function yaDijoQueNo() { try { return localStorage.getItem(CLAVE_NO) === '1'; } catch (_) { return false; } }
-function ocultarBanner() { const b = $('inst-banner'); if (b) b.remove(); }
+function yaInstalada() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function marcarBoton(listo) {
+  const b = $('c-instalar');
+  if (!b) return;
+  if (yaInstalada()) { b.style.display = 'none'; return; }
+  b.classList.toggle('listo', !!listo);
+}
+function cerrarPanel() { const p = $('inst-panel'); if (p) p.remove(); }
 
-function mostrarBanner() {
-  if (yaDijoQueNo() || $('inst-banner')) return;
-  if (window.matchMedia('(display-mode: standalone)').matches) return;   // ya instalada
+/** Panel desplegable bajo el botón "Instalar". */
+export function panelInstalar(ancla) {
+  estilos();
+  if ($('inst-panel')) { cerrarPanel(); return; }
+
+  const puede = !!_instalador;
+  const iOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const movil = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+
   const d = document.createElement('div');
-  d.id = 'inst-banner';
-  d.innerHTML = `
-    <div class="inst-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 18h.01"/></svg></div>
-    <div class="inst-tx"><b>Instala Aurex</b><span>Se abre al instante, con su icono y a pantalla completa.</span></div>
-    <button class="inst-si" id="inst-si">Instalar</button>
-    <button class="inst-no" id="inst-no" aria-label="Ahora no">✕</button>`;
+  d.id = 'inst-panel';
+  d.innerHTML = `<div class="ip-bg"></div>
+    <div class="ip-c">
+      <div class="ip-top">
+        <img class="ip-ico" src="assets/img/aurex-192.png" alt="">
+        <div><b>Aurex</b><span>Bots de trading en tu wallet</span></div>
+      </div>
+      ${puede
+        ? `<button class="ip-b" id="ip-si">Instalar la app</button>
+           <div class="ip-n">Se abre al instante, con su icono y a pantalla completa.</div>`
+        : iOS
+          ? `<div class="ip-pasos">
+               <div class="ip-p"><span>1</span>Toca el botón <b>Compartir</b> de Safari</div>
+               <div class="ip-p"><span>2</span>Elige <b>Añadir a pantalla de inicio</b></div>
+             </div>`
+          : movil
+            ? `<div class="ip-pasos">
+                 <div class="ip-p"><span>1</span>Abre el menú <b>⋮</b> de tu navegador</div>
+                 <div class="ip-p"><span>2</span>Elige <b>Instalar aplicación</b></div>
+               </div>`
+            : `<div class="ip-n">Instálala también en tu teléfono: escanea este código.</div>
+               <div class="ip-qr" id="ip-qr"></div>`}
+    </div>`;
   document.body.appendChild(d);
-  $('inst-si').onclick = async () => {
-    if (!_instalador) { ocultarBanner(); return; }
+
+  const r = ancla ? ancla.getBoundingClientRect() : { bottom: 60, right: window.innerWidth - 14 };
+  const c = d.querySelector('.ip-c');
+  c.style.top = (r.bottom + 8) + 'px';
+  c.style.right = Math.max(10, window.innerWidth - r.right) + 'px';
+
+  d.querySelector('.ip-bg').onclick = cerrarPanel;
+  const si = $('ip-si');
+  if (si) si.onclick = async () => {
+    if (!_instalador) { cerrarPanel(); return; }
     _instalador.prompt();
     try { await _instalador.userChoice; } catch (_) {}
-    _instalador = null; ocultarBanner();
+    _instalador = null; cerrarPanel();
   };
-  $('inst-no').onclick = () => { try { localStorage.setItem(CLAVE_NO, '1'); } catch (_) {} ocultarBanner(); };
+
+  const qr = $('ip-qr');
+  if (qr) dibujarQR(qr);
+}
+
+/* QR de la web, para instalarla en el teléfono desde el ordenador. */
+async function dibujarQR(cont) {
+  const url = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const pinta = () => {
+    try {
+      const q = window.qrcode(0, 'M');
+      q.addData(url); q.make();
+      cont.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    } catch (_) { cont.innerHTML = `<div class="ip-nqr">${url}</div>`; }
+  };
+  if (window.qrcode) return pinta();
+  const sc = document.createElement('script');
+  sc.src = 'assets/js/vendor/qrcode.js?v=85';
+  sc.onload = pinta;
+  sc.onerror = () => { cont.innerHTML = `<div class="ip-nqr">${url}</div>`; };
+  document.head.appendChild(sc);
 }
 
 /* ══════════════ 2) COMPARTIR EL RESULTADO COMO IMAGEN ══════════════ */
@@ -205,16 +262,26 @@ function estilos() {
   if ($('extras-css')) return;
   const s = document.createElement('style'); s.id = 'extras-css';
   s.textContent = `
-  #inst-banner{position:fixed;left:14px;right:14px;bottom:14px;z-index:9700;display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:16px;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);box-shadow:0 18px 50px rgba(0,0,0,.7);animation:instIn .25s ease both;max-width:460px;margin:0 auto}
-  @keyframes instIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-  #inst-banner .inst-ico{flex:0 0 auto;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(232,184,75,.13);border:1px solid rgba(232,184,75,.35);color:var(--gold,#E8B84B)}
-  #inst-banner .inst-tx{flex:1;min-width:0}
-  #inst-banner .inst-tx b{display:block;font-family:var(--display,sans-serif);font-weight:800;font-size:14.5px;color:#eaecef}
-  #inst-banner .inst-tx span{display:block;font-family:var(--sans,sans-serif);font-size:11.5px;color:#8b96a3;line-height:1.4;margin-top:2px}
-  #inst-banner .inst-si{flex:0 0 auto;padding:11px 18px;border-radius:11px;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 3px 0 #8f6a1a;min-height:44px}
-  #inst-banner .inst-no{flex:0 0 auto;width:32px;height:32px;border-radius:9px;border:1px solid #2b3139;background:transparent;color:#7d8794;cursor:pointer;font-size:13px}
+  #colmena-app .c-loteria.listo{color:var(--gold)}
+  #inst-panel{position:fixed;inset:0;z-index:9700}
+  #inst-panel .ip-bg{position:absolute;inset:0}
+  #inst-panel .ip-c{position:absolute;width:288px;max-width:calc(100vw - 20px);background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:16px;padding:16px;box-shadow:0 22px 60px rgba(0,0,0,.75);animation:ipIn .16s ease both}
+  @keyframes ipIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  #inst-panel .ip-top{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+  #inst-panel .ip-ico{width:44px;height:44px;border-radius:12px;flex:0 0 auto;background:#0b0e11}
+  #inst-panel .ip-top b{display:block;font-family:var(--display,sans-serif);font-weight:800;font-size:16px;color:#eaecef}
+  #inst-panel .ip-top span{display:block;font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;margin-top:1px}
+  #inst-panel .ip-b{width:100%;padding:13px;border-radius:12px;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:0 4px 0 #8f6a1a;min-height:46px}
+  #inst-panel .ip-b:active{transform:translateY(3px);box-shadow:0 1px 0 #8f6a1a}
+  #inst-panel .ip-n{font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;line-height:1.5;margin-top:10px;text-align:center}
+  #inst-panel .ip-pasos{display:flex;flex-direction:column;gap:8px}
+  #inst-panel .ip-p{display:flex;align-items:center;gap:9px;font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.4}
+  #inst-panel .ip-p b{color:var(--gold,#E8B84B)}
+  #inst-panel .ip-p span{flex:0 0 auto;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:11px}
+  #inst-panel .ip-qr{background:#fff;border-radius:12px;padding:9px;margin-top:10px}
+  #inst-panel .ip-qr svg{width:100%;height:auto;display:block}
+  #inst-panel .ip-nqr{color:#333;font-size:9.5px;word-break:break-all;padding:8px}
   .btn-compartir{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 15px;border-radius:11px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:var(--gold,#E8B84B);font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.4);min-height:40px}
-  .btn-compartir:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
-  @media(max-width:560px){#inst-banner .inst-tx span{display:none}}`;
+  .btn-compartir:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}`;
   document.head.appendChild(s);
 }

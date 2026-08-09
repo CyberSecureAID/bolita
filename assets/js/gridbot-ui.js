@@ -1043,7 +1043,7 @@ function headerHTML() {
       <button class="c-swap" id="c-swap" type="button" aria-label="Intercambiar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10 3 6l4-4"/><path d="M3 6h14"/><path d="m17 14 4 4-4 4"/><path d="M21 18H7"/></svg><span class="c-swap-tx">Swap</span></button>
       <button class="c-prize" id="c-prize" type="button" aria-label="Prize Pool"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg><span class="c-prize-tx">Prize Pool</span></button>
       <button class="c-market" id="c-market" type="button" aria-label="Marketplace"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18l-1.5 10.5a2 2 0 0 1-2 1.5H6.5a2 2 0 0 1-2-1.5L3 9z"/><path d="M8 9V6a4 4 0 0 1 8 0v3"/></svg><span class="c-market-tx">Market</span></button>
-      <a class="c-loteria" href="loteria.html"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/></svg><span class="c-lot-tx">Lotería</span></a>
+      <button class="c-loteria" id="c-instalar" type="button" aria-label="Instalar la app"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="c-lot-tx">Instalar</span></button>
       ${right}
     </div>
     <button class="c-menu-btn" id="c-menu-btn" type="button" aria-label="Menú"><span></span><span></span><span></span></button>
@@ -1164,6 +1164,7 @@ function wireHeader() {
   if ($('c-ticker')) $('c-ticker').onclick = () => prizepool.abrirPrizePool();
   tutorial.wireFila(document);
   if ($('c-market')) $('c-market').onclick = () => { avisos.limpiarPunto(); market.abrirMarket(); };
+  if ($('c-instalar')) $('c-instalar').onclick = (e) => { e.stopPropagation(); extras.panelInstalar($('c-instalar')); };
   try { avisos.iniciar(); } catch (_) {}
   try { extras.iniciarInstalacion(); } catch (_) {}
   const hdr = document.querySelector('#colmena-app .c-hdr');
