@@ -5,16 +5,16 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=83';
-import * as wallet from './wallet.js?v=83';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=83';
-import * as perfil from './perfil.js?v=83';
-import * as prizepool from './prizepool.js?v=83';
-import * as tutorial from './tutorial.js?v=83';
-import * as market from './market.js?v=83';
-import * as avisos from './avisos.js?v=83';
-import * as grafica from './grafica.js?v=83';
-import * as extras from './extras.js?v=83';
+import * as gb from './gridbot.js?v=84';
+import * as wallet from './wallet.js?v=84';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=84';
+import * as perfil from './perfil.js?v=84';
+import * as prizepool from './prizepool.js?v=84';
+import * as tutorial from './tutorial.js?v=84';
+import * as market from './market.js?v=84';
+import * as avisos from './avisos.js?v=84';
+import * as grafica from './grafica.js?v=84';
+import * as extras from './extras.js?v=84';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -1106,7 +1106,11 @@ function abrirSelectorWallet(ancla) {
 
 /** Convierte los errores técnicos en algo que se entiende. */
 function enCristiano(e) {
-  const t = String(e?.shortMessage || e?.reason || e?.message || e || '').toLowerCase();
+  const crudo = String(e?.shortMessage || e?.reason || e?.message || e || '');
+  // Los fallos de WalletConnect los mostramos tal cual: hacen falta para
+  // saber qué pasa, y el usuario puede contárnoslo.
+  if (/^WC_/.test(crudo)) return crudo;
+  const t = crudo.toLowerCase();
   if (t.includes('user rejected') || t.includes('denied') || t.includes('rechaz')) return 'Cancelaste la operación en tu wallet.';
   if (t.includes('insufficient funds')) return 'No te alcanza el BNB para pagar la comisión de red.';
   if (t.includes('transfer amount exceeds balance') || t.includes('exceeds balance')) return 'No tienes suficiente saldo de esa moneda.';

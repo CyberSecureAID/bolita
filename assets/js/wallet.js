@@ -49,12 +49,15 @@ function cargarWC() {
     // La librería espera variables que en el navegador no existen.
     window.global = window.global || window;
     window.process = window.process || { env: {}, version: '', nextTick: (f) => setTimeout(f, 0) };
+    window.Buffer = window.Buffer || undefined;
     const sc = document.createElement('script');
-    sc.src = new URL('./vendor/walletconnect.umd.js', import.meta.url).href;
-    sc.onload = () => res(true);
+    // Ruta absoluta desde la raíz del sitio: funciona igual en la app instalada.
+    sc.src = new URL('vendor/walletconnect.umd.js?v=84', new URL('./', import.meta.url)).href;
+    sc.async = true;
+    sc.onload = () => res(!!window['@walletconnect/ethereum-provider']);
     sc.onerror = () => res(false);
     document.head.appendChild(sc);
-    setTimeout(() => res(!!window['@walletconnect/ethereum-provider']), 15000);
+    setTimeout(() => res(!!window['@walletconnect/ethereum-provider']), 25000);   // conexiones lentas
   });
   return _wcCargando;
 }
@@ -66,12 +69,16 @@ export function necesitaWalletConnect() {
 
 /** Conecta por WalletConnect. Abre la wallet del móvil o muestra un QR. */
 export async function conectarWalletConnect() {
-  if (!(await cargarWC())) throw new Error('No se pudo cargar WalletConnect');
+  if (!(await cargarWC())) {
+    throw new Error('WC_CARGA: no se pudo descargar la pieza de conexión (850 KB). Revisa tu conexión e inténtalo otra vez.');
+  }
   const ns = window['@walletconnect/ethereum-provider'];
-  const EthereumProvider = ns.EthereumProvider || ns.default;
+  const EthereumProvider = ns && (ns.EthereumProvider || ns.default);
+  if (!EthereumProvider) throw new Error('WC_LIB: la pieza de conexión no se cargó bien. Recarga la app.');
 
   if (!_wcProv) {
-    _wcProv = await EthereumProvider.init({
+    try {
+      _wcProv = await EthereumProvider.init({
       projectId: WC_PROJECT_ID,
       chains: [56],                       // BNB Smart Chain
       optionalChains: [56],
@@ -80,13 +87,21 @@ export async function conectarWalletConnect() {
       metadata: {
         name: 'Aurex Finance',
         description: 'Bots que compran barato y venden caro por ti, en tu propia wallet.',
-        url: location.origin,
-        icons: [location.origin + '/bot-algoritmico/assets/img/apple-touch-icon.png']
+        url: location.origin + location.pathname.replace(/[^/]*$/, ''),
+        icons: [location.origin + location.pathname.replace(/[^/]*$/, '') + 'assets/img/apple-touch-icon.png']
       }
-    });
+      });
+    } catch (e) {
+      throw new Error('WC_INIT: ' + (e?.message || e));
+    }
   }
 
-  await _wcProv.connect();
+  try { await _wcProv.connect(); }
+  catch (e) {
+    const m = String(e?.message || e || '');
+    if (/reject|denied|cancel|closed/i.test(m)) throw new Error('Cancelaste la conexión.');
+    throw new Error('WC_CONN: ' + m);
+  }
   const cuentas = _wcProv.accounts || [];
   if (!cuentas.length) throw new Error('SIN_CUENTAS');
 
