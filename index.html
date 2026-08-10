@@ -33,6 +33,9 @@
   <!-- App instalable: icono propio, pantalla completa y arranque sin conexión -->
   <link rel="manifest" href="manifest-aurex.webmanifest">
   <meta name="theme-color" content="#0b0e11">
+  <!-- Seguridad: no filtramos a dónde va el usuario ni permitimos que otros
+       sitios averigüen qué hace aquí. -->
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Aurex">
@@ -47,6 +50,28 @@
 <body>
   <div id="colmena-app"></div>
   <script type="module" src="assets/js/gridbot-ui.js?v=107"></script>
+  <script>
+  /* Protección contra "clickjacking": si alguien mete Aurex dentro de un
+     marco en su propia web, podría poner botones falsos encima para que
+     firmes algo sin darte cuenta. Si detectamos que no somos la ventana
+     principal, salimos del marco. No afecta al uso normal. */
+  (function () {
+    try {
+      if (window.top !== window.self) {
+        document.documentElement.style.display = 'none';
+        window.top.location = window.self.location.href;
+      }
+    } catch (_) {
+      // Si ni siquiera podemos mirar la ventana de arriba, es que nos tienen
+      // encerrados en un marco de otro dominio: tapamos la página.
+      document.documentElement.style.display = 'none';
+      document.addEventListener('DOMContentLoaded', () => {
+        document.body.innerHTML = '<div style="font-family:system-ui;color:#eaecef;background:#0b0e11;padding:40px;text-align:center;min-height:100vh"><h2 style="color:#E8B84B">Abre Aurex directamente</h2><p style="color:#8b96a3">Esta página no debe usarse dentro de otro sitio, por tu seguridad.<br><a style="color:#E8B84B" href="https://cybersecureaid.github.io/bot-algoritmico/" target="_top">Ir a Aurex</a></p></div>';
+        document.documentElement.style.display = '';
+      });
+    }
+  })();
+  </script>
   <script>
   /* App instalable. El service worker solo guarda la app (pantalla y código);
      los datos de la blockchain siempre se piden frescos. */
