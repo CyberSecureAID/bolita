@@ -274,7 +274,7 @@ window.NP_BOT_KB = {
          ni espacios. Ejemplo para España: 'https://wa.me/34612345678'
          Para Cuba: 'https://wa.me/5351234567'
          Mientras esté vacío, el botón sencillamente no aparece. */
-      whatsapp:   '',
+      whatsapp:   'https://wa.me/5358648458',
       grupo:      'https://t.me/CriptoCubaOficial',
       grupoTx:    'CriptoCuba Oficial'
     }
