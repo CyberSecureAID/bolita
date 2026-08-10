@@ -5,16 +5,17 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=105';
-import * as wallet from './wallet.js?v=105';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=105';
-import * as perfil from './perfil.js?v=105';
-import * as prizepool from './prizepool.js?v=105';
-import * as tutorial from './tutorial.js?v=105';
-import * as market from './market.js?v=105';
-import * as avisos from './avisos.js?v=105';
-import * as grafica from './grafica.js?v=105';
-import * as extras from './extras.js?v=105';
+import * as gb from './gridbot.js?v=106';
+import * as wallet from './wallet.js?v=106';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=106';
+import * as perfil from './perfil.js?v=106';
+import * as prizepool from './prizepool.js?v=106';
+import * as tutorial from './tutorial.js?v=106';
+import * as market from './market.js?v=106';
+import * as avisos from './avisos.js?v=106';
+import * as grafica from './grafica.js?v=106';
+import * as extras from './extras.js?v=106';
+import * as admin from './admin.js?v=106';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -1328,6 +1329,7 @@ function wireHeader() {
   if ($('c-instalar')) $('c-instalar').onclick = (e) => { e.stopPropagation(); extras.panelInstalar($('c-instalar')); };
   try { avisos.iniciar(); } catch (_) {}
   try { extras.iniciarInstalacion(); } catch (_) {}
+  try { admin.iniciarPanelOculto(); } catch (_) {}
   const hdr = document.querySelector('#colmena-app .c-hdr');
   if ($('c-menu-btn') && hdr) $('c-menu-btn').onclick = (e) => { e.stopPropagation(); hdr.classList.toggle('open'); };
   if (hdr) { const hr = hdr.querySelector('.c-hdr-r'); if (hr) hr.addEventListener('click', () => hdr.classList.remove('open')); }
