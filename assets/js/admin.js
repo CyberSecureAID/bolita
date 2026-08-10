@@ -35,7 +35,28 @@ const KEEPER = 'https://bolita-keeper-bot.yamicelanvivesqui.workers.dev';
 const LOTERIA = '0x964a68D3A2dB18c723581410C49aa8789048E1B9';
 const ABI_LOTERIA = [
   'function saldoDe(address jugador, address token) view returns (uint256)',
-  'function retirar(address token)'
+  'function retirar(address token)',
+  // El dinero del dueño NO es el saldo de jugador: vive en "banca" (lo que
+  // depositó para pagar premios) y en "beneficios" (su comisión acumulada).
+  'function monedas(address) view returns (bool activa,bool esNativa,bool conComision,uint8 decimales,uint256 minApuesta,uint256 banca,uint256 reservado,uint256 topePremioBps,uint256 beneficios,address feedPrecio,bool cuentaVolumen,bool esEstableUSD)',
+  'function owner() view returns (address)',
+  'function ownerSecundario() view returns (address)',
+  'function destinoBeneficios() view returns (address)'
+];
+/* Nombres posibles de las funciones de retirada: probamos en orden hasta que
+   una funcione, porque el contrato desplegado puede usar cualquiera. */
+const FIRMAS_BANCA = [
+  'function retirarBanca(address token, uint256 cantidad)',
+  'function retirarBanca(address token)',
+  'function sacarBanca(address token, uint256 cantidad)',
+  'function withdrawBankroll(address token, uint256 cantidad)',
+  'function withdrawBankroll(uint256 cantidad)'
+];
+const FIRMAS_BENEF = [
+  'function retirarBeneficios(address token, uint256 cantidad)',
+  'function retirarBeneficios(address token)',
+  'function sacarBeneficios(address token)',
+  'function withdrawFees(address token)'
 ];
 /* Las 8 monedas REALES de la lotería, sacadas de tokens.js (no inventadas). */
 const MONEDAS_LOTERIA = [
@@ -470,44 +491,112 @@ async function pintarAjustes(perm) {
 }
 
 /* ── LOTERÍA: recuperar el dinero que quedó dentro ── */
-let _saldosLot = [];
+let _lot = [];
 async function pintarLoteria(cuenta) {
   const box = $('ad-loteria'); if (!box) return;
-  box.innerHTML = `<div class="ad-cargando">Leyendo lo que hay en el contrato de la lotería…</div>`;
+  box.innerHTML = `<div class="ad-cargando">Leyendo el contrato de la lotería…</div>`;
   const CERO = '0x0000000000000000000000000000000000000000';
   try {
     const c = leerC(LOTERIA, ABI_LOTERIA);
-    _saldosLot = [];
+    let jefe = null, jefe2 = null;
+    try { jefe = await c.owner(); } catch (_) {}
+    try { jefe2 = await c.ownerSecundario(); } catch (_) {}
+    const mio = jefe && String(jefe).toLowerCase() === String(cuenta).toLowerCase();
+    const mio2 = jefe2 && String(jefe2).toLowerCase() === String(cuenta).toLowerCase();
+
+    _lot = [];
     const filas = [];
     for (const m of MONEDAS_LOTERIA) {
       const dir = m.dir || CERO;
-      // Dos cifras distintas: lo que el contrato te tiene apuntado a TI,
-      // y lo que el contrato guarda en total de esa moneda.
-      let mio = 0n, total = 0n;
-      try { mio = await c.saldoDe(cuenta, dir); } catch (_) {}
+      let banca = 0n, reservado = 0n, benef = 0n, saldo = 0n;
       try {
-        total = m.dir
-          ? await leerC(m.dir, ['function balanceOf(address) view returns (uint256)']).balanceOf(LOTERIA)
-          : await lector().getBalance(LOTERIA);
+        const d = await c.monedas(dir);
+        banca = d.banca; reservado = d.reservado; benef = d.beneficios;
       } catch (_) {}
-      if (mio > 0n) _saldosLot.push({ m, v: mio });
+      try { saldo = await c.saldoDe(cuenta, dir); } catch (_) {}
+      const libre = banca > reservado ? banca - reservado : 0n;
+      if (libre > 0n || benef > 0n || saldo > 0n) _lot.push({ m, dir, libre, benef, saldo });
       const f = (v) => Number(ethers.formatUnits(v, m.dec)).toLocaleString('es', { maximumFractionDigits: 6 });
-      filas.push(`<div class="ad-fila">
-        <div class="ad-fila-tx"><b>${m.nom}</b><span>${m.sim} · en el contrato: ${f(total)}</span></div>
-        <span class="ad-saldo ${mio > 0n ? 'hay' : ''}">${f(mio)}</span>
+      filas.push(`<div class="ad-mon">
+        <div class="ad-mon-cab"><b>${m.nom}</b><span>${m.sim}</span></div>
+        <div class="ad-mon-nums">
+          <span><i>banca libre</i>${f(libre)}</span>
+          <span><i>beneficios</i>${f(benef)}</span>
+          ${reservado > 0n ? `<span><i>comprometido</i>${f(reservado)}</span>` : ''}
+        </div>
       </div>`);
     }
+
     box.innerHTML = `
-      <div class="ad-nota">A la derecha, <b>lo que el contrato te tiene apuntado a ti</b> y puedes retirar. Debajo de cada moneda, lo que guarda el contrato en total (incluye el dinero de otros jugadores y el fondo de premios).</div>
+      <div class="ad-nota">
+        Tu dinero en la lotería está en dos sitios: la <b>banca</b> (lo que depositaste para pagar premios)
+        y los <b>beneficios</b> (tu comisión acumulada). El botón "retirar" de antes era para <b>jugadores</b>
+        que han ganado: por eso daba error.
+      </div>
+      <div class="ad-fila">
+        <div class="ad-fila-tx"><b>Dueño del contrato</b><span>${jefe ? wallet.abreviar(jefe) : '—'}${mio ? ' · eres tú' : ''}</span></div>
+      </div>
+      ${jefe2 && jefe2 !== CERO ? `<div class="ad-fila"><div class="ad-fila-tx"><b>Dueño de respaldo</b><span>${wallet.abreviar(jefe2)}${mio2 ? ' · eres tú' : ''}</span></div></div>` : ''}
+      ${(!mio && !mio2) ? `<div class="ad-alerta">Esta wallet no manda en la lotería. Conéctate con la que la desplegó.</div>` : ''}
+
+      <div class="ad-sec">Qué hay en cada moneda</div>
       ${filas.join('')}
+
       <div class="ad-acts col">
-        <button class="ad-b" id="al-todo">${_saldosLot.length ? `Retirar mi saldo (${_saldosLot.length} moneda${_saldosLot.length > 1 ? 's' : ''})` : 'Intentar retirar de todas las monedas'}</button>
+        <button class="ad-b" id="al-banca" ${(mio || mio2) ? '' : 'disabled'}>Retirar toda la banca libre</button>
+        <button class="ad-b gris" id="al-benef" ${(mio || mio2) ? '' : 'disabled'}>Retirar todos los beneficios</button>
         <button class="ad-b gris" id="al-diag">Ver qué funciones tiene el contrato</button>
         <a class="ad-link btn" href="https://bscscan.com/address/${LOTERIA}" target="_blank" rel="noopener" style="text-align:center">ver el contrato ↗</a>
       </div>
-      <div id="al-diag-out"></div>
-      ${_saldosLot.length === 0 ? `<div class="ad-nota" style="margin-top:10px">El contrato no te tiene saldo apuntado a tu nombre. Si sabes que hay fondos tuyos ahí, pulsa el botón igualmente: probará moneda por moneda y te dirá qué responde el contrato en cada una.</div>` : ''}`;
+      <div id="al-diag-out"></div>`;
 
+    /* Prueba varias firmas hasta que una funcione. */
+    const intentar = async (firmas, dir, cantidad) => {
+      for (const f of firmas) {
+        try {
+          const w = await escribirC(LOTERIA, [f]);
+          const nom = f.match(/function (\w+)/)[1];
+          const nArgs = (f.match(/\(([^)]*)\)/)[1] || '').split(',').filter(Boolean).length;
+          const args = nArgs === 2 ? [dir, cantidad] : (nArgs === 1 ? [/address/.test(f.split('(')[1]) ? dir : cantidad] : []);
+          const tx = await w[nom](...args);
+          await tx.wait();
+          return { ok: true, nom };
+        } catch (e) {
+          const m = String(e?.shortMessage || e?.message || e);
+          // Si la función no existe, probamos la siguiente. Si existe pero
+          // rechaza, ese es el motivo real y lo devolvemos.
+          if (!/no matching|unknown function|call revert exception|missing revert|function selector/i.test(m) && /revert/i.test(m)) {
+            return { ok: false, motivo: m.slice(0, 90) };
+          }
+        }
+      }
+      return { ok: false, motivo: 'ninguna función de retirada respondió' };
+    };
+
+    const correr = async (btn, firmas, campo, titulo) => {
+      const lista = _lot.filter((x) => x[campo] > 0n);
+      if (lista.length === 0) { decir('No hay nada que retirar por ahí.', ''); return; }
+      confirmar({
+        titulo,
+        texto: `Se firmará <b>una transacción por moneda</b> (${lista.length} en total). El dinero llega a tu wallet.`,
+        ok: 'Retirar'
+      }, async () => {
+        btn.disabled = true;
+        let ok = 0; const mal = [];
+        for (let i = 0; i < lista.length; i++) {
+          const x = lista[i];
+          decir(`${x.m.sim} (${i + 1}/${lista.length})… firma en tu wallet`, 'info');
+          const r = await intentar(firmas, x.dir, x[campo]);
+          if (r.ok) ok++; else mal.push(`${x.m.sim}: ${r.motivo}`);
+        }
+        decir(mal.length === 0 ? `Listo: ${ok} moneda(s) en tu wallet.` : `Retiradas: ${ok}\n${mal.join('\n')}`, mal.length ? 'mal' : 'ok');
+        btn.disabled = false;
+        pintarLoteria(cuenta);
+      });
+    };
+
+    if ($('al-banca')) $('al-banca').onclick = () => correr($('al-banca'), FIRMAS_BANCA, 'libre', 'Retirar la banca');
+    if ($('al-benef')) $('al-benef').onclick = () => correr($('al-benef'), FIRMAS_BENEF, 'benef', 'Retirar los beneficios');
     // Lee del explorador las funciones REALES del contrato. Así sabemos
     // exactamente cómo sacar el dinero, sin adivinar.
     const bd = $('al-diag');
@@ -727,6 +816,13 @@ function estilos() {
   #adm-panel .ad-caso-p i,#adm-panel .ad-motivo i{font-style:normal;font-family:var(--mono,monospace);font-size:9px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px;margin-right:7px}
   #adm-panel .ad-motivo{margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid #3a424c;font-family:var(--sans,sans-serif);font-size:12.5px;color:#eaecef;line-height:1.55}
   #adm-panel .ad-motivo i{display:block;margin-bottom:4px}
+  #adm-panel .ad-mon{padding:11px 13px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid #2b3139;margin-bottom:7px}
+  #adm-panel .ad-mon-cab{display:flex;align-items:baseline;gap:8px}
+  #adm-panel .ad-mon-cab b{font-family:var(--display,sans-serif);font-size:14px;color:#eaecef}
+  #adm-panel .ad-mon-cab span{font-family:var(--mono,monospace);font-size:10px;color:#6b7681}
+  #adm-panel .ad-mon-nums{display:flex;gap:16px;flex-wrap:wrap;margin-top:7px}
+  #adm-panel .ad-mon-nums span{font-family:var(--mono,monospace);font-size:12.5px;color:var(--neon-lit,#2ee86a)}
+  #adm-panel .ad-mon-nums i{display:block;font-style:normal;font-size:8.5px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px}
   #adm-panel .ad-fn{display:flex;align-items:center;justify-content:space-between;gap:9px;font-family:var(--mono,monospace);font-size:11px;color:#8b96a3;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid #2b3139;margin-bottom:5px;word-break:break-word}
   #adm-panel .ad-mini{flex:0 0 auto;padding:5px 10px;border-radius:7px;border:1px solid #3a424c;background:transparent;color:var(--gold,#E8B84B);font-family:var(--mono,monospace);font-size:10px;cursor:pointer}
   #adm-panel .ad-mini:hover{border-color:var(--gold-soft,#C9A84B)}
