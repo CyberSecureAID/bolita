@@ -37,15 +37,16 @@ const ABI_LOTERIA = [
   'function saldoDe(address jugador, address token) view returns (uint256)',
   'function retirar(address token)'
 ];
+/* Las 8 monedas REALES de la lotería, sacadas de tokens.js (no inventadas). */
 const MONEDAS_LOTERIA = [
-  { id: 'BNB',      nom: 'BNB',         dir: null,                                          dec: 18 },
-  { id: 'USDT',     nom: 'Tether',      dir: '0x55d398326f99059fF775485246999027B3197955',  dec: 18 },
-  { id: 'USDC',     nom: 'USD Coin',    dir: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',  dec: 18 },
-  { id: 'BTCB',     nom: 'Bitcoin',     dir: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',  dec: 18 },
-  { id: 'ETH',      nom: 'Ethereum',    dir: '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',  dec: 18 },
-  { id: 'BABYDOGE', nom: 'Baby Doge',   dir: '0xc748673057861a797275CD8A068AbB95A902e8de',  dec: 9  },
-  { id: 'CAKE',     nom: 'PancakeSwap', dir: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82',  dec: 18 },
-  { id: 'BUSD',     nom: 'BUSD',        dir: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',  dec: 18 }
+  { id: 'BNB',      nom: 'BNB',       sim: 'BNB',      dir: null,                                          dec: 18 },
+  { id: 'USDT',     nom: 'Tether',    sim: 'USDT',     dir: '0x55d398326f99059fF775485246999027B3197955',  dec: 18 },
+  { id: 'USDC',     nom: 'USD Coin',  sim: 'USDC',     dir: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',  dec: 18 },
+  { id: 'BTCB',     nom: 'Bitcoin',   sim: 'BTCB',     dir: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',  dec: 18 },
+  { id: 'ETH',      nom: 'Ethereum',  sim: 'ETH',      dir: '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',  dec: 18 },
+  { id: 'USDTZ',    nom: 'USDT.z',    sim: 'USDT.z',   dir: '0x4BE35Ec329343d7d9F548d42B0F8c17FFfe07db4',  dec: 18 },
+  { id: 'BABYDOGE', nom: 'Baby Doge', sim: 'BabyDoge', dir: '0xc748673057861a797275CD8A068AbB95A902e8de',  dec: 9  },
+  { id: 'EXT',      nom: 'EXT',       sim: 'EXT',      dir: '0xd86b5cd7cFC28a1e4Fd6b39F133bF64EF24c5246',  dec: 18 }
 ];
 
 /* ABI mínimo común a todos (Ownable) */
@@ -479,24 +480,31 @@ async function pintarLoteria(cuenta) {
     _saldosLot = [];
     const filas = [];
     for (const m of MONEDAS_LOTERIA) {
-      let v = 0n;
-      try { v = await c.saldoDe(cuenta, m.dir || CERO); } catch (_) { v = 0n; }
-      if (v > 0n) _saldosLot.push({ m, v });
-      const txt = Number(ethers.formatUnits(v, m.dec)).toLocaleString('es', { maximumFractionDigits: 8 });
+      const dir = m.dir || CERO;
+      // Dos cifras distintas: lo que el contrato te tiene apuntado a TI,
+      // y lo que el contrato guarda en total de esa moneda.
+      let mio = 0n, total = 0n;
+      try { mio = await c.saldoDe(cuenta, dir); } catch (_) {}
+      try {
+        total = m.dir
+          ? await leerC(m.dir, ['function balanceOf(address) view returns (uint256)']).balanceOf(LOTERIA)
+          : await lector().getBalance(LOTERIA);
+      } catch (_) {}
+      if (mio > 0n) _saldosLot.push({ m, v: mio });
+      const f = (v) => Number(ethers.formatUnits(v, m.dec)).toLocaleString('es', { maximumFractionDigits: 6 });
       filas.push(`<div class="ad-fila">
-        <div class="ad-fila-tx"><b>${m.nom}</b><span>${m.id}</span></div>
-        <span class="ad-saldo ${v > 0n ? 'hay' : ''}">${txt}</span>
+        <div class="ad-fila-tx"><b>${m.nom}</b><span>${m.sim} · en el contrato: ${f(total)}</span></div>
+        <span class="ad-saldo ${mio > 0n ? 'hay' : ''}">${f(mio)}</span>
       </div>`);
     }
     box.innerHTML = `
-      <div class="ad-nota">Dinero que quedó dentro del contrato de la lotería y que puedes recuperar. Sale directo a tu wallet.</div>
+      <div class="ad-nota">A la derecha, <b>lo que el contrato te tiene apuntado a ti</b> y puedes retirar. Debajo de cada moneda, lo que guarda el contrato en total (incluye el dinero de otros jugadores y el fondo de premios).</div>
       ${filas.join('')}
       <div class="ad-acts col">
-        ${_saldosLot.length
-          ? `<button class="ad-b" id="al-todo">Retirar todo (${_saldosLot.length} moneda${_saldosLot.length > 1 ? 's' : ''})</button>`
-          : `<div class="ad-vacio">No hay nada que retirar: todo está a cero.</div>`}
+        <button class="ad-b" id="al-todo">${_saldosLot.length ? `Retirar mi saldo (${_saldosLot.length} moneda${_saldosLot.length > 1 ? 's' : ''})` : 'Intentar retirar de todas las monedas'}</button>
         <a class="ad-link btn" href="https://bscscan.com/address/${LOTERIA}" target="_blank" rel="noopener" style="text-align:center">ver el contrato ↗</a>
-      </div>`;
+      </div>
+      ${_saldosLot.length === 0 ? `<div class="ad-nota" style="margin-top:10px">El contrato no te tiene saldo apuntado a tu nombre. Si sabes que hay fondos tuyos ahí, pulsa el botón igualmente: probará moneda por moneda y te dirá qué responde el contrato en cada una.</div>` : ''}`;
 
     const btn = $('al-todo');
     if (btn) btn.onclick = () => confirmar({
@@ -506,14 +514,17 @@ async function pintarLoteria(cuenta) {
     }, async () => {
       btn.disabled = true;
       const w = await escribirC(LOTERIA, ABI_LOTERIA);
+      // Si no hay saldo apuntado, probamos con TODAS: así vemos qué dice el
+      // contrato en cada moneda en vez de quedarnos sin saber nada.
+      const lista = _saldosLot.length ? _saldosLot : MONEDAS_LOTERIA.map((m) => ({ m, v: 0n }));
       let ok = 0; const mal = [];
-      for (let i = 0; i < _saldosLot.length; i++) {
-        const { m, v } = _saldosLot[i];
-        decir(`Retirando ${Number(ethers.formatUnits(v, m.dec)).toFixed(6)} ${m.id} (${i + 1}/${_saldosLot.length})… firma en tu wallet`, 'info');
+      for (let i = 0; i < lista.length; i++) {
+        const { m, v } = lista[i];
+        decir(`Probando ${m.sim} (${i + 1}/${lista.length})… firma o rechaza en tu wallet`, 'info');
         try { const tx = await w.retirar(m.dir || CERO); await tx.wait(); ok++; }
-        catch (e) { mal.push(m.id); }
+        catch (e) { mal.push(`${m.sim}: ${(e?.shortMessage || e?.reason || e?.message || e).toString().slice(0, 40)}`); }
       }
-      decir(mal.length === 0 ? `Listo: ${ok} moneda(s) en tu wallet.` : `Retiradas ${ok} · fallaron: ${mal.join(', ')}`, mal.length ? 'mal' : 'ok');
+      decir(mal.length === 0 ? `Listo: ${ok} moneda(s) en tu wallet.` : `Retiradas: ${ok}\n${mal.join('\n')}`, mal.length ? 'mal' : 'ok');
       btn.disabled = false;
       pintarLoteria(cuenta);
     });
@@ -654,7 +665,7 @@ function estilos() {
   #adm-panel .ad-saldo{font-family:var(--mono,monospace);font-size:12.5px;color:#6b7681;flex:0 0 auto}
   #adm-panel .ad-saldo.hay{color:var(--neon-lit,#2ee86a);font-weight:700}
   #adm-panel .ad-cargando,#adm-panel .ad-vacio{font-family:var(--mono,monospace);font-size:11.5px;color:#7d8794;text-align:center;padding:26px 10px;line-height:1.6}
-  #adm-panel .ad-msg{font-family:var(--mono,monospace);font-size:11.5px;text-align:center;margin-top:14px;min-height:16px;line-height:1.5}
+  #adm-panel .ad-msg{font-family:var(--mono,monospace);font-size:11.5px;text-align:center;margin-top:14px;min-height:16px;line-height:1.5;white-space:pre-wrap}
   #adm-panel .ad-msg.ok{color:var(--neon-lit,#2ee86a)}
   #adm-panel .ad-msg.mal{color:var(--rojo,#f6465d)}
   #adm-panel .ad-msg.info{color:var(--gold,#E8B84B)}
