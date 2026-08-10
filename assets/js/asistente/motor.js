@@ -1012,10 +1012,21 @@
     return meaty.length === 0;
   }
 
+  /* ── ¿Está diciendo que SÍ? ──────────────────────────────────
+     La gente contesta de mil formas: "si", "dale", "claro", "va",
+     "ok", "cuentame", "porfa"... y con erratas. Si esto no se
+     entiende, la conversación se muere en seco: el bot pregunta
+     "¿te cuento más?", el usuario dice "si" y no pasa nada. */
+  var AFIRMA_RE = /^(si|sii+|sí|s|dale|claro|ok|oka|okey|okay|vale|bueno|bien|va|yes|yeah|yep|sure|porfa|por favor|porfavor|obvio|de una|hazlo|adelante|sigue|continua|continúa|cuentame|cuéntame|dime|explicame|explícame|mas|más|quiero|me interesa|perfecto|genial|exacto|eso|asi es|así es|correcto|aja|ajá|ya|entiendo)\b/;
+  var NIEGA_RE  = /^(no|nop|nope|nel|para nada|nada|ahora no|luego|despues|después|otro dia|no gracias|ninguna|nada mas|nada más|ya esta|ya está|listo|nop)\b/;
+
   function isFollowUp(text) {
     var n = normalize(text);
-    return n.split(' ').length <= 4 &&
-      /^(yes|yeah|yep|sure|okay|ok|please|go on|tell me more|more|continue|and)\b/.test(n);
+    return n.split(' ').length <= 5 && AFIRMA_RE.test(n);
+  }
+  function diceQueNo(text) {
+    var n = normalize(text);
+    return n.split(' ').length <= 5 && NIEGA_RE.test(n);
   }
 
   /* [MEJORADO] Antes solo se recordaba la ÚLTIMA frase usada. Con tres
@@ -1104,7 +1115,7 @@
             '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M2 21l21-9L2 3v7l15 2-15 2z" fill="currentColor"/></svg>' +
           '</button>' +
         '</div>' +
-        '<p class="np-chat__foot">' + BOT.name + ' · ' + BOT.role + ' · respuestas automáticas</p>' +
+
       '</section>';
     document.body.appendChild(wrap);
 
@@ -1240,6 +1251,66 @@
     return c;
   }
 
+  /* ── LLEVAR AL USUARIO A LA SECCIÓN DE LA QUE HABLAMOS ────────
+     No sirve de nada explicar el Prize Pool si luego el usuario no
+     sabe dónde está. Estos botones abren la sección de verdad. */
+  var DESTINOS = {
+    prize:   { txt: 'Abrir el Prize Pool',  ir: function () { clic('#c-prize'); } },
+    market:  { txt: 'Abrir el Marketplace', ir: function () { clic('#c-market'); } },
+    swap:    { txt: 'Abrir el Swap',        ir: function () { clic('#c-swap'); } },
+    perfil:  { txt: 'Abrir mi perfil',      ir: function () { clic('#c-perfil'); } },
+    grid:    { txt: 'Ver el Smart Grid',    ir: function () { bot('grid'); } },
+    acum:    { txt: 'Ver el Accumulator',   ir: function () { bot('acum'); } },
+    cash:    { txt: 'Ver el Cash Out',      ir: function () { bot('cash'); } },
+    dca:     { txt: 'Ver el DCA',           ir: function () { bot('dca'); } },
+    conectar:{ txt: 'Conectar mi wallet',   ir: function () { clic('#c-conectar') || clic('#c-conectar2'); } },
+    instalar:{ txt: 'Instalar la app',      ir: function () { clic('#c-instalar'); } }
+  };
+  function clic(sel) {
+    var e = document.querySelector(sel);
+    if (!e) return false;
+    close();                               // apartamos el chat para que se vea
+    setTimeout(function () { e.click(); }, 220);
+    return true;
+  }
+  function bot(tipo) {
+    var b = document.querySelector('#colmena-app .bot-tab[data-tipo="' + tipo + '"]');
+    if (!b) return false;
+    close();
+    setTimeout(function () {
+      b.click();
+      var c = document.querySelector('#colmena-app #f-tipo');
+      if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 220);
+    return true;
+  }
+
+  function botonIr(dest) {
+    var d = DESTINOS[dest]; if (!d) return null;
+    var a = document.createElement('button');
+    a.className = 'np-chat__ir';
+    a.type = 'button';
+    a.innerHTML = d.txt + '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+    a.addEventListener('click', d.ir);
+    return a;
+  }
+
+  /* Botones de respuesta rápida: le damos al usuario las opciones que
+     esperamos, en vez de dejarlo escribiendo a ciegas. */
+  function botonesOpciones(lista) {
+    var c = document.createElement('div');
+    c.className = 'np-chat__ops';
+    lista.forEach(function (o) {
+      var b = document.createElement('button');
+      b.className = 'np-chat__op';
+      b.type = 'button';
+      b.textContent = o.label;
+      b.addEventListener('click', function () { send(o.q); });
+      c.appendChild(b);
+    });
+    return c;
+  }
+
   function addBot(text, entry, animate) {
     var b = bubble('bot');
     var tail = function () {
@@ -1250,6 +1321,8 @@
         a.textContent = entry.nav.label + ' \u2192';
         b.appendChild(a);
       }
+      if (entry && entry.accion) { var bi = botonIr(entry.accion); if (bi) b.appendChild(bi); }
+      if (entry && entry.opciones && entry.opciones.length) b.appendChild(botonesOpciones(entry.opciones));
       if (entry && entry.contactCard) b.appendChild(contactCard());
       if (entry && entry.editButton && flow) editPanel(b);
       bottom();
@@ -2140,12 +2213,22 @@
      la empresa; "quiero construir un almacén" es un encargo. La diferencia
      está en la forma, no en las palabras — y la forma sí se puede leer. */
   function isQuestion(text) {
-    if (String(text).indexOf('?') !== -1) return true;
-    return /^(do|does|did|can|could|are|is|will|would|should|have|has|what|where|when|how|why|who|which|tell me|explain)\b/
+    if (String(text).indexOf('?') !== -1 || String(text).indexOf('¿') !== -1) return true;
+    // En español la pregunta se reconoce por su arranque, no por el signo:
+    // casi nadie escribe "¿" en un chat.
+    return /^(que|qué|cual|cuál|cuanto|cuánto|cuando|cuándo|como|cómo|donde|dónde|quien|quién|por que|porque|por qué|para que|se puede|puedo|puedes|hay|tiene|tienen|es |son |sirve|conviene|me recomiendas|explicame|explícame|cuentame|cuéntame|dime|sabes|y si|que pasa|qué pasa)\b/
+             .test(normalize(text)) ||
+           /^(do|does|did|can|could|are|is|will|would|should|have|has|what|where|when|how|why|who|which|tell me|explain)\b/
              .test(normalize(text));
   }
 
   function reflectWork(got, release) {
+    /* DESACTIVADA. Venía del bot original, que recogía datos de una obra
+       para pasarlos a un comercial. Aquí no pedimos datos a nadie, y lo
+       que hacía era ROMPER la conversación: ponía lastEntry = null, así
+       que el "sí" del usuario se quedaba sin contexto y el bot moría.
+       Devolvemos false para que siga su camino normal. */
+    return false;
     if (!got || !got.work) return false;
 
     /* [FALLO CORREGIDO — el bot arrastraba a la gente al formulario]
@@ -2199,6 +2282,13 @@
     return true;
   }
 
+  /* ¿El mensaje declara ser menor de edad? Se comprueba aparte para que la
+     conversación natural nunca se ponga por delante de esa protección. */
+  function _menorDetectado(text) {
+    return /\b(tengo|soy|i am|im|i'm)\s*(1[0-7]|[5-9])\s*(anos|años|years|year|a)?\b/i.test(text) ||
+           /\b(soy menor|menor de edad|under ?age|im a kid|soy un nino|soy una nina)\b/i.test(text);
+  }
+
   function send(raw) {
     var text = String(raw || '').trim();
     if (!text || busy) return;
@@ -2210,6 +2300,42 @@
     closeMenu();
 
     var release = function () { busy = false; };
+
+    /* ══════════════════════════════════════════════════════════
+       CONVERSACIÓN NATURAL, ANTES QUE NADA
+       Estas dos ramas van primero porque son las que hacen que el chat
+       parezca una conversación y no un buscador. Si el usuario dice
+       "sí" o "no" a algo que acabamos de preguntarle, eso manda sobre
+       cualquier otra interpretación: antes, un "sí" caía en la rama de
+       "habla de nuestro tema" y la conversación se moría en seco.
+       ══════════════════════════════════════════════════════════ */
+    if (!_menorDetectado(text)) {
+      var _n = normalize(text);
+      var _corto = _n.split(/\s+/).length <= 5;
+
+      // Dice que SÍ: siempre le llevamos a algo concreto.
+      if (_corto && AFIRMA_RE.test(_n) && !isQuestion(text)) {
+        if (lastEntry && lastEntry.more) {
+          speak(pickVariant(lastEntry.more, (lastEntry.topic || 'x') + '#more'),
+                { nav: lastEntry.nav, contactCard: lastEntry.contactCard, accion: lastEntry.accion },
+                release);
+          return;
+        }
+        var _sug = (DATA.bot.sugerencias || []);
+        if (_sug.length) {
+          var _p = pickVariant(_sug, 'sugerencia');
+          lastEntry = null;
+          speak(_p.texto, { opciones: _p.opciones }, release);
+          return;
+        }
+      }
+
+      // Dice que NO: se cierra sin insistir.
+      if (_corto && NIEGA_RE.test(_n) && !isQuestion(text)) {
+        speak(pickVariant(DATA.bot.cierre || ['Perfecto, aquí sigo.'], 'cierre'), null, release);
+        return;
+      }
+    }
 
     /* [SEGURIDAD — MENORES, lo PRIMERO de todo] Antes de sembrar obra, de
        handleFlow, de cualquier cosa: si alguien se declara menor de 18, se
@@ -2432,14 +2558,43 @@
       return;
     }
 
-    /* Continuación de lo anterior: "tell me more", "go on". */
-    if (isFollowUp(text) && lastEntry) {
-      var key  = lastEntry.topic || lastEntry.keys[0];
-      var more = lastEntry.more
-        ? pickVariant(lastEntry.more, key + '#more')
-        : pickVariant(lastEntry.answer, key + '#a');
-      speak(more, { nav: lastEntry.nav, contactCard: lastEntry.contactCard },
-            function () { busy = false; });
+    /* ── EL "SÍ" SIEMPRE LLEVA A ALGÚN SITIO ──────────────────────
+       Antes, si el usuario decía "sí" y la última respuesta no tenía
+       detalle guardado, se repetía lo mismo o se quedaba en blanco: la
+       conversación moría. Ahora, si no hay más que contar, se ofrece
+       algo concreto en vez de dejarlo colgado. */
+    if (isFollowUp(text)) {
+      // Sin contexto previo (el usuario dijo "sí" a una pregunta abierta),
+      // igualmente hay que llevarle a algún sitio: si no, la conversación
+      // se muere y parece que el bot se rompió.
+      if (!lastEntry) {
+        var sug0 = DATA.bot.sugerencias || [];
+        if (sug0.length) {
+          var p0 = pickVariant(sug0, 'sugerencia');
+          speak(p0.texto, { opciones: p0.opciones }, function () { busy = false; });
+          return;
+        }
+      }
+      var key  = lastEntry ? (lastEntry.topic || lastEntry.keys[0]) : '';
+      if (lastEntry && lastEntry.more) {
+        speak(pickVariant(lastEntry.more, key + '#more'),
+              { nav: lastEntry.nav, contactCard: lastEntry.contactCard, accion: lastEntry.accion },
+              function () { busy = false; });
+        return;
+      }
+      // Sin detalle guardado: llevamos la conversación a algo útil.
+      var sug = DATA.bot.sugerencias || [];
+      if (sug.length) {
+        var pick = pickVariant(sug, 'sugerencia');
+        speak(pick.texto, { opciones: pick.opciones }, function () { busy = false; });
+        return;
+      }
+    }
+
+    /* Si dice que NO, se cierra con elegancia en vez de insistir. */
+    if (diceQueNo(text) && lastEntry && !isQuestion(text)) {
+      speak(pickVariant(DATA.bot.cierre || ['Perfecto. Aquí sigo si te surge algo.'], 'cierre'),
+            null, function () { busy = false; });
       return;
     }
 

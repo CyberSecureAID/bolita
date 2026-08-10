@@ -24,6 +24,9 @@ window.NP_BOT_KB = {
     role:   'Asistente de Aurex',
     avatar: 'assets/img/jesus-avatar.webp',
 
+    /* Cada saludo se presenta y termina llevando al usuario a un terreno
+       donde sabemos responder. Los botones hacen el resto: en vez de
+       dejarle escribiendo a ciegas, le damos por dónde tirar. */
     greeting: [
       'Hola, soy **Jesús**, del equipo de Aurex.\n\n¿En qué te ayudo?',
       '¡Hola! Soy **Jesús**. Estoy aquí para resolver cualquier duda sobre Aurex.\n\n¿Qué quieres saber?',
@@ -37,6 +40,52 @@ window.NP_BOT_KB = {
       'Hola. **Jesús**, de Aurex.\n\n¿Vienes a informarte, o ya andas operando?',
       'Buenas, soy **Jesús**.\n\nTe puedo explicar los bots, el marketplace o lo que se te ocurra.',
       'Hola. Soy **Jesús**, de Aurex.\n\nCuéntame qué te trae por aquí.'
+    ],
+
+    /* ── CUANDO EL USUARIO DICE "SÍ" Y NO HAY MÁS QUE CONTAR ──────
+       Antes se quedaba en blanco y la conversación moría. Ahora se le
+       cuenta algo que de verdad le sirve, y se le dan opciones. */
+    sugerencias: [
+      {
+        texto: 'Mira, algo que mucha gente no sabe:\n\nEl **Accumulator** puede ganar dinero incluso cuando el precio no para de caer. Suena raro, pero tiene sentido: **cuanto más baja, más compra**, y cada compra abarata tu precio medio. Así no necesitas que el mercado vuelva a lo más alto para recuperar; basta con que suba un poco desde tu promedio.\n\n¿Te lo explico con números, o prefieres ver otro bot?',
+        opciones: [
+          { label: 'Explícamelo con números', q: 'explicame el acumulador con numeros' },
+          { label: 'Ver los otros bots',      q: 'que bots hay' },
+          { label: 'Cómo empiezo',            q: 'como empiezo' }
+        ]
+      },
+      {
+        texto: 'Te cuento lo que más le sorprende a la gente:\n\nEl **Smart Grid** no necesita que el precio suba para ganar. Le basta con que **se mueva**. Compra cuando baja un escalón y vende cuando sube al siguiente, una y otra vez. Un día lateral, de esos que parecen aburridos, es su mejor día.\n\n¿Quieres que te enseñe cómo se configura?',
+        opciones: [
+          { label: 'Sí, enséñame',      q: 'como funciona el smart grid' },
+          { label: 'Prefiero algo más simple', q: 'que es el cash out' },
+          { label: 'Cuánto necesito',   q: 'cuanto dinero necesito' }
+        ]
+      },
+      {
+        texto: 'Una cosa que conviene saber desde el principio:\n\nAquí **no depositas tu dinero en ningún sitio**. Se queda en tu wallet. El bot solo tiene permiso para mover una cantidad que tú fijas, y ese permiso lo quitas cuando quieras.\n\nEso significa que aunque nosotros desapareciéramos mañana, tu dinero seguiría siendo tuyo.\n\n¿Te enseño cómo se ven esos permisos?',
+        opciones: [
+          { label: 'Sí, enséñame',   q: 'permisos de gasto' },
+          { label: 'Cómo empiezo',   q: 'como empiezo' },
+          { label: 'Qué bots hay',   q: 'que bots hay' }
+        ]
+      },
+      {
+        texto: 'Va un consejo que ahorra disgustos:\n\n**Empieza con poco.** Con 50 USDT ya ves cómo se comporta un bot, y con eso decides si meter más. La prisa en esto sale cara.\n\n¿Te ayudo a montar el primero?',
+        opciones: [
+          { label: 'Sí, guíame',        q: 'guiame a montar mi bot' },
+          { label: 'Antes cuéntame más', q: 'que es aurex' },
+          { label: '¿Es seguro?',        q: 'es seguro mi dinero' }
+        ]
+      }
+    ],
+
+    /* Cuando dice que no quiere saber más: cerrar sin insistir. */
+    cierre: [
+      'Perfecto. Aquí sigo por si te surge algo.',
+      'De acuerdo. Cuando quieras, pregúntame.',
+      'Sin problema. Estoy por aquí.',
+      'Vale. Si más adelante te surge una duda, escríbeme.'
     ],
 
     /* Atajos del menú: las preguntas que más se hacen, a un toque. */
@@ -241,8 +290,14 @@ window.NP_BOT_KB = {
     {
       topic: 'saludo',
       noNudge: true,
-      keys: ['hola', 'holaa', 'ola', 'buenas', 'buenos dias', 'buenas tardes',
-             'buenas noches', 'que tal', 'saludos', 'hey', 'hello', 'hi', 'oye'],
+      /* Las erratas del saludo son las más frecuentes y las más cortas,
+         demasiado para que el corrector automático las cace. Se listan. */
+      keys: ['hola', 'holaa', 'holaaa', 'hol', 'hla', 'ola', 'olaa', 'oa',
+             'buenas', 'buenass', 'wenas', 'buenos dias', 'buenas tardes',
+             'buenas noches', 'que tal', 'ke tal', 'q tal', 'qtal', 'saludos',
+             'hey', 'hello', 'hi', 'oye', 'oiga', 'alo', 'hola como estas',
+             'hol como ests', 'como estas', 'como esta', 'komo estas', 'como andas',
+             'que hay', 'q hay', 'que onda', 'que hubo', 'saludo', 'holi'],
       answer: [
         'Hola. ¿En qué te ayudo?',
         '¡Hola! Dime qué necesitas.',
@@ -327,6 +382,12 @@ window.NP_BOT_KB = {
     /* ══════════════ LOS BOTS ══════════════ */
     {
       topic: 'los bots',
+      opciones: [
+        { label: 'Smart Grid',  q: 'como funciona el smart grid' },
+        { label: 'Accumulator', q: 'que es el accumulator' },
+        { label: 'Cash Out',    q: 'que es el cash out' },
+        { label: 'DCA',         q: 'que es el dca' }
+      ],
       keys: ['que bots hay', 'tipos de bot', 'cuantos bots', 'que estrategias',
              'cual bot elijo', 'que bot me conviene', 'diferencia entre bots'],
       answer: [
@@ -337,6 +398,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'Smart Grid',
+      accion: 'grid',
       keys: ['smart grid', 'grid', 'cuadricula', 'cuadriculas', 'rejilla', 'bot grid',
              'como funciona el grid', 'que es el smart grid'],
       answer: [
@@ -350,6 +412,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'Accumulator',
+      accion: 'acum',
       keys: ['accumulator', 'acumulador', 'bot acumulador', 'como funciona el acumulador',
              'promediar', 'precio medio', 'bajar el promedio'],
       answer: [
@@ -363,6 +426,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'Cash Out',
+      accion: 'cash',
       keys: ['cash out', 'cashout', 'take profit', 'vender a un precio',
              'orden de venta', 'como funciona el cash out'],
       answer: [
@@ -376,6 +440,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'DCA',
+      accion: 'dca',
       keys: ['dca', 'compra recurrente', 'comprar cada semana', 'comprar poco a poco',
              'promedio de costo', 'como funciona el dca'],
       answer: [
@@ -391,6 +456,11 @@ window.NP_BOT_KB = {
     /* ══════════════ EMPEZAR ══════════════ */
     {
       topic: 'cómo empezar',
+      opciones: [
+        { label: 'Conectar wallet',  q: 'como conecto la wallet' },
+        { label: '¿Cuánto necesito?', q: 'cuanto dinero necesito' },
+        { label: 'Guíame paso a paso', q: 'guiame a montar mi bot' }
+      ],
       keys: ['como empiezo', 'como empezar', 'primeros pasos', 'soy nuevo',
              'como creo un bot', 'como hago un bot', 'quiero empezar', 'que necesito'],
       answer: [
@@ -401,6 +471,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'conectar la wallet',
+      accion: 'conectar',
       keys: ['conectar wallet', 'no conecta', 'no me conecta', 'conectar billetera',
              'metamask', 'trust wallet', 'safepal', 'no puedo conectar',
              'como conecto', 'walletconnect'],
@@ -478,6 +549,7 @@ window.NP_BOT_KB = {
     /* ══════════════ OTRAS SECCIONES ══════════════ */
     {
       topic: 'marketplace',
+      accion: 'market',
       keys: ['marketplace', 'market', 'p2p', 'comprar usdt', 'vender usdt',
              'comprar cripto', 'cambiar a pesos', 'efectivo', 'transferencia',
              'que es el marketplace', 'que es el market', 'como funciona el marketplace',
@@ -490,6 +562,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'prize pool',
+      accion: 'prize',
       keys: ['prize pool', 'sorteo', 'pozo', 'premio', 'ganar premio', 'loteria',
              'como participo en el sorteo'],
       answer: [
@@ -499,6 +572,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'swap',
+      accion: 'swap',
       keys: ['swap', 'intercambiar', 'cambiar moneda', 'cambiar token', 'convertir'],
       answer: [
         'El swap te deja cambiar una moneda por otra al momento, desde tu propia wallet.\n\nFunciona sobre PancakeSwap, con una comisión pequeña por usar la plataforma.',
@@ -507,6 +581,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'instalar la app',
+      accion: 'instalar',
       keys: ['instalar', 'app', 'aplicacion', 'descargar', 'tener en el movil',
              'instalar en el telefono', 'como la instalo'],
       answer: [
