@@ -211,24 +211,10 @@ async function montar(host, g) {
     try { velasSerie.setMarkers(marcas); } catch (_) {}
   }
 
-  /* 3) La BANDA del rango: de un vistazo ves dónde opera tu bot y si el
-        precio está dentro o se ha escapado. Se dibuja como dos series de
-        área muy tenues entre el mínimo y el máximo. */
-  if (g.rango && g.pmin > 0 && g.pmax > g.pmin && datos.length) {
-    try {
-      const banda = (valor, color) => {
-        const ser = chart.addAreaSeries({
-          lineColor: 'rgba(0,0,0,0)', topColor: color, bottomColor: color,
-          lineWidth: 0, priceLineVisible: false, lastValueVisible: false,
-          crosshairMarkerVisible: false, priceScaleId: ''
-        });
-        ser.setData(datos.map((d) => ({ time: d.time, value: valor })));
-        return ser;
-      };
-      // Techo tenue y suelo aún más tenue: se ve el rango sin tapar las velas.
-      banda(g.pmax, 'rgba(232,184,75,0.045)');
-    } catch (_) {}
-  }
+  /* Nota: aquí hubo una "banda del rango" con un área dorada translúcida.
+     Se quitó: el relleno bajaba hasta el suelo del gráfico y se veía como un
+     rectángulo amarillo raro que no explicaba nada. El rango ya se entiende
+     por las líneas de las cuadrículas, que es lo que el usuario mira. */
 
   if (marcas.length) {
     marcas.sort((a, b) => a.time - b.time);
