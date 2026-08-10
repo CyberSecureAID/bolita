@@ -30,7 +30,7 @@
   <link rel="icon" type="image/png" href="assets/img/aurex-32.png">
   <link rel="apple-touch-icon" href="assets/img/aurex-apple.png">
   <link rel="stylesheet" href="assets/css/styles.css">
-  <link rel="stylesheet" href="assets/css/asistente.css?v=107">
+  <link rel="stylesheet" href="assets/css/asistente.css?v=124">
   <!-- App instalable: icono propio, pantalla completa y arranque sin conexión -->
   <link rel="manifest" href="manifest-aurex.webmanifest">
   <meta name="theme-color" content="#0b0e11">
@@ -50,7 +50,7 @@
 </head>
 <body>
   <div id="colmena-app"></div>
-  <script type="module" src="assets/js/gridbot-ui.js?v=107"></script>
+  <script type="module" src="assets/js/gridbot-ui.js?v=124"></script>
   <script>
   /* Protección contra "clickjacking": si alguien mete Aurex dentro de un
      marco en su propia web, podría poner botones falsos encima para que
@@ -149,13 +149,13 @@
         if (pv) pv.remove();
       }, 150);
       setTimeout(function () { clearInterval(espera); }, 15000);
-      ['assets/js/asistente/conocimiento.js?v=107',
-       'assets/js/asistente/motor.js?v=107'].forEach(function (src, i) {
+      ['assets/js/asistente/conocimiento.js?v=124',
+       'assets/js/asistente/motor.js?v=124'].forEach(function (src, i) {
         var t = document.createElement('script');
         t.src = src;
         if (i === 0) t.onload = function () {
           var m = document.createElement('script');
-          m.src = 'assets/js/asistente/motor.js?v=107';
+          m.src = 'assets/js/asistente/motor.js?v=124';
           document.body.appendChild(m);
         };
         if (i === 0) document.body.appendChild(t);
