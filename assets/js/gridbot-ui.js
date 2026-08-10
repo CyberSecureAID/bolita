@@ -439,9 +439,10 @@ function inyectarEstilo() {
   #conf-box{position:fixed;inset:0;z-index:9880;display:flex;align-items:center;justify-content:center;padding:16px}
   #conf-box .cf-bg{position:absolute;inset:0;background:rgba(3,5,8,.88);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
   /* Cada bot con su color */
-  #conf-box.tema-acum{--cf:#2ee86a;--cf-l:#8ff0bd}
-  #conf-box.tema-cash{--cf:#E8B84B;--cf-l:#f7db8d}
-  #conf-box.tema-dca{--cf:#b06cff;--cf-l:#d9b8ff}
+  /* Mismos tonos que la pestaña de cada bot (--mo morado, --ve verde) */
+  #conf-box.tema-acum{--cf:#b47cff;--cf-l:#d9b8ff}   /* Accumulator: morado */
+  #conf-box.tema-cash{--cf:#E8B84B;--cf-l:#f7db8d}   /* Cash Out: dorado */
+  #conf-box.tema-dca{--cf:#34d97b;--cf-l:#8ff0bd}    /* DCA: verde */
   #conf-box.tema-acum .cf-c,#conf-box.tema-cash .cf-c,#conf-box.tema-dca .cf-c{border-color:var(--cf)}
   #conf-box.tema-acum .cf-t,#conf-box.tema-cash .cf-t,#conf-box.tema-dca .cf-t,
   #conf-box.tema-acum .cf-saber summary,#conf-box.tema-cash .cf-saber summary,#conf-box.tema-dca .cf-saber summary{color:var(--cf-l)}
