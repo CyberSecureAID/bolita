@@ -16,6 +16,7 @@ import * as avisos from './avisos.js?v=107';
 import * as grafica from './grafica.js?v=107';
 import * as extras from './extras.js?v=107';
 import * as admin from './admin.js?v=107';
+import * as gestos from './gestos.js?v=107';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -922,6 +923,11 @@ function precioFmt(n) {
 function num(n, d = 4) { return isFinite(n) ? n.toLocaleString('en-US', { maximumFractionDigits: d }) : '—'; }
 function animarNumero(el) {
   const to = parseFloat(el.dataset.to); if (!isFinite(to)) return;
+  // Solo la primera vez y solo si el valor cambió: si no, cada refresco
+  // volvería a contar desde cero y resultaría mareante.
+  if (el.dataset.hecho === String(to)) return;
+  el.dataset.hecho = String(to);
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const dec = parseInt(el.dataset.dec || '0', 10), pre = el.dataset.pre || '', suf = el.dataset.suf || '';
   const dur = 800, t0 = performance.now();
   const step = (t) => { const k = Math.min(1, (t - t0) / dur); const e = 1 - Math.pow(1 - k, 3);
@@ -1334,6 +1340,18 @@ function wireHeader() {
   try { avisos.iniciar(); } catch (_) {}
   try { extras.iniciarInstalacion(); } catch (_) {}
   try { admin.iniciarPanelOculto(); } catch (_) {}
+  // Gestos del móvil: deslizar entre bots y tirar para actualizar.
+  try {
+    gestos.iniciarDeslizar();
+    gestos.iniciarTirarParaActualizar(async () => {
+      await Promise.all([
+        cargarPrecio(),
+        refrescarGas(),
+        refrescarSaldoInversion(),
+        refrescarRejillas()
+      ].map((p) => Promise.resolve(p).catch(() => {})));
+    });
+  } catch (_) {}
   const hdr = document.querySelector('#colmena-app .c-hdr');
   if ($('c-menu-btn') && hdr) $('c-menu-btn').onclick = (e) => { e.stopPropagation(); hdr.classList.toggle('open'); };
   if (hdr) { const hr = hdr.querySelector('.c-hdr-r'); if (hr) hr.addEventListener('click', () => hdr.classList.remove('open')); }
@@ -3021,7 +3039,7 @@ async function tarjeta(cuenta, clave, par, R) {
   const _boxEntrada = _entValida
     ? `<div class="pio-box" data-box="entrada"><div class="k">Precio de entrada</div><div class="v" style="font-size:15px">${precioFmt(par.entry)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}" style="${mkt == null ? 'color:var(--ink-3)' : ''}">${mkt == null ? 'al crear el bot' : 'ahora ' + precioFmt(precio) + ' · ' + sg(mkt) + num(Math.abs(mkt), 2) + '%'}</div></div>`
     : `<div class="pio-box" data-box="entrada"><div class="k">Precio del mercado</div><div class="v" style="font-size:15px">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">ahora mismo</div></div>`;
-  const _boxFlotante = `<div class="pio-box" data-box="flotante"><div class="k">Flotante ${iBtn('ganancia')}</div><div class="v ${cls(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div><div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>`;
+  const _boxFlotante = `<div class="pio-box" data-box="flotante"><div class="k">Flotante ${iBtn('ganancia')}</div><div class="v ${cls(noRealizado)} numgo" data-to="${Math.abs(noRealizado)}" data-dec="4" data-pre="${sg(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div><div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>`;
   const _boxGas = `<div class="pio-box" data-box="gas"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>`;
   const _boxGrid = `<div class="pio-box" data-box="realizado"><div class="k">Grid profit ${iBtn('porcuad')}</div><div class="v ${cls(realizado)} numgo" data-to="${Math.abs(realizado)}" data-dec="4" data-pre="${sg(realizado)}">${sg(realizado)}${num(Math.abs(realizado), 4)}</div><div class="v2 ${cls(realizado)}">${sg(pct(realizado))}${num(Math.abs(pct(realizado)), 2)}%</div></div>`;
   const _boxRango = `<div class="pio-box"><div class="k">Rango (${simQ})</div><div class="v" style="font-size:13px">${precioFmt(pmin)} – ${precioFmt(pmax)}</div><div class="v2" style="color:var(--ink-3)">${R.niveles} cuadrículas</div></div>`;
