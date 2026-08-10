@@ -650,25 +650,48 @@
    Dos tipos: los que LLEVAN a una sección de la web, y los que
    sugieren qué preguntar a continuación. Ambos existen por lo mismo:
    no dejar al usuario escribiendo a ciegas. */
+/* Botón que lleva a una sección. Discreto a propósito: acompaña al texto,
+   no compite con él. El dorado macizo y grande distraía de lo que se está
+   explicando, y en el móvil ocupaba media burbuja. */
 .np-chat__ir {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  margin-top: 11px;
-  padding: 10px 15px;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 8px 13px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--btn-edge);
-  background: var(--btn-glass);
-  color: var(--btn-text);
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 12.5px;
+  border: 1px solid var(--gold-soft);
+  background: rgba(232, 184, 75, .09);
+  color: var(--gold);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.3;
   cursor: pointer;
-  box-shadow: 0 3px 0 #8f6a1a;
-  min-height: 40px;
+  min-height: 34px;
+  max-width: 100%;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
-.np-chat__ir:active { transform: translateY(2px); box-shadow: 0 1px 0 #8f6a1a; }
-.np-chat__ir svg { flex: 0 0 auto; }
+.np-chat__ir:hover { background: rgba(232, 184, 75, .16); border-color: var(--gold); }
+.np-chat__ir:active { transform: translateY(1px); }
+.np-chat__ir svg { flex: 0 0 auto; opacity: .75; }
+
+/* Separación del texto: sin esto el botón quedaba pegado a la última línea. */
+.np-chat__msgs .np-msg--bot .np-chat__ir:first-of-type { margin-top: 15px; }
+.np-chat__msgs .np-msg--bot .np-chat__ir + .np-chat__ir { margin-left: 7px; }
+
+@media (max-width: 560px) {
+  .np-chat__ir {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    margin-left: 0 !important;
+    font-size: 12.5px;
+    min-height: 40px;
+  }
+  .np-chat__ir + .np-chat__ir { margin-top: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .np-chat__ir { transition: none; } }
 
 .np-chat__ops {
   display: flex;
