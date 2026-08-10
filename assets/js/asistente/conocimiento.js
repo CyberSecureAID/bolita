@@ -284,6 +284,165 @@ window.NP_BOT_KB = {
     invalid: ['No me cuadra eso. ¿Puedes escribirlo de otra forma?']
   },
 
+  /* ══════════════════════════════════════════════════════════
+     GUÍAS PASO A PASO
+     Un paso por mensaje. El usuario escribe "listo" y sigue. Nada de
+     párrafos de treinta líneas que nadie lee.
+     ══════════════════════════════════════════════════════════ */
+  guias: {
+
+    grid: {
+      titulo: 'Smart Grid',
+      accion: 'grid',
+      intro: 'Vamos a montar tu Smart Grid. Te lo voy contando de uno en uno, sin prisa.',
+      pasos: [
+        'Arriba a la derecha, pulsa **Conectar wallet** y acepta en tu wallet.\n\nSi ya la tienes conectada, verás tu dirección ahí arriba.',
+        'En la fila de bots, elige **Smart Grid** (el primero, el azul).',
+        'Debajo elige las dos monedas: arriba la que vas a operar (por ejemplo **BNB**) y debajo con la que pagas (**USDT**).',
+        'En **Inversión total**, escribe cuánto vas a poner. Con **100 USDT** vas bien para empezar.',
+        'Pulsa el botón azul **Configuraciones rentables** y elige **Equilibrado**.\n\nEsa configuración ya viene calculada: rango de ±28% y 20 cuadrículas, para que cada vuelta deje beneficio después de comisiones.',
+        'Mira la tarjeta de la derecha: te dice cuánto deja cada vuelta y cuántas operaciones hará al día. Si te cuadra, seguimos.',
+        'Abajo del todo, en la tarjeta de **Gas**, pulsa **Recargar** y pon **0.01 BNB**.\n\nEse es el combustible: sin él, el bot no puede comprar ni vender.',
+        'Pulsa **Encender el bot** y firma en tu wallet.\n\nSerán dos firmas: una para dar permiso sobre tu moneda y otra para crear el bot.'
+      ],
+      fin: 'Listo, tu Smart Grid ya está trabajando.\n\nLo verás abajo en **Mis bots**. Ahí puedes ver sus cuadrículas en la gráfica y cuánto le falta a cada una para dispararse.\n\nUn consejo: déjalo un par de días antes de tocar nada. Estos bots trabajan con el tiempo.',
+      despues: [
+        { label: '¿Cuándo va a operar?', q: 'cuando empieza a operar el bot' },
+        { label: 'Montar otro bot',      q: 'que bots hay' },
+        { label: '¿Y si el precio baja?', q: 'que pasa si el precio baja' }
+      ]
+    },
+
+    acum: {
+      titulo: 'Accumulator',
+      accion: 'acum',
+      intro: 'Montamos tu Accumulator. Paso a paso, tranquilo.',
+      pasos: [
+        'Conecta tu wallet arriba a la derecha, si no lo has hecho ya.',
+        'En la fila de bots, elige **Accumulator** (el morado, el segundo).',
+        'Elige la moneda que quieres acumular (por ejemplo **BNB**) y con cuál pagas (**USDT**).',
+        'En **Inversión total** pon cuánto vas a destinar. Con **100 USDT** ya funciona bien.',
+        'Pulsa **Configuraciones rentables** y elige **Equilibrado**: vende cuando toda tu posición esté un **+10%** arriba.\n\nEse objetivo se alcanza a menudo, sin esperar meses.',
+        'Fíjate en el **precio mínimo** que te ha puesto: es hasta dónde seguirá comprando si el mercado cae. Cuanto más abajo, más margen tiene.',
+        'Carga gas: abajo, en la tarjeta de **Gas**, pulsa **Recargar** y pon **0.01 BNB**.',
+        'Pulsa **Encender el bot** y firma las dos transacciones en tu wallet.'
+      ],
+      fin: 'Ya está. Tu Accumulator empieza comprando su primera parte y seguirá comprando cada vez que el precio baje.\n\nCuando todo lo comprado valga un 10% más de lo que te costó, venderá de golpe y verás el resultado.',
+      despues: [
+        { label: '¿Cómo veo el precio medio?', q: 'precio medio del acumulador' },
+        { label: '¿Y si sigue bajando?',       q: 'que pasa si el precio baja' },
+        { label: 'Montar otro bot',            q: 'que bots hay' }
+      ]
+    },
+
+    cash: {
+      titulo: 'Cash Out',
+      accion: 'cash',
+      intro: 'El Cash Out es el más sencillo de todos. Cuatro pasos y ya.',
+      pasos: [
+        'Conecta tu wallet arriba a la derecha.',
+        'Elige **Cash Out** en la fila de bots (el dorado).',
+        'Elige qué moneda vas a vender y a cambio de cuál (por ejemplo vender **BNB** y recibir **USDT**).',
+        'Pon la **cantidad** que quieres vender, y elige el objetivo con **Configuraciones rentables**.\n\nCon **+7%** el precio suele llegar en unos días. Con **+3%**, más rápido.',
+        'Mira el resumen de la derecha: te dice a qué precio venderá, cuánto recibirás y la comisión.',
+        'Carga un poco de gas si no lo tienes: **0.005 BNB** sobra para esta operación.',
+        'Pulsa **Encender el bot** y firma en tu wallet.'
+      ],
+      fin: 'Hecho. Ahora el bot vigila el precio día y noche.\n\nCuando llegue a tu objetivo, vende y el dinero aparece en tu wallet. Si no llega, tu moneda sigue siendo tuya: no pierdes nada por intentarlo.',
+      despues: [
+        { label: '¿Y si no llega el precio?', q: 'y si el precio no llega al objetivo' },
+        { label: 'Montar otro bot',           q: 'que bots hay' }
+      ]
+    },
+
+    dca: {
+      titulo: 'DCA',
+      accion: 'dca',
+      intro: 'Montamos tu DCA, que es el bot de comprar poco a poco. Va rápido.',
+      pasos: [
+        'Conecta tu wallet arriba a la derecha.',
+        'Elige **DCA** en la fila de bots (el verde, el último).',
+        'Elige qué moneda quieres ir comprando y con cuál pagas.',
+        'Pon **cuánto vas a comprar cada vez**. Que sean **10 USDT o más**: con menos, el gas se come la ventaja.',
+        'Pulsa **Configuraciones rentables** y elige **Semanal**.\n\nSemanal rinde más que diario, porque cada compra paga gas de la red.',
+        'Carga gas: **0.01 BNB** te cubre muchas compras.',
+        'Pulsa **Encender el bot** y firma.'
+      ],
+      fin: 'Listo. A partir de ahora comprará solo, cada semana, sin que tengas que acordarte.\n\nRecuerda: este bot **solo compra**. Cuando quieras vender, lo haces tú desde el Swap o con un Cash Out.',
+      despues: [
+        { label: '¿Cuándo vendo?',   q: 'cuando vendo lo del dca' },
+        { label: 'Montar otro bot',  q: 'que bots hay' }
+      ]
+    },
+
+    prize: {
+      titulo: 'Prize Pool',
+      accion: 'prize',
+      intro: 'Te explico cómo entrar al sorteo. Son tres pasos.',
+      pasos: [
+        'En el menú de arriba, pulsa **Prize Pool**.',
+        'Verás el pozo actual, cuánta gente participa y cuándo cierra la ronda.\n\nAbajo está el importe de la participación.',
+        'Pulsa **Participar**, pon tu nombre y tu Telegram (para avisarte si ganas) y firma en tu wallet.'
+      ],
+      fin: 'Ya estás dentro. Cuando cierre la ronda se sortea con un número aleatorio verificable en la blockchain, y si ganas te aparece un botón para cobrar tu premio.\n\nSi cambias de idea, puedes salirte y recuperar tu aporte hasta 24 horas antes del cierre.',
+      despues: [
+        { label: '¿Cómo se sortea?', q: 'como se hace el sorteo' },
+        { label: 'Volver a los bots', q: 'que bots hay' }
+      ]
+    },
+
+    swap: {
+      titulo: 'Swap',
+      accion: 'swap',
+      intro: 'Cambiar una moneda por otra. Es rápido.',
+      pasos: [
+        'En el menú de arriba, pulsa **Swap**.',
+        'Arriba eliges la moneda que das y cuánta. Abajo, la que quieres recibir.',
+        'Mira lo que te va a llegar y la comisión. Si te cuadra, pulsa **Intercambiar** y firma.'
+      ],
+      fin: 'Listo. La moneda nueva llega directamente a tu wallet.\n\nSi era la primera vez con esa moneda, habrás firmado dos veces: una para el permiso y otra para el cambio.',
+      despues: [
+        { label: 'Montar un bot',  q: 'que bots hay' },
+        { label: '¿Qué comisión?', q: 'comisiones del swap' }
+      ]
+    },
+
+    market: {
+      titulo: 'Marketplace',
+      accion: 'market',
+      intro: 'Te guío para comprar cripto a otra persona. Con calma, que aquí conviene entenderlo bien.',
+      pasos: [
+        'En el menú de arriba, pulsa **Market**.',
+        'Entra en la pestaña **Comprar** y mira las ofertas: cada una dice cuánto vende, a qué precio y cómo acepta el pago.',
+        'Elige una que te encaje y pulsa sobre ella. La cripto del vendedor **queda bloqueada en el contrato**: no puede llevársela.',
+        'Paga al vendedor por donde hayáis acordado (transferencia, efectivo, lo que sea) y **guarda el comprobante**.',
+        'Vuelve y pulsa **Ya pagué**. El vendedor lo verá y liberará la cripto.',
+        'Si el vendedor no libera, pulsa **Abrir disputa** y explica lo que pasó. Un árbitro lo revisa y decide.'
+      ],
+      fin: 'Y eso es todo. La clave de este sistema: la cripto nunca está en manos del vendedor mientras tú pagas.\n\nY el vendedor deja una fianza, así que si te estafa, sale de ahí tu compensación.',
+      despues: [
+        { label: '¿Y si me estafan?', q: 'y si el vendedor no me manda el dinero' },
+        { label: 'Quiero vender',     q: 'como vendo en el marketplace' }
+      ]
+    },
+
+    wallet: {
+      titulo: 'Conectar tu wallet',
+      accion: 'conectar',
+      intro: 'Vamos a conectar tu wallet. Depende de si estás en el ordenador o en el móvil.',
+      pasos: [
+        '**Si estás en el ordenador:** pulsa **Conectar wallet** arriba a la derecha y acepta en la ventana de MetaMask.',
+        '**Si estás en el móvil:** al pulsar **Conectar wallet** sale una ventana con **Abrir en MetaMask**, Trust o SafePal. Toca la tuya.\n\nSe abrirá Aurex dentro de tu wallet y conectará sola.',
+        'Comprueba que arriba a la derecha aparece tu dirección (algo como 0x97e0…CA7d). Si la ves, ya estás dentro.'
+      ],
+      fin: 'Perfecto, wallet conectada.\n\nAhora ya puedes cargar gas y montar tu primer bot.',
+      despues: [
+        { label: 'Montar mi primer bot', q: 'guiame a montar el smart grid' },
+        { label: '¿Qué es el gas?',      q: 'que es el gas' }
+      ]
+    }
+  },
+
   kb: [
 
     /* ══════════════ CORTESÍA ══════════════ */
@@ -398,6 +557,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'Smart Grid',
+      guia: 'grid', guiaLabel: 'Montar mi Smart Grid paso a paso',
       accion: 'grid',
       keys: ['smart grid', 'grid', 'cuadricula', 'cuadriculas', 'rejilla', 'bot grid',
              'como funciona el grid', 'que es el smart grid'],
@@ -412,6 +572,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'Accumulator',
+      guia: 'acum', guiaLabel: 'Montar mi Accumulator paso a paso',
       accion: 'acum',
       keys: ['accumulator', 'acumulador', 'bot acumulador', 'como funciona el acumulador',
              'promediar', 'precio medio', 'bajar el promedio'],
@@ -426,6 +587,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'Cash Out',
+      guia: 'cash', guiaLabel: 'Montar mi Cash Out paso a paso',
       accion: 'cash',
       keys: ['cash out', 'cashout', 'take profit', 'vender a un precio',
              'orden de venta', 'como funciona el cash out'],
@@ -440,6 +602,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'DCA',
+      guia: 'dca', guiaLabel: 'Montar mi DCA paso a paso',
       accion: 'dca',
       keys: ['dca', 'compra recurrente', 'comprar cada semana', 'comprar poco a poco',
              'promedio de costo', 'como funciona el dca'],
@@ -471,6 +634,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'conectar la wallet',
+      guia: 'wallet', guiaLabel: 'Guíame para conectarla',
       accion: 'conectar',
       keys: ['conectar wallet', 'no conecta', 'no me conecta', 'conectar billetera',
              'metamask', 'trust wallet', 'safepal', 'no puedo conectar',
@@ -549,6 +713,7 @@ window.NP_BOT_KB = {
     /* ══════════════ OTRAS SECCIONES ══════════════ */
     {
       topic: 'marketplace',
+      guia: 'market', guiaLabel: 'Guíame para comprar',
       accion: 'market',
       keys: ['marketplace', 'market', 'p2p', 'comprar usdt', 'vender usdt',
              'comprar cripto', 'cambiar a pesos', 'efectivo', 'transferencia',
@@ -562,6 +727,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'prize pool',
+      guia: 'prize', guiaLabel: 'Guíame para participar',
       accion: 'prize',
       keys: ['prize pool', 'sorteo', 'pozo', 'premio', 'ganar premio', 'loteria',
              'como participo en el sorteo'],
@@ -572,6 +738,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'swap',
+      guia: 'swap', guiaLabel: 'Guíame para intercambiar',
       accion: 'swap',
       keys: ['swap', 'intercambiar', 'cambiar moneda', 'cambiar token', 'convertir'],
       answer: [
@@ -677,6 +844,41 @@ window.NP_BOT_KB = {
         'Puedes empezar con **50 USDT** tranquilamente. Las configuraciones están calculadas para que rindan incluso con esa cantidad.\n\nY aparte, un poco de BNB para el gas: con 0,01 tienes para cientos de operaciones.',
         'No hace falta mucho. Con 50 o 100 USDT ya funciona, y es lo que te recomiendo para empezar: poco, ver cómo se comporta, y luego decidir.\n\nSuma un poquito de BNB para el gas y listo.',
         'Con 50 USDT arrancas. Cuanto más dinero por cuadrícula, mejor rinde (el gas cuesta lo mismo muevas 2 o 20), pero con 50 ya sale rentable.\n\nNunca pongas dinero que vayas a necesitar pronto.'
+      ]
+    },
+
+    /* ══════════════ PREGUNTAS DE DINERO ══════════════
+       Las que más se hacen. Se responden con números reales y sin
+       prometer nada: es la única forma de que confíen. */
+    {
+      topic: 'cuánto voy a ganar',
+      keys: ['cuanto gano', 'cuanto puedo ganar', 'cuanto se gana', 'cuanto ganaria',
+             'cuanto voy a ganar', 'cuanto rinde', 'que rentabilidad', 'rentabilidad',
+             'cuanto da al mes', 'cuanto genera', 'ganancia mensual', 'cuanto produce',
+             'si invierto 1000', 'si invierto 100', 'si pongo 500', 'con 1000 dolares',
+             'con 10000', 'cuanto con 1000', 'porcentaje mensual', 'apy', 'roi'],
+      answer: [
+        'Te respondo con números reales, no con promesas.\n\n**Cada vuelta del Smart Grid deja entre un 2% y un 4%** de lo que mueve esa cuadrícula, ya sin comisiones. Cuántas vueltas dé depende del mercado: un día movido puede dar varias, uno plano ninguna.\n\n**Nadie puede decirte cuánto vas a ganar al mes**, y quien te lo diga te está mintiendo.',
+        'Lo que sí sé: con **200 USDT** en un Smart Grid Equilibrado, **cada vuelta deja unos 0,26 USDT limpios**.\n\nSi el mercado se mueve y da 3 vueltas al día, son unos 0,78 al día. Si está plano, cero.\n\nNo hay porcentaje fijo. Depende de cuánto se mueva el precio, y eso no lo controla nadie.',
+        'No te voy a dar un porcentaje mensual, porque sería inventado.\n\nLo real: cada operación completa deja **entre 2% y 4%** de lo que mueve, después de comisiones. La frecuencia la pone el mercado.\n\nHay meses buenos y meses en que el bot apenas opera.'
+      ],
+      more: [
+        'Para que te hagas una idea con **1.000 USDT** en Equilibrado (20 cuadrículas):\n\n· Cada cuadrícula mueve 50 USDT\n· Cada vuelta deja **~1,40 USDT** limpios\n· Si el mercado da 2-4 vueltas al día → **entre 2,80 y 5,60 al día**\n· En un mes movido, entre 80 y 170 USDT\n\n**Pero ojo:** eso es en un mercado que sube y baja. Si el precio se va en línea recta y no vuelve, el bot deja de operar y te quedas con la moneda esperando.\n\nY si baja mucho, tendrás pérdida no realizada hasta que recupere.'
+      ]
+    },
+    {
+      topic: 'cuánto me recomiendas invertir',
+      keys: ['cuanto me recomiendas', 'que cantidad recomiendas', 'cuanto deberia invertir',
+             'con 300 esta bien', 'con 500 esta bien', 'esta bien empezar con',
+             'es suficiente', 'me alcanza con', 'que me recomiendas invertir',
+             'cuanto pongo', 'cuanto meto', 'es poco', 'es mucho'],
+      answer: [
+        'Mi recomendación sincera: **empieza con lo que no te duela dejar quieto tres meses.**\n\nPara la mayoría eso son 100-300 USDT. No porque con más no funcione, sino porque así aprendes cómo se comporta sin jugarte nada importante.',
+        'Con **300 USDT** vas perfectamente. De hecho es una cantidad muy razonable: suficiente para que las comisiones no pesen, y poco para dormir tranquilo.\n\nLa regla de oro: **nunca dinero que necesites pronto.**',
+        'Depende menos de la cantidad y más de una cosa: que sea dinero que puedas **dejar quieto**. Estos bots trabajan con el tiempo.\n\nCon 100 ya funciona. Con 300 va cómodo. Y lo que no haría es empezar con todo lo que tienes.'
+      ],
+      more: [
+        'Por qué importa el tamaño de cada cuadrícula:\n\nEl gas cuesta lo mismo muevas 2 USDT o 20. Así que con inversiones muy pequeñas repartidas en muchas cuadrículas, las comisiones se comen la ganancia.\n\n**Referencia:** que cada cuadrícula mueva al menos **10 USDT**. Con 200 USDT y 20 cuadrículas, cada una mueve 10. Justo en el punto.'
       ]
     },
 

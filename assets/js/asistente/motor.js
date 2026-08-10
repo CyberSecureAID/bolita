@@ -1322,6 +1322,14 @@
         b.appendChild(a);
       }
       if (entry && entry.accion) { var bi = botonIr(entry.accion); if (bi) b.appendChild(bi); }
+      if (entry && entry.guia) {
+        var bg = document.createElement('button');
+        bg.className = 'np-chat__ir';
+        bg.type = 'button';
+        bg.textContent = entry.guiaLabel || 'Guíame paso a paso';
+        bg.addEventListener('click', function () { send('__guia:' + entry.guia); });
+        b.appendChild(bg);
+      }
       if (entry && entry.opciones && entry.opciones.length) b.appendChild(botonesOpciones(entry.opciones));
       if (entry && entry.contactCard) b.appendChild(contactCard());
       if (entry && entry.editButton && flow) editPanel(b);
@@ -1417,6 +1425,8 @@
   }
 
   function speak(text, entry, done) {
+    // Dentro de una guía, nada de "¿te cuento algo más?": estorba al paso.
+    if (GUIA && entry && entry.esperaListo) { entry = entry || {}; entry.noNudge = true; }
     /* Red de última hora: un mensaje vacío es lo peor que puede pasar
        (el visitante ve una burbuja con un signo suelto y nada más).
        Si por lo que sea el texto viene vacío, se hace triaje. */
@@ -2289,6 +2299,70 @@
            /\b(soy menor|menor de edad|under ?age|im a kid|soy un nino|soy una nina)\b/i.test(text);
   }
 
+  /* ══════════════════════════════════════════════════════════
+     GUÍAS PASO A PASO
+     Una configuración explicada de golpe es un muro de texto que nadie
+     lee. Así que se cuenta paso a paso: se dice UNA cosa, se espera a que
+     el usuario diga "listo", y se sigue. Si contesta otra cosa, se le
+     responde y se le recuerda dónde estábamos, sin regañarle.
+     ══════════════════════════════════════════════════════════ */
+  var GUIA = null;                          // { id, paso }
+  var CLAVE_GUIA = 'np-chat-guia';
+  var LISTO_RE = /^(listo|listoo+|ya|ya esta|ya está|hecho|ok|oka|okey|okay|vale|dale|sigue|siguiente|continua|continúa|next|done|puesto|marcado|si|sí|va|perfecto)\b/;
+  var SALIR_GUIA_RE = /\b(deja|dejalo|déjalo|olvidalo|olvídalo|salir|cancela|cancelar|otra cosa|para|basta|luego|despues|después|ya no)\b/;
+
+  function guardarGuia() {
+    try {
+      if (GUIA) sessionStorage.setItem(CLAVE_GUIA, JSON.stringify(GUIA));
+      else sessionStorage.removeItem(CLAVE_GUIA);
+    } catch (e) {}
+  }
+  function cargarGuia() {
+    try { var v = sessionStorage.getItem(CLAVE_GUIA); if (v) GUIA = JSON.parse(v); } catch (e) {}
+  }
+
+  function guiaDe(id) { return (DATA.guias || {})[id] || null; }
+
+  function empezarGuia(id, release) {
+    var g = guiaDe(id); if (!g) return false;
+    GUIA = { id: id, paso: 0 };
+    guardarGuia();
+    var cab = g.intro || ('Vamos con **' + g.titulo + '**. Te lo cuento paso a paso.');
+    speak(cab + '\n\n' + textoPaso(g, 0),
+          { accion: g.accion, esperaListo: true }, release);
+    return true;
+  }
+
+  function textoPaso(g, i) {
+    var p = g.pasos[i];
+    var num = '**Paso ' + (i + 1) + ' de ' + g.pasos.length + '**\n\n';
+    var pie = (i < g.pasos.length - 1)
+      ? '\n\nCuando lo tengas, escríbeme **listo**.'
+      : '';
+    return num + p + pie;
+  }
+
+  function siguientePaso(release) {
+    var g = guiaDe(GUIA.id);
+    if (!g) { GUIA = null; guardarGuia(); return; }
+    GUIA.paso++;
+    if (GUIA.paso >= g.pasos.length) {
+      var fin = g.fin || 'Y ya está. Tu bot queda trabajando solo.\n\n¿Te ayudo con algo más?';
+      GUIA = null; guardarGuia();
+      speak(fin, { opciones: g.despues || null }, release);
+      return;
+    }
+    guardarGuia();
+    speak(textoPaso(g, GUIA.paso), { esperaListo: true }, release);
+  }
+
+  function recordarGuia(release) {
+    var g = guiaDe(GUIA.id);
+    var r = 'Seguimos con **' + g.titulo + '**, íbamos por el **paso ' + (GUIA.paso + 1) +
+            '**.\n\nEscríbeme **listo** cuando lo tengas, o dime **déjalo** si prefieres dejarlo para luego.';
+    speak(r, null, release);
+  }
+
   function send(raw) {
     var text = String(raw || '').trim();
     if (!text || busy) return;
@@ -2300,6 +2374,54 @@
     closeMenu();
 
     var release = function () { busy = false; };
+
+    // Disparo directo de una guía desde un botón.
+    if (text.indexOf('__guia:') === 0) {
+      if (empezarGuia(text.slice(7), release)) return;
+      release(); return;
+    }
+
+    /* ── SI ESTAMOS EN MEDIO DE UNA GUÍA, MANDA LA GUÍA ──────────
+       Salvo que el usuario pregunte otra cosa: entonces se le responde
+       y luego se le recuerda dónde estábamos. Nunca se le deja tirado
+       ni se le obliga a terminar. */
+    if (GUIA && !_menorDetectado(text)) {
+      var nG = normalize(text);
+
+      if (SALIR_GUIA_RE.test(nG)) {
+        GUIA = null; guardarGuia();
+        speak('Sin problema, lo dejamos aquí.\n\n¿Te ayudo con otra cosa?', null, release);
+        return;
+      }
+      if (LISTO_RE.test(nG) && nG.split(/\s+/).length <= 4) {
+        siguientePaso(release);
+        return;
+      }
+      // Preguntó algo en medio: se le CONTESTA y luego se retoma el paso.
+      // No hacerlo sería tratarle como a un formulario, no como a una persona.
+      var _guardado = { id: GUIA.id, paso: GUIA.paso };
+      var _hits = detectTopics(text);
+      var _int  = detectIntent(text);
+      var _resp = null, _extra = null;
+      if (_hits.length) {
+        var _e = _hits[0].entry;
+        _resp  = pickVariant(_e.answer, (_e.topic || 'x') + '#a');
+        _extra = { contactCard: _e.contactCard };
+      } else if (_int && BOT.intentAnswers[_int]) {
+        _resp = pickVariant(BOT.intentAnswers[_int].answer, 'intent#' + _int);
+      }
+      if (_resp) {
+        GUIA = null;                          // que no se dispare el recordatorio dentro
+        speak(_resp, _extra, function () {
+          GUIA = _guardado; guardarGuia();
+          setTimeout(function () { recordarGuia(release); }, 800);
+        });
+        return;
+      }
+      // Cualquier otra cosa: recordatorio amable.
+      recordarGuia(release);
+      return;
+    }
 
     /* ══════════════════════════════════════════════════════════
        CONVERSACIÓN NATURAL, ANTES QUE NADA
@@ -2912,6 +3034,7 @@
 
   function init() {
     injectStyles();
+    cargarGuia();
     build();
     loadFlow();      // una toma de datos a medias sobrevive al cambio de página
     loadPending();   // y también el ofrecimiento en el aire
