@@ -1240,13 +1240,18 @@
 
     /* Botones que LLEVAN al sitio, no enlaces sueltos que hay que copiar.
        Y sin número de teléfono a la vista: se usa el usuario. */
+    /* Botones limpios: el nombre del sitio y una frase de qué hay allí.
+       Poner el usuario o el número dentro del botón sobra: el botón LLEVA,
+       no informa. Y así tampoco queda el contacto expuesto en pantalla. */
+    var fila = function (href, ico, titulo, pie) {
+      return '<a class="np-chat__row" href="' + href + '" target="_blank" rel="noopener">' +
+        ico + '<span><b>' + titulo + '</b><em>' + pie + '</em></span>' + ICO.arrow + '</a>';
+    };
     c.innerHTML =
-      '<a class="np-chat__row" href="' + K.telegram + '" target="_blank" rel="noopener">' +
-        ICO.tg + '<span><b>Telegram</b><em>' + K.telegramTx + '</em></span>' + ICO.arrow + '</a>' +
-      '<a class="np-chat__row" href="' + K.whatsapp + '" target="_blank" rel="noopener">' +
-        ICO.wa + '<span><b>WhatsApp</b><em>' + K.whatsappTx + '</em></span>' + ICO.arrow + '</a>' +
+      fila(K.telegram, ICO.tg, 'Escribir por Telegram', 'respuesta directa') +
+      (K.whatsapp ? fila(K.whatsapp, ICO.wa, 'Escribir por WhatsApp', 'si lo prefieres') : '') +
       '<a class="np-chat__row np-chat__row--grupo" href="' + K.grupo + '" target="_blank" rel="noopener">' +
-        ICO.grupo + '<span><b>Comunidad</b><em>' + K.grupoTx + '</em></span>' + ICO.arrow + '</a>';
+        ICO.grupo + '<span><b>Entrar a la comunidad</b><em>gente que ya usa Aurex</em></span>' + ICO.arrow + '</a>';
 
     return c;
   }

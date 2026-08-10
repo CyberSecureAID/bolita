@@ -266,8 +266,15 @@ window.NP_BOT_KB = {
     contact: {
       telegram:   'https://t.me/JesusDevTrader',
       telegramTx: '@JesusDevTrader',
-      whatsapp:   'https://wa.me/message/JesusDevTrader',
-      whatsappTx: '@JesusDevTrader',
+      /* ⚠️ WHATSAPP DESACTIVADO HASTA TENER EL NÚMERO.
+         wa.me SOLO admite números de teléfono, nunca nombres de usuario.
+         Por eso el botón no funcionaba: la dirección era imposible.
+
+         PARA ACTIVARLO: pon aquí el número con prefijo de país y sin signos
+         ni espacios. Ejemplo para España: 'https://wa.me/34612345678'
+         Para Cuba: 'https://wa.me/5351234567'
+         Mientras esté vacío, el botón sencillamente no aparece. */
+      whatsapp:   '',
       grupo:      'https://t.me/CriptoCubaOficial',
       grupoTx:    'CriptoCuba Oficial'
     }
@@ -507,16 +514,31 @@ window.NP_BOT_KB = {
     /* ══════════════ QUÉ ES AUREX ══════════════ */
     {
       topic: 'qué es Aurex',
-      keys: ['que es aurex', 'que es esto', 'de que va', 'que hacen', 'para que sirve',
-             'explicame la plataforma', 'que ofrecen', 'como funciona la pagina',
-             'que es la plataforma', 'de que se trata'],
+      keys: [
+        'que es aurex', 'qué es aurex', 'que es esto', 'que es esta pagina',
+        'que es este sitio', 'que es la plataforma', 'de que va', 'de que va esto',
+        'de que se trata', 'que hacen', 'que hacen aqui', 'que ofrecen',
+        'para que sirve', 'para que sirve esto', 'que puedo hacer aqui',
+        'explicame la plataforma', 'explicame esto', 'como funciona la pagina',
+        'como funciona aurex', 'como funciona esto', 'que tipo de plataforma es',
+        'que es aurex finance', 'aurex', 'hablame de aurex', 'cuentame de aurex',
+        'que es', 'informacion', 'informame', 'quiero saber mas', 'de que trata',
+        'que servicios tienen', 'que servicios ofrecen', 'que hay aqui',
+        'esto que es', 'y esto', 'nunca habia visto esto', 'primera vez aqui'
+      ],
       answer: [
-        'Aurex son **bots de trading que operan con tu dinero sin que salga de tu wallet**.\n\nTú configuras el bot, y él compra y vende por ti siguiendo esas reglas. Nosotros nunca tocamos tus fondos.',
-        'Es una plataforma de **bots de trading no custodiales**. La diferencia con un exchange normal: tu dinero se queda en tu wallet, no lo depositas en ningún sitio.\n\nHay cuatro tipos de bot, un marketplace para comprar y vender entre personas, y un swap.',
-        'Aurex te deja poner bots a trabajar en el mercado cripto **sin entregarle tu dinero a nadie**. Tú mandas siempre.\n\n¿Quieres que te cuente los tipos de bot que hay?'
+        'Aurex es un **ecosistema DeFi no custodial**: un conjunto de herramientas para que tu dinero trabaje en los mercados **sin salir nunca de tu wallet**.\n\nNo es una app de bots: es una plataforma completa con automatización, mercado entre personas, intercambio de monedas, eventos comunitarios y formación.\n\n¿Por dónde quieres que empiece?',
+        'Es un **ecosistema descentralizado** montado sobre BNB Smart Chain. Lo que lo distingue: **nunca custodiamos tu dinero**. Ni registro, ni KYC, ni depósitos.\n\nDentro hay automatización de operaciones, un mercado entre personas, swap, sorteos comunitarios y material para aprender.\n\n¿Qué parte te interesa?',
+        'Aurex es una plataforma **DeFi no custodial**: automatiza tus operaciones en los mercados financieros mientras tu dinero **sigue siendo tuyo, en tu wallet**.\n\nNo somos un exchange donde depositas. Somos una capa de herramientas sobre la blockchain que tú controlas.\n\n¿Te cuento las partes?'
       ],
       more: [
-        'Lo que hay dentro:\n\n**Cuatro bots** — Smart Grid, Accumulator, Cash Out y DCA. Cada uno con una estrategia distinta.\n\n**Marketplace** — comprar y vender cripto entre personas, con fianza y sistema de disputas.\n\n**Swap** — intercambiar monedas al momento.\n\n**Prize Pool** — un sorteo comunitario con aleatoriedad verificable.\n\nTodo funciona en BNB Smart Chain, sin registro y sin KYC.'
+        'Te lo desgloso. Aurex tiene **cinco patas**:\n\n**1 · Automatización.** Cuatro estrategias distintas, cada una para un momento del mercado:\n· **Smart Grid** — compra abajo y vende arriba, en bucle\n· **Accumulator** — compra más cuanto más baja y vende todo al objetivo\n· **Cash Out** — vende cuando el precio llega a donde marcaste\n· **DCA** — compra una cantidad fija cada cierto tiempo\n\n**2 · Marketplace P2P.** Comprar y vender cripto entre personas de cualquier país, pagando como acordéis. Con fianza, cripto retenida y árbitros.\n\n**3 · Swap.** Intercambio directo entre monedas desde tu wallet.\n\n**4 · Prize Pool.** Sorteos comunitarios con aleatoriedad verificable en cadena. Nadie puede manipularlos, ni nosotros.\n\n**5 · Formación.** Cada herramienta explica su economía real: qué la hace rentable, qué puede salir mal y cuánto cuesta.'
+      ],
+      opciones: [
+        { label: 'Los bots',        q: 'que bots hay' },
+        { label: 'El Marketplace',  q: 'que es el marketplace' },
+        { label: '¿Es seguro?',     q: 'es seguro mi dinero' },
+        { label: 'Cómo empiezo',    q: 'como empiezo' }
       ]
     },
     {
@@ -760,6 +782,20 @@ window.NP_BOT_KB = {
     /* ══════════════ LO QUE SALIÓ EN LA AUDITORÍA ══════════════
        Preguntas reales que la gente hizo y el asistente no supo responder. */
 
+    {
+      topic: 'quién es el CEO',
+      keys: ['quien es el ceo', 'el ceo', 'ceo', 'quien es el fundador', 'fundador',
+             'quien es el dueno', 'quien es el dueño', 'el dueño', 'quien manda',
+             'quien dirige', 'director', 'con quien hablo', 'quien es jesus',
+             'quien eres tu', 'eres el dueño', 'eres una persona real',
+             'como se llama el dueño', 'quien lo dirige', 'jefe', 'quien es el jefe'],
+      answer: [
+        'El CEO de Aurex es **Jesús**. Es quien dirige el proyecto y quien responde personalmente cuando hace falta.\n\nAquí tienes su contacto directo:',
+        '**Jesús** lleva Aurex. No hay una empresa grande detrás con departamentos: hay una persona con la que puedes hablar directamente.\n\nEste es su contacto:',
+        'Se llama **Jesús** y es el fundador. Puedes escribirle tú mismo, sin intermediarios ni tickets de soporte:'
+      ],
+      contactCard: true
+    },
     {
       topic: 'quién está detrás',
       keys: ['quien esta detras', 'quien hizo esto', 'quien lo lleva', 'quienes son',
