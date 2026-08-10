@@ -31,6 +31,23 @@ const RPCS = [
 ];
 const KEEPER = 'https://bolita-keeper-bot.yamicelanvivesqui.workers.dev';
 
+/* Contrato de la lotería (la antigua "bolita"), que sigue vivo en el repo. */
+const LOTERIA = '0x964a68D3A2dB18c723581410C49aa8789048E1B9';
+const ABI_LOTERIA = [
+  'function saldoDe(address jugador, address token) view returns (uint256)',
+  'function retirar(address token)'
+];
+const MONEDAS_LOTERIA = [
+  { id: 'BNB',      nom: 'BNB',         dir: null,                                          dec: 18 },
+  { id: 'USDT',     nom: 'Tether',      dir: '0x55d398326f99059fF775485246999027B3197955',  dec: 18 },
+  { id: 'USDC',     nom: 'USD Coin',    dir: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',  dec: 18 },
+  { id: 'BTCB',     nom: 'Bitcoin',     dir: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',  dec: 18 },
+  { id: 'ETH',      nom: 'Ethereum',    dir: '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',  dec: 18 },
+  { id: 'BABYDOGE', nom: 'Baby Doge',   dir: '0xc748673057861a797275CD8A068AbB95A902e8de',  dec: 9  },
+  { id: 'CAKE',     nom: 'PancakeSwap', dir: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82',  dec: 18 },
+  { id: 'BUSD',     nom: 'BUSD',        dir: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',  dec: 18 }
+];
+
 /* ABI mínimo común a todos (Ownable) */
 const ABI_OWNER = [
   'function owner() view returns (address)',
@@ -148,6 +165,7 @@ function abrirPanel(cuenta, perm) {
         <button class="ad-tab" data-p="disputas">Disputas</button>
         <button class="ad-tab" data-p="prize">Prize Pool</button>
         <button class="ad-tab" data-p="ajustes">Ajustes</button>
+        <button class="ad-tab" data-p="loteria">Lotería</button>
         <button class="ad-tab" data-p="poder">Propiedad</button>
       </div>
 
@@ -155,6 +173,7 @@ function abrirPanel(cuenta, perm) {
       <div class="ad-pane" id="ad-disputas"></div>
       <div class="ad-pane" id="ad-prize"></div>
       <div class="ad-pane" id="ad-ajustes"></div>
+      <div class="ad-pane" id="ad-loteria"></div>
       <div class="ad-pane" id="ad-poder"></div>
 
       <div class="ad-msg" id="ad-msg"></div>
@@ -174,6 +193,7 @@ function abrirPanel(cuenta, perm) {
     if (b.dataset.p === 'disputas') pintarDisputas(perm);
     if (b.dataset.p === 'prize') pintarPrize(perm);
     if (b.dataset.p === 'ajustes') pintarAjustes(perm);
+    if (b.dataset.p === 'loteria') pintarLoteria(cuenta);
     if (b.dataset.p === 'poder') pintarPoder(cuenta, perm);
   });
 
@@ -448,6 +468,60 @@ async function pintarAjustes(perm) {
   $('aa-pp').onclick = () => congelar(CONTRATOS.prize.dir, ABI_PRIZE, 'el Prize Pool');
 }
 
+/* ── LOTERÍA: recuperar el dinero que quedó dentro ── */
+let _saldosLot = [];
+async function pintarLoteria(cuenta) {
+  const box = $('ad-loteria'); if (!box) return;
+  box.innerHTML = `<div class="ad-cargando">Leyendo lo que hay en el contrato de la lotería…</div>`;
+  const CERO = '0x0000000000000000000000000000000000000000';
+  try {
+    const c = leerC(LOTERIA, ABI_LOTERIA);
+    _saldosLot = [];
+    const filas = [];
+    for (const m of MONEDAS_LOTERIA) {
+      let v = 0n;
+      try { v = await c.saldoDe(cuenta, m.dir || CERO); } catch (_) { v = 0n; }
+      if (v > 0n) _saldosLot.push({ m, v });
+      const txt = Number(ethers.formatUnits(v, m.dec)).toLocaleString('es', { maximumFractionDigits: 8 });
+      filas.push(`<div class="ad-fila">
+        <div class="ad-fila-tx"><b>${m.nom}</b><span>${m.id}</span></div>
+        <span class="ad-saldo ${v > 0n ? 'hay' : ''}">${txt}</span>
+      </div>`);
+    }
+    box.innerHTML = `
+      <div class="ad-nota">Dinero que quedó dentro del contrato de la lotería y que puedes recuperar. Sale directo a tu wallet.</div>
+      ${filas.join('')}
+      <div class="ad-acts col">
+        ${_saldosLot.length
+          ? `<button class="ad-b" id="al-todo">Retirar todo (${_saldosLot.length} moneda${_saldosLot.length > 1 ? 's' : ''})</button>`
+          : `<div class="ad-vacio">No hay nada que retirar: todo está a cero.</div>`}
+        <a class="ad-link btn" href="https://bscscan.com/address/${LOTERIA}" target="_blank" rel="noopener" style="text-align:center">ver el contrato ↗</a>
+      </div>`;
+
+    const btn = $('al-todo');
+    if (btn) btn.onclick = () => confirmar({
+      titulo: 'Retirar todo de la lotería',
+      texto: `Se firma <b>una transacción por moneda</b> (${_saldosLot.length} en total) y el dinero llega a tu wallet.`,
+      ok: 'Retirar'
+    }, async () => {
+      btn.disabled = true;
+      const w = await escribirC(LOTERIA, ABI_LOTERIA);
+      let ok = 0; const mal = [];
+      for (let i = 0; i < _saldosLot.length; i++) {
+        const { m, v } = _saldosLot[i];
+        decir(`Retirando ${Number(ethers.formatUnits(v, m.dec)).toFixed(6)} ${m.id} (${i + 1}/${_saldosLot.length})… firma en tu wallet`, 'info');
+        try { const tx = await w.retirar(m.dir || CERO); await tx.wait(); ok++; }
+        catch (e) { mal.push(m.id); }
+      }
+      decir(mal.length === 0 ? `Listo: ${ok} moneda(s) en tu wallet.` : `Retiradas ${ok} · fallaron: ${mal.join(', ')}`, mal.length ? 'mal' : 'ok');
+      btn.disabled = false;
+      pintarLoteria(cuenta);
+    });
+  } catch (e) {
+    box.innerHTML = `<div class="ad-vacio">No se pudo leer: ${esc(e?.message || e)}</div>`;
+  }
+}
+
 /* ── PROPIEDAD ── */
 async function pintarPoder(cuenta, perm) {
   const box = $('ad-poder'); if (!box) return;
@@ -577,6 +651,8 @@ function estilos() {
   #adm-panel .ad-caso-p i,#adm-panel .ad-motivo i{font-style:normal;font-family:var(--mono,monospace);font-size:9px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px;margin-right:7px}
   #adm-panel .ad-motivo{margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid #3a424c;font-family:var(--sans,sans-serif);font-size:12.5px;color:#eaecef;line-height:1.55}
   #adm-panel .ad-motivo i{display:block;margin-bottom:4px}
+  #adm-panel .ad-saldo{font-family:var(--mono,monospace);font-size:12.5px;color:#6b7681;flex:0 0 auto}
+  #adm-panel .ad-saldo.hay{color:var(--neon-lit,#2ee86a);font-weight:700}
   #adm-panel .ad-cargando,#adm-panel .ad-vacio{font-family:var(--mono,monospace);font-size:11.5px;color:#7d8794;text-align:center;padding:26px 10px;line-height:1.6}
   #adm-panel .ad-msg{font-family:var(--mono,monospace);font-size:11.5px;text-align:center;margin-top:14px;min-height:16px;line-height:1.5}
   #adm-panel .ad-msg.ok{color:var(--neon-lit,#2ee86a)}
