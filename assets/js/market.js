@@ -277,6 +277,16 @@ function estilos() {
   #mk-overlay .op-card.ok{opacity:.72}
   #mk-overlay .op-cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
   #mk-overlay .op-id{font-family:var(--mono,monospace);font-size:10px;color:#6b7681}
+  #mk-overlay .op-fechas{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.06)}
+  #mk-overlay .op-fechas span{font-family:var(--mono,monospace);font-size:11px;color:var(--ink-2,#b7bdc6);cursor:help}
+  #mk-overlay .op-fechas span.dis{color:var(--rojo,#f6465d)}
+  #mk-overlay .op-fechas i{display:block;font-style:normal;font-size:8.5px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
+  #mk-overlay .op-mas{margin-top:6px}
+  #mk-overlay .op-mas summary{cursor:pointer;list-style:none;padding:11px 13px;border-radius:11px;border:1px dashed #3a424c;background:transparent;color:var(--ink-3,#7d8794);font-family:var(--mono,monospace);font-size:11.5px;text-align:center}
+  #mk-overlay .op-mas summary::-webkit-details-marker{display:none}
+  #mk-overlay .op-mas summary:hover{color:var(--gold,#E8B84B);border-color:var(--gold-soft,#C9A84B)}
+  #mk-overlay .op-mas[open] summary{margin-bottom:9px}
+  @media(max-width:560px){#mk-overlay .op-fechas{gap:11px}#mk-overlay .op-fechas span{font-size:10.5px}}
   #mk-overlay .op-rol{font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;color:#eaecef;flex:1;min-width:0}
   #mk-overlay .op-est{font-family:var(--mono,monospace);font-size:9.5px;padding:3px 9px;border-radius:8px;border:1px solid #3a424c;color:#9aa4b0;background:rgba(255,255,255,.04)}
   #mk-overlay .op-est.act{color:var(--gold,#E8B84B);border-color:rgba(232,184,75,.45);background:rgba(232,184,75,.1)}
@@ -1684,8 +1694,22 @@ async function panelMisOps() {
       else if (est === 0) abiertas.push(d);
       else fin_.push(d);
     }
-    const sec = (tit, arr, nota) => arr.length
-      ? `<div class="op-sec"><div class="op-st">${tit} <span>${arr.length}</span></div>${nota ? `<div class="op-nota">${nota}</div>` : ''}${arr.map(d => opCard(d, cuenta, esOwner)).join('')}</div>` : '';
+    const sec = (tit, arr, nota, plegable) => {
+      if (!arr.length) return '';
+      /* Las terminadas se pliegan solas a partir de cinco: si no, el
+         historial crece sin fin y tapa lo que de verdad hay que atender. */
+      const TOPE = 5;
+      const pliega = plegable && arr.length > TOPE;
+      const visibles = pliega ? arr.slice(0, TOPE) : arr;
+      const ocultas = pliega ? arr.slice(TOPE) : [];
+      return `<div class="op-sec"><div class="op-st">${tit} <span>${arr.length}</span></div>` +
+        (nota ? `<div class="op-nota">${nota}</div>` : '') +
+        visibles.map(d => opCard(d, cuenta, esOwner)).join('') +
+        (pliega
+          ? `<details class="op-mas"><summary>Ver las ${ocultas.length} anteriores</summary>${ocultas.map(d => opCard(d, cuenta, esOwner)).join('')}</details>`
+          : '') +
+        `</div>`;
+    };
     // Cuánto tiene el contrato retenido que es tuyo
     let retenido = {};
     for (const { o } of ords) {
@@ -1710,7 +1734,7 @@ async function panelMisOps() {
       sec('Te toca a ti', urg, 'Estas operaciones están esperando algo tuyo. Atiéndelas primero.') +
       sec('En curso', curso, 'Estás esperando a la otra persona.') +
       sec('Publicadas', abiertas, 'Todavía nadie las ha tomado.') +
-      sec('Terminadas', fin_, '');
+      sec('Terminadas', fin_, 'Historial de lo que ya se cerró.', true);
     wireOps();
     const rt = $('op-retirar');
     if (rt) rt.onclick = () => confirmar({
@@ -1728,6 +1752,27 @@ async function panelMisOps() {
     });
   } catch (e) { box.innerHTML = `<div class="mk-vacio">No se pudo cargar. Revisa tu conexión.</div>`; }
 }
+
+/* Fechas en cristiano. "Hace 3 días" se entiende mejor que una fecha
+   suelta, pero para lo antiguo la fecha exacta es más útil. */
+function cuando(seg) {
+  const t = Number(seg) * 1000;
+  if (!t || !isFinite(t)) return '';
+  const d = Date.now() - t;
+  const min = Math.floor(d / 60000);
+  if (min < 1) return 'ahora mismo';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const dias = Math.floor(h / 24);
+  if (dias === 1) return 'ayer';
+  if (dias < 7) return `hace ${dias} días`;
+  return new Date(t).toLocaleDateString('es', { day: '2-digit', month: 'short', year: '2-digit' });
+}
+const fechaExacta = (seg) => {
+  const t = Number(seg) * 1000;
+  return t && isFinite(t) ? new Date(t).toLocaleString('es', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+};
 
 function opCard({ o, perfOtro }, cuenta, esOwner) {
   const soyV = String(o.vendedor).toLowerCase() === String(cuenta).toLowerCase();
@@ -1813,6 +1858,25 @@ function opCard({ o, perfOtro }, cuenta, esOwner) {
     </div>
     <div class="op-tit">${titulo}</div>
     <div class="op-exp">${explica}</div>
+    ${(() => {
+      /* CUÁNDO PASÓ CADA COSA. Antes no se veía ninguna fecha: no sabías si
+         una operación era de hoy o de hace un mes, ni cuánto tardó. */
+      const t = [];
+      if (Number(o.creadaEn) > 0) t.push(`<span title="${fechaExacta(o.creadaEn)}"><i>Publicada</i>${cuando(o.creadaEn)}</span>`);
+      if (Number(o.tomadaEn) > 0) t.push(`<span title="${fechaExacta(o.tomadaEn)}"><i>Tomada</i>${cuando(o.tomadaEn)}</span>`);
+      if (est >= 2 && Number(o.ultimoMovEn) > 0) {
+        t.push(`<span title="${fechaExacta(o.ultimoMovEn)}"><i>${est === 2 ? 'Completada' : 'Cerrada'}</i>${cuando(o.ultimoMovEn)}</span>`);
+        // Cuánto tardó de principio a fin: útil para juzgar a la otra parte.
+        const ini = Number(o.tomadaEn) || Number(o.creadaEn);
+        const dur = Number(o.ultimoMovEn) - ini;
+        if (ini > 0 && dur > 60) {
+          const h = Math.floor(dur / 3600), m = Math.floor((dur % 3600) / 60);
+          t.push(`<span><i>Duró</i>${h > 24 ? Math.floor(h / 24) + ' días' : h > 0 ? h + ' h ' + m + ' min' : m + ' min'}</span>`);
+        }
+      }
+      if (Number(o.disputaEn) > 0) t.push(`<span class="dis" title="${fechaExacta(o.disputaEn)}"><i>Disputa</i>${cuando(o.disputaEn)}</span>`);
+      return t.length ? `<div class="op-fechas">${t.join('')}</div>` : '';
+    })()}
     ${(!compraAnuncio && est === 1) ? `<div class="op-prog">
       <div class="op-prog-l"><span>Parte ${Math.min(hechos + 1, tramos)} de ${tramos}</span><span>Entregado ${num(f18(o.liberado), 2)} de ${num(monto, 2)} ${sim}</span></div>
       <div class="mk-steps">${pasos}</div></div>` : ''}
