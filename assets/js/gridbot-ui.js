@@ -467,6 +467,26 @@ function inyectarEstilo() {
   #conf-box .cf-gana{font-family:var(--sans);font-size:11.5px;color:var(--neon-lit,#2ee86a);background:rgba(46,232,106,.09);border:1px solid rgba(46,232,106,.28);border-radius:9px;padding:8px 10px;line-height:1.45}
   #conf-box .cf-gana.mal{color:var(--gold,#E8B84B);background:rgba(232,184,75,.09);border-color:rgba(232,184,75,.3)}
   #conf-box .cf-sug{width:100%;margin-top:12px;padding:12px;border-radius:11px;border:1px solid #3a424c;background:transparent;color:var(--ac-l,#a9d4ff);font-family:var(--display);font-weight:700;font-size:13px;cursor:pointer;min-height:44px}
+  #conf-box .cf-sim{margin-top:16px;padding:14px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid #2b3139}
+  #conf-box .cf-sim-t{font-family:var(--display);font-weight:800;font-size:14px;color:var(--ac-l,#a9d4ff);margin-bottom:10px}
+  #conf-box .cf-sim-in{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+  #conf-box .cf-sim-in input{flex:1;min-width:0;padding:11px 13px;border-radius:11px;border:1px solid #3a424c;background:#0b0e12;color:var(--ink);font-family:var(--display);font-size:17px;font-weight:700}
+  #conf-box .cf-sim-in input:focus{outline:none;border-color:var(--ac-m,#4d9fff)}
+  #conf-box .cf-sim-in span{font-family:var(--mono);font-size:12px;color:var(--ink-3);flex:0 0 auto}
+  #conf-box .cf-sim-f{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  #conf-box .cf-sim-f:last-of-type{border-bottom:none}
+  #conf-box .cf-sim-f .s1{font-family:var(--display);font-weight:700;font-size:12.5px;color:var(--ink);flex:0 0 auto;min-width:84px}
+  #conf-box .cf-sim-f .s2,#conf-box .cf-sim-f .s3{font-family:var(--mono);font-size:12px;color:var(--ink-2);text-align:right}
+  #conf-box .cf-sim-f .s3{color:var(--neon-lit);font-weight:700;min-width:78px}
+  #conf-box .cf-sim-f.mal .s3{color:var(--gold)}
+  #conf-box .cf-sim-f i{display:block;font-style:normal;font-size:8.5px;color:#6b7681;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;font-weight:400}
+  #conf-box .cf-sim-res{margin-top:11px;padding:10px 12px;border-radius:10px;background:rgba(46,232,106,.08);border:1px solid rgba(46,232,106,.28);font-family:var(--sans);font-size:12px;color:var(--ink-2);line-height:1.55}
+  #conf-box .cf-sim-res b{color:var(--neon-lit)}
+  #conf-box .cf-sim-res.mal{background:rgba(232,184,75,.08);border-color:rgba(232,184,75,.3)}
+  #conf-box .cf-sim-res.mal b{color:var(--gold)}
+  #conf-box .cf-sim-mal{font-family:var(--sans);font-size:12px;color:var(--gold);padding:6px 0}
+  #conf-box .cf-sim-n{font-family:var(--sans);font-size:11px;color:#6b7681;line-height:1.5;margin-top:10px}
+  #conf-box .cf-sim-n b{color:var(--ink-3)}
   #conf-box .cf-saber{margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px}
   #conf-box .cf-saber summary{cursor:pointer;font-family:var(--display);font-weight:700;font-size:13.5px;color:var(--ac-l,#a9d4ff);list-style:none;padding:4px 0}
   #conf-box .cf-saber summary::-webkit-details-marker{display:none}
@@ -1957,6 +1977,16 @@ function ventanaConfiguraciones() {
       <div class="cf-s">Calculado con <b>${usada.toFixed(0)} USDT</b>${inv > 0 ? '' : ' (pon tu inversión para afinar)'}. Elige una y seguimos.</div>
       <div class="cf-lista">${['tranquilo', 'equilibrado', 'activo', 'volatil'].map(tarjeta).join('')}</div>
       <button class="cf-sug" id="cf-sug">Sugerir según el precio de ahora</button>
+      <div class="cf-sim">
+        <div class="cf-sim-t">Prueba con tu cantidad</div>
+        <div class="cf-sim-in">
+          <input type="number" id="cf-monto" value="${usada.toFixed(0)}" min="20" max="100000" step="10" inputmode="decimal">
+          <span>USDT</span>
+        </div>
+        <div class="cf-sim-out" id="cf-sim-out"></div>
+        <div class="cf-sim-n">Son cuentas con las comisiones reales ya restadas. <b>Cuántas vueltas dé al día lo decide el mercado</b>, no el bot: hay días de varias y días de ninguna.</div>
+      </div>
+
       <details class="cf-saber">
         <summary>¿Por qué este bot da ganancia?</summary>
         <div class="cf-txt">
@@ -1983,6 +2013,37 @@ function ventanaConfiguraciones() {
   d.querySelectorAll('[data-conf]').forEach((b) => b.onclick = () => { aplicarPreset(b.dataset.conf); cerrar(); });
   const sug = $('cf-sug');
   if (sug) sug.onclick = () => { cerrar(); sugerirRango(); };
+
+  /* Simulador: la pregunta que más se hace es "¿cuánto ganaría con X?".
+     Mejor que se lo enseñemos con SU cantidad antes de decidir, en vez de
+     que lo descubra después. Sin prometer nada: se dice claramente que la
+     frecuencia la pone el mercado. */
+  const pintarSim = () => {
+    const out = $('cf-sim-out'); if (!out) return;
+    const m = Math.max(0, Number($('cf-monto')?.value) || 0);
+    if (m < 20) { out.innerHTML = `<div class="cf-sim-mal">Escribe al menos 20 USDT.</div>`; return; }
+    const filas = ['tranquilo', 'equilibrado', 'activo', 'volatil'].map((id) => {
+      const p = PRESETS[id];
+      const orden = m / p.grids;
+      const bruto = orden * (p.sep / 100);
+      const neto = bruto - (GAS_VUELTA_USD + orden * COM_DEX);
+      const ok = neto > 0;
+      return `<div class="cf-sim-f ${ok ? '' : 'mal'}">
+        <span class="s1">${NOMBRE_PRESET[id]}</span>
+        <span class="s2">${orden.toFixed(2)} <i>por cuadrícula</i></span>
+        <span class="s3">${ok ? '+' + neto.toFixed(3) : 'no cubre'} <i>${ok ? 'cada vuelta' : 'comisiones'}</i></span>
+      </div>`;
+    }).join('');
+    const p = PRESETS[F.preset || 'equilibrado'];
+    const orden = m / p.grids;
+    const neto = orden * (p.sep / 100) - (GAS_VUELTA_USD + orden * COM_DEX);
+    const dia = neto > 0 ? neto * 3 : 0;
+    out.innerHTML = filas + (neto > 0
+      ? `<div class="cf-sim-res">Con <b>${NOMBRE_PRESET[F.preset || 'equilibrado']}</b>, si el mercado da <b>3 vueltas en un día</b> serían unos <b>${dia.toFixed(2)} USDT</b>. Si está plano, cero.</div>`
+      : `<div class="cf-sim-res mal">Con esa cantidad las comisiones se comen la ganancia. Sube el importe o elige una configuración con menos cuadrículas.</div>`);
+  };
+  const inp = $('cf-monto');
+  if (inp) { inp.oninput = pintarSim; pintarSim(); }
 }
 
 function aplicarPreset(id) {
@@ -2267,7 +2328,14 @@ function avisoDeRiesgo() {
         <div class="rg-p"><span>1</span><div><b>Puedes perder dinero.</b> Estos bots funcionan bien cuando el precio sube y baja dentro de un rango, y funcionan mal cuando el mercado se va en una dirección y no vuelve.</div></div>
         <div class="rg-p"><span>2</span><div><b>Nadie puede prometerte ganancias.</b> Ni yo, ni ninguna plataforma. Si alguien te promete un porcentaje fijo al mes, desconfía.</div></div>
         <div class="rg-p"><span>3</span><div><b>Usa solo dinero que puedas dejar quieto.</b> Meses, no días. Si lo vas a necesitar pronto, esto no es para ese dinero.</div></div>
-        <div class="rg-p"><span>4</span><div><b>Tu dinero sigue en tu wallet.</b> No lo custodiamos. Pero eso también significa que <b>tú eres responsable de tus claves</b>: si pierdes tu frase de recuperación, nadie puede devolvértela. Ni nosotros.</div></div>
+        <div class="rg-p"><span>4</span><div><b>Tu dinero sigue en tu wallet.</b> No lo custodiamos. Pero eso también significa que <b>tú eres responsable de tus claves</b>.</div></div>
+
+        <div class="rg-frase">
+          <div class="rg-frase-t">Tu frase de recuperación</div>
+          <p>Son las <b>12 palabras</b> que te dio tu wallet al crearla. Es la llave de todo tu dinero.</p>
+          <p><b>Escríbelas en papel</b> y guárdalas en un sitio seguro. No en el móvil, no en una foto, no en el correo.</p>
+          <p class="rg-frase-x">Si las pierdes, <b>nadie puede recuperarlas</b>: ni nosotros, ni tu wallet, ni nadie. Y si alguien te las pide —quien sea, incluso diciendo que es de Aurex— <b>es una estafa</b>. Nosotros no te las pediremos jamás.</p>
+        </div>
 
         <label class="rg-ok"><input type="checkbox" id="rg-check"> <span>Lo he leído y lo entiendo</span></label>
         <div class="rg-acts">
@@ -2300,6 +2368,13 @@ function estilosRiesgo() {
   #riesgo-box .rg-p span{flex:0 0 auto;width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);color:#3a2800;font-family:var(--display);font-weight:800;font-size:12px}
   #riesgo-box .rg-p div{font-family:var(--sans);font-size:13px;color:var(--ink-2);line-height:1.6}
   #riesgo-box .rg-p b{color:var(--ink)}
+  #riesgo-box .rg-frase{margin:16px 0 4px;padding:14px;border-radius:12px;background:rgba(246,70,93,.06);border:1px solid rgba(246,70,93,.3)}
+  #riesgo-box .rg-frase-t{font-family:var(--display);font-weight:800;font-size:14px;color:var(--rojo);margin-bottom:8px}
+  #riesgo-box .rg-frase p{font-family:var(--sans);font-size:12.5px;color:var(--ink-2);line-height:1.6;margin:0 0 8px}
+  #riesgo-box .rg-frase p:last-child{margin-bottom:0}
+  #riesgo-box .rg-frase b{color:var(--ink)}
+  #riesgo-box .rg-frase-x{padding-top:8px;border-top:1px solid rgba(246,70,93,.22)}
+  #riesgo-box .rg-frase-x b{color:#ffc2ca}
   #riesgo-box .rg-ok{display:flex;align-items:center;gap:10px;padding:13px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--line);margin:18px 0 14px;cursor:pointer}
   #riesgo-box .rg-ok input{width:19px;height:19px;flex:0 0 auto;accent-color:var(--gold);cursor:pointer}
   #riesgo-box .rg-ok span{font-family:var(--sans);font-size:13px;color:var(--ink)}
