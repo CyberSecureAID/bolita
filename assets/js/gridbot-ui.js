@@ -5,17 +5,17 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=107';
-import * as wallet from './wallet.js?v=107';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=107';
-import * as perfil from './perfil.js?v=107';
-import * as prizepool from './prizepool.js?v=107';
-import * as tutorial from './tutorial.js?v=107';
-import * as market from './market.js?v=107';
-import * as avisos from './avisos.js?v=107';
-import * as grafica from './grafica.js?v=107';
-import * as extras from './extras.js?v=107';
-import * as gestos from './gestos.js?v=107';
+import * as gb from './gridbot.js?v=124';
+import * as wallet from './wallet.js?v=124';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=124';
+import * as perfil from './perfil.js?v=124';
+import * as prizepool from './prizepool.js?v=124';
+import * as tutorial from './tutorial.js?v=124';
+import * as market from './market.js?v=124';
+import * as avisos from './avisos.js?v=124';
+import * as grafica from './grafica.js?v=124';
+import * as extras from './extras.js?v=124';
+import * as gestos from './gestos.js?v=124';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -132,6 +132,8 @@ function inyectarEstilo() {
   #colmena-app .c-loteria,#colmena-app .c-perfil,#colmena-app .c-prize,#colmena-app .c-market{display:inline-flex;align-items:center;gap:7px;height:36px;box-sizing:border-box;padding:0 11px;border-radius:8px;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-2);text-decoration:none;background:transparent;border:none;box-shadow:none;text-shadow:none;cursor:pointer;transition:color .14s,background .14s}
   #colmena-app .c-swap:active,#colmena-app .c-loteria:active,#colmena-app .c-perfil:active,#colmena-app .c-prize:active,#colmena-app .c-market:active{opacity:.8}
   #colmena-app .c-loteria:active,#colmena-app .c-perfil:active{opacity:.8}
+  #colmena-app .c-academy{border-color:rgba(46,232,106,.42);color:var(--neon-lit)}
+  #colmena-app .c-academy:hover{border-color:var(--neon-lit);background:rgba(46,232,106,.1)}
   #colmena-app .c-swap{display:inline-flex;align-items:center;gap:7px;height:36px;box-sizing:border-box;padding:0 11px;border-radius:8px;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;background:transparent;border:none;box-shadow:none;text-shadow:none;transition:color .14s,background .14s}
 
   #colmena-app .c-swap:active{transform:translateY(3px);box-shadow:0 0 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5)}
@@ -1210,6 +1212,7 @@ function headerHTML() {
     <div class="c-hdr-r">
 
       <button class="c-swap" id="c-swap" type="button" aria-label="Intercambiar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10 3 6l4-4"/><path d="M3 6h14"/><path d="m17 14 4 4-4 4"/><path d="M21 18H7"/></svg><span class="c-swap-tx">Swap</span></button>
+      <button class="c-swap c-academy" id="c-academy" type="button" aria-label="Academy"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 4 2 9l10 5 10-5z"/><path d="M6 11.5V16c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-4.5"/><path d="M22 9v5"/></svg><span class="c-swap-tx">Academy</span></button>
       <button class="c-prize" id="c-prize" type="button" aria-label="Prize Pool"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg><span class="c-prize-tx">Prize Pool</span></button>
       <button class="c-market" id="c-market" type="button" aria-label="Marketplace"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18l-1.5 10.5a2 2 0 0 1-2 1.5H6.5a2 2 0 0 1-2-1.5L3 9z"/><path d="M8 9V6a4 4 0 0 1 8 0v3"/></svg><span class="c-market-tx">Market</span></button>
       <button class="c-loteria" id="c-instalar" type="button" aria-label="Instalar la app"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="c-lot-tx"><span class="lbl-pc">Instalar</span><span class="lbl-mov">Compartir</span></span></button>
@@ -1356,6 +1359,13 @@ function opcionesMovil() {
 
 function wireHeader() {
   if ($('c-swap')) $('c-swap').onclick = abrirSwap;
+  // La academia se carga solo cuando alguien la pide: no pesa al entrar.
+  if ($('c-academy')) $('c-academy').onclick = async () => {
+    try {
+      const ac = await import('./academy.js?v=124');
+      ac.abrirAcademy();
+    } catch (e) { console.warn('[Aurex] academy:', e); }
+  };
   if ($('c-conectar')) $('c-conectar').onclick = conectarWallet;
   if ($('c-dir')) $('c-dir').onclick = (e) => { e.stopPropagation(); abrirSelectorWallet($('c-dir')); };
   if ($('c-red')) $('c-red').onclick = () => wallet.cambiarARedCorrecta().catch(() => {});
@@ -2290,7 +2300,7 @@ function prepararPanelOculto() {
     if (clics < 5 || cargando) return;
     clics = 0; cargando = true;
     try {
-      const admin = await import('./admin.js?v=107');
+      const admin = await import('./admin.js?v=124');
       z.remove();                          // el panel pone la suya
       admin.iniciarPanelOculto();
       // Se acaba de cargar: hay que darle los 5 clics otra vez, así que
