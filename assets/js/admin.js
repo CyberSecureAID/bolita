@@ -515,14 +515,53 @@ async function pintarLoteria(cuenta) {
       const out = $('al-diag-out');
       out.innerHTML = `<div class="ad-cargando">Leyendo el contrato en el explorador…</div>`;
       try {
-        const r = await fetch(`https://api.bscscan.com/api?module=contract&action=getabi&address=${LOTERIA}`);
+        // Si es un PROXY, las funciones de verdad viven en otro contrato.
+        // Leemos la ranura estándar donde el proxy guarda esa dirección.
+        let objetivo = LOTERIA, nota = '';
+        const RANURAS = [
+          '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc', // EIP-1967
+          '0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3'  // OpenZeppelin antiguo
+        ];
+        for (const slot of RANURAS) {
+          try {
+            const v = await lector().getStorage(LOTERIA, slot);
+            const dir = '0x' + String(v).slice(-40);
+            if (/^0x[0-9a-f]{40}$/i.test(dir) && dir !== '0x0000000000000000000000000000000000000000') {
+              objetivo = ethers.getAddress(dir);
+              nota = `<div class="ad-nota">Es un <b>proxy</b>. Las funciones de verdad están en <b>${objetivo}</b>.</div>`;
+              break;
+            }
+          } catch (_) {}
+        }
+        const r = await fetch(`https://api.bscscan.com/api?module=contract&action=getabi&address=${objetivo}`);
         const j = await r.json();
-        if (j.status !== '1') { out.innerHTML = `<div class="ad-vacio">El contrato no está verificado en el explorador, así que no se puede leer su lista de funciones.<br>Ábrelo en BscScan y mira la pestaña <b>Write Contract</b>.</div>`; return; }
+        if (j.status !== '1') { out.innerHTML = `<div class="ad-vacio">${nota}No se pudo leer la lista de funciones (¿sin verificar o el explorador ocupado?).<br>Ábrelo en BscScan y mira la pestaña <b>Write Contract</b>.</div>`; return; }
         const abi = JSON.parse(j.result);
         const escribe = abi.filter((x) => x.type === 'function' && x.stateMutability !== 'view' && x.stateMutability !== 'pure');
-        const pinta = (x) => `<div class="ad-fn"><b>${esc(x.name)}</b>(${(x.inputs || []).map((i) => esc(i.type) + ' ' + esc(i.name || '')).join(', ')})</div>`;
+        const pinta = (x) => `<div class="ad-fn"><span><b>${esc(x.name)}</b>(${(x.inputs || []).map((i) => esc(i.type) + ' ' + esc(i.name || '')).join(', ')})</span><button class="ad-mini" data-fn="${esc(x.name)}">ejecutar</button></div>`;
         const saca = escribe.filter((x) => /retir|withdraw|rescue|sweep|claim|banca|bankroll|fond|owner/i.test(x.name));
+        // Cada una se puede lanzar desde aquí, rellenando sus datos.
+        setTimeout(() => out.querySelectorAll('[data-fn]').forEach((b) => b.onclick = () => {
+          const fn = abi.find((x) => x.name === b.dataset.fn && x.type === 'function');
+          if (!fn) return;
+          const campos = (fn.inputs || []).map((i, k) => ({ id: 'p' + k, lab: `${i.name || 'dato ' + (k + 1)} (${i.type})`, val: /address/.test(i.type) ? (wallet.cuentaActual() || '') : '' }));
+          pedirDatos(fn.name, campos.length ? campos : [{ id: 'nada', lab: 'Sin datos: pulsa Continuar', val: '' }], async (v) => {
+            try {
+              const frag = `function ${fn.name}(${(fn.inputs || []).map((i) => i.type + ' ' + (i.name || '')).join(',')})`;
+              const c = await escribirC(objetivo === LOTERIA ? LOTERIA : LOTERIA, [frag]);
+              const args = (fn.inputs || []).map((i, k) => {
+                const raw = v['p' + k] || '';
+                if (/^uint/.test(i.type)) return raw.includes('.') ? ethers.parseUnits(raw, 18) : BigInt(raw || '0');
+                if (i.type === 'bool') return /^(si|true|1)$/i.test(raw);
+                return raw;
+              });
+              firmar(() => c[fn.name](...args), 'Hecho. Revisa tu wallet.');
+            } catch (e) { decir('No se pudo: ' + (e?.shortMessage || e?.message || e), 'mal'); }
+          });
+        }), 60);
+        window._abiLoteria = abi;
         out.innerHTML = `
+          ${nota}
           <div class="ad-sec">Funciones que sacan dinero</div>
           ${saca.length ? saca.map(pinta).join('') : '<div class="ad-vacio">Ninguna con nombre reconocible.</div>'}
           <div class="ad-sec">Todas las que modifican algo (${escribe.length})</div>
@@ -688,7 +727,9 @@ function estilos() {
   #adm-panel .ad-caso-p i,#adm-panel .ad-motivo i{font-style:normal;font-family:var(--mono,monospace);font-size:9px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px;margin-right:7px}
   #adm-panel .ad-motivo{margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid #3a424c;font-family:var(--sans,sans-serif);font-size:12.5px;color:#eaecef;line-height:1.55}
   #adm-panel .ad-motivo i{display:block;margin-bottom:4px}
-  #adm-panel .ad-fn{font-family:var(--mono,monospace);font-size:11px;color:#8b96a3;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid #2b3139;margin-bottom:5px;word-break:break-word}
+  #adm-panel .ad-fn{display:flex;align-items:center;justify-content:space-between;gap:9px;font-family:var(--mono,monospace);font-size:11px;color:#8b96a3;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid #2b3139;margin-bottom:5px;word-break:break-word}
+  #adm-panel .ad-mini{flex:0 0 auto;padding:5px 10px;border-radius:7px;border:1px solid #3a424c;background:transparent;color:var(--gold,#E8B84B);font-family:var(--mono,monospace);font-size:10px;cursor:pointer}
+  #adm-panel .ad-mini:hover{border-color:var(--gold-soft,#C9A84B)}
   #adm-panel .ad-fn b{color:var(--gold,#E8B84B)}
   #adm-panel .ad-saldo{font-family:var(--mono,monospace);font-size:12.5px;color:#6b7681;flex:0 0 auto}
   #adm-panel .ad-saldo.hay{color:var(--neon-lit,#2ee86a);font-weight:700}
