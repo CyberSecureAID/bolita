@@ -80,6 +80,15 @@ function estilos() {
 
   /* Secciones */
   #perfil-overlay .pf-sec{margin-bottom:16px}
+  #perfil-overlay .pf-perm-t{font-family:var(--sans,sans-serif);font-size:12px;color:#8b96a3;line-height:1.55;margin-bottom:11px}
+  #perfil-overlay .pf-perm-t b{color:#eaecef}
+  #perfil-overlay .pf-perm{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.06)}
+  #perfil-overlay .pf-perm-tx b{display:block;font-family:var(--display,sans-serif);font-size:13.5px;color:#eaecef}
+  #perfil-overlay .pf-perm-tx span{display:block;font-family:var(--mono,monospace);font-size:10px;color:#7d8794;margin-top:2px}
+  #perfil-overlay .pf-perm-b{flex:0 0 auto;min-height:34px;padding:7px 13px;border-radius:9px;border:1px solid #3a424c;background:transparent;color:var(--gold,#E8B84B);font-family:var(--mono,monospace);font-size:11px;cursor:pointer}
+  #perfil-overlay .pf-perm-b:hover{border-color:var(--gold-soft,#C9A84B)}
+  #perfil-overlay .pf-perm-b:disabled{opacity:.5;cursor:default}
+  #perfil-overlay .pf-perm-v{font-family:var(--sans,sans-serif);font-size:12px;color:var(--neon-lit,#2ee86a);text-align:center;padding:6px 0}
   #perfil-overlay .pf-coste{text-align:center;padding:15px}
   #perfil-overlay .pf-coste-t{font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794}
   #perfil-overlay .pf-coste-v{font-family:var(--display,sans-serif);font-size:17px;color:#eaecef;margin:6px 0 4px}
@@ -246,6 +255,12 @@ export async function abrirPerfil() {
       <div class="pf-coste-d" id="pf-opsrest">Se descuenta de tu gas, no de tu inversión.</div>
     </div>
 
+    <div class="pf-sect">Permisos de gasto</div>
+    <div class="pf-box">
+      <div class="pf-perm-t">Los bots necesitan permiso para mover tus monedas. Cuando dejes de usarlos, <b>quítaselo</b>: es la forma más eficaz de proteger tu dinero.</div>
+      <div id="pf-permisos"><div class="pf-sk" style="height:44px"></div></div>
+    </div>
+
     <div class="pf-sect">Notificaciones</div>
     <div class="pf-box">
       <div class="pf-row">
@@ -276,6 +291,7 @@ export async function abrirPerfil() {
     try { await navigator.clipboard.writeText(cuenta); const t = addr.innerHTML; addr.innerHTML = '¡Copiada!'; setTimeout(() => { addr.innerHTML = t; }, 1100); } catch (_) {}
   };
   if ($('pf-reload')) $('pf-reload').onclick = () => abrirPerfil();
+  cargarPermisos(cuenta);
   // Los datos se cargan LO PRIMERO: si algo del interruptor fallara, antes
   // se quedaba todo en blanco porque nunca se llegaba a pedirlos.
   cargarDatos(cuenta).catch((e) => {
@@ -297,6 +313,58 @@ export async function abrirPerfil() {
     };
   }
   } catch (e) { console.warn('[Aurex] interruptor de avisos:', e); }
+}
+
+/** Enseña los permisos activos y deja quitarlos con un botón.
+ *  Un permiso abierto es lo que convierte cualquier problema en un robo:
+ *  si nadie tiene permiso, no hay nada que llevarse. */
+async function cargarPermisos(cuenta) {
+  const box = $('pf-permisos'); if (!box || !cuenta) return;
+  const MON = gb.MONEDAS_LISTA || null;
+  // Miramos las monedas que el usuario usa en sus bots (no todas: sería lento)
+  let dirs = [];
+  try {
+    const claves = await gb.misRejillas(cuenta);
+    const vistos = new Set();
+    for (const k of claves.slice(0, 20)) {
+      try {
+        const R = await gb.resumenK(k);
+        [R.base, R.quote].forEach((d) => { if (d && !vistos.has(d.toLowerCase())) { vistos.add(d.toLowerCase()); dirs.push(d); } });
+      } catch (_) {}
+    }
+  } catch (_) {}
+  if (dirs.length === 0) { box.innerHTML = `<div class="pf-perm-v">No tienes permisos que revisar.</div>`; return; }
+
+  const filas = [];
+  for (const d of dirs.slice(0, 8)) {
+    let bot = 0n, swap = 0n, sim = d.slice(0, 6);
+    try { bot = await gb.allowance(d, cuenta); } catch (_) {}
+    try { swap = await gb.allowanceSwap(d, cuenta); } catch (_) {}
+    try { sim = (await gb.infoToken(d)).simbolo; } catch (_) {}
+    sim = String(sim).replace(/[^\p{L}\p{N} ._+\-]/gu, '').slice(0, 10) || '?';
+    if (bot > 0n) filas.push({ d, sim, cuanto: bot, quien: 'bots', fn: 'revocarToken' });
+    if (swap > 0n) filas.push({ d, sim, cuanto: swap, quien: 'swap', fn: 'revocarSwap' });
+  }
+  if (filas.length === 0) { box.innerHTML = `<div class="pf-perm-v">✓ No hay permisos abiertos. Tu dinero solo se mueve si tú firmas.</div>`; return; }
+
+  box.innerHTML = filas.map((x, i) => `
+    <div class="pf-perm">
+      <div class="pf-perm-tx"><b>${x.sim}</b><span>hasta ${num(Number(gb.fmt(x.cuanto, 18)), 4)} · para ${x.quien === 'bots' ? 'los bots' : 'el swap'}</span></div>
+      <button class="pf-perm-b" data-rev="${i}">quitar</button>
+    </div>`).join('');
+
+  box.querySelectorAll('[data-rev]').forEach((b) => b.onclick = async () => {
+    const x = filas[Number(b.dataset.rev)];
+    b.disabled = true; b.textContent = 'firma…';
+    try {
+      await gb[x.fn](x.d);
+      b.textContent = 'quitado';
+      setTimeout(() => cargarPermisos(cuenta), 1200);
+    } catch (e) {
+      b.disabled = false; b.textContent = 'quitar';
+      console.warn('[Aurex] revocar:', e);
+    }
+  });
 }
 
 async function cargarDatos(cuenta) {
