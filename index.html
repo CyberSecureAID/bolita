@@ -122,8 +122,13 @@
     @media(prefers-reduced-motion:reduce){#np-fab-previo{animation:none}}
   </style>
   <button id="np-fab-previo" aria-label="Abrir el asistente" type="button">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.6-.7L3 21l1.9-5a8.3 8.3 0 0 1-.8-3.6 8.4 8.4 0 0 1 8.4-8.4h.5A8.4 8.4 0 0 1 21 11v.5z"/>
+    <!-- EXACTAMENTE el mismo icono que el asistente real: si cambia al
+         cargar, se nota el parpadeo y queda mal hecho. -->
+    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+      <path d="M20 2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4v3.2a.8.8 0 0 0 1.3.62L13.5 18H20a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      <circle cx="8" cy="10" r="1.15" fill="currentColor"/>
+      <circle cx="12" cy="10" r="1.15" fill="currentColor"/>
+      <circle cx="16" cy="10" r="1.15" fill="currentColor"/>
     </svg>
   </button>
 
