@@ -30,7 +30,13 @@ window.NP_BOT_KB = {
       'Buenas. Soy **Jesús**, de Aurex.\n\nPregúntame lo que quieras: los bots, el marketplace, las comisiones, lo que sea.',
       'Hola. Soy **Jesús**.\n\n¿Primera vez por aquí, o ya tienes algún bot funcionando?',
       'Hola, ¿qué tal? Soy **Jesús**, de Aurex.\n\nDime qué necesitas y te echo una mano.',
-      '¡Hola! **Jesús** al habla.\n\n¿Te explico cómo funciona esto, o tienes una duda concreta?'
+      '¡Hola! **Jesús** al habla.\n\n¿Te explico cómo funciona esto, o tienes una duda concreta?',
+      'Buenas. **Jesús**, de Aurex.\n\nSi te suena a chino todo esto, tranquilo: empezamos por el principio.',
+      'Hola. Soy **Jesús** y llevo la parte de atención de Aurex.\n\nDime en qué andas y vemos.',
+      '¿Qué tal? Soy **Jesús**.\n\nPregunta sin miedo, que para eso estoy. Aunque sea la duda más básica.',
+      'Hola. **Jesús**, de Aurex.\n\n¿Vienes a informarte, o ya andas operando?',
+      'Buenas, soy **Jesús**.\n\nTe puedo explicar los bots, el marketplace o lo que se te ocurra.',
+      'Hola. Soy **Jesús**, de Aurex.\n\nCuéntame qué te trae por aquí.'
     ],
 
     /* Atajos del menú: las preguntas que más se hacen, a un toque. */
@@ -265,6 +271,25 @@ window.NP_BOT_KB = {
       ]
     },
 
+    /* ══════════════ LA PREGUNTA MÁS IMPORTANTE ══════════════
+       Va primero a propósito: mucha gente llega desconfiando, y con razón.
+       Merece una respuesta directa, no un rodeo. */
+    {
+      topic: 'esto es una estafa',
+      keys: ['estafa', 'es estafa', 'esto es una estafa', 'sera estafa', 'es fraude',
+             'fraude', 'scam', 'me van a robar', 'timo', 'es un timo', 'engano',
+             'no me fio', 'no me fio de esto', 'desconfio', 'esto es real',
+             'es real', 'es de verdad', 'es legitimo', 'puedo confiar'],
+      answer: [
+        'Es la pregunta correcta, y me alegra que la hagas.\n\n**La respuesta corta: no puedo pedirte que confíes, y no lo voy a hacer.** Lo que sí puedo decirte es que aquí **no depositas tu dinero en ningún sitio**. Sigue en tu wallet. Si esto fuera una estafa, no habría nada que robarte.',
+        'Haces bien en preguntar. En cripto hay muchísimo fraude.\n\nLo que nos diferencia: **nunca tocamos tu dinero**. No hay depósito, no hay saldo nuestro, no hay que confiar en que te devolvamos nada. Tu wallet es tuya todo el tiempo.',
+        'Pregunta legítima. Te respondo sin marketing:\n\nNo custodiamos fondos. El contrato solo tiene permiso para mover la cantidad exacta que tú autorices, y **ese permiso lo quitas en un clic** desde tu perfil.\n\nAdemás, todo el código está publicado: cualquiera puede revisarlo.'
+      ],
+      more: [
+        'Cómo comprobarlo tú mismo, sin fiarte de mí:\n\n**1.** Los contratos están en BscScan. Puedes leer el código y ver cada operación.\n**2.** En tu perfil ves los permisos activos y los quitas cuando quieras.\n**3.** Empieza con 50 USDT. Si algo no te cuadra, cancelas y recuperas.\n\nY una regla que vale para toda la cripto: **nadie legítimo te pedirá jamás tu frase de recuperación.** Nosotros tampoco.'
+      ]
+    },
+
     /* ══════════════ QUÉ ES AUREX ══════════════ */
     {
       topic: 'qué es Aurex',
@@ -284,7 +309,11 @@ window.NP_BOT_KB = {
       topic: 'no custodial',
       keys: ['no custodial', 'custodia', 'quien tiene mi dinero', 'donde esta mi dinero',
              'tienen mi dinero', 'me pueden robar', 'se quedan con mi dinero',
-             'es seguro', 'seguridad', 'confiar', 'es confiable', 'es estafa', 'scam'],
+             'es seguro', 'seguridad', 'confiar', 'es confiable', 'es estafa', 'scam',
+             'esto es una estafa', 'es una estafa', 'sera estafa', 'es fraude',
+             'y si desaparecen', 'si desaparecen con mi dinero', 'y si se van con mi dinero',
+             'me van a robar', 'puedo confiar', 'es de fiar', 'no me fio',
+             'donde veo que es real', 'como se que es real', 'como compruebo'],
       answer: [
         '**Tu dinero nunca sale de tu wallet.** No lo depositas en ningún sitio: sigue siendo tuyo todo el tiempo.\n\nLo que haces es dar permiso al contrato para mover una cantidad concreta, y ese permiso lo puedes quitar cuando quieras desde tu perfil.',
         'No custodiamos nada. Ni yo ni nadie de Aurex puede tocar tus fondos.\n\nEl bot funciona con un permiso limitado que tú das y tú retiras. Está en tu perfil, sección **Permisos de gasto**.',
@@ -396,8 +425,9 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'comisiones',
-      keys: ['comision', 'comisiones', 'cuanto cobran', 'cuanto cuesta', 'precio',
-             'suscripcion', 'cuota', 'es gratis', 'tarifas', 'que cobran'],
+      keys: ['comision', 'comisiones', 'cuanto cobran', 'cuanto cobran de comision',
+             'cuanto cuesta usar', 'suscripcion', 'cuota', 'cuota mensual', 'es gratis',
+             'tarifas', 'que cobran', 'me cobran', 'hay que pagar', 'cuanto se paga'],
       answer: [
         'Hay una **suscripción mensual en BNB** para usar los bots, y una comisión pequeña en el swap.\n\nEl coste de cada operación (el gas) sale de tu saldo, no de tu inversión. Lo ves exacto en tu perfil.',
         'Puedes ver el importe exacto de la cuota en tu perfil, sección **Suscripción y gas**. Y también cuánto cuesta cada operación.\n\nNo cobramos porcentaje de tus ganancias.',
@@ -482,6 +512,96 @@ window.NP_BOT_KB = {
       answer: [
         'Aurex se puede instalar como aplicación. En el ordenador tienes el botón **Instalar** en el menú de arriba; en el móvil, desde el menú del navegador.\n\nSe abre con su icono, a pantalla completa, y funciona aunque la conexión vaya lenta.',
         'Sí, se instala. Busca **Instalar** en el menú.\n\nUn aviso: si la instalas en el móvil, la wallet no se puede conectar dentro de la app. Para operar desde el teléfono es mejor entrar por el navegador de MetaMask o Trust.'
+      ]
+    },
+
+    /* ══════════════ LO QUE SALIÓ EN LA AUDITORÍA ══════════════
+       Preguntas reales que la gente hizo y el asistente no supo responder. */
+
+    {
+      topic: 'quién está detrás',
+      keys: ['quien esta detras', 'quien hizo esto', 'quien lo lleva', 'quienes son',
+             'quien es el dueno', 'quien creo aurex', 'de quien es', 'hay un equipo',
+             'es una empresa', 'sois una empresa'],
+      answer: [
+        'Detrás de Aurex hay un equipo pequeño, y el contacto directo soy yo. No somos una empresa grande ni queremos parecerlo.\n\nLo que sí puedes comprobar tú mismo: los contratos son públicos y están en la blockchain.',
+        'Es un proyecto de un equipo reducido. Puedes hablar directamente con nosotros, sin pasar por diez filtros.\n\nY lo importante: aunque desapareciéramos mañana, **tu dinero sigue en tu wallet**. No lo tenemos nosotros.',
+        'Un equipo pequeño, con contacto directo. Nada de call center.\n\nY la parte que de verdad importa: no custodiamos fondos, así que no dependes de que sigamos aquí.'
+      ],
+      more: [
+        'Si quieres verificarlo por tu cuenta: en la web, cada contrato tiene enlace a BscScan. Ahí ves el código, las operaciones y quién puede hacer qué.\n\nNo hace falta que confíes en mi palabra.'
+      ],
+      contactCard: true
+    },
+    {
+      topic: 'qué pasa si el precio baja',
+      keys: ['si el precio baja', 'que pasa si baja', 'y si baja mucho', 'si cae el precio',
+             'puedo perder', 'aqui puedo perder', 'se puede perder', 'hay riesgo',
+             'que riesgo hay', 'y si el mercado cae', 'si se desploma',
+             'que pasa si el precio baja', 'que pasa si el precio baja mucho',
+             'y si el precio baja', 'si baja el precio', 'y si cae', 'riesgos',
+             'es arriesgado', 'puedo perderlo todo'],
+      answer: [
+        'Sí, se puede perder. Te lo digo sin rodeos porque prefiero que lo sepas antes.\n\nSi el precio baja, el bot compra y **espera**. No vende con pérdida: se queda con la moneda hasta que recupere. Tu dinero no desaparece, pero está ahí abajo esperando.',
+        'Puede pasar, y conviene tenerlo claro. Si el mercado cae por debajo de tu rango, el bot deja de operar y se queda con la moneda comprada.\n\nNo pierdes el dinero de golpe: lo tienes en forma de moneda, valiendo menos hasta que suba.',
+        'Se puede perder, sí. Estos bots funcionan bien cuando el precio se mueve dentro de un rango, y mal cuando se va en una dirección y no vuelve.\n\nPor eso conviene usar dinero que puedas dejar quieto un tiempo.'
+      ],
+      more: [
+        'Dos cosas que ayudan:\n\n**Un rango amplio** aguanta caídas mayores sin salirse.\n**Monedas grandes** (BNB, BTC, ETH) tienen más probabilidad de recuperarse que una moneda pequeña.\n\nY nunca pongas dinero que necesites la semana que viene.'
+      ]
+    },
+    {
+      topic: 'diferencia con otros exchanges',
+      keys: ['binance', 'diferencia con binance', 'que diferencia hay con binance',
+             'comparado con binance', 'y binance', 'mejor que binance', 'vs binance',
+             'diferencia con otros', 'por que aqui', 'que os diferencia',
+             'comparado con otros', 'coinbase', 'kucoin', 'exchange', 'otros exchanges',
+             'que diferencia hay'],
+      answer: [
+        'La diferencia grande: **en Binance depositas tu dinero en su plataforma. Aquí no depositas nada.**\n\nTu wallet sigue siendo tuya, y el bot solo tiene permiso para mover una cantidad que tú fijas y puedes retirar.',
+        'En un exchange normal les entregas el dinero y confías en que te lo devuelvan. Aquí eso no ocurre: **nunca sale de tu wallet**.\n\nAdemás, sin registro ni KYC. No pedimos documentos a nadie.',
+        'Tres diferencias: no custodiamos tus fondos, no pedimos identificación, y no puedes ser bloqueado por tu país.\n\nA cambio, tú eres responsable de tu wallet: si pierdes tus claves, no hay atención al cliente que las recupere.'
+      ]
+    },
+    {
+      topic: 'guiarme paso a paso',
+      keys: ['me puedes guiar', 'guiame', 'guiarme', 'ayudame a montar', 'como monto mi bot',
+             'ayudame a crear', 'paso a paso', 'que hago primero', 'y despues que hago',
+             'cual me recomiendas', 'que me recomiendas', 'que bot me conviene',
+             'no se cual elegir', 'ayudame a elegir'],
+      answer: [
+        'Vamos por pasos.\n\n**1.** Conecta tu wallet arriba a la derecha.\n**2.** Carga un poco de gas: con 0,01 BNB tienes para cientos de operaciones.\n**3.** Elige el bot **Smart Grid** y pulsa **Configuraciones rentables**.\n**4.** Escoge **Equilibrado** y dale a Encender.\n\n¿Por cuál vas?',
+        'Te guío. Si es tu primera vez, lo más sencillo:\n\nConecta la wallet → carga gas → elige **Cash Out**, que solo hace una venta y se entiende a la primera.\n\nCuando le cojas el aire, pasas al Smart Grid. ¿Empezamos?',
+        'Claro. Lo primero es la wallet conectada y algo de gas cargado.\n\nDespués: **Smart Grid** con la configuración **Equilibrado** es el punto de partida más razonable. Ya viene calculada para que cada vuelta deje beneficio.\n\n¿Tienes ya la wallet conectada?'
+      ],
+      more: [
+        'Un consejo de arranque: **empieza con poco**. 50 o 100 USDT bastan para ver cómo se comporta.\n\nY mira la gráfica del bot un par de días antes de meter más. Ahí ves las cuadrículas y cuánto falta para que dispare.'
+      ]
+    },
+    {
+      topic: 'seguridad del marketplace',
+      keys: ['si no me paga', 'y si no me manda el dinero', 'y si me estafa el vendedor',
+             'y si el comprador no paga', 'que pasa si me estafan', 'como me protegen',
+             'y si hay problema con la venta', 'que pasa si hay disputa',
+             'y si el que me vende no me manda el dinero', 'si el vendedor no envia',
+             'y si no cumple', 'quien me protege', 'garantia', 'que garantia hay'],
+      answer: [
+        'Para eso está el sistema. La cripto **queda bloqueada en el contrato** desde el principio: el vendedor no puede llevársela.\n\nSi el comprador paga y el vendedor no libera, se abre una disputa y un árbitro decide con las pruebas.',
+        'Nadie puede irse con el dinero del otro. La cripto se retiene hasta que se confirma el pago.\n\nY el vendedor deja una **fianza**: si pierde una disputa, sale de ahí la compensación.',
+        'El contrato hace de intermediario. La cripto no está en manos del vendedor ni del comprador hasta que la operación se cierra bien.\n\nSi algo falla, disputa con motivo escrito y decisión de un árbitro.'
+      ]
+    },
+    {
+      topic: 'cuánto dinero necesito',
+      keys: ['cuanto dinero necesito', 'cuanto necesito', 'con cuanto empiezo',
+             'minimo para empezar', 'cuanto hace falta', 'necesito mucho dinero',
+             'puedo empezar con poco', 'con 50 dolares', 'con 100', 'cuanto invierto',
+             'cuanto dinero hace falta', 'dinero necesito para empezar',
+             'cuanto dinero necesito para empezar', 'inversion minima', 'monto minimo'],
+      answer: [
+        'Puedes empezar con **50 USDT** tranquilamente. Las configuraciones están calculadas para que rindan incluso con esa cantidad.\n\nY aparte, un poco de BNB para el gas: con 0,01 tienes para cientos de operaciones.',
+        'No hace falta mucho. Con 50 o 100 USDT ya funciona, y es lo que te recomiendo para empezar: poco, ver cómo se comporta, y luego decidir.\n\nSuma un poquito de BNB para el gas y listo.',
+        'Con 50 USDT arrancas. Cuanto más dinero por cuadrícula, mejor rinde (el gas cuesta lo mismo muevas 2 o 20), pero con 50 ya sale rentable.\n\nNunca pongas dinero que vayas a necesitar pronto.'
       ]
     },
 

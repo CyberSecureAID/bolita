@@ -1094,9 +1094,6 @@
               '<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="14" y2="17"/>' +
             '</svg><span>Temas</span>' +
           '</button>' +
-          '<button class="np-chat__lang" id="npLang" aria-label="Idioma / Language" title="Español / English">' +
-            (window.NP_IDIOMA === 'en' ? 'ES' : 'EN') +
-          '</button>' +
           '<button class="np-chat__x" id="npClose" aria-label="Cerrar el chat">&times;</button>' +
           '<div class="np-chat__menu" id="npMenu" role="menu" aria-hidden="true"></div>' +
         '</header>' +
@@ -1137,14 +1134,6 @@
 
     elFab.addEventListener('click', toggle);
     document.getElementById('npClose').addEventListener('click', close);
-    var bLang = document.getElementById('npLang');
-    if (bLang) bLang.addEventListener('click', function () {
-      // Cambiar de idioma reinicia el asistente con el otro conocimiento.
-      // Se borra la conversación: mezclada en dos idiomas no se entiende.
-      if (typeof window.NP_CAMBIAR_IDIOMA === 'function') {
-        window.NP_CAMBIAR_IDIOMA(window.NP_IDIOMA === 'en' ? 'es' : 'en');
-      }
-    });
     document.getElementById('npSend').addEventListener('click', function () { send(elInput.value); });
 
     elInput.addEventListener('keydown', function (e) {
