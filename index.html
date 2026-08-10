@@ -102,6 +102,31 @@
   <!-- Asistente de la web. Funciona por reglas, sin depender de ninguna IA
        externa: responde al instante, no cuesta nada y sigue funcionando
        aunque la conexión vaya mal. Todo lo que sabe está en conocimiento.js -->
+  <!-- El botón del asistente se dibuja AQUÍ, en el HTML, para que esté desde
+       el primer instante. Antes solo aparecía cuando cargaba el módulo, y
+       quien echaba un vistazo rápido a la página ni sabía que existía.
+       Pesa cero: es un botón y un poco de CSS. Al tocarlo carga el asistente
+       de verdad y se abre. -->
+  <style>
+    #np-fab-previo{position:fixed;right:20px;bottom:20px;z-index:200;display:grid;place-items:center;
+      width:58px;height:58px;padding:0;border-radius:50%;cursor:pointer;border:1px solid #c79426;
+      background:linear-gradient(180deg,rgba(255,255,255,.3),transparent 55%),linear-gradient(180deg,#f7db8d,#E8B84B 45%,#c79426);
+      box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 0 0 rgba(232,184,75,.5);color:#3a2800;
+      animation:npLat 3.4s ease-in-out 1.5s infinite}
+    #np-fab-previo svg{width:24px;height:24px}
+    #np-fab-previo:active{transform:translateY(2px)}
+    @keyframes npLat{0%,100%{box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 0 0 rgba(232,184,75,.45)}
+      50%{box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 0 12px rgba(232,184,75,0)}}
+    @media(max-width:760px){#np-fab-previo{width:46px;height:46px;right:12px;bottom:12px}
+      #np-fab-previo svg{width:20px;height:20px}}
+    @media(prefers-reduced-motion:reduce){#np-fab-previo{animation:none}}
+  </style>
+  <button id="np-fab-previo" aria-label="Abrir el asistente" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.6-.7L3 21l1.9-5a8.3 8.3 0 0 1-.8-3.6 8.4 8.4 0 0 1 8.4-8.4h.5A8.4 8.4 0 0 1 21 11v.5z"/>
+    </svg>
+  </button>
+
   <script>
   /* El asistente pesa unos 210 KB y nadie lo necesita en el primer segundo.
      Se carga cuando la página ya está usable, o antes si el visitante toca
@@ -111,6 +136,14 @@
     var puesto = false;
     function cargarAsistente() {
       if (puesto) return; puesto = true;
+      // Si ya cargó por su cuenta, el botón provisional sobra.
+      var espera = setInterval(function () {
+        if (!document.getElementById('npFab')) return;
+        clearInterval(espera);
+        var pv = document.getElementById('np-fab-previo');
+        if (pv) pv.remove();
+      }, 150);
+      setTimeout(function () { clearInterval(espera); }, 15000);
       ['assets/js/asistente/conocimiento.js?v=107',
        'assets/js/asistente/motor.js?v=107'].forEach(function (src, i) {
         var t = document.createElement('script');
@@ -123,10 +156,27 @@
         if (i === 0) document.body.appendChild(t);
       });
     }
+    // El botón provisional: al tocarlo carga el asistente y lo abre.
+    var previo = document.getElementById('np-fab-previo');
+    if (previo) previo.addEventListener('click', function () {
+      previo.style.opacity = '.5';
+      cargarAsistente();
+      // Cuando el asistente de verdad esté listo, quitamos el provisional
+      // y abrimos el chat: para el usuario es un solo gesto.
+      var t = setInterval(function () {
+        var real = document.getElementById('npFab');
+        if (!real) return;
+        clearInterval(t);
+        previo.remove();
+        real.click();
+      }, 120);
+      setTimeout(function () { clearInterval(t); previo.style.opacity = ''; }, 12000);
+    });
+
     ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
       window.addEventListener(ev, cargarAsistente, { once: true, passive: true });
     });
-    window.addEventListener('load', function () { setTimeout(cargarAsistente, 2500); });
+    window.addEventListener('load', function () { setTimeout(cargarAsistente, 2000); });
   })();
   </script>
 </body>
