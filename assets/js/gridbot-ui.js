@@ -5,16 +5,16 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=103';
-import * as wallet from './wallet.js?v=103';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=103';
-import * as perfil from './perfil.js?v=103';
-import * as prizepool from './prizepool.js?v=103';
-import * as tutorial from './tutorial.js?v=103';
-import * as market from './market.js?v=103';
-import * as avisos from './avisos.js?v=103';
-import * as grafica from './grafica.js?v=103';
-import * as extras from './extras.js?v=103';
+import * as gb from './gridbot.js?v=104';
+import * as wallet from './wallet.js?v=104';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=104';
+import * as perfil from './perfil.js?v=104';
+import * as prizepool from './prizepool.js?v=104';
+import * as tutorial from './tutorial.js?v=104';
+import * as market from './market.js?v=104';
+import * as avisos from './avisos.js?v=104';
+import * as grafica from './grafica.js?v=104';
+import * as extras from './extras.js?v=104';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -486,6 +486,20 @@ function inyectarEstilo() {
   #colmena-app .c-cupo span{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
   #colmena-app .c-cupo.lleno{background:rgba(246,70,93,.1);border-color:rgba(246,70,93,.4)}
   #colmena-app .c-cupo.lleno b{color:var(--rojo)}
+  #colmena-app .btn-cerrar-todos{padding:6px 13px;border-radius:20px;border:1px solid #3a424c;background:transparent;color:var(--ink-3);font-family:var(--mono);font-size:10.5px;cursor:pointer}
+  #colmena-app .btn-cerrar-todos:hover{color:var(--rojo);border-color:rgba(246,70,93,.45)}
+  #ct-box{position:fixed;inset:0;z-index:9890;display:flex;align-items:center;justify-content:center;padding:18px}
+  #ct-box .ct-bg{position:absolute;inset:0;background:rgba(3,5,8,.88);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  #ct-box .ct-c{position:relative;width:100%;max-width:400px;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid rgba(246,70,93,.5);border-radius:20px;padding:24px 20px}
+  #ct-box .ct-t{font-family:var(--display);font-weight:800;font-size:20px;color:var(--rojo);text-align:center}
+  #ct-box .ct-s{font-family:var(--sans);font-size:13px;color:#8b96a3;line-height:1.6;margin:12px 0 18px}
+  #ct-box .ct-s b{color:#eaecef}
+  #ct-box .ct-acts{display:flex;gap:9px}
+  #ct-box .ct-b{flex:1;padding:13px;border-radius:11px;border:1px solid #3a424c;background:linear-gradient(180deg,#1b2027,#0d1117);color:#b7bdc6;font-family:var(--display);font-weight:800;font-size:13.5px;cursor:pointer;min-height:46px}
+  #ct-box .ct-b.rojo{border-color:#d14a58;background:linear-gradient(180deg,#f08a95,#e35d6a 45%,#b8323f);color:#fff}
+  #ct-box .ct-b:disabled{opacity:.5;cursor:default}
+  #ct-box .ct-prog{font-family:var(--mono);font-size:11.5px;color:var(--gold);text-align:center;margin-top:12px;min-height:16px;line-height:1.5}
+  @media(max-width:560px){#colmena-app .btn-cerrar-todos{font-size:10px;padding:5px 10px}}
   #colmena-app .pio-acciones{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;margin-top:14px}
   #colmena-app .pio-acciones .pio-toggle{flex:1;min-width:150px;margin:0}
   /* Misma altura y línea base que "Ver el bot trabajando" */
@@ -1619,7 +1633,7 @@ function render() {
         </div>
       </div>
     </div>
-    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><span class="c-cupo" id="c-cupo"><b>—</b><span>bots activos</span></span></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
+    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><span class="c-cupo" id="c-cupo"><b>—</b><span>bots activos</span></span><button class="btn-cerrar-todos" id="c-cerrar-todos" type="button" title="Cerrar todos tus bots">Cerrar todos</button></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
     ${footerHTML()}
   </div>`;
 
@@ -2105,6 +2119,52 @@ async function asegurarSuscripcion(cuenta) {
   await gb.suscribir();
   return true;
 }
+/** Cierra todos los bots del usuario, uno a uno, con aviso claro antes. */
+async function cerrarTodosLosBots(cuenta) {
+  let claves = [];
+  try { claves = await gb.misRejillas(cuenta); } catch (_) {}
+  const vivos = [];
+  for (const k of claves) {
+    try { const R = await gb.resumenK(k); if (R.activa) vivos.push({ k, R }); } catch (_) {}
+  }
+  if (vivos.length === 0) { modalError('No tienes bots activos que cerrar.'); return; }
+
+  const d = document.createElement('div');
+  d.id = 'ct-box';
+  d.innerHTML = `<div class="ct-bg"></div>
+    <div class="ct-c">
+      <div class="ct-t">¿Cerrar tus ${vivos.length} bots?</div>
+      <div class="ct-s">
+        Se cancelan <b>todos</b> a la vez y <b>todo tu dinero vuelve a tu wallet</b>: lo que esté en monedas se vende al precio de ahora, y lo que esté sin usar se devuelve tal cual.<br><br>
+        Si algún bot compró y el precio bajó, esa parte se venderá <b>en pérdida</b>. Esto no se puede deshacer.<br><br>
+        Tendrás que firmar <b>una transacción por bot</b> (${vivos.length} en total).
+      </div>
+      <div class="ct-acts">
+        <button class="ct-b gris" id="ct-no">Mejor no</button>
+        <button class="ct-b rojo" id="ct-si">Sí, cerrar los ${vivos.length}</button>
+      </div>
+      <div class="ct-prog" id="ct-prog"></div>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => { const e = $('ct-box'); if (e) e.remove(); };
+  d.querySelector('.ct-bg').onclick = cerrar;
+  $('ct-no').onclick = cerrar;
+  $('ct-si').onclick = async () => {
+    const prog = $('ct-prog'), si = $('ct-si'), no = $('ct-no');
+    si.disabled = true; no.disabled = true;
+    let ok = 0, fallos = 0;
+    for (let i = 0; i < vivos.length; i++) {
+      prog.textContent = `Cerrando ${i + 1} de ${vivos.length}… confirma en tu wallet`;
+      try { await gb.cancelarRejillaK(vivos[i].k); ok++; }
+      catch (e) { fallos++; console.warn('[Aurex] cerrar bot:', e); }
+    }
+    prog.textContent = fallos === 0
+      ? `Listo: ${ok} bots cerrados y tu dinero de vuelta.`
+      : `${ok} cerrados · ${fallos} no se pudieron (quizá cancelaste la firma).`;
+    setTimeout(() => { cerrar(); refrescarRejillas(); refrescarGas(); }, 2200);
+  };
+}
+
 /* ── Cupo de bots ──────────────────────────────────────────────────────────
    Ocho bots por persona: dos de cada estrategia. Es un límite generoso para
    el usuario y sostenible para el sistema (el keeper revisa TODOS los bots
@@ -2770,6 +2830,8 @@ async function refrescarRejillas() {
     const irC = $('c-ir-crear');
     if (irC) irC.onclick = () => { const t = document.querySelector('#colmena-app .bot-tab'); if (t) { t.click(); t.scrollIntoView({ behavior: 'smooth', block: 'center' }); } };
     pintarCupo(cuenta);
+    const bct = $('c-cerrar-todos');
+    if (bct) bct.onclick = () => cerrarTodosLosBots(cuenta);
     enganchar(cuenta);
     wireMinCancel(cont);
     activarContadores();
@@ -2909,7 +2971,7 @@ async function tarjeta(cuenta, clave, par, R) {
   const sg = (x) => (x < 0 ? '−' : '+'), cls = (x) => (x < 0 ? 'neg' : 'pos');
   const mkt = (par.entry && precio) ? (precio - par.entry) / par.entry * 100 : null;
   const sinPos = posBase <= 0 && Number(R.comprasHechas) === 0;
-  const gas = Number(gb.fmtBNB(R.gasSaldoWei)).toFixed(4);
+  const gas = Number(gb.fmtBNB(R.gasSaldoWei)).toFixed(5);   // 5 decimales: con 4, 0.00396 salía 0.0040 y parecía que no cambiaba
   const gasLow = R.gasSaldoWei < (GASMIN || 0n);
   const creadoSeg = par.creadoLocal ? Math.floor(par.creadoLocal / 1000) : Number(R.creadaEn);
 
@@ -3244,7 +3306,11 @@ async function arrancar() {
     const bx = $('c-boot');
     if (bx) bx.innerHTML = `<div style="min-height:64vh;display:flex;align-items:center;justify-content:center"><span style="width:22px;height:22px;border-radius:50%;border:2px solid rgba(232,184,75,.25);border-top-color:#E8B84B;display:inline-block;animation:spin .7s linear infinite"></span></div>`;
   }, 500);
-  wallet.alCambiar(() => render());
+  // Ojo: durante el arranque NO dibujamos al conectar la wallet. Si lo hacemos,
+  // la página se dibuja dos veces seguidas (una al conectar y otra al terminar)
+  // y se ve un parpadeo feo. Dejamos el aviso activo solo cuando ya arrancó.
+  let _arrancando = true;
+  wallet.alCambiar(() => { if (!_arrancando) render(); });
   // La página se dibuja SIEMPRE. Si una extensión de wallet no contesta
   // (pasa cuando MetaMask u otra wallet queda en mal estado tras actualizarse),
   // seguimos adelante: nunca un "Cargando…" eterno.
@@ -3256,6 +3322,7 @@ async function arrancar() {
     ]);
   } catch (_) {}
   clearTimeout(_tBoot);
+  _arrancando = false;
   render(); iniciarReloj();
   if (walletMuda && !wallet.cuentaActual()) {
     setTimeout(() => {
