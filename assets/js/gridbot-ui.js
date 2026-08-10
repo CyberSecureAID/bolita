@@ -598,6 +598,9 @@ function inyectarEstilo() {
   #colmena-app .stat span.pos{color:var(--neon-lit)} #colmena-app .stat span.neg{color:var(--rojo)}
   #colmena-app .rej-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
   #colmena-app .rej-btns .btn{font-size:12px;padding:10px}
+  #colmena-app .gw-i{width:14px;height:14px;flex:0 0 auto;margin-right:7px;vertical-align:-2px}
+  #colmena-app .leg span{display:inline-flex;align-items:center;gap:5px}
+  #colmena-app .lg-i{width:11px;height:11px;flex:0 0 auto;overflow:visible}
   #colmena-app .graf-aviso{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(232,184,75,.07);border:1px dashed rgba(232,184,75,.32);font-family:var(--sans);font-size:11.5px;color:var(--ink-2);line-height:1.55}
   #colmena-app .leg{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:8px}
   #colmena-pop{position:absolute;z-index:9999;max-width:280px;background:#12161c;border:1px solid var(--gold-soft);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;line-height:1.5}
@@ -3057,7 +3060,13 @@ async function tarjeta(cuenta, clave, par, R) {
         })}
         ${sinHistorial ? '<div class="graf-aviso">No pudimos leer el historial de operaciones ahora mismo. Las líneas y el rango sí son reales; las flechas de compra y venta aparecerán cuando la red responda.</div>' : ''}
 
-        <div class="leg"><span style="color:var(--neon-lit)">▲ compró</span><span style="color:var(--rojo)">▼ vendió</span><span style="color:var(--gold)">● empezó aquí</span><span style="color:var(--neon-lit)">— espera comprar</span><span style="color:var(--rojo)">— espera vender</span></div></div>
+        <div class="leg">
+          <span><svg class="lg-i" viewBox="0 0 12 12"><path d="M6 1.5 10.5 8H1.5z" fill="#2ee86a"/></svg>compró</span>
+          <span><svg class="lg-i" viewBox="0 0 12 12"><path d="M6 10.5 1.5 4h9z" fill="#f6465d"/></svg>vendió</span>
+          <span><svg class="lg-i" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="#E8B84B"/></svg>empezó aquí</span>
+          <span><svg class="lg-i" viewBox="0 0 14 12"><path d="M0 6h14" stroke="#2ee86a" stroke-width="1.6" stroke-dasharray="3 2"/></svg>espera comprar</span>
+          <span><svg class="lg-i" viewBox="0 0 14 12"><path d="M0 6h14" stroke="#f6465d" stroke-width="1.6" stroke-dasharray="3 2"/></svg>espera vender</span>
+        </div></div>
       <div class="tab-ordenes" style="display:none"><div class="ord-list">${ordRows}</div></div>
     </div>`;
 
@@ -3083,7 +3092,7 @@ async function tarjeta(cuenta, clave, par, R) {
 
     <div class="pio-grid"${tipo === 'cash' ? ' style="grid-template-columns:repeat(2,1fr)"' : ''}>${_boxes}</div>
     ${gasLow ? `<div class="gaswarn">⚠ Gas insuficiente: el bot no puede operar. Recarga BNB en el gas (arriba) para que empiece a comprar y vender.</div>` : ''}
-    ${sinPos && !gasLow ? `<div class="gaswarn" style="background:rgba(232,184,75,.08);border-color:var(--gold-soft);color:var(--gold)">⏳ Tomando posición inicial… El bot está comprando su primera parte a mercado (el keeper la ejecuta en 1–2 min). En cuanto compre, verás aquí la ganancia moverse con el mercado.</div>` : ''}
+    ${sinPos && !gasLow ? `<div class="gaswarn" style="background:rgba(232,184,75,.08);border-color:var(--gold-soft);color:var(--gold)"><svg class="gw-i" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".35"/><path d="M7 2.6a4.4 4.4 0 0 1 4.4 4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 7 7" to="360 7 7" dur="1.1s" repeatCount="indefinite"/></path></svg>Tomando posición inicial… El bot está comprando su primera parte a mercado (el keeper la ejecuta en 1–2 min). En cuanto compre, verás aquí la ganancia moverse con el mercado.</div>` : ''}
 
     ${_panel}
 
