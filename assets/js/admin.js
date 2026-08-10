@@ -1,244 +1,160 @@
-// admin.js — Panel administrativo OCULTO. Módulo independiente.
+// admin.js — Panel de control. Módulo independiente.
 //
-// CÓMO SE ABRE
-//   5 clics seguidos en la esquina inferior izquierda de la página.
-//   No hay botón, ni enlace, ni pista visual. Si quien lo hace NO es owner de
-//   los contratos, no pasa absolutamente nada: ni se abre, ni avisa, ni deja
-//   rastro. Un curioso no sabrá nunca que existe.
+// SE ABRE con 5 clics en la esquina inferior izquierda. Si quien los da no es
+// dueño de los contratos, no pasa absolutamente nada: ni se abre, ni avisa.
 //
-// SEGURIDAD
-//   · La comprobación de owner se hace LEYENDO LOS CONTRATOS, no la web.
-//   · Toda acción se firma con la wallet. Sin firma no pasa nada.
-//   · Antes de cada acción sensible sale una confirmación que explica qué hace.
+// ══════════════════════════════════════════════════════════════════════════
+//  POR QUÉ ESTE PANEL NO PUEDE ROMPER NADA
+// ══════════════════════════════════════════════════════════════════════════
+//  1. No hay ejecución libre de funciones. Solo acciones preparadas.
+//  2. Lo irreversible NO ESTÁ: traspasar la propiedad o renunciar a ella no se
+//     puede hacer desde aquí. Son los "cables" que, cruzados, lo matan todo.
+//  3. Cada ajuste enseña SU VALOR ACTUAL antes de que lo toques.
+//  4. Cada campo tiene un mínimo y un máximo comprobados antes de firmar.
+//  5. ENSAYO EN SECO: antes de firmar se le pregunta al contrato si lo va a
+//     aceptar. Si no, se avisa con el motivo y no se gasta ni un céntimo.
+//  6. DESHACER: se guarda el valor anterior y se restaura con un botón.
+//  7. Todo se firma con la wallet. Sin firma del dueño, el contrato rechaza.
 
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=106';
-import * as wallet from './wallet.js?v=106';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=107';
+import * as wallet from './wallet.js?v=107';
 
 const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-/* ── Contratos del ecosistema ────────────────────────────────────────────── */
-const CONTRATOS = {
-  bots:   { dir: '0x4e86430BC2260FE359d1Ea7Eef8B595fB241F93B', nombre: 'Bots (GridBot)',  proxy: true },
-  market: { dir: '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18', nombre: 'Marketplace',      proxy: true },
-  prize:  { dir: '0x595CD563F236DAEba21219D60AEF656a750A8132', nombre: 'Prize Pool',       proxy: true },
-  swap:   { dir: '0xa15794D9c313F3E2726ED1D45A1B6CC72BFA2a0c', nombre: 'Swap',             proxy: false }
+/* ── Contratos ──────────────────────────────────────────────────────────── */
+const C = {
+  bots:   { dir: '0x4e86430BC2260FE359d1Ea7Eef8B595fB241F93B', nombre: 'Bots' },
+  market: { dir: '0x1131c4760Da083aaFCf20d6848Af93A8a2edFb18', nombre: 'Marketplace' },
+  prize:  { dir: '0x595CD563F236DAEba21219D60AEF656a750A8132', nombre: 'Prize Pool' },
+  swap:   { dir: '0xa15794D9c313F3E2726ED1D45A1B6CC72BFA2a0c', nombre: 'Swap' }
 };
-const RPCS = [
-  'https://bsc-dataseed.binance.org',
-  'https://bsc-dataseed1.defibit.io',
-  'https://bsc-rpc.publicnode.com'
-];
+const RPC = 'https://bsc-dataseed.binance.org';
 const KEEPER = 'https://bolita-keeper-bot.yamicelanvivesqui.workers.dev';
+const CERO = '0x0000000000000000000000000000000000000000';
 
-/* Contrato de la lotería (la antigua "bolita"), que sigue vivo en el repo. */
-const LOTERIA = '0x964a68D3A2dB18c723581410C49aa8789048E1B9';
-const ABI_LOTERIA = [
-  'function saldoDe(address jugador, address token) view returns (uint256)',
-  'function retirar(address token)',
-  // El dinero del dueño NO es el saldo de jugador: vive en "banca" (lo que
-  // depositó para pagar premios) y en "beneficios" (su comisión acumulada).
-  'function monedas(address) view returns (bool activa,bool esNativa,bool conComision,uint8 decimales,uint256 minApuesta,uint256 banca,uint256 reservado,uint256 topePremioBps,uint256 beneficios,address feedPrecio,bool cuentaVolumen,bool esEstableUSD)',
-  'function owner() view returns (address)',
-  'function ownerSecundario() view returns (address)',
-  'function destinoBeneficios() view returns (address)'
-];
-/* Firmas REALES del contrato (confirmadas en su código fuente).
-   Ojo: retirarBanca lleva TRES argumentos — moneda, cantidad y destino. */
-const FIRMAS_BANCA = [
-  'function retirarBanca(address token, uint256 cantidad, address a)',
-  'function retirarBanca(address token, uint256 cantidad)'
-];
-const FIRMAS_BENEF = [
-  'function retirarBeneficios(address token, uint256 cantidad, address a)',
-  'function retirarBeneficios(address token, address a)',
-  'function retirarBeneficios(address token, uint256 cantidad)',
-  'function retirarBeneficios(address token)'
-];
-/* Las 8 monedas REALES de la lotería, sacadas de tokens.js (no inventadas). */
-const MONEDAS_LOTERIA = [
-  { id: 'BNB',      nom: 'BNB',       sim: 'BNB',      dir: null,                                          dec: 18 },
-  { id: 'USDT',     nom: 'Tether',    sim: 'USDT',     dir: '0x55d398326f99059fF775485246999027B3197955',  dec: 18 },
-  { id: 'USDC',     nom: 'USD Coin',  sim: 'USDC',     dir: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',  dec: 18 },
-  { id: 'BTCB',     nom: 'Bitcoin',   sim: 'BTCB',     dir: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',  dec: 18 },
-  { id: 'ETH',      nom: 'Ethereum',  sim: 'ETH',      dir: '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',  dec: 18 },
-  { id: 'USDTZ',    nom: 'USDT.z',    sim: 'USDT.z',   dir: '0x4BE35Ec329343d7d9F548d42B0F8c17FFfe07db4',  dec: 18 },
-  { id: 'BABYDOGE', nom: 'Baby Doge', sim: 'BabyDoge', dir: '0xc748673057861a797275CD8A068AbB95A902e8de',  dec: 9  },
-  { id: 'EXT',      nom: 'EXT',       sim: 'EXT',      dir: '0xd86b5cd7cFC28a1e4Fd6b39F133bF64EF24c5246',  dec: 18 }
-];
-
-/* ABI mínimo común a todos (Ownable) */
-const ABI_OWNER = [
-  'function owner() view returns (address)',
-  'function transferOwnership(address newOwner)',
-  'function paused() view returns (bool)',
-  'function pause()',
-  'function unpause()'
-];
-const ABI_MARKET = [
-  ...ABI_OWNER,
+const ABI_BASE = ['function owner() view returns (address)', 'function paused() view returns (bool)', 'function pause()', 'function unpause()'];
+const ABI_MARKET = [...ABI_BASE,
   'function totalOrdenes() view returns (uint256)',
   'function ordenes(uint256) view returns (tuple(uint256 id,address vendedor,address comprador,address token,uint256 monto,uint256 liberado,uint16 tramos,uint16 tramosHechos,string moneda,string metodo,uint256 precioFiat,uint64 creadaEn,uint64 tomadaEn,uint64 ultimoMovEn,bool tramoPagado,uint8 estado,address arbitro,bool califVendedor,bool califComprador,uint8 tipo,string motivo,uint64 disputaEn,bool cancelaV,bool cancelaC))',
-  'function resolverDisputa(uint256,bool)',
-  'function anularDisputa(uint256)',
-  'function setArbitro(address,bool)',
-  'function setToken(address,bool)',
-  'function setFianzaMinima(uint256)',
-  'function setComision(uint256,uint256)',
+  'function resolverDisputa(uint256,bool)', 'function anularDisputa(uint256)',
+  'function fianzaMinima() view returns (uint256)', 'function setFianzaMinima(uint256)',
+  'function plazoPago() view returns (uint64)', 'function plazoConfirm() view returns (uint64)',
+  'function plazoReserva() view returns (uint64)', 'function plazoDisputa() view returns (uint64)',
   'function setPlazos(uint64,uint64,uint64,uint64)',
-  'function fianzaMinima() view returns (uint256)'
-];
-const ABI_PRIZE = [
-  ...ABI_OWNER,
+  'function setArbitro(address,bool)'];
+const ABI_PRIZE = [...ABI_BASE,
   'function currentRound() view returns (uint256)',
   'function rounds(uint256) view returns (tuple(uint8 state,uint64 startTime,uint64 endTime,uint64 drawRequestedAt,uint256 pool,uint256 tickets))',
   'function saldoGas() view returns (uint256,uint256,uint256)',
   'function gasFaltante() view returns (uint256)',
-  'function setFeeWallet(address)',
-  'function setBloqueoSalida(uint256)',
+  'function sponsorWallet() view returns (address)',
+  'function sponsorTarget() view returns (uint256)', 'function gasPerEntry() view returns (uint256)',
   'function setGasFunding(uint256,uint256)',
-  'function sweepBnb(address,uint256)',
-  'function forzarReembolso(uint256)',
-  'function cerrarRonda()'
-];
-const ABI_BOTS = [
-  ...ABI_OWNER,
-  'function precioSub() view returns (uint256)',
-  'function gasMinOp() view returns (uint256)'
-];
+  'function bloqueoSalida() view returns (uint256)', 'function setBloqueoSalida(uint256)',
+  'function cerrarRonda()', 'function forzarReembolso(uint256)', 'function destrabarSorteo(uint256) payable',
+  'function sorteoAtascado(uint256) view returns (bool)'];
+const ABI_BOTS = [...ABI_BASE, 'function precioSub() view returns (uint256)'];
 
-/* ── Lectura (sin wallet, por RPC público) ───────────────────────────────── */
-let _prov = null;
-function lector() {
-  if (!_prov) _prov = new ethers.JsonRpcProvider(RPCS[0], 56, { staticNetwork: true });
-  return _prov;
-}
-const leerC = (dir, abi) => new ethers.Contract(dir, abi, lector());
+/* ── Lectura y firma ────────────────────────────────────────────────────── */
+let _p = null;
+const lector = () => (_p ||= new ethers.JsonRpcProvider(RPC, 56, { staticNetwork: true }));
+const leer = (dir, abi) => new ethers.Contract(dir, abi, lector());
 async function firmante() {
-  const p = new ethers.BrowserProvider(wallet.proveedorActual ? wallet.proveedorActual() : window.ethereum);
-  return p.getSigner();
+  const prov = new ethers.BrowserProvider(window.ethereum);
+  return prov.getSigner();
 }
-const escribirC = async (dir, abi) => new ethers.Contract(dir, abi, await firmante());
+const escribir = async (dir, abi) => new ethers.Contract(dir, abi, await firmante());
 
-/* ── ¿Esta wallet manda en algún contrato? ───────────────────────────────── */
 async function permisos(cuenta) {
   if (!cuenta) return null;
   const yo = String(cuenta).toLowerCase();
-  const res = {};
-  await Promise.all(Object.entries(CONTRATOS).map(async ([k, c]) => {
-    try {
-      const o = await leerC(c.dir, ABI_OWNER).owner();
-      res[k] = { owner: o, mio: String(o).toLowerCase() === yo };
-    } catch (_) { res[k] = { owner: null, mio: false }; }
+  const r = {};
+  await Promise.all(Object.entries(C).map(async ([k, c]) => {
+    try { const o = await leer(c.dir, ABI_BASE).owner(); r[k] = { owner: o, mio: String(o).toLowerCase() === yo }; }
+    catch (_) { r[k] = { owner: null, mio: false }; }
   }));
-  res.alguno = Object.values(res).some((x) => x && x.mio);
-  return res;
+  r.alguno = Object.values(r).some((x) => x && x.mio);
+  return r;
 }
 
-/* ══════════════════ ACTIVACIÓN OCULTA ══════════════════ */
-let _clics = 0, _tClics = null, _abriendo = false;
-
+/* ══════════════════ APERTURA OCULTA ══════════════════ */
+let _clics = 0, _t = null, _abriendo = false;
 export function iniciarPanelOculto() {
-  const zona = document.createElement('div');
-  zona.id = 'adm-zona';
-  zona.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(zona);
-
-  const golpe = async () => {
-    _clics++;
-    clearTimeout(_tClics);
-    _tClics = setTimeout(() => { _clics = 0; }, 2500);   // hay que darlos seguidos
-    if (_clics < 5 || _abriendo) return;
-    _clics = 0;
-    _abriendo = true;
-    try {
-      const cuenta = wallet.cuentaActual && wallet.cuentaActual();
-      if (!cuenta) return;                       // sin wallet: silencio absoluto
-      const p = await permisos(cuenta);
-      if (!p || !p.alguno) return;               // no es owner: no pasa nada
-      abrirPanel(cuenta, p);
-    } catch (_) { /* silencio */ } finally { _abriendo = false; }
-  };
-  zona.addEventListener('click', golpe);
-  zona.addEventListener('touchend', (e) => { e.preventDefault(); golpe(); }, { passive: false });
   estilos();
+  const z = document.createElement('div');
+  z.id = 'adm-zona'; z.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(z);
+  const golpe = async () => {
+    _clics++; clearTimeout(_t); _t = setTimeout(() => { _clics = 0; }, 2500);
+    if (_clics < 5 || _abriendo) return;
+    _clics = 0; _abriendo = true;
+    try {
+      const cta = wallet.cuentaActual && wallet.cuentaActual();
+      if (!cta) return;
+      const p = await permisos(cta);
+      if (!p || !p.alguno) return;
+      abrir(cta, p);
+    } catch (_) {} finally { _abriendo = false; }
+  };
+  z.addEventListener('click', golpe);
+  z.addEventListener('touchend', (e) => { e.preventDefault(); golpe(); }, { passive: false });
 }
 
-/* ══════════════════ EL PANEL ══════════════════ */
-function abrirPanel(cuenta, perm) {
-  const prev = $('adm-panel'); if (prev) prev.remove();
-  const d = document.createElement('div');
-  d.id = 'adm-panel';
-  d.innerHTML = `<div class="ad-bg"></div>
-    <div class="ad-c">
-      <div class="ad-cab">
-        <div>
-          <div class="ad-t">Panel de control</div>
-          <div class="ad-s">${wallet.abreviar(cuenta)} · acceso verificado en cadena</div>
-        </div>
-        <button class="ad-x" aria-label="Cerrar">✕</button>
-      </div>
-
-      <div class="ad-tabs">
-        <button class="ad-tab on" data-p="resumen">Resumen</button>
-        <button class="ad-tab" data-p="disputas">Disputas</button>
-        <button class="ad-tab" data-p="prize">Prize Pool</button>
-        <button class="ad-tab" data-p="ajustes">Ajustes</button>
-        <button class="ad-tab" data-p="loteria">Lotería</button>
-        <button class="ad-tab" data-p="poder">Propiedad</button>
-      </div>
-
-      <div class="ad-pane on" id="ad-resumen"><div class="ad-cargando">Leyendo la cadena…</div></div>
-      <div class="ad-pane" id="ad-disputas"></div>
-      <div class="ad-pane" id="ad-prize"></div>
-      <div class="ad-pane" id="ad-ajustes"></div>
-      <div class="ad-pane" id="ad-loteria"></div>
-      <div class="ad-pane" id="ad-poder"></div>
-
-      <div class="ad-msg" id="ad-msg"></div>
-    </div>`;
-  document.body.appendChild(d);
-
-  const cerrar = () => { const e = $('adm-panel'); if (e) e.remove(); };
-  d.querySelector('.ad-bg').onclick = cerrar;
-  d.querySelector('.ad-x').onclick = cerrar;
-
-  d.querySelectorAll('.ad-tab').forEach((b) => b.onclick = () => {
-    d.querySelectorAll('.ad-tab').forEach((x) => x.classList.remove('on'));
-    d.querySelectorAll('.ad-pane').forEach((x) => x.classList.remove('on'));
-    b.classList.add('on');
-    const pane = $('ad-' + b.dataset.p);
-    if (pane) pane.classList.add('on');
-    if (b.dataset.p === 'disputas') pintarDisputas(perm);
-    if (b.dataset.p === 'prize') pintarPrize(perm);
-    if (b.dataset.p === 'ajustes') pintarAjustes(perm);
-    if (b.dataset.p === 'loteria') pintarLoteria(cuenta);
-    if (b.dataset.p === 'poder') pintarPoder(cuenta, perm);
-  });
-
-  pintarResumen(cuenta, perm);
-}
-
+/* ══════════════════ AVISOS ══════════════════ */
 function decir(txt, clase = '') {
   const e = $('ad-msg'); if (!e) return;
-  e.className = 'ad-msg ' + clase;
-  e.textContent = txt;
-  if (txt) setTimeout(() => { if (e.textContent === txt) { e.textContent = ''; e.className = 'ad-msg'; } }, 9000);
+  e.className = 'ad-msg ' + clase; e.textContent = txt;
+  if (txt) setTimeout(() => { if (e.textContent === txt) { e.textContent = ''; e.className = 'ad-msg'; } }, 10000);
 }
 
-/** Confirmación obligatoria antes de cualquier acción que cambie algo. */
-function confirmar({ titulo, texto, ok = 'Confirmar', peligro = false }, alAceptar) {
+/**
+ * Ejecuta una acción con TODAS las protecciones:
+ *   1. ensayo en seco contra el contrato (sin gastar gas)
+ *   2. confirmación explicando qué cambia y desde qué valor
+ *   3. firma
+ *   4. guarda el valor anterior por si quieres deshacer
+ */
+async function accionSegura({ dir, abi, fn, args, titulo, explica, anterior, deshacer, alTerminar }) {
+  decir('Comprobando que el contrato lo acepta…', 'info');
+  let c;
+  try { c = await escribir(dir, abi); }
+  catch (_) { decir('No se pudo conectar con tu wallet.', 'mal'); return; }
+  try {
+    await c[fn].staticCall(...args);
+  } catch (e) {
+    const m = String(e?.reason || e?.shortMessage || e?.message || e).replace(/^execution reverted:?\s*/i, '');
+    decir('El contrato NO lo aceptaría: ' + m.slice(0, 110) + '\nNo se ha gastado nada. Revisa los datos.', 'mal');
+    return;
+  }
+  decir('');
+  confirmar({
+    titulo,
+    texto: explica + (anterior !== undefined ? `<div class="ad-antes"><i>Valor actual</i>${esc(anterior)}</div>` : '')
+  }, async () => {
+    try {
+      decir('Firma en tu wallet…', 'info');
+      const tx = await c[fn](...args);
+      await tx.wait();
+      if (deshacer) guardarDeshacer(deshacer);
+      decir('Hecho.' + (deshacer ? ' Puedes deshacerlo desde el Resumen.' : ''), 'ok');
+      if (alTerminar) alTerminar();
+    } catch (e) {
+      const m = String(e?.shortMessage || e?.reason || e?.message || e);
+      decir(/reject|denied|cancel/i.test(m) ? 'Cancelaste la firma.' : 'No se pudo: ' + m.slice(0, 110), 'mal');
+    }
+  });
+}
+
+function confirmar({ titulo, texto, ok = 'Aplicar' }, alAceptar) {
   const d = document.createElement('div');
   d.className = 'ad-conf';
   d.innerHTML = `<div class="ad-conf-bg"></div>
     <div class="ad-conf-c">
       <div class="ad-conf-t">${titulo}</div>
       <div class="ad-conf-s">${texto}</div>
-      <div class="ad-conf-acts">
-        <button class="ad-b gris" data-no>Cancelar</button>
-        <button class="ad-b ${peligro ? 'rojo' : ''}" data-si>${ok}</button>
-      </div>
-      <div class="ad-conf-n">Tendrás que firmar con tu wallet.</div>
+      <div class="ad-conf-acts"><button class="ad-b gris" data-no>Cancelar</button><button class="ad-b" data-si>${ok}</button></div>
+      <div class="ad-conf-n">Se firma con tu wallet. Nada cambia hasta que firmes.</div>
     </div>`;
   document.body.appendChild(d);
   const q = () => d.remove();
@@ -247,547 +163,444 @@ function confirmar({ titulo, texto, ok = 'Confirmar', peligro = false }, alAcept
   d.querySelector('[data-si]').onclick = () => { q(); alAceptar(); };
 }
 
-async function firmar(fn, exito) {
+/* ── Deshacer ── */
+const CLAVE_UNDO = 'aurex-admin-undo';
+function guardarDeshacer(u) {
   try {
-    decir('Confirma en tu wallet…', 'info');
-    const tx = await fn();
-    await tx.wait();
-    decir(exito, 'ok');
-    return true;
-  } catch (e) {
-    decir('No se pudo: ' + (e?.shortMessage || e?.reason || e?.message || e), 'mal');
-    return false;
-  }
-}
-
-/* ── RESUMEN ── */
-async function pintarResumen(cuenta, perm) {
-  const box = $('ad-resumen'); if (!box) return;
-  const f = (v, d = 4) => Number(ethers.formatUnits(v, 18)).toLocaleString('es', { maximumFractionDigits: d });
-
-  let market = {}, prize = {}, bots = {}, keeper = null;
-  try {
-    const m = leerC(CONTRATOS.market.dir, ABI_MARKET);
-    market.total = Number(await m.totalOrdenes());
-    market.pausado = await m.paused().catch(() => false);
+    const l = JSON.parse(localStorage.getItem(CLAVE_UNDO) || '[]');
+    l.unshift({ ...u, cuando: Date.now() });
+    localStorage.setItem(CLAVE_UNDO, JSON.stringify(l.slice(0, 10)));
   } catch (_) {}
-  try {
-    const p = leerC(CONTRATOS.prize.dir, ABI_PRIZE);
-    prize.ronda = Number(await p.currentRound());
-    const r = await p.rounds(prize.ronda);
-    prize.estado = Number(r.state); prize.pozo = r.pool; prize.tickets = Number(r.tickets);
-    const g = await p.saldoGas();
-    prize.gas = g[0] + g[1];
-    prize.pausado = await p.paused().catch(() => false);
-  } catch (_) {}
-  try {
-    const b = leerC(CONTRATOS.bots.dir, ABI_BOTS);
-    bots.sub = await b.precioSub();
-    bots.gasMin = await b.gasMinOp().catch(() => 0n);
-  } catch (_) {}
-  try {
-    const r = await fetch(KEEPER + '/estado', { cache: 'no-store' });
-    keeper = await r.text();
-  } catch (_) { keeper = null; }
-
-  const ESTADOS_R = ['Abierta', 'Sorteando', 'Cerrada', 'Reembolsada'];
-  box.innerHTML = `
-    <div class="ad-grid">
-      <div class="ad-kpi"><span>Publicaciones en Market</span><b>${market.total ?? '—'}</b></div>
-      <div class="ad-kpi"><span>Ronda del Prize Pool</span><b>#${prize.ronda ?? '—'}</b></div>
-      <div class="ad-kpi"><span>Pozo actual</span><b>${prize.pozo != null ? f(prize.pozo, 2) : '—'} <i>USDT</i></b></div>
-      <div class="ad-kpi"><span>Participantes</span><b>${prize.tickets ?? '—'}</b></div>
-      <div class="ad-kpi ${prize.gas != null && prize.gas < 2000000000000000n ? 'alerta' : ''}"><span>Gas del sorteo</span><b>${prize.gas != null ? f(prize.gas, 5) : '—'} <i>BNB</i></b></div>
-      <div class="ad-kpi"><span>Cuota mensual</span><b>${bots.sub != null ? f(bots.sub, 5) : '—'} <i>BNB</i></b></div>
-    </div>
-
-    <div class="ad-sec">Contratos</div>
-    ${Object.entries(CONTRATOS).map(([k, c]) => `
-      <div class="ad-fila">
-        <div class="ad-fila-tx"><b>${c.nombre}</b><span>${c.proxy ? 'actualizable (proxy)' : 'fijo'} · ${perm[k]?.mio ? 'mandas tú' : 'otro owner'}</span></div>
-        <a class="ad-link" href="https://bscscan.com/address/${c.dir}" target="_blank" rel="noopener">ver ↗</a>
-      </div>`).join('')}
-
-    <div class="ad-sec">Estado del keeper</div>
-    <pre class="ad-pre">${keeper ? esc(keeper.slice(0, 700)) : 'No se pudo consultar el keeper.'}</pre>
-    ${(market.pausado || prize.pausado) ? `<div class="ad-alerta">⚠ Hay contratos en pausa: ${market.pausado ? 'Marketplace ' : ''}${prize.pausado ? 'Prize Pool' : ''}</div>` : ''}`;
+}
+const listaDeshacer = () => { try { return JSON.parse(localStorage.getItem(CLAVE_UNDO) || '[]'); } catch (_) { return []; } };
+function quitarDeshacer(i) {
+  try { const l = listaDeshacer(); l.splice(i, 1); localStorage.setItem(CLAVE_UNDO, JSON.stringify(l)); } catch (_) {}
 }
 
-/* ── DISPUTAS ── */
-async function pintarDisputas(perm) {
-  const box = $('ad-disputas'); if (!box) return;
-  box.innerHTML = `<div class="ad-cargando">Buscando disputas…</div>`;
-  if (!perm.market?.mio) { box.innerHTML = `<div class="ad-vacio">No mandas en el Marketplace.</div>`; return; }
-  try {
-    const m = leerC(CONTRATOS.market.dir, ABI_MARKET);
-    const total = Number(await m.totalOrdenes());
-    const ids = []; for (let i = total; i >= 1; i--) ids.push(i);
-    const ords = await Promise.all(ids.map((i) => m.ordenes(i).catch(() => null)));
-    const dis = ords.filter((o) => o && Number(o.estado) === 4);
-    if (dis.length === 0) { box.innerHTML = `<div class="ad-vacio">No hay disputas abiertas. Todo tranquilo.</div>`; return; }
-    box.innerHTML = dis.map((o) => `
-      <div class="ad-caso">
-        <div class="ad-caso-cab"><b>Orden #${o.id}</b><span>${Number(ethers.formatUnits(o.monto, 18)).toFixed(2)} · ${Number(o.tramosHechos)}/${Number(o.tramos)} partes</span></div>
-        <div class="ad-caso-p"><i>Vendedor</i>${wallet.abreviar(o.vendedor)}</div>
-        <div class="ad-caso-p"><i>Comprador</i>${o.comprador && o.comprador !== ethers.ZeroAddress ? wallet.abreviar(o.comprador) : '—'}</div>
-        ${o.motivo ? `<div class="ad-motivo"><i>Lo que dice quien abrió la disputa</i>${esc(o.motivo)}</div>` : '<div class="ad-caso-p"><i>Sin explicación</i></div>'}
-        <div class="ad-acts">
-          <button class="ad-b" data-dc="${o.id}">Razón al comprador</button>
-          <button class="ad-b gris" data-dv="${o.id}">Razón al vendedor</button>
-          <button class="ad-b gris" data-da="${o.id}">Anular</button>
-        </div>
-      </div>`).join('');
-
-    const accion = (sel, titulo, texto, fn) => box.querySelectorAll(sel).forEach((b) => b.onclick = () => {
-      const id = b.getAttribute(sel.replace(/[\[\]]/g, ''));
-      confirmar({ titulo, texto, peligro: true }, async () => {
-        const c = await escribirC(CONTRATOS.market.dir, ABI_MARKET);
-        if (await firmar(() => fn(c, id), 'Disputa resuelta.')) pintarDisputas(perm);
-      });
-    });
-    accion('[data-dc]', 'Dar la razón al comprador', 'El comprador recibirá la parte en disputa. Si falta dinero, se completa con la fianza del vendedor. El resto vuelve al vendedor.', (c, id) => c.resolverDisputa(id, true));
-    accion('[data-dv]', 'Dar la razón al vendedor', 'La cripto que quede trabada vuelve al vendedor y la operación se cierra.', (c, id) => c.resolverDisputa(id, false));
-    accion('[data-da]', 'Anular la disputa', 'Se cierra sin culpables: la cripto vuelve al vendedor. Úsalo cuando fue un malentendido.', (c, id) => c.anularDisputa(id));
-  } catch (e) {
-    box.innerHTML = `<div class="ad-vacio">No se pudo leer: ${esc(e?.message || e)}</div>`;
-  }
-}
-
-/* ── PRIZE POOL ── */
-async function pintarPrize(perm) {
-  const box = $('ad-prize'); if (!box) return;
-  if (!perm.prize?.mio) { box.innerHTML = `<div class="ad-vacio">No mandas en el Prize Pool.</div>`; return; }
-  box.innerHTML = `<div class="ad-cargando">Leyendo la ronda…</div>`;
-  try {
-    const p = leerC(CONTRATOS.prize.dir, ABI_PRIZE);
-    const ronda = Number(await p.currentRound());
-    const r = await p.rounds(ronda);
-    const g = await p.saldoGas();
-    const falta = await p.gasFaltante().catch(() => 0n);
-    const est = ['Abierta', 'Sorteando', 'Cerrada', 'Reembolsada'][Number(r.state)] || '—';
-    const cierra = new Date(Number(r.endTime) * 1000).toLocaleString('es');
-    box.innerHTML = `
-      <div class="ad-grid">
-        <div class="ad-kpi"><span>Ronda</span><b>#${ronda}</b></div>
-        <div class="ad-kpi"><span>Estado</span><b>${est}</b></div>
-        <div class="ad-kpi"><span>Pozo</span><b>${Number(ethers.formatUnits(r.pool, 18)).toFixed(2)} <i>USDT</i></b></div>
-        <div class="ad-kpi"><span>Participaciones</span><b>${Number(r.tickets)}</b></div>
-      </div>
-      <div class="ad-nota">Cierra el <b>${cierra}</b>. Gas disponible: <b>${Number(ethers.formatUnits(g[0] + g[1], 18)).toFixed(5)} BNB</b>${falta > 0n ? ` · <span style="color:var(--rojo)">faltan ${Number(ethers.formatUnits(falta, 18)).toFixed(5)} BNB para sortear</span>` : ' · suficiente'}</div>
-
-      <div class="ad-sec">Acciones</div>
-      <div class="ad-acts col">
-        <button class="ad-b" id="ap-cerrar">Cerrar la ronda y sortear ahora</button>
-        <button class="ad-b gris" id="ap-reemb">Forzar reembolso de esta ronda</button>
-        <button class="ad-b gris" id="ap-gas">Cambiar el gas automático</button>
-        <button class="ad-b gris" id="ap-sweep">Sacar BNB sobrante del contrato</button>
-      </div>`;
-
-    $('ap-cerrar').onclick = () => confirmar({
-      titulo: 'Cerrar la ronda ahora',
-      texto: 'Se cierra antes de tiempo y se pide el número aleatorio para sortear. Si no hay participantes suficientes, se reembolsará a todos.',
-      peligro: true
-    }, async () => {
-      const c = await escribirC(CONTRATOS.prize.dir, ABI_PRIZE);
-      if (await firmar(() => c.cerrarRonda(), 'Ronda cerrada. El sorteo está en marcha.')) pintarPrize(perm);
-    });
-
-    $('ap-reemb').onclick = () => confirmar({
-      titulo: 'Forzar reembolso',
-      texto: 'Se devuelve su dinero a <b>todos los participantes</b> de esta ronda y no habrá ganadores. Úsalo solo si algo fue mal.',
-      peligro: true
-    }, async () => {
-      const c = await escribirC(CONTRATOS.prize.dir, ABI_PRIZE);
-      if (await firmar(() => c.forzarReembolso(ronda), 'Reembolso hecho.')) pintarPrize(perm);
-    });
-
-    $('ap-gas').onclick = () => pedirDatos('Gas automático', [
-      { id: 'obj', lab: 'BNB que se mantiene en la wallet de gas', val: '0.02' },
-      { id: 'por', lab: 'BNB que aporta cada participante', val: '0.0005' }
-    ], async (v) => {
-      const c = await escribirC(CONTRATOS.prize.dir, ABI_PRIZE);
-      firmar(() => c.setGasFunding(ethers.parseEther(v.obj), ethers.parseEther(v.por)), 'Gas automático actualizado.');
-    });
-
-    $('ap-sweep').onclick = () => pedirDatos('Sacar BNB del contrato', [
-      { id: 'a', lab: 'Wallet que lo recibe', val: wallet.cuentaActual() || '' },
-      { id: 'cuanto', lab: 'Cuánto BNB (0 = todo)', val: '0' }
-    ], async (v) => {
-      const c = await escribirC(CONTRATOS.prize.dir, ABI_PRIZE);
-      firmar(() => c.sweepBnb(v.a, ethers.parseEther(v.cuanto || '0')), 'BNB enviado.');
-    });
-  } catch (e) {
-    box.innerHTML = `<div class="ad-vacio">No se pudo leer: ${esc(e?.message || e)}</div>`;
-  }
-}
-
-/* ── AJUSTES ── */
-async function pintarAjustes(perm) {
-  const box = $('ad-ajustes'); if (!box) return;
-  box.innerHTML = `
-    <div class="ad-sec">Marketplace</div>
-    <div class="ad-acts col">
-      <button class="ad-b gris" id="aa-arb" ${perm.market?.mio ? '' : 'disabled'}>Añadir o quitar un árbitro</button>
-      <button class="ad-b gris" id="aa-tok" ${perm.market?.mio ? '' : 'disabled'}>Permitir o bloquear una moneda</button>
-      <button class="ad-b gris" id="aa-fia" ${perm.market?.mio ? '' : 'disabled'}>Cambiar la fianza mínima</button>
-      <button class="ad-b gris" id="aa-com" ${perm.market?.mio ? '' : 'disabled'}>Cambiar la comisión por publicar</button>
-      <button class="ad-b gris" id="aa-pla" ${perm.market?.mio ? '' : 'disabled'}>Cambiar los plazos</button>
-    </div>
-
-    <div class="ad-sec">Parar en caso de emergencia</div>
-    <div class="ad-nota">Si algo va mal, puedes <b>congelar</b> un contrato: nadie podrá crear nada nuevo, pero el dinero de la gente sigue seguro y se puede retirar.</div>
-    <div class="ad-acts col">
-      <button class="ad-b rojo" id="aa-pm" ${perm.market?.mio ? '' : 'disabled'}>Congelar / reanudar Marketplace</button>
-      <button class="ad-b rojo" id="aa-pp" ${perm.prize?.mio ? '' : 'disabled'}>Congelar / reanudar Prize Pool</button>
-    </div>`;
-
-  const M = () => escribirC(CONTRATOS.market.dir, ABI_MARKET);
-
-  $('aa-arb').onclick = () => pedirDatos('Árbitro del Marketplace', [
-    { id: 'dir', lab: 'Wallet del árbitro', val: '' },
-    { id: 'ok', lab: 'Escribe SI para darle permiso, NO para quitárselo', val: 'SI' }
-  ], async (v) => firmar(async () => (await M()).setArbitro(v.dir, /^si$/i.test(v.ok)), 'Árbitro actualizado.'));
-
-  $('aa-tok').onclick = () => pedirDatos('Moneda del Marketplace', [
-    { id: 'dir', lab: 'Dirección de la moneda', val: '' },
-    { id: 'ok', lab: 'Escribe SI para permitirla, NO para bloquearla', val: 'SI' }
-  ], async (v) => firmar(async () => (await M()).setToken(v.dir, /^si$/i.test(v.ok)), 'Moneda actualizada.'));
-
-  $('aa-fia').onclick = () => pedirDatos('Fianza mínima', [
-    { id: 'v', lab: 'USDT que debe depositar un vendedor', val: '20' }
-  ], async (v) => firmar(async () => (await M()).setFianzaMinima(ethers.parseUnits(v.v, 18)), 'Fianza actualizada.'));
-
-  $('aa-com').onclick = () => pedirDatos('Comisión por publicar', [
-    { id: 'c', lab: 'Céntimos de dólar (100 = 1 USD)', val: '100' },
-    { id: 't', lab: 'Tope en BNB', val: '0.01' }
-  ], async (v) => firmar(async () => (await M()).setComision(v.c, ethers.parseEther(v.t)), 'Comisión actualizada.'));
-
-  $('aa-pla').onclick = () => pedirDatos('Plazos del Marketplace (en minutos)', [
-    { id: 'pago', lab: 'Para pagar', val: '60' },
-    { id: 'conf', lab: 'Para confirmar', val: '120' },
-    { id: 'res', lab: 'Reserva de una oferta', val: '1440' },
-    { id: 'dis', lab: 'Para resolver una disputa', val: '2880' }
-  ], async (v) => firmar(async () => (await M()).setPlazos(+v.pago * 60, +v.conf * 60, +v.res * 60, +v.dis * 60), 'Plazos actualizados.'));
-
-  const congelar = async (dir, abi, nombre) => {
-    const c = leerC(dir, ABI_OWNER);
-    const p = await c.paused().catch(() => false);
-    confirmar({
-      titulo: p ? `Reanudar ${nombre}` : `Congelar ${nombre}`,
-      texto: p
-        ? 'Todo vuelve a funcionar con normalidad.'
-        : `Nadie podrá crear operaciones nuevas en ${nombre}. <b>El dinero de la gente sigue seguro</b> y se puede retirar. Úsalo solo ante un problema grave.`,
-      peligro: !p
-    }, async () => {
-      const w = await escribirC(dir, abi);
-      firmar(() => (p ? w.unpause() : w.pause()), p ? 'Reanudado.' : 'Congelado.');
-    });
-  };
-  $('aa-pm').onclick = () => congelar(CONTRATOS.market.dir, ABI_MARKET, 'el Marketplace');
-  $('aa-pp').onclick = () => congelar(CONTRATOS.prize.dir, ABI_PRIZE, 'el Prize Pool');
-}
-
-/* ── LOTERÍA: recuperar el dinero que quedó dentro ── */
-let _lot = [];
-async function pintarLoteria(cuenta) {
-  const box = $('ad-loteria'); if (!box) return;
-  box.innerHTML = `<div class="ad-cargando">Leyendo el contrato de la lotería…</div>`;
-  const CERO = '0x0000000000000000000000000000000000000000';
-  try {
-    const c = leerC(LOTERIA, ABI_LOTERIA);
-    let jefe = null, jefe2 = null;
-    try { jefe = await c.owner(); } catch (_) {}
-    try { jefe2 = await c.ownerSecundario(); } catch (_) {}
-    const mio = jefe && String(jefe).toLowerCase() === String(cuenta).toLowerCase();
-    const mio2 = jefe2 && String(jefe2).toLowerCase() === String(cuenta).toLowerCase();
-
-    _lot = [];
-    const filas = [];
-    for (const m of MONEDAS_LOTERIA) {
-      const dir = m.dir || CERO;
-      let banca = 0n, reservado = 0n, benef = 0n, saldo = 0n;
-      try {
-        const d = await c.monedas(dir);
-        banca = d.banca; reservado = d.reservado; benef = d.beneficios;
-      } catch (_) {}
-      try { saldo = await c.saldoDe(cuenta, dir); } catch (_) {}
-      const libre = banca > reservado ? banca - reservado : 0n;
-      if (libre > 0n || benef > 0n || saldo > 0n) _lot.push({ m, dir, libre, benef, saldo });
-      const f = (v) => Number(ethers.formatUnits(v, m.dec)).toLocaleString('es', { maximumFractionDigits: 6 });
-      filas.push(`<div class="ad-mon">
-        <div class="ad-mon-cab"><b>${m.nom}</b><span>${m.sim}</span></div>
-        <div class="ad-mon-nums">
-          <span><i>banca libre</i>${f(libre)}</span>
-          <span><i>beneficios</i>${f(benef)}</span>
-          ${reservado > 0n ? `<span><i>comprometido</i>${f(reservado)}</span>` : ''}
-        </div>
-      </div>`);
-    }
-
-    box.innerHTML = `
-      <div class="ad-nota">
-        Tu dinero en la lotería está en dos sitios: la <b>banca</b> (lo que depositaste para pagar premios)
-        y los <b>beneficios</b> (tu comisión acumulada). El botón "retirar" de antes era para <b>jugadores</b>
-        que han ganado: por eso daba error.
-      </div>
-      <div class="ad-fila">
-        <div class="ad-fila-tx"><b>Dueño del contrato</b><span>${jefe ? wallet.abreviar(jefe) : '—'}${mio ? ' · eres tú' : ''}</span></div>
-      </div>
-      ${jefe2 && jefe2 !== CERO ? `<div class="ad-fila"><div class="ad-fila-tx"><b>Dueño de respaldo</b><span>${wallet.abreviar(jefe2)}${mio2 ? ' · eres tú' : ''}</span></div></div>` : ''}
-      ${(!mio && !mio2) ? `<div class="ad-alerta">Esta wallet no manda en la lotería. Conéctate con la que la desplegó.</div>` : ''}
-
-      <div class="ad-sec">Qué hay en cada moneda</div>
-      ${filas.join('')}
-
-      <div class="ad-acts col">
-        <button class="ad-b" id="al-banca" ${(mio || mio2) ? '' : 'disabled'}>Retirar toda la banca libre</button>
-        <button class="ad-b gris" id="al-benef" ${(mio || mio2) ? '' : 'disabled'}>Retirar todos los beneficios</button>
-        <button class="ad-b gris" id="al-diag">Ver qué funciones tiene el contrato</button>
-        <a class="ad-link btn" href="https://bscscan.com/address/${LOTERIA}" target="_blank" rel="noopener" style="text-align:center">ver el contrato ↗</a>
-      </div>
-      <div id="al-diag-out"></div>`;
-
-    /* Prueba varias firmas hasta que una funcione. */
-    const intentar = async (firmas, dir, cantidad) => {
-      const destino = wallet.cuentaActual();      // el dinero va a TU wallet
-      for (const f of firmas) {
-        try {
-          const w = await escribirC(LOTERIA, [f]);
-          const nom = f.match(/function (\w+)/)[1];
-          const tipos = (f.match(/\(([^)]*)\)/)[1] || '').split(',').map((t) => t.trim()).filter(Boolean);
-          let vistas = 0;
-          const args = tipos.map((t) => {
-            if (/^uint/.test(t)) return cantidad;
-            vistas++;
-            return vistas === 1 ? dir : destino;   // 1ª dirección = moneda, 2ª = a dónde va
-          });
-          const tx = await w[nom](...args);
-          await tx.wait();
-          return { ok: true, nom };
-        } catch (e) {
-          const m = String(e?.shortMessage || e?.message || e);
-          // Si la función no existe, probamos la siguiente. Si existe pero
-          // rechaza, ese es el motivo real y lo devolvemos.
-          if (!/no matching|unknown function|call revert exception|missing revert|function selector/i.test(m) && /revert/i.test(m)) {
-            return { ok: false, motivo: m.slice(0, 90) };
-          }
-        }
-      }
-      return { ok: false, motivo: 'ninguna función de retirada respondió' };
-    };
-
-    const correr = async (btn, firmas, campo, titulo) => {
-      const lista = _lot.filter((x) => x[campo] > 0n);
-      if (lista.length === 0) { decir('No hay nada que retirar por ahí.', ''); return; }
-      confirmar({
-        titulo,
-        texto: `Se firmará <b>una transacción por moneda</b> (${lista.length} en total). El dinero llega a tu wallet.`,
-        ok: 'Retirar'
-      }, async () => {
-        btn.disabled = true;
-        let ok = 0; const mal = [];
-        for (let i = 0; i < lista.length; i++) {
-          const x = lista[i];
-          decir(`${x.m.sim} (${i + 1}/${lista.length})… firma en tu wallet`, 'info');
-          const r = await intentar(firmas, x.dir, x[campo]);
-          if (r.ok) ok++; else mal.push(`${x.m.sim}: ${r.motivo}`);
-        }
-        decir(mal.length === 0 ? `Listo: ${ok} moneda(s) en tu wallet.` : `Retiradas: ${ok}\n${mal.join('\n')}`, mal.length ? 'mal' : 'ok');
-        btn.disabled = false;
-        pintarLoteria(cuenta);
-      });
-    };
-
-    if ($('al-banca')) $('al-banca').onclick = () => correr($('al-banca'), FIRMAS_BANCA, 'libre', 'Retirar la banca');
-    if ($('al-benef')) $('al-benef').onclick = () => correr($('al-benef'), FIRMAS_BENEF, 'benef', 'Retirar los beneficios');
-    // Busca las funciones DENTRO del código compilado del contrato. Cada
-    // función deja su "huella" de 4 bytes en el código; probamos cientos de
-    // nombres posibles y vemos cuáles están de verdad. Sin adivinar.
-    const bd = $('al-diag');
-    if (bd) bd.onclick = async () => {
-      const out = $('al-diag-out');
-      out.innerHTML = `<div class="ad-cargando">Leyendo el contrato en el explorador…</div>`;
-      try {
-        // Si es un PROXY, las funciones de verdad viven en otro contrato.
-        // Leemos la ranura estándar donde el proxy guarda esa dirección.
-        let objetivo = LOTERIA, nota = '';
-        const RANURAS = [
-          '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc', // EIP-1967
-          '0x7050c9e0f4ca769c69bd3a8ef740bc37934f8e2c036e5a723fd8ee048ed3f8c3'  // OpenZeppelin antiguo
-        ];
-        for (const slot of RANURAS) {
-          try {
-            const v = await lector().getStorage(LOTERIA, slot);
-            const dir = '0x' + String(v).slice(-40);
-            if (/^0x[0-9a-f]{40}$/i.test(dir) && dir !== '0x0000000000000000000000000000000000000000') {
-              objetivo = ethers.getAddress(dir);
-              nota = `<div class="ad-nota">Es un <b>proxy</b>. Las funciones de verdad están en <b>${objetivo}</b>.</div>`;
-              break;
-            }
-          } catch (_) {}
-        }
-        const codigo = (await lector().getCode(objetivo)).toLowerCase();
-        if (!codigo || codigo === '0x') { out.innerHTML = `<div class="ad-vacio">No se pudo leer el código del contrato.</div>`; return; }
-
-        // Candidatas: combinamos verbos y formas de argumentos habituales.
-        const VERBOS = [
-          'retirarBanca', 'sacarBanca', 'retirarFondos', 'sacarFondos', 'retirarToken',
-          'defondearToken', 'desfondearToken', 'retirarBancaToken', 'retirarNativo',
-          'withdrawBankroll', 'withdrawBanca', 'withdraw', 'retirarBeneficios',
-          'sacarBeneficios', 'cobrarBeneficios', 'retirarComision', 'retirarComisiones',
-          'withdrawFees', 'reclamarBeneficios', 'rescate', 'rescatar', 'rescueToken',
-          'rescueOtherToken', 'sweep', 'sweepToken', 'emergencyWithdraw', 'retirarTodo',
-          'fondearToken', 'fondearNativo', 'retirar'
-        ];
-        const FORMAS = ['()', '(address)', '(uint256)', '(address,uint256)', '(address,address)',
-                        '(address,uint256,address)', '(uint256,address)', '(address,address,uint256)'];
-        const encontradas = [];
-        for (const v of VERBOS) {
-          for (const fo of FORMAS) {
-            const firma = v + fo;
-            const sel = ethers.id(firma).slice(2, 10).toLowerCase();
-            if (codigo.includes(sel)) encontradas.push({ firma, sel });
-          }
-        }
-        window._fnLoteria = encontradas;
-        const saca = encontradas.filter((x) => /retir|sacar|withdraw|rescue|sweep|cobrar|reclamar|defond|desfond/i.test(x.firma));
-        const pinta = (x) => `<div class="ad-fn"><span><b>${esc(x.firma.split('(')[0])}</b>(${esc(x.firma.split('(')[1].replace(')', ''))})</span><button class="ad-mini" data-firma="${esc(x.firma)}">ejecutar</button></div>`;
-        out.innerHTML = `
-          ${nota}
-          <div class="ad-sec">Funciones que sacan dinero (${saca.length})</div>
-          ${saca.length ? saca.map(pinta).join('') : '<div class="ad-vacio">Ninguna de las habituales. Pásame la parte del código donde está la retirada.</div>'}
-          ${encontradas.length > saca.length ? `<div class="ad-sec">Otras encontradas</div>${encontradas.filter((x) => !saca.includes(x)).map(pinta).join('')}` : ''}`;
-
-        // Cada una se puede lanzar aquí mismo.
-        out.querySelectorAll('[data-firma]').forEach((b) => b.onclick = () => {
-          const firma = b.dataset.firma;
-          const nom = firma.split('(')[0];
-          const tipos = (firma.split('(')[1] || '').replace(')', '').split(',').filter(Boolean);
-          const campos = tipos.map((t, k) => ({
-            id: 'p' + k,
-            lab: `${t}  ${/address/.test(t) ? '(dirección de la moneda, o tu wallet)' : '(cantidad; 0 = todo)'}`,
-            val: /address/.test(t) ? '' : '0'
-          }));
-          pedirDatos(nom, campos.length ? campos : [{ id: 'x', lab: 'Sin datos: pulsa Continuar', val: '' }], async (v) => {
-            try {
-              const w = await escribirC(LOTERIA, ['function ' + firma]);
-              const args = tipos.map((t, k) => {
-                const raw = (v['p' + k] || '').trim();
-                if (/^uint/.test(t)) return BigInt(raw || '0');
-                return raw;
-              });
-              firmar(() => w[nom](...args), 'Hecho. Revisa tu wallet.');
-            } catch (e) { decir('No se pudo: ' + (e?.shortMessage || e?.message || e), 'mal'); }
-          });
-        });
-      } catch (e) {
-        out.innerHTML = `<div class="ad-vacio">No se pudo consultar: ${esc(e?.message || e)}</div>`;
-      }
-    };
-
-    const btn = $('al-todo');
-    if (btn) btn.onclick = () => confirmar({
-      titulo: 'Retirar todo de la lotería',
-      texto: `Se firma <b>una transacción por moneda</b> (${_saldosLot.length} en total) y el dinero llega a tu wallet.`,
-      ok: 'Retirar'
-    }, async () => {
-      btn.disabled = true;
-      const w = await escribirC(LOTERIA, ABI_LOTERIA);
-      // Si no hay saldo apuntado, probamos con TODAS: así vemos qué dice el
-      // contrato en cada moneda en vez de quedarnos sin saber nada.
-      const lista = _saldosLot.length ? _saldosLot : MONEDAS_LOTERIA.map((m) => ({ m, v: 0n }));
-      let ok = 0; const mal = [];
-      for (let i = 0; i < lista.length; i++) {
-        const { m, v } = lista[i];
-        decir(`Probando ${m.sim} (${i + 1}/${lista.length})… firma o rechaza en tu wallet`, 'info');
-        try { const tx = await w.retirar(m.dir || CERO); await tx.wait(); ok++; }
-        catch (e) { mal.push(`${m.sim}: ${(e?.shortMessage || e?.reason || e?.message || e).toString().slice(0, 40)}`); }
-      }
-      decir(mal.length === 0 ? `Listo: ${ok} moneda(s) en tu wallet.` : `Retiradas: ${ok}\n${mal.join('\n')}`, mal.length ? 'mal' : 'ok');
-      btn.disabled = false;
-      pintarLoteria(cuenta);
-    });
-  } catch (e) {
-    box.innerHTML = `<div class="ad-vacio">No se pudo leer: ${esc(e?.message || e)}</div>`;
-  }
-}
-
-/* ── PROPIEDAD ── */
-async function pintarPoder(cuenta, perm) {
-  const box = $('ad-poder'); if (!box) return;
-  box.innerHTML = `
-    <div class="ad-nota grande">
-      Aquí se decide <b>quién manda</b> en cada contrato. El owner es quien puede resolver disputas,
-      cambiar ajustes y cobrar las comisiones. Cámbialo solo si sabes muy bien lo que haces:
-      <b>si lo pasas a una wallet equivocada, se pierde el control para siempre</b>.
-    </div>
-
-    <div class="ad-sec">Quién manda ahora</div>
-    ${Object.entries(CONTRATOS).map(([k, c]) => `
-      <div class="ad-fila">
-        <div class="ad-fila-tx"><b>${c.nombre}</b><span>${perm[k]?.owner ? wallet.abreviar(perm[k].owner) : '—'}${perm[k]?.mio ? ' · eres tú' : ''}</span></div>
-        <button class="ad-link btn" data-tr="${k}" ${perm[k]?.mio ? '' : 'disabled'}>traspasar</button>
-      </div>`).join('')}
-
-    <div class="ad-sec">Wallets de respaldo</div>
-    <div class="ad-nota">
-      Ahora mismo cada contrato tiene <b>un solo dueño</b>. Si perdieras esa wallet, perderías el control.
-      Para tener wallets de reserva (una segunda y una tercera que puedan tomar el mando si la primera cae)
-      hace falta <b>añadir esa función a los contratos</b>. Es un cambio que sí se puede hacer, porque son
-      actualizables, pero necesita tocar el código y volver a publicarlo.
-    </div>
-    <div class="ad-acts col">
-      <button class="ad-b gris" id="ap-multi">Cómo activar las wallets de respaldo</button>
-    </div>`;
-
-  box.querySelectorAll('[data-tr]').forEach((b) => b.onclick = () => {
-    const k = b.dataset.tr, c = CONTRATOS[k];
-    pedirDatos(`Traspasar ${c.nombre}`, [
-      { id: 'dir', lab: 'Wallet que pasará a mandar', val: '' },
-      { id: 'seg', lab: 'Escribe TRASPASAR para confirmar', val: '' }
-    ], async (v) => {
-      if (v.seg !== 'TRASPASAR') { decir('Escribe TRASPASAR para confirmar.', 'mal'); return; }
-      if (!/^0x[0-9a-fA-F]{40}$/.test(v.dir)) { decir('Esa dirección no es válida.', 'mal'); return; }
-      confirmar({
-        titulo: `¿Traspasar ${c.nombre}?`,
-        texto: `Pasarás el control a <b>${esc(v.dir)}</b>.<br><br><b>Esto no se puede deshacer desde aquí.</b> Solo la wallet nueva podrá devolvértelo. Si la dirección está mal, pierdes el contrato para siempre.`,
-        ok: 'Sí, traspasar', peligro: true
-      }, async () => {
-        const w = await escribirC(c.dir, ABI_OWNER);
-        firmar(() => w.transferOwnership(v.dir), 'Control traspasado.');
-      });
-    });
-  });
-
-  $('ap-multi').onclick = () => confirmar({
-    titulo: 'Wallets de respaldo',
-    texto: `Para tener una segunda y una tercera wallet que puedan tomar el mando, hay que añadir esa función a cada contrato y publicarla (los tres principales son actualizables, así que no se pierde nada).<br><br>Funcionaría así: las comisiones van siempre a la <b>wallet 1</b>. Si la suspendes, pasan a la <b>2</b>, y así. Cualquiera de las tres puede añadir o suspender a las demás.<br><br>Cuando quieras, lo preparamos.`,
-    ok: 'Entendido'
-  }, () => {});
-}
-
-/* ── Formulario genérico para pedir datos ── */
-function pedirDatos(titulo, campos, alAceptar) {
+/* ── Formulario con límites comprobados ── */
+function pedir(titulo, campos, alAceptar) {
   const d = document.createElement('div');
   d.className = 'ad-conf';
   d.innerHTML = `<div class="ad-conf-bg"></div>
     <div class="ad-conf-c">
       <div class="ad-conf-t">${titulo}</div>
-      ${campos.map((c) => `<label class="ad-lab">${c.lab}<input class="ad-in" data-k="${c.id}" value="${esc(c.val)}"></label>`).join('')}
-      <div class="ad-conf-acts">
-        <button class="ad-b gris" data-no>Cancelar</button>
-        <button class="ad-b" data-si>Continuar</button>
-      </div>
+      ${campos.map((c) => `<label class="ad-lab">${esc(c.lab)}
+        <input class="ad-in" data-k="${c.id}" value="${esc(c.val ?? '')}" placeholder="${esc(c.ph || '')}">
+        ${c.pista ? `<span class="ad-pista">${esc(c.pista)}</span>` : ''}</label>`).join('')}
+      <div class="ad-err" id="ad-err"></div>
+      <div class="ad-conf-acts"><button class="ad-b gris" data-no>Cancelar</button><button class="ad-b" data-si>Continuar</button></div>
     </div>`;
   document.body.appendChild(d);
   const q = () => d.remove();
+  const fallo = (t) => { const e = d.querySelector('#ad-err'); if (e) e.textContent = t; };
   d.querySelector('.ad-conf-bg').onclick = q;
   d.querySelector('[data-no]').onclick = q;
   d.querySelector('[data-si]').onclick = () => {
-    const v = {};
-    d.querySelectorAll('.ad-in').forEach((i) => { v[i.dataset.k] = i.value.trim(); });
+    const v = {}; d.querySelectorAll('.ad-in').forEach((i) => { v[i.dataset.k] = i.value.trim(); });
+    for (const c of campos) {
+      const val = v[c.id];
+      if (c.tipo === 'numero') {
+        const n = Number(String(val).replace(',', '.'));
+        if (!isFinite(n)) return fallo(`"${c.lab}": escribe un número.`);
+        if (c.min !== undefined && n < c.min) return fallo(`"${c.lab}": el mínimo permitido es ${c.min}.`);
+        if (c.max !== undefined && n > c.max) return fallo(`"${c.lab}": el máximo permitido es ${c.max}.`);
+        v[c.id] = n;
+      }
+      if (c.tipo === 'wallet' && !/^0x[0-9a-fA-F]{40}$/.test(val)) return fallo(`"${c.lab}": esa dirección no es válida.`);
+      if (c.tipo === 'si_no') {
+        if (!/^(si|sí|no)$/i.test(val)) return fallo(`"${c.lab}": escribe SI o NO.`);
+        v[c.id] = /^(si|sí)$/i.test(val);
+      }
+    }
     q(); alAceptar(v);
   };
+}
+
+/* ══════════════════ PANEL ══════════════════ */
+function abrir(cuenta, perm) {
+  const prev = $('adm-panel'); if (prev) prev.remove();
+  const d = document.createElement('div');
+  d.id = 'adm-panel';
+  d.innerHTML = `<div class="ad-bg"></div>
+    <div class="ad-c">
+      <div class="ad-cab">
+        <div><div class="ad-t">Panel de control</div>
+        <div class="ad-s">${wallet.abreviar(cuenta)} · verificado en la cadena</div></div>
+        <button class="ad-x" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="ad-seguro">Este panel <b>no puede romper nada</b>: cada cambio se prueba antes de firmar, tiene límites, y se puede deshacer. Lo irreversible no está aquí.</div>
+      <div class="ad-tabs">
+        <button class="ad-tab on" data-p="resumen">Resumen</button>
+        <button class="ad-tab" data-p="disputas">Disputas</button>
+        <button class="ad-tab" data-p="sorteo">Sorteo</button>
+        <button class="ad-tab" data-p="ajustes">Ajustes</button>
+        <button class="ad-tab" data-p="emergencia">Emergencia</button>
+      </div>
+      <div class="ad-pane on" id="ad-resumen"><div class="ad-cargando">Leyendo la cadena…</div></div>
+      <div class="ad-pane" id="ad-disputas"></div>
+      <div class="ad-pane" id="ad-sorteo"></div>
+      <div class="ad-pane" id="ad-ajustes"></div>
+      <div class="ad-pane" id="ad-emergencia"></div>
+      <div class="ad-msg" id="ad-msg"></div>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => { const e = $('adm-panel'); if (e) e.remove(); };
+  d.querySelector('.ad-bg').onclick = cerrar;
+  d.querySelector('.ad-x').onclick = cerrar;
+  d.querySelectorAll('.ad-tab').forEach((b) => b.onclick = () => {
+    d.querySelectorAll('.ad-tab').forEach((x) => x.classList.remove('on'));
+    d.querySelectorAll('.ad-pane').forEach((x) => x.classList.remove('on'));
+    b.classList.add('on');
+    const pane = $('ad-' + b.dataset.p); if (pane) pane.classList.add('on');
+    ({ resumen: () => resumen(cuenta, perm), disputas: () => disputas(perm), sorteo: () => sorteo(perm),
+       ajustes: () => ajustes(perm), emergencia: () => emergencia(perm) }[b.dataset.p] || (() => {}))();
+  });
+  resumen(cuenta, perm);
+}
+
+const bnb = (v, d = 5) => Number(ethers.formatEther(v)).toFixed(d);
+const usdt = (v, d = 2) => Number(ethers.formatUnits(v, 18)).toFixed(d);
+
+/* ── RESUMEN ── */
+async function resumen(cuenta, perm) {
+  const box = $('ad-resumen'); if (!box) return;
+  let m = {}, p = {}, keeper = null, usuarios = null, botsVivos = null, keeperVivo = false;
+  try { const c = leer(C.market.dir, ABI_MARKET); m.total = Number(await c.totalOrdenes()); m.pausado = await c.paused().catch(() => false); } catch (_) {}
+  try {
+    const c = leer(C.prize.dir, ABI_PRIZE);
+    p.ronda = Number(await c.currentRound());
+    const r = await c.rounds(p.ronda);
+    p.estado = Number(r.state); p.pozo = r.pool; p.tickets = Number(r.tickets);
+    const g = await c.saldoGas(); p.gas = g[0] + g[1];
+    p.pausado = await c.paused().catch(() => false);
+  } catch (_) {}
+  try {
+    keeper = await (await fetch(KEEPER + '/estado', { cache: 'no-store' })).text();
+    usuarios = (keeper.match(/Cuentas vigiladas:\s*(\d+)/) || [])[1];
+    botsVivos = (keeper.match(/Bots encontrados:\s*(\d+)/) || [])[1];
+    const hace = (keeper.match(/hace (\d+) s/) || [])[1];
+    keeperVivo = hace !== undefined && Number(hace) < 300;
+  } catch (_) {}
+
+  const ESTADOS = ['Abierta', 'Sorteando', 'Cerrada', 'Reembolsada'];
+  const gasBajo = p.gas !== undefined && p.gas < 4000000000000000n;
+  box.innerHTML = `
+    <div class="ad-grid">
+      <div class="ad-kpi"><span>Usuarios con bots</span><b>${usuarios ?? '—'}</b></div>
+      <div class="ad-kpi"><span>Bots trabajando</span><b>${botsVivos ?? '—'}</b></div>
+      <div class="ad-kpi"><span>Publicaciones Market</span><b>${m.total ?? '—'}</b></div>
+      <div class="ad-kpi"><span>Ronda del sorteo</span><b>#${p.ronda ?? '—'} <i>${ESTADOS[p.estado] || ''}</i></b></div>
+      <div class="ad-kpi"><span>Pozo</span><b>${p.pozo != null ? usdt(p.pozo) : '—'} <i>USDT</i></b></div>
+      <div class="ad-kpi ${gasBajo ? 'alerta' : ''}"><span>Gas del sorteo</span><b>${p.gas != null ? bnb(p.gas) : '—'} <i>BNB</i></b></div>
+    </div>
+    ${gasBajo ? `<div class="ad-alerta">El gas del sorteo está bajo. Puedes recargarlo en la pestaña <b>Sorteo</b>.</div>` : ''}
+    ${(m.pausado || p.pausado) ? `<div class="ad-alerta">Congelado ahora mismo: ${m.pausado ? 'Marketplace ' : ''}${p.pausado ? 'Prize Pool' : ''}. Se reanuda en <b>Emergencia</b>.</div>` : ''}
+
+    <div class="ad-sec">Keeper (el que ejecuta los bots)</div>
+    <div class="ad-fila">
+      <div class="ad-fila-tx"><b>${keeperVivo ? 'Trabajando' : 'Sin señal reciente'}</b><span>${keeperVivo ? 'ha corrido hace menos de 5 minutos' : 'comprueba que esté encendido'}</span></div>
+      <a class="ad-link" href="${KEEPER}/estado" target="_blank" rel="noopener">detalle ↗</a>
+    </div>
+
+    <div class="ad-sec">Contratos</div>
+    ${Object.entries(C).map(([k, c]) => `<div class="ad-fila">
+      <div class="ad-fila-tx"><b>${c.nombre}</b><span>${perm[k]?.mio ? 'mandas tú' : 'lo lleva otra wallet'}</span></div>
+      <a class="ad-link" href="https://bscscan.com/address/${c.dir}" target="_blank" rel="noopener">ver ↗</a></div>`).join('')}
+    ${pintarDeshacer()}`;
+  wireDeshacer(() => resumen(cuenta, perm));
+}
+
+function pintarDeshacer() {
+  const l = listaDeshacer();
+  if (l.length === 0) return '';
+  return `<div class="ad-sec">Deshacer cambios recientes</div>` + l.map((u, i) => `
+    <div class="ad-fila">
+      <div class="ad-fila-tx"><b>${esc(u.que)}</b><span>volver a ${esc(u.antesTxt)}</span></div>
+      <button class="ad-link btn" data-undo="${i}">deshacer</button>
+    </div>`).join('');
+}
+function wireDeshacer(recargar) {
+  document.querySelectorAll('[data-undo]').forEach((b) => b.onclick = () => {
+    const i = Number(b.dataset.undo), u = listaDeshacer()[i];
+    if (!u) return;
+    accionSegura({
+      dir: u.dir, abi: u.abi, fn: u.fn,
+      args: u.args.map((x) => (typeof x === 'string' && /^\d+$/.test(x) ? BigInt(x) : x)),
+      titulo: 'Deshacer: ' + u.que,
+      explica: `Se deja como estaba: <b>${esc(u.antesTxt)}</b>.`,
+      alTerminar: () => { quitarDeshacer(i); recargar(); }
+    });
+  });
+}
+
+/* ── DISPUTAS ── */
+async function disputas(perm) {
+  const box = $('ad-disputas'); if (!box) return;
+  if (!perm.market?.mio) { box.innerHTML = `<div class="ad-vacio">Esta wallet no lleva el Marketplace.</div>`; return; }
+  box.innerHTML = `<div class="ad-cargando">Buscando disputas…</div>`;
+  try {
+    const c = leer(C.market.dir, ABI_MARKET);
+    const total = Number(await c.totalOrdenes());
+    const ids = []; for (let i = total; i >= 1; i--) ids.push(i);
+    const ords = (await Promise.all(ids.map((i) => c.ordenes(i).catch(() => null)))).filter(Boolean);
+    const dis = ords.filter((o) => Number(o.estado) === 4);
+    if (dis.length === 0) { box.innerHTML = `<div class="ad-vacio">No hay disputas abiertas.<br>Todo tranquilo.</div>`; return; }
+    box.innerHTML = `<div class="ad-nota">Lee el motivo y los comprobantes antes de decidir. Si no resuelves en 48 h, el sistema devuelve la cripto al vendedor solo.</div>` +
+      dis.map((o) => `<div class="ad-caso">
+        <div class="ad-caso-cab"><b>Orden #${o.id}</b><span>${usdt(o.monto)} · ${Number(o.tramosHechos)}/${Number(o.tramos)} partes</span></div>
+        <div class="ad-caso-p"><i>Vendedor</i>${wallet.abreviar(o.vendedor)}</div>
+        <div class="ad-caso-p"><i>Comprador</i>${o.comprador && o.comprador !== CERO ? wallet.abreviar(o.comprador) : '—'}</div>
+        ${o.motivo ? `<div class="ad-motivo"><i>Lo que dice quien abrió la disputa</i>${esc(o.motivo)}</div>` : '<div class="ad-caso-p"><i>Sin explicación</i></div>'}
+        <div class="ad-acts">
+          <button class="ad-b" data-dc="${o.id}">Razón al comprador</button>
+          <button class="ad-b gris" data-dv="${o.id}">Razón al vendedor</button>
+          <button class="ad-b gris" data-da="${o.id}">Anular</button>
+        </div></div>`).join('');
+
+    const liga = (attr, titulo, explica, fn, mk) => box.querySelectorAll('[' + attr + ']').forEach((b) => b.onclick = () => {
+      const id = BigInt(b.getAttribute(attr));
+      accionSegura({ dir: C.market.dir, abi: ABI_MARKET, fn, args: mk(id), titulo, explica, alTerminar: () => disputas(perm) });
+    });
+    liga('data-dc', 'Dar la razón al comprador', 'El comprador recibirá la parte en disputa. Si falta dinero, se completa con la fianza del vendedor. Lo demás vuelve al vendedor.', 'resolverDisputa', (id) => [id, true]);
+    liga('data-dv', 'Dar la razón al vendedor', 'La cripto que queda trabada vuelve al vendedor y la operación se cierra.', 'resolverDisputa', (id) => [id, false]);
+    liga('data-da', 'Anular la disputa', 'Se cierra sin culpables: la cripto vuelve al vendedor. Para cuando fue un malentendido.', 'anularDisputa', (id) => [id]);
+  } catch (e) {
+    box.innerHTML = `<div class="ad-vacio">No se pudo leer: ${esc(e?.message || e)}</div>`;
+  }
+}
+
+/* ── SORTEO ── */
+async function sorteo(perm) {
+  const box = $('ad-sorteo'); if (!box) return;
+  if (!perm.prize?.mio) { box.innerHTML = `<div class="ad-vacio">Esta wallet no lleva el Prize Pool.</div>`; return; }
+  box.innerHTML = `<div class="ad-cargando">Leyendo la ronda…</div>`;
+  try {
+    const c = leer(C.prize.dir, ABI_PRIZE);
+    const ronda = Number(await c.currentRound());
+    const r = await c.rounds(ronda);
+    let sponsor = null, saldoSp = '—';
+    try { sponsor = await c.sponsorWallet(); if (sponsor === CERO) sponsor = null; } catch (_) {}
+    if (sponsor) { try { saldoSp = bnb(await lector().getBalance(sponsor)); } catch (_) {} }
+    const objetivo = await c.sponsorTarget().catch(() => 0n);
+    const porEntrada = await c.gasPerEntry().catch(() => 0n);
+    const bloqueo = await c.bloqueoSalida().catch(() => 0n);
+    const atascado = await c.sorteoAtascado(ronda).catch(() => false);
+    const ESTADOS = ['Abierta', 'Sorteando', 'Cerrada', 'Reembolsada'];
+
+    box.innerHTML = `
+      <div class="ad-grid">
+        <div class="ad-kpi"><span>Ronda</span><b>#${ronda}</b></div>
+        <div class="ad-kpi"><span>Estado</span><b>${ESTADOS[Number(r.state)] || '—'}</b></div>
+        <div class="ad-kpi"><span>Pozo</span><b>${usdt(r.pool)} <i>USDT</i></b></div>
+        <div class="ad-kpi"><span>Participaciones</span><b>${Number(r.tickets)}</b></div>
+      </div>
+      <div class="ad-nota">Cierra el <b>${new Date(Number(r.endTime) * 1000).toLocaleString('es')}</b>.</div>
+      ${atascado ? `<div class="ad-alerta">El sorteo lleva más de 20 minutos esperando. Puedes destrabarlo abajo.</div>` : ''}
+
+      <div class="ad-sec">Gas del sorteo</div>
+      <div class="ad-fila">
+        <div class="ad-fila-tx"><b>${saldoSp} BNB en la wallet de gas</b><span>${sponsor ? wallet.abreviar(sponsor) : 'sin configurar'} · se rellena sola con cada participación</span></div>
+      </div>
+      <div class="ad-acts col">
+        <button class="ad-b" id="s-gas" ${sponsor ? '' : 'disabled'}>Recargar la wallet de gas</button>
+        ${atascado ? `<button class="ad-b" id="s-destrabar">Destrabar el sorteo</button>` : ''}
+      </div>
+
+      <div class="ad-sec">Ajustes</div>
+      <div class="ad-ajuste">
+        <div class="ad-ajuste-tx"><b>Aporte de cada participante al gas</b><span>Ahora: ${bnb(porEntrada, 5)} BNB · el sistema mantiene ${bnb(objetivo, 4)} BNB en la wallet</span></div>
+        <button class="ad-link btn" id="s-fund">cambiar</button>
+      </div>
+      <div class="ad-ajuste">
+        <div class="ad-ajuste-tx"><b>Bloqueo de salida antes del cierre</b><span>Ahora: ${Math.round(Number(bloqueo) / 3600)} horas</span></div>
+        <button class="ad-link btn" id="s-bloq">cambiar</button>
+      </div>
+
+      <div class="ad-sec">Operaciones de la ronda</div>
+      <div class="ad-acts col">
+        <button class="ad-b gris" id="s-cerrar">Cerrar la ronda y sortear ya</button>
+        <button class="ad-b gris" id="s-reemb">Devolver el dinero a todos</button>
+      </div>
+      <div class="ad-nota">Son operativas: cerrar antes de tiempo, o cancelar devolviendo el dinero. No rompen nada; la siguiente ronda arranca igual.</div>`;
+
+    if ($('s-gas')) $('s-gas').onclick = () => pedir('Recargar la wallet de gas', [
+      { id: 'v', lab: 'Cuánto BNB enviar', val: '0.02', tipo: 'numero', min: 0.001, max: 1, pista: 'Con 0.02 BNB sobra para muchos sorteos.' }
+    ], async (v) => {
+      try {
+        const s = await firmante();
+        decir('Firma en tu wallet…', 'info');
+        const tx = await s.sendTransaction({ to: sponsor, value: ethers.parseEther(String(v.v)) });
+        await tx.wait(); decir('Gas recargado.', 'ok'); sorteo(perm);
+      } catch (e) { decir('No se pudo: ' + (e?.shortMessage || e?.message || e), 'mal'); }
+    });
+
+    if ($('s-destrabar')) $('s-destrabar').onclick = async () => {
+      const falta = await c.gasFaltante().catch(() => 0n);
+      accionSegura({
+        dir: C.prize.dir, abi: ABI_PRIZE, fn: 'destrabarSorteo', args: [BigInt(ronda), { value: falta }],
+        titulo: 'Destrabar el sorteo',
+        explica: `Se pone el gas que falta (<b>${bnb(falta)} BNB</b>) y se pide de nuevo el número aleatorio. El sorteo se hace al momento.`,
+        alTerminar: () => sorteo(perm)
+      });
+    };
+
+    $('s-fund').onclick = () => pedir('Gas automático', [
+      { id: 'obj', lab: 'BNB que se mantiene en la wallet de gas', val: bnb(objetivo, 4), tipo: 'numero', min: 0.005, max: 0.5, pista: 'Recomendado: 0.02' },
+      { id: 'por', lab: 'BNB que aporta cada participante', val: bnb(porEntrada, 5), tipo: 'numero', min: 0.0001, max: 0.01, pista: 'Recomendado: 0.0005 (unos 30 céntimos)' }
+    ], (v) => accionSegura({
+      dir: C.prize.dir, abi: ABI_PRIZE, fn: 'setGasFunding',
+      args: [ethers.parseEther(String(v.obj)), ethers.parseEther(String(v.por))],
+      titulo: 'Cambiar el gas automático',
+      explica: `Cada participante aportará <b>${v.por} BNB</b> y el sistema mantendrá <b>${v.obj} BNB</b> en la wallet de gas.`,
+      anterior: `${bnb(porEntrada, 5)} por participante · ${bnb(objetivo, 4)} de objetivo`,
+      deshacer: { que: 'Gas automático', antesTxt: `${bnb(porEntrada, 5)} / ${bnb(objetivo, 4)} BNB`, dir: C.prize.dir, abi: ABI_PRIZE, fn: 'setGasFunding', args: [objetivo.toString(), porEntrada.toString()] },
+      alTerminar: () => sorteo(perm)
+    }));
+
+    $('s-bloq').onclick = () => pedir('Bloqueo de salida', [
+      { id: 'h', lab: 'Horas antes del cierre', val: String(Math.round(Number(bloqueo) / 3600)), tipo: 'numero', min: 1, max: 168, pista: 'Recomendado: 24. Impide que alguien infle el pozo y se marche antes del sorteo.' }
+    ], (v) => accionSegura({
+      dir: C.prize.dir, abi: ABI_PRIZE, fn: 'setBloqueoSalida', args: [BigInt(Math.round(v.h * 3600))],
+      titulo: 'Cambiar el bloqueo de salida',
+      explica: `Nadie podrá retirar su aporte en las <b>${v.h} horas</b> previas al cierre.`,
+      anterior: `${Math.round(Number(bloqueo) / 3600)} horas`,
+      deshacer: { que: 'Bloqueo de salida', antesTxt: `${Math.round(Number(bloqueo) / 3600)} h`, dir: C.prize.dir, abi: ABI_PRIZE, fn: 'setBloqueoSalida', args: [bloqueo.toString()] },
+      alTerminar: () => sorteo(perm)
+    }));
+
+    $('s-cerrar').onclick = () => accionSegura({
+      dir: C.prize.dir, abi: ABI_PRIZE, fn: 'cerrarRonda', args: [],
+      titulo: 'Cerrar la ronda ahora',
+      explica: 'Se cierra antes de tiempo y se sortea. Si no hay participantes suficientes, se devuelve el dinero a todos automáticamente.',
+      alTerminar: () => sorteo(perm)
+    });
+
+    $('s-reemb').onclick = () => accionSegura({
+      dir: C.prize.dir, abi: ABI_PRIZE, fn: 'forzarReembolso', args: [BigInt(ronda)],
+      titulo: 'Devolver el dinero a todos',
+      explica: `Todos los participantes de la ronda <b>#${ronda}</b> recuperan su aporte y no habrá ganadores. Para cuando algo salió mal.`,
+      alTerminar: () => sorteo(perm)
+    });
+  } catch (e) {
+    box.innerHTML = `<div class="ad-vacio">No se pudo leer: ${esc(e?.message || e)}</div>`;
+  }
+}
+
+/* ── AJUSTES (Marketplace) ── */
+async function ajustes(perm) {
+  const box = $('ad-ajustes'); if (!box) return;
+  if (!perm.market?.mio) { box.innerHTML = `<div class="ad-vacio">Esta wallet no lleva el Marketplace.</div>`; return; }
+  box.innerHTML = `<div class="ad-cargando">Leyendo la configuración…</div>`;
+  try {
+    const c = leer(C.market.dir, ABI_MARKET);
+    const fianza = await c.fianzaMinima().catch(() => 0n);
+    const pPago = await c.plazoPago().catch(() => 0n);
+    const pConf = await c.plazoConfirm().catch(() => 0n);
+    const pRes = await c.plazoReserva().catch(() => 0n);
+    const pDis = await c.plazoDisputa().catch(() => 0n);
+    const min = (v) => Math.round(Number(v) / 60);
+
+    box.innerHTML = `
+      <div class="ad-nota">Cada ajuste enseña su valor de ahora y tiene un mínimo y un máximo. Antes de firmar se comprueba con el contrato, así que no puede quedar en un estado imposible.</div>
+      <div class="ad-ajuste">
+        <div class="ad-ajuste-tx"><b>Fianza mínima del vendedor</b><span>Ahora: ${usdt(fianza)} USDT · su garantía si pierde una disputa</span></div>
+        <button class="ad-link btn" id="a-fianza">cambiar</button>
+      </div>
+      <div class="ad-ajuste">
+        <div class="ad-ajuste-tx"><b>Plazos del Marketplace</b><span>Pagar ${min(pPago)} min · confirmar ${min(pConf)} min · reserva ${min(pRes)} min · disputa ${min(pDis)} min</span></div>
+        <button class="ad-link btn" id="a-plazos">cambiar</button>
+      </div>
+      <div class="ad-ajuste">
+        <div class="ad-ajuste-tx"><b>Árbitros de disputas</b><span>Wallets que pueden resolver casos, además de la tuya</span></div>
+        <button class="ad-link btn" id="a-arb">gestionar</button>
+      </div>
+      ${pintarDeshacer()}`;
+    wireDeshacer(() => ajustes(perm));
+
+    $('a-fianza').onclick = () => pedir('Fianza mínima', [
+      { id: 'v', lab: 'USDT que debe depositar un vendedor', val: usdt(fianza), tipo: 'numero', min: 0, max: 1000, pista: 'Recomendado: 20. A más fianza, más confianza, pero menos vendedores.' }
+    ], (v) => accionSegura({
+      dir: C.market.dir, abi: ABI_MARKET, fn: 'setFianzaMinima', args: [ethers.parseUnits(String(v.v), 18)],
+      titulo: 'Cambiar la fianza mínima',
+      explica: `Los vendedores nuevos tendrán que depositar <b>${v.v} USDT</b> para publicar. A los que ya venden no les afecta.`,
+      anterior: `${usdt(fianza)} USDT`,
+      deshacer: { que: 'Fianza mínima', antesTxt: `${usdt(fianza)} USDT`, dir: C.market.dir, abi: ABI_MARKET, fn: 'setFianzaMinima', args: [fianza.toString()] },
+      alTerminar: () => ajustes(perm)
+    }));
+
+    $('a-plazos').onclick = () => pedir('Plazos (en minutos)', [
+      { id: 'pago', lab: 'Para que el comprador pague', val: String(min(pPago)), tipo: 'numero', min: 10, max: 1440, pista: 'Recomendado: 60' },
+      { id: 'conf', lab: 'Para que el vendedor confirme', val: String(min(pConf)), tipo: 'numero', min: 10, max: 1440, pista: 'Recomendado: 120' },
+      { id: 'res', lab: 'Que dura una reserva', val: String(min(pRes)), tipo: 'numero', min: 30, max: 10080, pista: 'Recomendado: 1440 (un día)' },
+      { id: 'dis', lab: 'Para resolver una disputa', val: String(min(pDis)), tipo: 'numero', min: 60, max: 20160, pista: 'Recomendado: 2880 (dos días)' }
+    ], (v) => accionSegura({
+      dir: C.market.dir, abi: ABI_MARKET, fn: 'setPlazos',
+      args: [BigInt(Math.round(v.pago * 60)), BigInt(Math.round(v.conf * 60)), BigInt(Math.round(v.res * 60)), BigInt(Math.round(v.dis * 60))],
+      titulo: 'Cambiar los plazos',
+      explica: `Pagar en <b>${v.pago} min</b>, confirmar en <b>${v.conf} min</b>, reserva de <b>${v.res} min</b> y disputas en <b>${v.dis} min</b>.`,
+      anterior: `${min(pPago)} / ${min(pConf)} / ${min(pRes)} / ${min(pDis)} min`,
+      deshacer: { que: 'Plazos del Marketplace', antesTxt: `${min(pPago)}/${min(pConf)}/${min(pRes)}/${min(pDis)} min`, dir: C.market.dir, abi: ABI_MARKET, fn: 'setPlazos', args: [pPago.toString(), pConf.toString(), pRes.toString(), pDis.toString()] },
+      alTerminar: () => ajustes(perm)
+    }));
+
+    $('a-arb').onclick = () => pedir('Árbitro de disputas', [
+      { id: 'dir', lab: 'Wallet del árbitro', val: '', tipo: 'wallet', ph: '0x…', pista: 'Podrá resolver disputas de otros usuarios. Dáselo solo a alguien de confianza.' },
+      { id: 'ok', lab: '¿Le das permiso? Escribe SI o NO', val: 'SI', tipo: 'si_no' }
+    ], (v) => accionSegura({
+      dir: C.market.dir, abi: ABI_MARKET, fn: 'setArbitro', args: [v.dir, v.ok],
+      titulo: v.ok ? 'Dar permiso de árbitro' : 'Quitar permiso de árbitro',
+      explica: v.ok
+        ? `<b>${esc(v.dir)}</b> podrá resolver disputas. Tú sigues pudiendo hacerlo igual.`
+        : `<b>${esc(v.dir)}</b> dejará de poder resolver disputas.`,
+      deshacer: { que: 'Árbitro ' + v.dir.slice(0, 10), antesTxt: v.ok ? 'sin permiso' : 'con permiso', dir: C.market.dir, abi: ABI_MARKET, fn: 'setArbitro', args: [v.dir, !v.ok] },
+      alTerminar: () => ajustes(perm)
+    }));
+  } catch (e) {
+    box.innerHTML = `<div class="ad-vacio">No se pudo leer: ${esc(e?.message || e)}</div>`;
+  }
+}
+
+/* ── EMERGENCIA ── */
+async function emergencia(perm) {
+  const box = $('ad-emergencia'); if (!box) return;
+  const est = async (dir) => { try { return await leer(dir, ABI_BASE).paused(); } catch (_) { return null; } };
+  const pm = await est(C.market.dir), pp = await est(C.prize.dir);
+
+  box.innerHTML = `
+    <div class="ad-nota">
+      Congelar un contrato es <b>la red de seguridad</b>, no un peligro: impide crear operaciones nuevas mientras resuelves un problema.
+      <b>El dinero de la gente sigue seguro y se puede retirar igual.</b> Se reanuda con un clic cuando quieras.
+    </div>
+    <div class="ad-ajuste">
+      <div class="ad-ajuste-tx"><b>Marketplace</b><span>${pm === null ? 'no se pudo leer' : pm ? 'CONGELADO ahora mismo' : 'funcionando con normalidad'}</span></div>
+      <button class="ad-link btn ${pm ? 'ok' : 'rojo'}" id="e-m" ${perm.market?.mio && pm !== null ? '' : 'disabled'}>${pm ? 'reanudar' : 'congelar'}</button>
+    </div>
+    <div class="ad-ajuste">
+      <div class="ad-ajuste-tx"><b>Prize Pool</b><span>${pp === null ? 'no se pudo leer' : pp ? 'CONGELADO ahora mismo' : 'funcionando con normalidad'}</span></div>
+      <button class="ad-link btn ${pp ? 'ok' : 'rojo'}" id="e-p" ${perm.prize?.mio && pp !== null ? '' : 'disabled'}>${pp ? 'reanudar' : 'congelar'}</button>
+    </div>
+
+    <div class="ad-sec">Lo que este panel no hace, y por qué</div>
+    <div class="ad-nota">
+      <b>Traspasar o renunciar a la propiedad</b> de un contrato no está aquí a propósito: es lo único de verdad irreversible.
+      Si alguna vez hiciera falta, se hace desde Remix con calma y la dirección comprobada dos veces.<br><br>
+      <b>Ejecutar funciones sueltas a mano</b> tampoco: es la forma más fácil de romper algo sin darse cuenta.
+      Si necesitas algo que no está aquí, pídelo y se añade como acción preparada, con sus límites y su ensayo previo.
+    </div>`;
+
+  const alternar = (id, dir, abi, nombre, estado) => {
+    const b = $(id); if (!b || b.disabled) return;
+    b.onclick = () => accionSegura({
+      dir, abi, fn: estado ? 'unpause' : 'pause', args: [],
+      titulo: estado ? `Reanudar ${nombre}` : `Congelar ${nombre}`,
+      explica: estado
+        ? `${nombre} vuelve a funcionar con normalidad.`
+        : `Nadie podrá crear operaciones nuevas en ${nombre}. <b>El dinero de la gente sigue seguro</b> y se puede retirar. Se reanuda cuando quieras desde aquí.`,
+      alTerminar: () => emergencia(perm)
+    });
+  };
+  alternar('e-m', C.market.dir, ABI_MARKET, 'el Marketplace', pm);
+  alternar('e-p', C.prize.dir, ABI_PRIZE, 'el Prize Pool', pp);
 }
 
 /* ── Estilos ── */
@@ -795,43 +608,44 @@ function estilos() {
   if ($('adm-css')) return;
   const s = document.createElement('style'); s.id = 'adm-css';
   s.textContent = `
-  /* La zona secreta: invisible, sin cursor distinto, sin ninguna pista */
   #adm-zona{position:fixed;left:0;bottom:0;width:54px;height:54px;z-index:9999;background:transparent}
   #adm-panel{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px}
   #adm-panel .ad-bg{position:absolute;inset:0;background:rgba(2,4,6,.93);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
-  #adm-panel .ad-c{position:relative;width:100%;max-width:640px;max-height:calc(100vh - 32px);overflow-y:auto;background:linear-gradient(180deg,#12161c,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:18px;padding:20px}
-  #adm-panel .ad-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
+  #adm-panel .ad-c{position:relative;width:100%;max-width:620px;max-height:calc(100vh - 32px);overflow-y:auto;background:linear-gradient(180deg,#12161c,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:18px;padding:20px}
+  #adm-panel .ad-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
   #adm-panel .ad-t{font-family:var(--display,sans-serif);font-weight:800;font-size:21px;color:var(--gold,#E8B84B)}
   #adm-panel .ad-s{font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;margin-top:3px}
   #adm-panel .ad-x{width:34px;height:34px;flex:0 0 auto;border-radius:10px;display:grid;place-items:center;padding:0;background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6;cursor:pointer}
+  #adm-panel .ad-seguro{margin:14px 0;padding:10px 12px;border-radius:11px;background:rgba(46,232,106,.07);border:1px solid rgba(46,232,106,.3);font-family:var(--sans,sans-serif);font-size:11.5px;color:#8b96a3;line-height:1.55}
+  #adm-panel .ad-seguro b{color:var(--neon-lit,#2ee86a)}
   #adm-panel .ad-tabs{display:flex;gap:5px;overflow-x:auto;background:#0b0e12;border:1px solid #2b3139;border-radius:11px;padding:4px;margin-bottom:14px;scrollbar-width:none}
   #adm-panel .ad-tabs::-webkit-scrollbar{display:none}
-  #adm-panel .ad-tab{flex:1 0 auto;min-height:38px;padding:0 12px;border:none;border-radius:8px;background:transparent;color:#b7bdc6;font-family:var(--display,sans-serif);font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}
+  #adm-panel .ad-tab{flex:1 0 auto;min-height:38px;padding:0 13px;border:none;border-radius:8px;background:transparent;color:#b7bdc6;font-family:var(--display,sans-serif);font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}
   #adm-panel .ad-tab.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
   #adm-panel .ad-pane{display:none}
   #adm-panel .ad-pane.on{display:block}
-  #adm-panel .ad-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px;margin-bottom:6px}
+  #adm-panel .ad-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px}
   #adm-panel .ad-kpi{padding:11px 13px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid #2b3139}
   #adm-panel .ad-kpi.alerta{border-color:rgba(246,70,93,.45);background:rgba(246,70,93,.07)}
   #adm-panel .ad-kpi span{display:block;font-family:var(--mono,monospace);font-size:9px;color:#6b7681;text-transform:uppercase;letter-spacing:.7px}
-  #adm-panel .ad-kpi b{display:block;font-family:var(--display,sans-serif);font-size:19px;color:#eaecef;margin-top:3px}
+  #adm-panel .ad-kpi b{display:block;font-family:var(--display,sans-serif);font-size:18px;color:#eaecef;margin-top:3px}
   #adm-panel .ad-kpi i{font-style:normal;font-size:11px;color:#7d8794}
   #adm-panel .ad-sec{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;letter-spacing:.9px;margin:18px 0 8px}
-  #adm-panel .ad-fila{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:11px;background:rgba(255,255,255,.02);border:1px solid #2b3139;margin-bottom:7px}
-  #adm-panel .ad-fila-tx b{display:block;font-family:var(--display,sans-serif);font-size:13.5px;color:#eaecef}
-  #adm-panel .ad-fila-tx span{display:block;font-family:var(--mono,monospace);font-size:10px;color:#7d8794;margin-top:2px}
-  #adm-panel .ad-link{flex:0 0 auto;font-family:var(--mono,monospace);font-size:10.5px;color:var(--gold,#E8B84B);text-decoration:none;padding:7px 11px;border-radius:8px;border:1px solid #3a424c;background:transparent;cursor:pointer}
+  #adm-panel .ad-fila,#adm-panel .ad-ajuste{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.02);border:1px solid #2b3139;margin-bottom:7px}
+  #adm-panel .ad-fila-tx b,#adm-panel .ad-ajuste-tx b{display:block;font-family:var(--display,sans-serif);font-size:13.5px;color:#eaecef}
+  #adm-panel .ad-fila-tx span,#adm-panel .ad-ajuste-tx span{display:block;font-family:var(--mono,monospace);font-size:10px;color:#7d8794;margin-top:3px;line-height:1.45}
+  #adm-panel .ad-link{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono,monospace);font-size:10.5px;color:var(--gold,#E8B84B);text-decoration:none;padding:8px 12px;border-radius:8px;border:1px solid #3a424c;background:transparent;cursor:pointer;min-height:34px}
+  #adm-panel .ad-link.rojo{color:var(--rojo,#f6465d);border-color:rgba(246,70,93,.4)}
+  #adm-panel .ad-link.ok{color:var(--neon-lit,#2ee86a);border-color:rgba(46,232,106,.4)}
   #adm-panel .ad-link[disabled]{opacity:.35;cursor:default}
-  #adm-panel .ad-pre{font-family:var(--mono,monospace);font-size:10px;color:#8b96a3;background:#0b0e12;border:1px solid #2b3139;border-radius:10px;padding:11px;white-space:pre-wrap;word-break:break-word;max-height:210px;overflow-y:auto;line-height:1.5}
   #adm-panel .ad-nota{font-family:var(--sans,sans-serif);font-size:12px;color:#8b96a3;line-height:1.6;padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.03);border:1px dashed #3a424c;margin-bottom:10px}
-  #adm-panel .ad-nota.grande{font-size:12.5px}
   #adm-panel .ad-nota b{color:#eaecef}
-  #adm-panel .ad-alerta{margin-top:12px;padding:11px 13px;border-radius:11px;background:rgba(246,70,93,.1);border:1px solid rgba(246,70,93,.4);color:#ffb3bd;font-family:var(--sans,sans-serif);font-size:12.5px}
+  #adm-panel .ad-alerta{margin:10px 0;padding:11px 13px;border-radius:11px;background:rgba(246,70,93,.1);border:1px solid rgba(246,70,93,.4);color:#ffb3bd;font-family:var(--sans,sans-serif);font-size:12.5px;line-height:1.5}
+  #adm-panel .ad-alerta b{color:#fff}
   #adm-panel .ad-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   #adm-panel .ad-acts.col{flex-direction:column}
   #adm-panel .ad-b{flex:1;min-width:130px;min-height:44px;padding:11px 13px;border-radius:11px;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;cursor:pointer;box-shadow:0 3px 0 #8f6a1a}
   #adm-panel .ad-b.gris,.ad-conf .ad-b.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:#b7bdc6;box-shadow:0 3px 0 rgba(0,0,0,.4)}
-  #adm-panel .ad-b.rojo,.ad-conf .ad-b.rojo{background:linear-gradient(180deg,#f08a95,#e35d6a 45%,#b8323f);border-color:#d14a58;color:#fff;box-shadow:0 3px 0 #8c2531}
   #adm-panel .ad-b:disabled{opacity:.35;cursor:default;box-shadow:none}
   #adm-panel .ad-b:active{transform:translateY(2px)}
   #adm-panel .ad-caso{padding:13px;border-radius:13px;background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid rgba(246,70,93,.35);margin-bottom:10px}
@@ -841,19 +655,6 @@ function estilos() {
   #adm-panel .ad-caso-p i,#adm-panel .ad-motivo i{font-style:normal;font-family:var(--mono,monospace);font-size:9px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px;margin-right:7px}
   #adm-panel .ad-motivo{margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid #3a424c;font-family:var(--sans,sans-serif);font-size:12.5px;color:#eaecef;line-height:1.55}
   #adm-panel .ad-motivo i{display:block;margin-bottom:4px}
-  #adm-panel .ad-mon{padding:11px 13px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid #2b3139;margin-bottom:7px}
-  #adm-panel .ad-mon-cab{display:flex;align-items:baseline;gap:8px}
-  #adm-panel .ad-mon-cab b{font-family:var(--display,sans-serif);font-size:14px;color:#eaecef}
-  #adm-panel .ad-mon-cab span{font-family:var(--mono,monospace);font-size:10px;color:#6b7681}
-  #adm-panel .ad-mon-nums{display:flex;gap:16px;flex-wrap:wrap;margin-top:7px}
-  #adm-panel .ad-mon-nums span{font-family:var(--mono,monospace);font-size:12.5px;color:var(--neon-lit,#2ee86a)}
-  #adm-panel .ad-mon-nums i{display:block;font-style:normal;font-size:8.5px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px}
-  #adm-panel .ad-fn{display:flex;align-items:center;justify-content:space-between;gap:9px;font-family:var(--mono,monospace);font-size:11px;color:#8b96a3;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid #2b3139;margin-bottom:5px;word-break:break-word}
-  #adm-panel .ad-mini{flex:0 0 auto;padding:5px 10px;border-radius:7px;border:1px solid #3a424c;background:transparent;color:var(--gold,#E8B84B);font-family:var(--mono,monospace);font-size:10px;cursor:pointer}
-  #adm-panel .ad-mini:hover{border-color:var(--gold-soft,#C9A84B)}
-  #adm-panel .ad-fn b{color:var(--gold,#E8B84B)}
-  #adm-panel .ad-saldo{font-family:var(--mono,monospace);font-size:12.5px;color:#6b7681;flex:0 0 auto}
-  #adm-panel .ad-saldo.hay{color:var(--neon-lit,#2ee86a);font-weight:700}
   #adm-panel .ad-cargando,#adm-panel .ad-vacio{font-family:var(--mono,monospace);font-size:11.5px;color:#7d8794;text-align:center;padding:26px 10px;line-height:1.6}
   #adm-panel .ad-msg{font-family:var(--mono,monospace);font-size:11.5px;text-align:center;margin-top:14px;min-height:16px;line-height:1.5;white-space:pre-wrap}
   #adm-panel .ad-msg.ok{color:var(--neon-lit,#2ee86a)}
@@ -861,21 +662,26 @@ function estilos() {
   #adm-panel .ad-msg.info{color:var(--gold,#E8B84B)}
   .ad-conf{position:fixed;inset:0;z-index:10010;display:flex;align-items:center;justify-content:center;padding:18px}
   .ad-conf .ad-conf-bg{position:absolute;inset:0;background:rgba(2,4,6,.9)}
-  .ad-conf .ad-conf-c{position:relative;width:100%;max-width:400px;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:18px;padding:22px}
+  .ad-conf .ad-conf-c{position:relative;width:100%;max-width:410px;max-height:calc(100vh - 40px);overflow-y:auto;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:18px;padding:22px}
   .ad-conf .ad-conf-t{font-family:var(--display,sans-serif);font-weight:800;font-size:18px;color:var(--gold,#E8B84B);text-align:center}
-  .ad-conf .ad-conf-s{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.6;margin:11px 0 18px}
+  .ad-conf .ad-conf-s{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.6;margin:11px 0 16px}
   .ad-conf .ad-conf-s b{color:#eaecef}
+  .ad-conf .ad-antes{margin-top:11px;padding:9px 11px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid #2b3139;font-family:var(--mono,monospace);font-size:11.5px;color:#b7bdc6}
+  .ad-conf .ad-antes i{display:block;font-style:normal;font-size:8.5px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
   .ad-conf .ad-conf-acts{display:flex;gap:9px}
   .ad-conf .ad-b{flex:1;min-height:46px;padding:12px;border-radius:11px;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;font-family:var(--display,sans-serif);font-weight:800;font-size:13px;cursor:pointer}
   .ad-conf .ad-conf-n{font-family:var(--mono,monospace);font-size:9.5px;color:#6b7681;text-align:center;margin-top:11px}
-  .ad-conf .ad-lab{display:block;font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.6px;margin-bottom:11px}
+  .ad-conf .ad-lab{display:block;font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.6px;margin-bottom:13px}
   .ad-conf .ad-in{display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:11px;border-radius:10px;border:1px solid #2b3139;background:#0b0e12;color:#eaecef;font-family:var(--mono,monospace);font-size:13px;text-transform:none;letter-spacing:0}
   .ad-conf .ad-in:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
+  .ad-conf .ad-pista{display:block;margin-top:5px;font-family:var(--sans,sans-serif);font-size:11px;color:#6b7681;text-transform:none;letter-spacing:0;line-height:1.45}
+  .ad-conf .ad-err{font-family:var(--sans,sans-serif);font-size:12px;color:var(--rojo,#f6465d);min-height:16px;margin-bottom:8px;line-height:1.4}
   @media(max-width:560px){
     #adm-panel .ad-c{padding:16px 13px;border-radius:15px}
     #adm-panel .ad-t{font-size:18px}
     #adm-panel .ad-kpi b{font-size:16px}
     #adm-panel .ad-b{min-width:100%}
+    #adm-panel .ad-fila,#adm-panel .ad-ajuste{flex-direction:column;align-items:stretch;gap:9px}
   }`;
   document.head.appendChild(s);
 }
