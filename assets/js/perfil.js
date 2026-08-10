@@ -1,7 +1,7 @@
 // perfil.js — Panel de cuenta por wallet. Módulo independiente (no toca la lógica existente).
-import * as gb from './gridbot.js?v=104';
-import * as wallet from './wallet.js?v=104';
-import * as avisos from './avisos.js?v=104';
+import * as gb from './gridbot.js?v=105';
+import * as wallet from './wallet.js?v=105';
+import * as avisos from './avisos.js?v=105';
 
 const $ = (id) => document.getElementById(id);
 const num = (n, d = 2) => { const x = Number(n); if (!isFinite(x)) return '—'; return x.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d }); };
@@ -85,6 +85,7 @@ function estilos() {
   #perfil-overlay .pf-coste-v{font-family:var(--display,sans-serif);font-size:17px;color:#eaecef;margin:6px 0 4px}
   #perfil-overlay .pf-coste-v b{color:var(--gold,#E8B84B)}
   #perfil-overlay .pf-coste-d{font-family:var(--sans,sans-serif);font-size:11px;color:#7d8794;line-height:1.45}
+  #perfil-overlay .pf-setname{min-height:36px;display:inline-flex;align-items:center;gap:7px}
   #perfil-overlay .pf-sect{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.9px;margin-bottom:8px;margin-top:20px}
   /* Textos: versión corta en el móvil */
   #perfil-overlay .tx-s{display:none}

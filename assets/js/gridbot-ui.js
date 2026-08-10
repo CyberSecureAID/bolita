@@ -5,16 +5,16 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=104';
-import * as wallet from './wallet.js?v=104';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=104';
-import * as perfil from './perfil.js?v=104';
-import * as prizepool from './prizepool.js?v=104';
-import * as tutorial from './tutorial.js?v=104';
-import * as market from './market.js?v=104';
-import * as avisos from './avisos.js?v=104';
-import * as grafica from './grafica.js?v=104';
-import * as extras from './extras.js?v=104';
+import * as gb from './gridbot.js?v=105';
+import * as wallet from './wallet.js?v=105';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=105';
+import * as perfil from './perfil.js?v=105';
+import * as prizepool from './prizepool.js?v=105';
+import * as tutorial from './tutorial.js?v=105';
+import * as market from './market.js?v=105';
+import * as avisos from './avisos.js?v=105';
+import * as grafica from './grafica.js?v=105';
+import * as extras from './extras.js?v=105';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -479,15 +479,21 @@ function inyectarEstilo() {
     #conf-box .cf-d{font-size:11.5px}
     #conf-box .cf-nums{gap:11px}
   }
-  #colmena-app .mb-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-  #colmena-app .mb-cab h3{margin:0}
-  #colmena-app .c-cupo{display:inline-flex;align-items:baseline;gap:7px;padding:6px 13px;border-radius:20px;background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.35);cursor:help}
-  #colmena-app .c-cupo b{font-family:var(--display);font-weight:800;font-size:14px;color:var(--gold)}
+  #colmena-app .mb-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  #colmena-app .mb-cab h3{margin:0;flex:1;min-width:0}
+  #colmena-app .mb-der{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+  /* Botones cómodos de tocar en cualquier pantalla (auditoría con 5 perfiles) */
+  #colmena-app .btn-avz,#colmena-app .btn-max,#colmena-app .sug,#colmena-app .cash-max{min-height:34px;padding-top:0;padding-bottom:0;display:inline-flex;align-items:center;justify-content:center}
+  @media(max-width:560px){#colmena-app .btn-avz,#colmena-app .btn-max,#colmena-app .sug,#colmena-app .cash-max{min-height:40px}}
+  #colmena-app .c-cupo{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 13px;border-radius:20px;background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.35);cursor:help;white-space:nowrap}
+  #colmena-app .c-cupo b{font-family:var(--display);font-weight:800;font-size:13px;color:var(--gold)}
   #colmena-app .c-cupo span{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
   #colmena-app .c-cupo.lleno{background:rgba(246,70,93,.1);border-color:rgba(246,70,93,.4)}
   #colmena-app .c-cupo.lleno b{color:var(--rojo)}
-  #colmena-app .btn-cerrar-todos{padding:6px 13px;border-radius:20px;border:1px solid #3a424c;background:transparent;color:var(--ink-3);font-family:var(--mono);font-size:10.5px;cursor:pointer}
+  #colmena-app .btn-cerrar-todos{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 13px;border-radius:20px;border:1px solid #3a424c;background:transparent;color:var(--ink-3);font-family:var(--mono);font-size:10.5px;cursor:pointer;white-space:nowrap}
   #colmena-app .btn-cerrar-todos:hover{color:var(--rojo);border-color:rgba(246,70,93,.45)}
+  #colmena-app .btn-cerrar-todos:active{transform:translateY(1px)}
+  #colmena-app .btn-cerrar-todos.cargando{color:var(--gold);border-color:rgba(232,184,75,.45);cursor:default}
   #ct-box{position:fixed;inset:0;z-index:9890;display:flex;align-items:center;justify-content:center;padding:18px}
   #ct-box .ct-bg{position:absolute;inset:0;background:rgba(3,5,8,.88);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
   #ct-box .ct-c{position:relative;width:100%;max-width:400px;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid rgba(246,70,93,.5);border-radius:20px;padding:24px 20px}
@@ -1633,7 +1639,7 @@ function render() {
         </div>
       </div>
     </div>
-    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><span class="c-cupo" id="c-cupo"><b>—</b><span>bots activos</span></span><button class="btn-cerrar-todos" id="c-cerrar-todos" type="button" title="Cerrar todos tus bots">Cerrar todos</button></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
+    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><div class="mb-der"><span class="c-cupo" id="c-cupo"><b>—</b><span>bots activos</span></span><button class="btn-cerrar-todos" id="c-cerrar-todos" type="button" title="Cerrar todos tus bots">Cerrar todos</button></div></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
     ${footerHTML()}
   </div>`;
 
@@ -2121,12 +2127,19 @@ async function asegurarSuscripcion(cuenta) {
 }
 /** Cierra todos los bots del usuario, uno a uno, con aviso claro antes. */
 async function cerrarTodosLosBots(cuenta) {
+  // Aviso inmediato: leer los bots tarda unos segundos y el botón parecía roto.
+  const btn = $('c-cerrar-todos');
+  const txtOrig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Buscando tus bots…'; btn.classList.add('cargando'); }
+  const soltar = () => { if (btn) { btn.disabled = false; btn.textContent = txtOrig; btn.classList.remove('cargando'); } };
+
   let claves = [];
   try { claves = await gb.misRejillas(cuenta); } catch (_) {}
   const vivos = [];
   for (const k of claves) {
     try { const R = await gb.resumenK(k); if (R.activa) vivos.push({ k, R }); } catch (_) {}
   }
+  soltar();
   if (vivos.length === 0) { modalError('No tienes bots activos que cerrar.'); return; }
 
   const d = document.createElement('div');
@@ -2995,10 +3008,11 @@ async function tarjeta(cuenta, clave, par, R) {
   // Dos datos distintos, cada uno con su nombre claro. Antes ponía
   // "Entrada → Ahora" y, si no había precio de entrada, cambiaba a "Precio
   // ahora": el cartel bailaba y no se entendía qué era cada número.
+  // Una sola casilla: el precio al que entraste y cuánto se ha movido desde
+  // entonces. Tener otra con el precio de mercado repetía el mismo dato.
   const _boxEntrada = _entValida
-    ? `<div class="pio-box" data-box="entrada"><div class="k">Precio de entrada</div><div class="v" style="font-size:15px">${precioFmt(par.entry)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}" style="${mkt == null ? 'color:var(--ink-3)' : ''}">${mkt == null ? 'al crear el bot' : sg(mkt) + num(Math.abs(mkt), 2) + '% desde entonces'}</div></div>
-       <div class="pio-box" data-box="mercado"><div class="k">Precio del mercado</div><div class="v" style="font-size:15px">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">ahora mismo</div></div>`
-    : `<div class="pio-box" data-box="mercado"><div class="k">Precio del mercado</div><div class="v" style="font-size:15px">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">ahora mismo</div></div>`;
+    ? `<div class="pio-box" data-box="entrada"><div class="k">Precio de entrada</div><div class="v" style="font-size:15px">${precioFmt(par.entry)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}" style="${mkt == null ? 'color:var(--ink-3)' : ''}">${mkt == null ? 'al crear el bot' : 'ahora ' + precioFmt(precio) + ' · ' + sg(mkt) + num(Math.abs(mkt), 2) + '%'}</div></div>`
+    : `<div class="pio-box" data-box="entrada"><div class="k">Precio del mercado</div><div class="v" style="font-size:15px">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">ahora mismo</div></div>`;
   const _boxFlotante = `<div class="pio-box" data-box="flotante"><div class="k">Flotante ${iBtn('ganancia')}</div><div class="v ${cls(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div><div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>`;
   const _boxGas = `<div class="pio-box" data-box="gas"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>`;
   const _boxGrid = `<div class="pio-box" data-box="realizado"><div class="k">Grid profit ${iBtn('porcuad')}</div><div class="v ${cls(realizado)} numgo" data-to="${Math.abs(realizado)}" data-dec="4" data-pre="${sg(realizado)}">${sg(realizado)}${num(Math.abs(realizado), 4)}</div><div class="v2 ${cls(realizado)}">${sg(pct(realizado))}${num(Math.abs(pct(realizado)), 2)}%</div></div>`;
