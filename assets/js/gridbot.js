@@ -171,20 +171,68 @@ export async function cotizar(amountIn, path) {
 
 /** Historial real de operaciones del bot (evento Ejecutado). Devuelve
  *  [{compra, precio, bloque, i}] en orden. Ventana de bloques acotada para RPCs. */
+/** Convierte números de bloque en fechas.
+ *  Pide UN bloque de referencia y calcula el resto por diferencia. BSC produce
+ *  un bloque cada ~0,75 s desde la actualización Maxwell, pero lo medimos en
+ *  vivo con dos bloques reales para no depender de suposiciones. */
+let _refBloque = null;
+export async function tiempoDeBloque(bloques) {
+  if (!Array.isArray(bloques) || bloques.length === 0) return {};
+  try {
+    if (!_refBloque) {
+      const p = lector();
+      const ahora = await p.getBlockNumber();
+      const [b1, b2] = await Promise.all([p.getBlock(ahora), p.getBlock(Math.max(1, ahora - 20000))]);
+      if (!b1 || !b2) return {};
+      const seg = (Number(b1.timestamp) - Number(b2.timestamp)) / (b1.number - b2.number);
+      _refBloque = { n: b1.number, t: Number(b1.timestamp), seg: seg > 0 ? seg : 0.75 };
+    }
+    const r = {};
+    for (const b of bloques) {
+      const d = Number(b) - _refBloque.n;
+      r[b] = Math.round(_refBloque.t + d * _refBloque.seg);
+    }
+    return r;
+  } catch (_) { return {}; }
+}
+
 export async function operacionesDe(usuario, base, quote, decB, decQ, desdeBloques = 45000) {
   const c = cLee();
   let k; try { k = await c.clave(usuario, base, quote); } catch { k = claveDe(usuario, base, quote); }
   let latest = 0; try { latest = await lector().getBlockNumber(); } catch {}
   const from = latest > desdeBloques ? latest - desdeBloques : 0;
+  // Los servidores públicos de BSC no siempre admiten leer eventos. Probamos
+  // varios y con rangos cada vez más cortos; si ninguno responde, devolvemos
+  // vacío y la web lo dice claramente en vez de fingir que no hay operaciones.
   let logs = [];
-  try { logs = await c.queryFilter(c.filters.Ejecutado(usuario, k), from, latest || 'latest'); } catch { return []; }
-  return logs.map((l) => {
+  let conseguido = false;
+  const rangos = [desdeBloques, 10000, 3000];
+  for (let i = 0; i < RPCS.length && !conseguido; i++) {
+    const cc = new ethers.Contract(GRIDBOT, ABI, provRPC(i));
+    for (const r of rangos) {
+      const desde = latest > r ? latest - r : 0;
+      try {
+        logs = await cc.queryFilter(cc.filters.Ejecutado(usuario, k), desde, latest || 'latest');
+        conseguido = true;
+        break;
+      } catch (_) {}
+    }
+  }
+  if (!conseguido) return { error: 'sin-historial', ops: [] };
+  const ops = logs.map((l) => {
     const a = l.args, compra = a.compra;
     const inH = Number(ethers.formatUnits(a.entrada, compra ? decQ : decB));
     const outH = Number(ethers.formatUnits(a.salida, compra ? decB : decQ));
     const precio = compra ? (outH > 0 ? inH / outH : NaN) : (inH > 0 ? outH / inH : NaN);
     return { compra, precio, bloque: l.blockNumber, i: Number(a.indice) };
   }).filter((x) => isFinite(x.precio) && x.precio > 0);
+
+  // Le ponemos fecha a cada una para poder pintarla en su vela exacta.
+  try {
+    const fechas = await tiempoDeBloque([...new Set(ops.map((o) => o.bloque))]);
+    ops.forEach((o) => { o.tiempo = fechas[o.bloque] || 0; });
+  } catch (_) {}
+  return { error: null, ops };
 }
 
 export async function allowance(tokenAddr, duenio) {

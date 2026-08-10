@@ -30,10 +30,10 @@ let _n = 0;
 const _pendientes = [];
 
 /** HTML del bloque. La gráfica se dibuja luego con pintar(). */
-export function bloqueGrafica({ simB, simQ, pmin, pmax, niveles, precio, precioMedio, decQ, tipo, objetivoBps, compras }) {
+export function bloqueGrafica({ simB, simQ, pmin, pmax, niveles, precio, precioMedio, decQ, tipo, objetivoBps, compras, operaciones, creado, rango }) {
   const sym = simboloBinance(simB, simQ);
   const id = 'lwc' + (++_n);
-  _pendientes.push({ id, sym, pmin, pmax, niveles: niveles || [], precio, precioMedio, decQ, simB, simQ, tipo, objetivoBps, compras: compras || [] });
+  _pendientes.push({ id, sym, pmin, pmax, niveles: niveles || [], precio, precioMedio, decQ, simB, simQ, tipo, objetivoBps, compras: compras || [], operaciones: operaciones || [], creado: creado || 0, rango: rango !== false });
 
   if (!sym) {
     return `<div class="lwbox sin" id="${id}"><div class="lw-sin">
@@ -156,6 +156,56 @@ async function montar(host, g) {
     }
   });
   velasSerie.setData(datos);
+
+  /* ══════════ MARCAS SOBRE LAS VELAS ══════════
+     Una flecha en la vela exacta donde ocurrió cada cosa. Es lo que hace que
+     el usuario ENTIENDA su bot: no un precio suelto, sino el momento. */
+  const marcas = [];
+  const seg = (t) => Math.floor(Number(t));
+
+  // 1) Cuándo nació el bot. Este dato SIEMPRE lo tenemos (no depende de logs).
+  if (g.creado > 0) {
+    marcas.push({
+      time: seg(g.creado), position: 'inBar', color: '#E8B84B', shape: 'circle',
+      text: 'empezó aquí'
+    });
+  }
+
+  // 2) Cada compra y cada venta que el bot ya ejecutó.
+  for (const o of (g.operaciones || [])) {
+    if (!o || !o.tiempo) continue;
+    marcas.push({
+      time: seg(o.tiempo),
+      position: o.compra ? 'belowBar' : 'aboveBar',
+      color: o.compra ? '#2ee86a' : '#f6465d',
+      shape: o.compra ? 'arrowUp' : 'arrowDown',
+      text: (o.compra ? 'compró' : 'vendió') + (o.precio ? ' ' + Number(o.precio).toFixed(dec) : '')
+    });
+  }
+
+  /* 3) La BANDA del rango: de un vistazo ves dónde opera tu bot y si el
+        precio está dentro o se ha escapado. Se dibuja como dos series de
+        área muy tenues entre el mínimo y el máximo. */
+  if (g.rango && g.pmin > 0 && g.pmax > g.pmin && datos.length) {
+    try {
+      const banda = (valor, color) => {
+        const ser = chart.addAreaSeries({
+          lineColor: 'rgba(0,0,0,0)', topColor: color, bottomColor: color,
+          lineWidth: 0, priceLineVisible: false, lastValueVisible: false,
+          crosshairMarkerVisible: false, priceScaleId: ''
+        });
+        ser.setData(datos.map((d) => ({ time: d.time, value: valor })));
+        return ser;
+      };
+      // Techo tenue y suelo aún más tenue: se ve el rango sin tapar las velas.
+      banda(g.pmax, 'rgba(232,184,75,0.045)');
+    } catch (_) {}
+  }
+
+  if (marcas.length) {
+    marcas.sort((a, b) => a.time - b.time);
+    try { velasSerie.setMarkers(marcas); } catch (_) {}
+  }
 
   // ── Las cuadrículas: pegadas al precio, se mueven con el gráfico ──
   const esCash = g.tipo === 'cash';

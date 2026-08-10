@@ -598,6 +598,7 @@ function inyectarEstilo() {
   #colmena-app .stat span.pos{color:var(--neon-lit)} #colmena-app .stat span.neg{color:var(--rojo)}
   #colmena-app .rej-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
   #colmena-app .rej-btns .btn{font-size:12px;padding:10px}
+  #colmena-app .graf-aviso{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(232,184,75,.07);border:1px dashed rgba(232,184,75,.32);font-family:var(--sans);font-size:11.5px;color:var(--ink-2);line-height:1.55}
   #colmena-app .leg{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:8px}
   #colmena-pop{position:absolute;z-index:9999;max-width:280px;background:#12161c;border:1px solid var(--gold-soft);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;line-height:1.5}
   /* ============ VIDA: fondo, brillos y movimiento ============ */
@@ -2783,7 +2784,7 @@ async function arrancarTrail(clave, par, pmin, pmax, decB, decQ, cuenta) {
     const ob = Number(gb.fmt(R.ordenBase, decB)) || 1;
     st.niveles = nv.map((x) => { const p = Number(gb.fmt(x.minOutVenta, decQ)) / ob; const e = Number(x.estado); return { p, tipo: e === 1 ? 'compra' : e === 2 ? 'venta' : 'off' }; }).filter((x) => isFinite(x.p) && x.p > 0);
   } catch { st.niveles = []; }
-  try { st.ops = await gb.operacionesDe(cuenta, par.base, par.quote, decB, decQ); } catch { st.ops = []; }
+  try { const r = await gb.operacionesDe(cuenta, par.base, par.quote, decB, decQ); st.ops = r.ops || r || []; } catch { st.ops = []; }
   await muestrear();
   st.timer = setInterval(muestrear, 6000);
 }
@@ -2972,7 +2973,8 @@ async function tarjeta(cuenta, clave, par, R) {
   // Objetivo de salida del Acumulador (el % al que vende todo de golpe)
   let objBps = 0;
   try { const md = await gb.modoDe(clave); objBps = Number(Array.isArray(md) ? md[1] : 0) || 0; } catch (_) {}
-  let ops = []; try { ops = await gb.operacionesDe(cuenta, bAddr, qAddr, decB, decQ); } catch {}
+  let ops = [], sinHistorial = false;
+  try { const r = await gb.operacionesDe(cuenta, bAddr, qAddr, decB, decQ); ops = r.ops || r || []; sinHistorial = r.error === 'sin-historial'; } catch {}
   const chart = ps.length ? dibujar(ps, precio, pmin, pmax, null, ops) : svgVacio(560, 300, 'este bot ya no tiene órdenes');
 
   // Números
@@ -3048,10 +3050,14 @@ async function tarjeta(cuenta, clave, par, R) {
           compras: (tipo === 'dca')
             ? [...new Set(ops.filter((o) => o.compra).map((o) => Number(o.precio.toFixed(8))))].slice(-12)
             : [],
-          niveles: ps.map((x) => ({ precio: x.p, estado: x.tipo === 'compra' ? 1 : (x.tipo === 'venta' ? 2 : 0) }))
+          niveles: ps.map((x) => ({ precio: x.p, estado: x.tipo === 'compra' ? 1 : (x.tipo === 'venta' ? 2 : 0) })),
+          // Las operaciones YA ejecutadas, para pintarlas sobre su vela
+          operaciones: ops.filter((o) => o.tiempo > 0),
+          creado: creadoSeg
         })}
+        ${sinHistorial ? '<div class="graf-aviso">No pudimos leer el historial de operaciones ahora mismo. Las líneas y el rango sí son reales; las flechas de compra y venta aparecerán cuando la red responda.</div>' : ''}
 
-        <div class="leg"><span style="color:var(--neon-lit)">● esperando comprar</span><span style="color:var(--rojo)">● comprado, esperando vender</span><span>● en espera</span></div></div>
+        <div class="leg"><span style="color:var(--neon-lit)">▲ compró</span><span style="color:var(--rojo)">▼ vendió</span><span style="color:var(--gold)">● empezó aquí</span><span style="color:var(--neon-lit)">— espera comprar</span><span style="color:var(--rojo)">— espera vender</span></div></div>
       <div class="tab-ordenes" style="display:none"><div class="ord-list">${ordRows}</div></div>
     </div>`;
 
@@ -3227,7 +3233,8 @@ function enganchar(cuenta) {
           let ops = [];
           try {
             const mb = MONEDAS[sb], mq = MONEDAS[sq];
-            ops = await gb.operacionesDe(cuenta, b, q, mb?.decimals ?? 18, mq?.decimals ?? 18);
+            const r = await gb.operacionesDe(cuenta, b, q, mb?.decimals ?? 18, mq?.decimals ?? 18);
+            ops = r.ops || r || [];
           } catch (e) { console.warn('[Aurex] historial:', e); }
           extras.descargarHistorial({
             par: `${sb}/${sq}`,
