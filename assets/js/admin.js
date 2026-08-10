@@ -32,6 +32,9 @@ const C = {
 const RPC = 'https://bsc-dataseed.binance.org';
 const KEEPER = 'https://bolita-keeper-bot.yamicelanvivesqui.workers.dev';
 const CERO = '0x0000000000000000000000000000000000000000';
+/* La wallet que firma las operaciones de TODOS los bots. Si se queda sin BNB,
+   la plataforma entera deja de operar. Es lo primero que hay que vigilar. */
+const WALLET_KEEPER = '0x34D57FBdCD5D7254fdC111357f0f2b28562F4419';
 
 const ABI_BASE = ['function owner() view returns (address)', 'function paused() view returns (bool)', 'function pause()', 'function unpause()'];
 const ABI_MARKET = [...ABI_BASE,
@@ -54,7 +57,11 @@ const ABI_PRIZE = [...ABI_BASE,
   'function bloqueoSalida() view returns (uint256)', 'function setBloqueoSalida(uint256)',
   'function cerrarRonda()', 'function forzarReembolso(uint256)', 'function destrabarSorteo(uint256) payable',
   'function sorteoAtascado(uint256) view returns (bool)'];
-const ABI_BOTS = [...ABI_BASE, 'function precioSub() view returns (uint256)'];
+const ABI_BOTS = [...ABI_BASE,
+  'function precioSub() view returns (uint256)',
+  'function gasMinOp() view returns (uint256)',
+  'function gasSaldo(address) view returns (uint256)',
+  'function depositarGas() payable'];
 
 /* ── Lectura y firma ────────────────────────────────────────────────────── */
 let _p = null;
@@ -231,12 +238,14 @@ function abrir(cuenta, perm) {
       <div class="ad-seguro">Este panel <b>no puede romper nada</b>: cada cambio se prueba antes de firmar, tiene límites, y se puede deshacer. Lo irreversible no está aquí.</div>
       <div class="ad-tabs">
         <button class="ad-tab on" data-p="resumen">Resumen</button>
+        <button class="ad-tab" data-p="fondear">Fondear</button>
         <button class="ad-tab" data-p="disputas">Disputas</button>
         <button class="ad-tab" data-p="sorteo">Sorteo</button>
         <button class="ad-tab" data-p="ajustes">Ajustes</button>
         <button class="ad-tab" data-p="emergencia">Emergencia</button>
       </div>
       <div class="ad-pane on" id="ad-resumen"><div class="ad-cargando">Leyendo la cadena…</div></div>
+      <div class="ad-pane" id="ad-fondear"></div>
       <div class="ad-pane" id="ad-disputas"></div>
       <div class="ad-pane" id="ad-sorteo"></div>
       <div class="ad-pane" id="ad-ajustes"></div>
@@ -252,10 +261,45 @@ function abrir(cuenta, perm) {
     d.querySelectorAll('.ad-pane').forEach((x) => x.classList.remove('on'));
     b.classList.add('on');
     const pane = $('ad-' + b.dataset.p); if (pane) pane.classList.add('on');
-    ({ resumen: () => resumen(cuenta, perm), disputas: () => disputas(perm), sorteo: () => sorteo(perm),
+    ({ resumen: () => resumen(cuenta, perm), fondear: () => fondear(cuenta, perm), disputas: () => disputas(perm), sorteo: () => sorteo(perm),
        ajustes: () => ajustes(perm), emergencia: () => emergencia(perm) }[b.dataset.p] || (() => {}))();
   });
   resumen(cuenta, perm);
+}
+
+/* ── Botones de ayuda: cada ajuste explica qué es y qué pasa si lo cambias ── */
+const AYUDA = {
+  keeper: ['La wallet del keeper', 'Es una wallet nuestra que firma las compras y ventas de todos los bots de todos los usuarios. Cada operación le cuesta unos 0,00002 BNB. Si se queda vacía, ningún bot vuelve a operar hasta que la recargues. Con 0,05 BNB aguanta miles de operaciones.'],
+  sponsor: ['El gas del sorteo', 'Cada sorteo pide un número aleatorio verificable, y eso cuesta gas. Esta wallet lo paga. Se rellena sola con la parte que aporta cada participante, así que en condiciones normales no hay que tocarla.'],
+  gasbot: ['El gas de tus bots', 'Es tu saldo personal dentro del contrato, el mismo que ves en la pantalla principal. Cada bot tuyo descuenta de aquí cuando compra o vende. Es tuyo y puedes retirarlo cuando quieras.'],
+  fianza: ['La fianza del vendedor', 'Dinero que un vendedor deja depositado antes de poder publicar. Si pierde una disputa, se usa para compensar al comprador. Cuanto más alta, más confianza da la plataforma, pero menos vendedores se animan a entrar. Lo habitual son 20 USDT.'],
+  plazos: ['Los plazos', 'Cuánto tiempo tiene cada uno para hacer su parte. Si alguien se pasa del plazo, el sistema resuelve solo: devuelve la cripto o libera la operación. Plazos muy cortos generan cancelaciones injustas; muy largos dejan el dinero bloqueado demasiado tiempo.'],
+  arbitros: ['Los árbitros', 'Wallets que pueden resolver disputas además de la tuya. Útil si delegas la atención al cliente. Ojo: un árbitro decide quién se queda el dinero en un conflicto, así que dáselo solo a alguien de máxima confianza.'],
+  gasauto: ['El gas automático', 'Cada persona que entra al sorteo aporta una pizca de BNB para el gas, y el sistema mantiene un saldo objetivo en la wallet. Así el sorteo se paga solo sin que tengas que estar pendiente.'],
+  bloqueo: ['El bloqueo de salida', 'Horas antes del cierre en las que ya nadie puede retirar su aporte. Existe para que nadie infle el pozo para atraer gente y se marche justo antes del sorteo. Lo razonable son 24 horas.'],
+  congelar: ['Congelar un contrato', 'Impide crear operaciones nuevas mientras resuelves un problema. El dinero que ya está dentro sigue seguro y la gente puede retirarlo. Se reanuda con un clic.']
+};
+const info = (k) => `<button class="ad-i" data-info="${k}" type="button" aria-label="Qué es esto">i</button>`;
+function wireInfo() {
+  document.querySelectorAll('#adm-panel [data-info]').forEach((b) => b.onclick = (e) => {
+    e.stopPropagation();
+    const a = AYUDA[b.dataset.info]; if (!a) return;
+    confirmarSolo(a[0], a[1]);
+  });
+}
+function confirmarSolo(titulo, texto) {
+  const d = document.createElement('div');
+  d.className = 'ad-conf';
+  d.innerHTML = `<div class="ad-conf-bg"></div>
+    <div class="ad-conf-c">
+      <div class="ad-conf-t">${esc(titulo)}</div>
+      <div class="ad-conf-s">${esc(texto)}</div>
+      <div class="ad-conf-acts"><button class="ad-b" data-ok>Entendido</button></div>
+    </div>`;
+  document.body.appendChild(d);
+  const q = () => d.remove();
+  d.querySelector('.ad-conf-bg').onclick = q;
+  d.querySelector('[data-ok]').onclick = q;
 }
 
 const bnb = (v, d = 5) => Number(ethers.formatEther(v)).toFixed(d);
@@ -333,6 +377,116 @@ function wireDeshacer(recargar) {
   });
 }
 
+/* ── FONDEAR: todo el dinero que hay que mantener, en un sitio ── */
+async function fondear(cuenta, perm) {
+  const box = $('ad-fondear'); if (!box) return;
+  box.innerHTML = `<div class="ad-cargando">Mirando los saldos…</div>`;
+
+  const saldo = async (dir) => { try { return await lector().getBalance(dir); } catch (_) { return null; } };
+  const bKeeper = await saldo(WALLET_KEEPER);
+  let bSponsor = null, sponsor = null, gasMios = null, minOp = null;
+  try {
+    const p = leer(C.prize.dir, ABI_PRIZE);
+    sponsor = await p.sponsorWallet();
+    if (sponsor === CERO) sponsor = null; else bSponsor = await saldo(sponsor);
+  } catch (_) {}
+  try {
+    const b = leer(C.bots.dir, ABI_BOTS);
+    gasMios = await b.gasSaldo(cuenta);
+    minOp = await b.gasMinOp();
+  } catch (_) {}
+
+  const ops = (g, m) => (g != null && m && m > 0n) ? Math.floor(Number(g) / Number(m)) : null;
+  const semaforo = (v, bajo, medio) => v == null ? '' : (v < bajo ? 'mal' : (v < medio ? 'medio' : 'bien'));
+
+  box.innerHTML = `
+    <p class="ad-intro">Aquí está todo el dinero que hay que mantener para que la plataforma funcione. Enviar BNB es una transferencia normal: no toca ningún contrato ni puede romper nada.</p>
+
+    <div class="ad-card ${semaforo(bKeeper, 5000000000000000n, 20000000000000000n)}">
+      <div class="ad-card-cab">
+        <div>
+          <div class="ad-card-t">Wallet del keeper ${info('keeper')}</div>
+          <div class="ad-card-d">Es la que firma las compras y ventas de <b>todos</b> los bots. Si se queda sin BNB, la plataforma deja de operar.</div>
+        </div>
+        <div class="ad-card-val"><b>${bKeeper != null ? bnb(bKeeper) : '—'}</b><span>BNB</span></div>
+      </div>
+      <div class="ad-card-pie">
+        <span class="ad-hint">${bKeeper != null ? `le alcanza para unas ${ops(bKeeper, 30000000000000n) ?? '—'} operaciones` : 'no se pudo leer'}</span>
+        <button class="ad-b" id="f-keeper">Enviar BNB</button>
+      </div>
+    </div>
+
+    <div class="ad-card ${semaforo(bSponsor, 3000000000000000n, 15000000000000000n)}">
+      <div class="ad-card-cab">
+        <div>
+          <div class="ad-card-t">Gas del sorteo ${info('sponsor')}</div>
+          <div class="ad-card-d">Paga el número aleatorio de cada sorteo. Se rellena sola con lo que aporta cada participante; solo hay que tocarla si se vacía.</div>
+        </div>
+        <div class="ad-card-val"><b>${bSponsor != null ? bnb(bSponsor) : '—'}</b><span>BNB</span></div>
+      </div>
+      <div class="ad-card-pie">
+        <span class="ad-hint">${sponsor ? wallet.abreviar(sponsor) : 'sin configurar'}</span>
+        <button class="ad-b" id="f-sponsor" ${sponsor ? '' : 'disabled'}>Enviar BNB</button>
+      </div>
+    </div>
+
+    <div class="ad-card ${semaforo(gasMios, minOp ? minOp * 20n : 0n, minOp ? minOp * 100n : 0n)}">
+      <div class="ad-card-cab">
+        <div>
+          <div class="ad-card-t">Gas de tus propios bots ${info('gasbot')}</div>
+          <div class="ad-card-d">Es tu saldo personal como usuario, el mismo que ves en la pantalla principal. Sirve para que tus bots paguen sus operaciones.</div>
+        </div>
+        <div class="ad-card-val"><b>${gasMios != null ? bnb(gasMios) : '—'}</b><span>BNB</span></div>
+      </div>
+      <div class="ad-card-pie">
+        <span class="ad-hint">${gasMios != null && minOp ? `unas ${ops(gasMios, minOp) ?? '—'} operaciones` : ''}</span>
+        <button class="ad-b" id="f-gasbot">Recargar</button>
+      </div>
+    </div>
+
+    <div class="ad-sec">Enviar BNB a un contrato</div>
+    <p class="ad-intro chico">Solo si algún contrato necesita BNB suelto. Normalmente no hace falta.</p>
+    <div class="ad-chips">
+      ${Object.entries(C).map(([k, c]) => `<button class="ad-chip" data-fc="${k}">${c.nombre}</button>`).join('')}
+    </div>`;
+
+  const enviarA = (destino, titulo, sug = '0.02') => pedir(titulo, [
+    { id: 'v', lab: 'Cuánto BNB', val: sug, tipo: 'numero', min: 0.0005, max: 5,
+      pista: 'Es una transferencia normal desde tu wallet. Puedes empezar con poco y repetir.' }
+  ], async (v) => {
+    try {
+      const s = await firmante();
+      decir('Firma en tu wallet…', 'info');
+      const tx = await s.sendTransaction({ to: destino, value: ethers.parseEther(String(v.v)) });
+      await tx.wait();
+      decir(`Enviados ${v.v} BNB.`, 'ok');
+      fondear(cuenta, perm);
+    } catch (e) {
+      const m = String(e?.shortMessage || e?.message || e);
+      decir(/reject|denied|cancel/i.test(m) ? 'Cancelaste la firma.' : 'No se pudo: ' + m.slice(0, 100), 'mal');
+    }
+  });
+
+  $('f-keeper').onclick = () => enviarA(WALLET_KEEPER, 'Recargar la wallet del keeper', '0.05');
+  if ($('f-sponsor') && sponsor) $('f-sponsor').onclick = () => enviarA(sponsor, 'Recargar el gas del sorteo', '0.02');
+  $('f-gasbot').onclick = () => pedir('Recargar el gas de tus bots', [
+    { id: 'v', lab: 'Cuánto BNB depositar', val: '0.01', tipo: 'numero', min: 0.001, max: 1,
+      pista: 'Va al contrato de bots, a tu nombre. Puedes retirarlo cuando quieras desde la pantalla principal.' }
+  ], (v) => accionSegura({
+    dir: C.bots.dir, abi: ABI_BOTS, fn: 'depositarGas', args: [{ value: ethers.parseEther(String(v.v)) }],
+    titulo: 'Recargar el gas de tus bots',
+    explica: `Depositas <b>${v.v} BNB</b> para que tus bots paguen sus operaciones. Es tuyo y lo puedes retirar cuando quieras.`,
+    anterior: gasMios != null ? bnb(gasMios) + ' BNB' : undefined,
+    alTerminar: () => fondear(cuenta, perm)
+  }));
+
+  box.querySelectorAll('[data-fc]').forEach((b) => b.onclick = () => {
+    const c = C[b.dataset.fc];
+    enviarA(c.dir, `Enviar BNB a ${c.nombre}`, '0.01');
+  });
+  wireInfo();
+}
+
 /* ── DISPUTAS ── */
 async function disputas(perm) {
   const box = $('ad-disputas'); if (!box) return;
@@ -408,11 +562,11 @@ async function sorteo(perm) {
 
       <div class="ad-sec">Ajustes</div>
       <div class="ad-ajuste">
-        <div class="ad-ajuste-tx"><b>Aporte de cada participante al gas</b><span>Ahora: ${bnb(porEntrada, 5)} BNB · el sistema mantiene ${bnb(objetivo, 4)} BNB en la wallet</span></div>
+        <div class="ad-ajuste-tx"><b>Aporte de cada participante al gas ${info('gasauto')}</b><span>Ahora: ${bnb(porEntrada, 5)} BNB · el sistema mantiene ${bnb(objetivo, 4)} BNB en la wallet</span></div>
         <button class="ad-link btn" id="s-fund">cambiar</button>
       </div>
       <div class="ad-ajuste">
-        <div class="ad-ajuste-tx"><b>Bloqueo de salida antes del cierre</b><span>Ahora: ${Math.round(Number(bloqueo) / 3600)} horas</span></div>
+        <div class="ad-ajuste-tx"><b>Bloqueo de salida antes del cierre ${info('bloqueo')}</b><span>Ahora: ${Math.round(Number(bloqueo) / 3600)} horas</span></div>
         <button class="ad-link btn" id="s-bloq">cambiar</button>
       </div>
 
@@ -423,6 +577,7 @@ async function sorteo(perm) {
       </div>
       <div class="ad-nota">Son operativas: cerrar antes de tiempo, o cancelar devolviendo el dinero. No rompen nada; la siguiente ronda arranca igual.</div>`;
 
+    wireInfo();
     if ($('s-gas')) $('s-gas').onclick = () => pedir('Recargar la wallet de gas', [
       { id: 'v', lab: 'Cuánto BNB enviar', val: '0.02', tipo: 'numero', min: 0.001, max: 1, pista: 'Con 0.02 BNB sobra para muchos sorteos.' }
     ], async (v) => {
@@ -503,19 +658,20 @@ async function ajustes(perm) {
     box.innerHTML = `
       <div class="ad-nota">Cada ajuste enseña su valor de ahora y tiene un mínimo y un máximo. Antes de firmar se comprueba con el contrato, así que no puede quedar en un estado imposible.</div>
       <div class="ad-ajuste">
-        <div class="ad-ajuste-tx"><b>Fianza mínima del vendedor</b><span>Ahora: ${usdt(fianza)} USDT · su garantía si pierde una disputa</span></div>
+        <div class="ad-ajuste-tx"><b>Fianza mínima del vendedor ${info('fianza')}</b><span>Ahora: ${usdt(fianza)} USDT · su garantía si pierde una disputa</span></div>
         <button class="ad-link btn" id="a-fianza">cambiar</button>
       </div>
       <div class="ad-ajuste">
-        <div class="ad-ajuste-tx"><b>Plazos del Marketplace</b><span>Pagar ${min(pPago)} min · confirmar ${min(pConf)} min · reserva ${min(pRes)} min · disputa ${min(pDis)} min</span></div>
+        <div class="ad-ajuste-tx"><b>Plazos del Marketplace ${info('plazos')}</b><span>Pagar ${min(pPago)} min · confirmar ${min(pConf)} min · reserva ${min(pRes)} min · disputa ${min(pDis)} min</span></div>
         <button class="ad-link btn" id="a-plazos">cambiar</button>
       </div>
       <div class="ad-ajuste">
-        <div class="ad-ajuste-tx"><b>Árbitros de disputas</b><span>Wallets que pueden resolver casos, además de la tuya</span></div>
+        <div class="ad-ajuste-tx"><b>Árbitros de disputas ${info('arbitros')}</b><span>Wallets que pueden resolver casos, además de la tuya</span></div>
         <button class="ad-link btn" id="a-arb">gestionar</button>
       </div>
       ${pintarDeshacer()}`;
     wireDeshacer(() => ajustes(perm));
+    wireInfo();
 
     $('a-fianza').onclick = () => pedir('Fianza mínima', [
       { id: 'v', lab: 'USDT que debe depositar un vendedor', val: usdt(fianza), tipo: 'numero', min: 0, max: 1000, pista: 'Recomendado: 20. A más fianza, más confianza, pero menos vendedores.' }
@@ -618,27 +774,53 @@ function estilos() {
   #adm-panel .ad-x{width:34px;height:34px;flex:0 0 auto;border-radius:10px;display:grid;place-items:center;padding:0;background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6;cursor:pointer}
   #adm-panel .ad-seguro{margin:14px 0;padding:10px 12px;border-radius:11px;background:rgba(46,232,106,.07);border:1px solid rgba(46,232,106,.3);font-family:var(--sans,sans-serif);font-size:11.5px;color:#8b96a3;line-height:1.55}
   #adm-panel .ad-seguro b{color:var(--neon-lit,#2ee86a)}
-  #adm-panel .ad-tabs{display:flex;gap:5px;overflow-x:auto;background:#0b0e12;border:1px solid #2b3139;border-radius:11px;padding:4px;margin-bottom:14px;scrollbar-width:none}
+  #adm-panel .ad-tabs{display:flex;gap:5px;overflow-x:auto;background:#0b0e12;border:1px solid #2b3139;border-radius:11px;padding:4px;margin-bottom:18px;scrollbar-width:none}
   #adm-panel .ad-tabs::-webkit-scrollbar{display:none}
   #adm-panel .ad-tab{flex:1 0 auto;min-height:38px;padding:0 13px;border:none;border-radius:8px;background:transparent;color:#b7bdc6;font-family:var(--display,sans-serif);font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}
   #adm-panel .ad-tab.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
   #adm-panel .ad-pane{display:none}
   #adm-panel .ad-pane.on{display:block}
-  #adm-panel .ad-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px}
+  /* Ritmo de espacios: 8 / 12 / 18 / 26. Nada se toca con nada. */
+  #adm-panel .ad-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:8px}
+  #adm-panel .ad-intro{font-family:var(--sans,sans-serif);font-size:12.5px;color:#8b96a3;line-height:1.65;margin:0 0 18px}
+  #adm-panel .ad-intro.chico{font-size:11.5px;margin-bottom:12px}
+  /* Botón de ayuda: pequeño pero cómodo de tocar */
+  #adm-panel .ad-i{display:inline-grid;place-items:center;width:17px;height:17px;margin-left:6px;padding:0;border-radius:50%;border:1px solid #4a535f;background:transparent;color:#8b96a3;font-family:var(--mono,monospace);font-size:9.5px;font-style:italic;cursor:pointer;vertical-align:middle;line-height:1;position:relative}
+  #adm-panel .ad-i:after{content:'';position:absolute;inset:-9px}
+  #adm-panel .ad-i:hover{color:var(--gold,#E8B84B);border-color:var(--gold-soft,#C9A84B)}
+  /* Tarjeta de fondeo: cabecera, cifra grande, pie con acción */
+  #adm-panel .ad-card{border:1px solid #2b3139;border-radius:14px;padding:16px;margin-bottom:12px;background:linear-gradient(180deg,rgba(255,255,255,.025),transparent)}
+  #adm-panel .ad-card.bien{border-left:3px solid var(--neon-lit,#2ee86a)}
+  #adm-panel .ad-card.medio{border-left:3px solid var(--gold,#E8B84B)}
+  #adm-panel .ad-card.mal{border-left:3px solid var(--rojo,#f6465d)}
+  #adm-panel .ad-card-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+  #adm-panel .ad-card-t{font-family:var(--display,sans-serif);font-weight:800;font-size:15px;color:#eaecef;line-height:1.3}
+  #adm-panel .ad-card-d{font-family:var(--sans,sans-serif);font-size:12px;color:#8b96a3;line-height:1.6;margin-top:6px;max-width:46ch}
+  #adm-panel .ad-card-d b{color:#b7bdc6}
+  #adm-panel .ad-card-val{flex:0 0 auto;text-align:right}
+  #adm-panel .ad-card-val b{display:block;font-family:var(--display,sans-serif);font-size:22px;color:#eaecef;line-height:1.1}
+  #adm-panel .ad-card-val span{display:block;font-family:var(--mono,monospace);font-size:9.5px;color:#6b7681;margin-top:3px;letter-spacing:.8px}
+  #adm-panel .ad-card-pie{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px;padding-top:13px;border-top:1px solid rgba(255,255,255,.06)}
+  #adm-panel .ad-hint{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;line-height:1.4}
+  #adm-panel .ad-card-pie .ad-b{flex:0 0 auto;min-width:120px}
+  #adm-panel .ad-chips{display:flex;gap:8px;flex-wrap:wrap}
+  #adm-panel .ad-chip{padding:9px 14px;border-radius:20px;border:1px solid #3a424c;background:transparent;color:#b7bdc6;font-family:var(--mono,monospace);font-size:11px;cursor:pointer;min-height:36px}
+  #adm-panel .ad-chip:hover{color:var(--gold,#E8B84B);border-color:var(--gold-soft,#C9A84B)}
   #adm-panel .ad-kpi{padding:11px 13px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid #2b3139}
   #adm-panel .ad-kpi.alerta{border-color:rgba(246,70,93,.45);background:rgba(246,70,93,.07)}
   #adm-panel .ad-kpi span{display:block;font-family:var(--mono,monospace);font-size:9px;color:#6b7681;text-transform:uppercase;letter-spacing:.7px}
   #adm-panel .ad-kpi b{display:block;font-family:var(--display,sans-serif);font-size:18px;color:#eaecef;margin-top:3px}
   #adm-panel .ad-kpi i{font-style:normal;font-size:11px;color:#7d8794}
-  #adm-panel .ad-sec{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;letter-spacing:.9px;margin:18px 0 8px}
-  #adm-panel .ad-fila,#adm-panel .ad-ajuste{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.02);border:1px solid #2b3139;margin-bottom:7px}
+  #adm-panel .ad-sec{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;letter-spacing:1.1px;margin:26px 0 12px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06)}
+  #adm-panel .ad-fila,#adm-panel .ad-ajuste{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 15px;border-radius:12px;background:rgba(255,255,255,.02);border:1px solid #2b3139;margin-bottom:9px}
   #adm-panel .ad-fila-tx b,#adm-panel .ad-ajuste-tx b{display:block;font-family:var(--display,sans-serif);font-size:13.5px;color:#eaecef}
-  #adm-panel .ad-fila-tx span,#adm-panel .ad-ajuste-tx span{display:block;font-family:var(--mono,monospace);font-size:10px;color:#7d8794;margin-top:3px;line-height:1.45}
+  #adm-panel .ad-fila-tx,#adm-panel .ad-ajuste-tx{min-width:0}
+  #adm-panel .ad-fila-tx span,#adm-panel .ad-ajuste-tx span{display:block;font-family:var(--mono,monospace);font-size:10px;color:#7d8794;margin-top:5px;line-height:1.55}
   #adm-panel .ad-link{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono,monospace);font-size:10.5px;color:var(--gold,#E8B84B);text-decoration:none;padding:8px 12px;border-radius:8px;border:1px solid #3a424c;background:transparent;cursor:pointer;min-height:34px}
   #adm-panel .ad-link.rojo{color:var(--rojo,#f6465d);border-color:rgba(246,70,93,.4)}
   #adm-panel .ad-link.ok{color:var(--neon-lit,#2ee86a);border-color:rgba(46,232,106,.4)}
   #adm-panel .ad-link[disabled]{opacity:.35;cursor:default}
-  #adm-panel .ad-nota{font-family:var(--sans,sans-serif);font-size:12px;color:#8b96a3;line-height:1.6;padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.03);border:1px dashed #3a424c;margin-bottom:10px}
+  #adm-panel .ad-nota{font-family:var(--sans,sans-serif);font-size:12px;color:#8b96a3;line-height:1.65;padding:13px 15px;border-radius:12px;background:rgba(255,255,255,.03);border:1px dashed #3a424c;margin:14px 0}
   #adm-panel .ad-nota b{color:#eaecef}
   #adm-panel .ad-alerta{margin:10px 0;padding:11px 13px;border-radius:11px;background:rgba(246,70,93,.1);border:1px solid rgba(246,70,93,.4);color:#ffb3bd;font-family:var(--sans,sans-serif);font-size:12.5px;line-height:1.5}
   #adm-panel .ad-alerta b{color:#fff}
@@ -677,11 +859,24 @@ function estilos() {
   .ad-conf .ad-pista{display:block;margin-top:5px;font-family:var(--sans,sans-serif);font-size:11px;color:#6b7681;text-transform:none;letter-spacing:0;line-height:1.45}
   .ad-conf .ad-err{font-family:var(--sans,sans-serif);font-size:12px;color:var(--rojo,#f6465d);min-height:16px;margin-bottom:8px;line-height:1.4}
   @media(max-width:560px){
+    #adm-panel{padding:10px}
+    /* En el móvil las pestañas no caben en una fila: las repartimos en dos.
+       Antes había que deslizar a ciegas y no se veían todas. */
+    #adm-panel .ad-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;overflow:visible}
+    #adm-panel .ad-tab{min-width:0;padding:0 6px;font-size:11px;min-height:40px}
     #adm-panel .ad-c{padding:16px 13px;border-radius:15px}
     #adm-panel .ad-t{font-size:18px}
     #adm-panel .ad-kpi b{font-size:16px}
     #adm-panel .ad-b{min-width:100%}
-    #adm-panel .ad-fila,#adm-panel .ad-ajuste{flex-direction:column;align-items:stretch;gap:9px}
+    #adm-panel .ad-fila,#adm-panel .ad-ajuste{flex-direction:column;align-items:stretch;gap:11px}
+    #adm-panel .ad-card{padding:14px}
+    #adm-panel .ad-card-cab{flex-direction:column;gap:12px}
+    #adm-panel .ad-card-val{text-align:left}
+    #adm-panel .ad-card-val b{font-size:26px}
+    #adm-panel .ad-card-d{max-width:none}
+    #adm-panel .ad-card-pie{flex-direction:column;align-items:stretch;gap:11px}
+    #adm-panel .ad-card-pie .ad-b{min-width:100%}
+    #adm-panel .ad-hint{text-align:center}
   }`;
   document.head.appendChild(s);
 }
