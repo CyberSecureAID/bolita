@@ -502,9 +502,35 @@ async function pintarLoteria(cuenta) {
       ${filas.join('')}
       <div class="ad-acts col">
         <button class="ad-b" id="al-todo">${_saldosLot.length ? `Retirar mi saldo (${_saldosLot.length} moneda${_saldosLot.length > 1 ? 's' : ''})` : 'Intentar retirar de todas las monedas'}</button>
+        <button class="ad-b gris" id="al-diag">Ver qué funciones tiene el contrato</button>
         <a class="ad-link btn" href="https://bscscan.com/address/${LOTERIA}" target="_blank" rel="noopener" style="text-align:center">ver el contrato ↗</a>
       </div>
+      <div id="al-diag-out"></div>
       ${_saldosLot.length === 0 ? `<div class="ad-nota" style="margin-top:10px">El contrato no te tiene saldo apuntado a tu nombre. Si sabes que hay fondos tuyos ahí, pulsa el botón igualmente: probará moneda por moneda y te dirá qué responde el contrato en cada una.</div>` : ''}`;
+
+    // Lee del explorador las funciones REALES del contrato. Así sabemos
+    // exactamente cómo sacar el dinero, sin adivinar.
+    const bd = $('al-diag');
+    if (bd) bd.onclick = async () => {
+      const out = $('al-diag-out');
+      out.innerHTML = `<div class="ad-cargando">Leyendo el contrato en el explorador…</div>`;
+      try {
+        const r = await fetch(`https://api.bscscan.com/api?module=contract&action=getabi&address=${LOTERIA}`);
+        const j = await r.json();
+        if (j.status !== '1') { out.innerHTML = `<div class="ad-vacio">El contrato no está verificado en el explorador, así que no se puede leer su lista de funciones.<br>Ábrelo en BscScan y mira la pestaña <b>Write Contract</b>.</div>`; return; }
+        const abi = JSON.parse(j.result);
+        const escribe = abi.filter((x) => x.type === 'function' && x.stateMutability !== 'view' && x.stateMutability !== 'pure');
+        const pinta = (x) => `<div class="ad-fn"><b>${esc(x.name)}</b>(${(x.inputs || []).map((i) => esc(i.type) + ' ' + esc(i.name || '')).join(', ')})</div>`;
+        const saca = escribe.filter((x) => /retir|withdraw|rescue|sweep|claim|banca|bankroll|fond|owner/i.test(x.name));
+        out.innerHTML = `
+          <div class="ad-sec">Funciones que sacan dinero</div>
+          ${saca.length ? saca.map(pinta).join('') : '<div class="ad-vacio">Ninguna con nombre reconocible.</div>'}
+          <div class="ad-sec">Todas las que modifican algo (${escribe.length})</div>
+          ${escribe.map(pinta).join('')}`;
+      } catch (e) {
+        out.innerHTML = `<div class="ad-vacio">No se pudo consultar: ${esc(e?.message || e)}</div>`;
+      }
+    };
 
     const btn = $('al-todo');
     if (btn) btn.onclick = () => confirmar({
@@ -662,6 +688,8 @@ function estilos() {
   #adm-panel .ad-caso-p i,#adm-panel .ad-motivo i{font-style:normal;font-family:var(--mono,monospace);font-size:9px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px;margin-right:7px}
   #adm-panel .ad-motivo{margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid #3a424c;font-family:var(--sans,sans-serif);font-size:12.5px;color:#eaecef;line-height:1.55}
   #adm-panel .ad-motivo i{display:block;margin-bottom:4px}
+  #adm-panel .ad-fn{font-family:var(--mono,monospace);font-size:11px;color:#8b96a3;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid #2b3139;margin-bottom:5px;word-break:break-word}
+  #adm-panel .ad-fn b{color:var(--gold,#E8B84B)}
   #adm-panel .ad-saldo{font-family:var(--mono,monospace);font-size:12.5px;color:#6b7681;flex:0 0 auto}
   #adm-panel .ad-saldo.hay{color:var(--neon-lit,#2ee86a);font-weight:700}
   #adm-panel .ad-cargando,#adm-panel .ad-vacio{font-family:var(--mono,monospace);font-size:11.5px;color:#7d8794;text-align:center;padding:26px 10px;line-height:1.6}
