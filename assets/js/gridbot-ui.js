@@ -753,6 +753,16 @@ function inyectarEstilo() {
   #colmena-app .ob-mid{display:flex;justify-content:space-between;align-items:baseline;padding:9px 13px;font-family:var(--display);font-weight:800;font-size:17px;color:var(--gold);background:rgba(232,184,75,.07);border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft)}
   #colmena-app .ob-mid .ob-mid-lbl{font-family:var(--mono);font-size:10px;color:var(--ink-3);font-weight:400}
   #colmena-app .ob-empty{padding:14px;text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:11px}
+  #colmena-app .rangowarn{border-radius:11px;padding:12px 14px;margin-top:12px;font-family:var(--sans);font-size:12px;line-height:1.6}
+  #colmena-app .rangowarn b{display:block;font-family:var(--display);font-size:13.5px;margin-bottom:5px}
+  #colmena-app .rangowarn b + b{display:inline;font-size:12px;margin:0}
+  #colmena-app .rangowarn i{display:block;font-style:normal;font-size:11.5px;margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.09);opacity:.85}
+  #colmena-app .rangowarn.abajo{background:rgba(246,70,93,.09);border:1px solid rgba(246,70,93,.38);color:#ffc2ca}
+  #colmena-app .rangowarn.abajo b{color:var(--rojo)}
+  #colmena-app .rangowarn.arriba{background:rgba(46,232,106,.09);border:1px solid rgba(46,232,106,.35);color:#bff5d3}
+  #colmena-app .rangowarn.arriba b{color:var(--neon-lit)}
+  #colmena-app .rangowarn.cerca{background:rgba(232,184,75,.08);border:1px solid rgba(232,184,75,.32);color:var(--ink-2)}
+  #colmena-app .rangowarn.cerca b{color:var(--gold)}
   #colmena-app .gaswarn{background:rgba(255,107,107,.08);border:1px solid var(--rojo);color:var(--rojo);border-radius:10px;padding:9px 12px;font-family:var(--mono);font-size:11.5px;margin-top:12px}
   #colmena-app .pio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   #colmena-app .pio-box{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:11px 12px}
@@ -2232,6 +2242,76 @@ function prepararPanelOculto() {
   z.addEventListener('touchend', (e) => { e.preventDefault(); golpe(); }, { passive: false });
 }
 
+/* ── AVISO DE RIESGO ANTES DEL PRIMER BOT ─────────────────────────────
+   Alguien puede llegar, poner sus ahorros y crear un bot sin que nadie le
+   haya dicho nunca, claramente, que puede perder dinero. Lo contamos en las
+   explicaciones, pero solo lo lee quien va a leerlas.
+   Esto se enseña UNA vez, la primera. Después no vuelve a molestar. */
+const CLAVE_AVISO = 'aurex-riesgo-visto';
+
+function yaVioElAviso() {
+  try { return localStorage.getItem(CLAVE_AVISO) === '1'; } catch (_) { return false; }
+}
+
+/** Devuelve true si puede seguir; false si canceló. */
+function avisoDeRiesgo() {
+  return new Promise((resolve) => {
+    if (yaVioElAviso()) { resolve(true); return; }
+    const d = document.createElement('div');
+    d.id = 'riesgo-box';
+    d.innerHTML = `<div class="rg-bg"></div>
+      <div class="rg-c">
+        <div class="rg-t">Antes de empezar, léelo</div>
+        <div class="rg-s">Es la única vez que te lo enseño, y prefiero decírtelo yo antes de que lo descubras tú.</div>
+
+        <div class="rg-p"><span>1</span><div><b>Puedes perder dinero.</b> Estos bots funcionan bien cuando el precio sube y baja dentro de un rango, y funcionan mal cuando el mercado se va en una dirección y no vuelve.</div></div>
+        <div class="rg-p"><span>2</span><div><b>Nadie puede prometerte ganancias.</b> Ni yo, ni ninguna plataforma. Si alguien te promete un porcentaje fijo al mes, desconfía.</div></div>
+        <div class="rg-p"><span>3</span><div><b>Usa solo dinero que puedas dejar quieto.</b> Meses, no días. Si lo vas a necesitar pronto, esto no es para ese dinero.</div></div>
+        <div class="rg-p"><span>4</span><div><b>Tu dinero sigue en tu wallet.</b> No lo custodiamos. Pero eso también significa que <b>tú eres responsable de tus claves</b>: si pierdes tu frase de recuperación, nadie puede devolvértela. Ni nosotros.</div></div>
+
+        <label class="rg-ok"><input type="checkbox" id="rg-check"> <span>Lo he leído y lo entiendo</span></label>
+        <div class="rg-acts">
+          <button class="rg-b gris" id="rg-no">Mejor no</button>
+          <button class="rg-b" id="rg-si" disabled>Entiendo, continuar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(d);
+    estilosRiesgo();
+    const cerrar = (v) => { d.remove(); resolve(v); };
+    $('rg-check').onchange = (e) => { $('rg-si').disabled = !e.target.checked; };
+    $('rg-no').onclick = () => cerrar(false);
+    $('rg-si').onclick = () => {
+      try { localStorage.setItem(CLAVE_AVISO, '1'); } catch (_) {}
+      cerrar(true);
+    };
+  });
+}
+
+function estilosRiesgo() {
+  if ($('riesgo-css')) return;
+  const s = document.createElement('style'); s.id = 'riesgo-css';
+  s.textContent = `
+  #riesgo-box{position:fixed;inset:0;z-index:9950;display:flex;align-items:center;justify-content:center;padding:16px}
+  #riesgo-box .rg-bg{position:absolute;inset:0;background:rgba(3,5,8,.9);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px)}
+  #riesgo-box .rg-c{position:relative;width:100%;max-width:440px;max-height:calc(100vh - 32px);overflow-y:auto;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft);border-radius:20px;padding:26px 22px}
+  #riesgo-box .rg-t{font-family:var(--display);font-weight:800;font-size:21px;color:var(--gold);text-align:center}
+  #riesgo-box .rg-s{font-family:var(--sans);font-size:12.5px;color:var(--ink-3);text-align:center;margin:8px 0 20px;line-height:1.55}
+  #riesgo-box .rg-p{display:flex;gap:12px;align-items:flex-start;margin-bottom:15px}
+  #riesgo-box .rg-p span{flex:0 0 auto;width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:linear-gradient(180deg,#f7db8d,var(--gold) 55%,#c79426);color:#3a2800;font-family:var(--display);font-weight:800;font-size:12px}
+  #riesgo-box .rg-p div{font-family:var(--sans);font-size:13px;color:var(--ink-2);line-height:1.6}
+  #riesgo-box .rg-p b{color:var(--ink)}
+  #riesgo-box .rg-ok{display:flex;align-items:center;gap:10px;padding:13px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--line);margin:18px 0 14px;cursor:pointer}
+  #riesgo-box .rg-ok input{width:19px;height:19px;flex:0 0 auto;accent-color:var(--gold);cursor:pointer}
+  #riesgo-box .rg-ok span{font-family:var(--sans);font-size:13px;color:var(--ink)}
+  #riesgo-box .rg-acts{display:flex;gap:9px}
+  #riesgo-box .rg-b{flex:1;min-height:47px;padding:13px;border-radius:12px;border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold) 45%,#c79426);color:#3a2800;font-family:var(--display);font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 4px 0 #8f6a1a}
+  #riesgo-box .rg-b.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:var(--ink-2);box-shadow:0 3px 0 rgba(0,0,0,.4)}
+  #riesgo-box .rg-b:disabled{opacity:.4;cursor:default;box-shadow:none}
+  #riesgo-box .rg-b:active:not(:disabled){transform:translateY(2px)}
+  @media(max-width:560px){#riesgo-box .rg-c{padding:22px 16px}#riesgo-box .rg-t{font-size:19px}#riesgo-box .rg-p div{font-size:12.5px}}`;
+  document.head.appendChild(s);
+}
+
 /* ── Cupo de bots ──────────────────────────────────────────────────────────
    Ocho bots por persona: dos de cada estrategia. Es un límite generoso para
    el usuario y sostenible para el sistema (el keeper revisa TODOS los bots
@@ -2286,6 +2366,10 @@ async function pintarCupo(cuenta) {
 }
 
 async function onCrear() {
+  /* El aviso de riesgo va LO PRIMERO, antes de pedir ninguna firma.
+     Enseñarlo después de que el usuario ya haya aprobado permisos en su
+     wallet no sirve de nada: ya se comprometió. Solo sale la 1ª vez. */
+  if (!(await avisoDeRiesgo())) return;
   if (F.tipo === 'acum') return onCrearAcum();
   if (F.tipo === 'cash') return onCrearCashOut();
   if (F.tipo === 'dca') return onCrearDCA();
@@ -2532,6 +2616,10 @@ function previewAcum() {
   } else prom.textContent = '—';
 }
 async function onCrearAcum() {
+  /* El aviso de riesgo va LO PRIMERO, antes de pedir ninguna firma.
+     Enseñarlo después de que el usuario ya haya aprobado permisos en su
+     wallet no sirve de nada: ya se comprometió. Solo sale la 1ª vez. */
+  if (!(await avisoDeRiesgo())) return;
   const m = $('c-msg'); const base = moneda(F.baseId), quote = moneda(F.quoteId);
   const cuenta = wallet.cuentaActual();
   const p = {
@@ -2649,6 +2737,8 @@ function previewCash() {
   }
 }
 async function onCrearCashOut() {
+  /* El aviso de riesgo va LO PRIMERO, antes de pedir ninguna firma. */
+  if (!(await avisoDeRiesgo())) return;
   const m = $('c-msg'); const base = moneda(F.baseId), quote = moneda(F.quoteId);
   const cuenta = wallet.cuentaActual();
   const cantidad = parseFloat($('fc-cant')?.value) || 0;
@@ -2747,6 +2837,10 @@ function previewDCA() {
   if (cpv) cpv.textContent = F.precio ? precioFmt(F.precio) + ' ' + simQ : '—';
 }
 async function onCrearDCA() {
+  /* El aviso de riesgo va LO PRIMERO, antes de pedir ninguna firma.
+     Enseñarlo después de que el usuario ya haya aprobado permisos en su
+     wallet no sirve de nada: ya se comprometió. Solo sale la 1ª vez. */
+  if (!(await avisoDeRiesgo())) return;
   const m = $('c-msg'); const base = moneda(F.baseId), quote = moneda(F.quoteId);
   const cuenta = wallet.cuentaActual();
   const monto = parseFloat($('fd-monto')?.value) || 0;
@@ -3140,6 +3234,38 @@ async function tarjeta(cuenta, clave, par, R) {
 
     <div class="pio-grid"${tipo === 'cash' ? ' style="grid-template-columns:repeat(2,1fr)"' : ''}>${_boxes}</div>
     ${gasLow ? `<div class="gaswarn">⚠ Gas insuficiente: el bot no puede operar. Recarga BNB en el gas (arriba) para que empiece a comprar y vender.</div>` : ''}
+    ${(() => {
+      /* AVISO DE FUERA DE RANGO. Si el precio se va del rango, el bot deja de
+         operar y se queda quieto. Antes nadie se enteraba: podías tener un bot
+         parado meses sin saberlo. Ahora se dice, y se dice qué significa. */
+      if (gasLow || !(precio > 0) || !(pmin > 0) || !(pmax > pmin) || tipo !== 'grid') return '';
+      if (precio < pmin) {
+        const fuera = ((pmin - precio) / pmin * 100).toFixed(1);
+        return `<div class="rangowarn abajo">
+          <b>El precio se salió de tu rango, por abajo</b>
+          Está un ${fuera}% por debajo de tu mínimo, así que el bot <b>ya no opera</b>: compró en todas sus cuadrículas y ahora espera con la moneda.
+          <i>No has perdido el dinero: lo tienes en forma de moneda. Si el precio vuelve al rango, seguirá operando solo. Si crees que no volverá, puedes cancelar el bot y recuperar lo que haya.</i>
+        </div>`;
+      }
+      if (precio > pmax) {
+        const fuera = ((precio - pmax) / pmax * 100).toFixed(1);
+        return `<div class="rangowarn arriba">
+          <b>El precio se salió de tu rango, por arriba</b>
+          Está un ${fuera}% por encima de tu máximo. El bot <b>vendió todo</b> y ya no tiene nada que hacer.
+          <i>Buena noticia: vendiste en la parte alta. Si quieres seguir operando, cancela este bot y crea uno nuevo con el rango puesto en el precio de ahora.</i>
+        </div>`;
+      }
+      // Cerca del borde: avisamos antes de que pase.
+      const margen = (pmax - pmin) * 0.08;
+      if (precio < pmin + margen || precio > pmax - margen) {
+        const lado = precio < pmin + margen ? 'mínimo' : 'máximo';
+        return `<div class="rangowarn cerca">
+          <b>El precio se acerca a tu ${lado}</b>
+          Si lo cruza, el bot dejará de operar hasta que vuelva al rango. Nada urgente, pero conviene que lo sepas.
+        </div>`;
+      }
+      return '';
+    })()}
     ${sinPos && !gasLow ? `<div class="gaswarn" style="background:rgba(232,184,75,.08);border-color:var(--gold-soft);color:var(--gold)"><svg class="gw-i" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".35"/><path d="M7 2.6a4.4 4.4 0 0 1 4.4 4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 7 7" to="360 7 7" dur="1.1s" repeatCount="indefinite"/></path></svg>Tomando posición inicial… El bot está comprando su primera parte a mercado (el keeper la ejecuta en 1–2 min). En cuanto compre, verás aquí la ganancia moverse con el mercado.</div>` : ''}
 
     ${_panel}
