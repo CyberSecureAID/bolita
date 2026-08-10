@@ -15,7 +15,6 @@ import * as market from './market.js?v=107';
 import * as avisos from './avisos.js?v=107';
 import * as grafica from './grafica.js?v=107';
 import * as extras from './extras.js?v=107';
-import * as admin from './admin.js?v=107';
 import * as gestos from './gestos.js?v=107';
 
 const $ = (id) => document.getElementById(id);
@@ -1339,7 +1338,10 @@ function wireHeader() {
   if ($('c-instalar')) $('c-instalar').onclick = (e) => { e.stopPropagation(); extras.panelInstalar($('c-instalar')); };
   try { avisos.iniciar(); } catch (_) {}
   try { extras.iniciarInstalacion(); } catch (_) {}
-  try { admin.iniciarPanelOculto(); } catch (_) {}
+  // El panel de control (57 KB) solo lo usa el dueño. Se carga al detectar
+  // los cinco clics en la esquina, no al entrar. Un visitante normal no
+  // descarga nunca ese peso.
+  try { prepararPanelOculto(); } catch (_) {}
   // Gestos del móvil: deslizar entre bots y tirar para actualizar.
   try {
     gestos.iniciarDeslizar();
@@ -2201,6 +2203,33 @@ async function cerrarTodosLosBots(cuenta) {
       : `${ok} cerrados · ${fallos} no se pudieron (quizá cancelaste la firma).`;
     setTimeout(() => { cerrar(); refrescarRejillas(); refrescarGas(); }, 2200);
   };
+}
+
+/** Vigila la esquina inferior izquierda. A los 5 clics, y solo entonces,
+ *  descarga el panel de control y le pasa el testigo. */
+function prepararPanelOculto() {
+  const z = document.createElement('div');
+  z.id = 'adm-zona-previa';
+  z.setAttribute('aria-hidden', 'true');
+  z.style.cssText = 'position:fixed;left:0;bottom:0;width:54px;height:54px;z-index:9999;background:transparent';
+  document.body.appendChild(z);
+  let clics = 0, t = null, cargando = false;
+  const golpe = async () => {
+    clics++; clearTimeout(t); t = setTimeout(() => { clics = 0; }, 2500);
+    if (clics < 5 || cargando) return;
+    clics = 0; cargando = true;
+    try {
+      const admin = await import('./admin.js?v=107');
+      z.remove();                          // el panel pone la suya
+      admin.iniciarPanelOculto();
+      // Se acaba de cargar: hay que darle los 5 clics otra vez, así que
+      // los simulamos para que se abra al momento.
+      const nueva = document.getElementById('adm-zona');
+      if (nueva) for (let i = 0; i < 5; i++) nueva.click();
+    } catch (_) { cargando = false; }
+  };
+  z.addEventListener('click', golpe);
+  z.addEventListener('touchend', (e) => { e.preventDefault(); golpe(); }, { passive: false });
 }
 
 /* ── Cupo de bots ──────────────────────────────────────────────────────────
