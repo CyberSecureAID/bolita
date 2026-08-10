@@ -102,8 +102,33 @@
   <!-- Asistente de la web. Funciona por reglas, sin depender de ninguna IA
        externa: responde al instante, no cuesta nada y sigue funcionando
        aunque la conexión vaya mal. Todo lo que sabe está en conocimiento.js -->
-  <script src="assets/js/asistente/conocimiento.js?v=107" defer></script>
-  <script src="assets/js/asistente/motor.js?v=107" defer></script>
+  <script>
+  /* El asistente pesa unos 210 KB y nadie lo necesita en el primer segundo.
+     Se carga cuando la página ya está usable, o antes si el visitante toca
+     algo (por si quiere ayuda ya). Con conexiones lentas, esto es la
+     diferencia entre entrar en 5 segundos o en 14. */
+  (function () {
+    var puesto = false;
+    function cargarAsistente() {
+      if (puesto) return; puesto = true;
+      ['assets/js/asistente/conocimiento.js?v=107',
+       'assets/js/asistente/motor.js?v=107'].forEach(function (src, i) {
+        var t = document.createElement('script');
+        t.src = src;
+        if (i === 0) t.onload = function () {
+          var m = document.createElement('script');
+          m.src = 'assets/js/asistente/motor.js?v=107';
+          document.body.appendChild(m);
+        };
+        if (i === 0) document.body.appendChild(t);
+      });
+    }
+    ['pointerdown', 'keydown', 'touchstart'].forEach(function (ev) {
+      window.addEventListener(ev, cargarAsistente, { once: true, passive: true });
+    });
+    window.addEventListener('load', function () { setTimeout(cargarAsistente, 2500); });
+  })();
+  </script>
 </body>
 </html>
  
