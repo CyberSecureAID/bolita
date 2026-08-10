@@ -2386,7 +2386,7 @@ function abrirCoinModal(sel) {
       const chg = L && L.chg != null ? L.chg : null;
       return `<button type="button" class="cm-coin${on ? ' on' : ''}" data-id="${mo.id}">
         <span class="cm-coin-ico" style="color:${mo.color || '#e8b84b'}">${icoInner(mo)}</span>
-        <span class="cm-coin-tx"><b>${mo.simbolo}</b><i>${mo.nombre}</i></span>
+        <span class="cm-coin-tx"><b>${escT(mo.simbolo)}</b><i>${escT(mo.nombre)}</i></span>
         <span class="cm-coin-right">
           <span class="cm-coin-price">${L ? fmtPrecioUSD(L.price) : '<span class="cm-price-skel"></span>'}</span>
           ${chg != null ? `<span class="cm-coin-chg ${chg >= 0 ? 'pos' : 'neg'}">${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%</span>` : ''}
@@ -3697,7 +3697,12 @@ async function swImportarToken(addr, lado) {
   try {
     const info = await gb.infoToken(addr);
     if (tk !== _impToken) return;
-    const t = { id: key, simbolo: info.simbolo, nombre: info.nombre, address: info.address, decimals: info.decimals, icono: (info.simbolo || '?')[0], color: '#E8B84B', custom: true };
+    // El nombre y el símbolo los pone quien creó ESE token, no nosotros.
+    // Los limpiamos: solo letras, números y unos pocos signos, y cortos.
+    const limpio = (v, max) => String(v || '').replace(/[^\p{L}\p{N} ._+\-]/gu, '').trim().slice(0, max);
+    const sim = limpio(info.simbolo, 12) || '?';
+    const nom = limpio(info.nombre, 40) || sim;
+    const t = { id: key, simbolo: sim, nombre: nom, address: info.address, decimals: info.decimals, icono: sim[0], color: '#E8B84B', custom: true };
     CUSTOM[key] = t;
     if (!LOGOS[key]) LOGOS[key] = { img: `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/${info.address}/logo.png`, price: null, chg: null };
     swRenderImport(t, lado);
@@ -3711,7 +3716,7 @@ function swRenderImport(t, lado) {
   el.className = 'cm-import ok';
   el.innerHTML = `<button type="button" class="cm-coin" data-id="${t.id}">
     <span class="cm-coin-ico" style="color:${t.color}">${icoInner(t)}</span>
-    <span class="cm-coin-tx"><b>${t.simbolo}</b><i>${t.nombre}</i></span>
+    <span class="cm-coin-tx"><b>${escT(t.simbolo)}</b><i>${escT(t.nombre)}</i></span>
     <span class="cm-coin-right"><span class="cm-imp-badge">Usar</span></span>
   </button>`;
   const b = el.querySelector('.cm-coin'); if (b) b.onclick = () => swElegir(lado, t.id);
