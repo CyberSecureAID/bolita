@@ -43,20 +43,17 @@ const ABI_LOTERIA = [
   'function ownerSecundario() view returns (address)',
   'function destinoBeneficios() view returns (address)'
 ];
-/* Nombres posibles de las funciones de retirada: probamos en orden hasta que
-   una funcione, porque el contrato desplegado puede usar cualquiera. */
+/* Firmas REALES del contrato (confirmadas en su código fuente).
+   Ojo: retirarBanca lleva TRES argumentos — moneda, cantidad y destino. */
 const FIRMAS_BANCA = [
-  'function retirarBanca(address token, uint256 cantidad)',
-  'function retirarBanca(address token)',
-  'function sacarBanca(address token, uint256 cantidad)',
-  'function withdrawBankroll(address token, uint256 cantidad)',
-  'function withdrawBankroll(uint256 cantidad)'
+  'function retirarBanca(address token, uint256 cantidad, address a)',
+  'function retirarBanca(address token, uint256 cantidad)'
 ];
 const FIRMAS_BENEF = [
+  'function retirarBeneficios(address token, uint256 cantidad, address a)',
+  'function retirarBeneficios(address token, address a)',
   'function retirarBeneficios(address token, uint256 cantidad)',
-  'function retirarBeneficios(address token)',
-  'function sacarBeneficios(address token)',
-  'function withdrawFees(address token)'
+  'function retirarBeneficios(address token)'
 ];
 /* Las 8 monedas REALES de la lotería, sacadas de tokens.js (no inventadas). */
 const MONEDAS_LOTERIA = [
@@ -552,12 +549,18 @@ async function pintarLoteria(cuenta) {
 
     /* Prueba varias firmas hasta que una funcione. */
     const intentar = async (firmas, dir, cantidad) => {
+      const destino = wallet.cuentaActual();      // el dinero va a TU wallet
       for (const f of firmas) {
         try {
           const w = await escribirC(LOTERIA, [f]);
           const nom = f.match(/function (\w+)/)[1];
-          const nArgs = (f.match(/\(([^)]*)\)/)[1] || '').split(',').filter(Boolean).length;
-          const args = nArgs === 2 ? [dir, cantidad] : (nArgs === 1 ? [/address/.test(f.split('(')[1]) ? dir : cantidad] : []);
+          const tipos = (f.match(/\(([^)]*)\)/)[1] || '').split(',').map((t) => t.trim()).filter(Boolean);
+          let vistas = 0;
+          const args = tipos.map((t) => {
+            if (/^uint/.test(t)) return cantidad;
+            vistas++;
+            return vistas === 1 ? dir : destino;   // 1ª dirección = moneda, 2ª = a dónde va
+          });
           const tx = await w[nom](...args);
           await tx.wait();
           return { ok: true, nom };
@@ -597,8 +600,9 @@ async function pintarLoteria(cuenta) {
 
     if ($('al-banca')) $('al-banca').onclick = () => correr($('al-banca'), FIRMAS_BANCA, 'libre', 'Retirar la banca');
     if ($('al-benef')) $('al-benef').onclick = () => correr($('al-benef'), FIRMAS_BENEF, 'benef', 'Retirar los beneficios');
-    // Lee del explorador las funciones REALES del contrato. Así sabemos
-    // exactamente cómo sacar el dinero, sin adivinar.
+    // Busca las funciones DENTRO del código compilado del contrato. Cada
+    // función deja su "huella" de 4 bytes en el código; probamos cientos de
+    // nombres posibles y vemos cuáles están de verdad. Sin adivinar.
     const bd = $('al-diag');
     if (bd) bd.onclick = async () => {
       const out = $('al-diag-out');
@@ -622,39 +626,60 @@ async function pintarLoteria(cuenta) {
             }
           } catch (_) {}
         }
-        const r = await fetch(`https://api.bscscan.com/api?module=contract&action=getabi&address=${objetivo}`);
-        const j = await r.json();
-        if (j.status !== '1') { out.innerHTML = `<div class="ad-vacio">${nota}No se pudo leer la lista de funciones (¿sin verificar o el explorador ocupado?).<br>Ábrelo en BscScan y mira la pestaña <b>Write Contract</b>.</div>`; return; }
-        const abi = JSON.parse(j.result);
-        const escribe = abi.filter((x) => x.type === 'function' && x.stateMutability !== 'view' && x.stateMutability !== 'pure');
-        const pinta = (x) => `<div class="ad-fn"><span><b>${esc(x.name)}</b>(${(x.inputs || []).map((i) => esc(i.type) + ' ' + esc(i.name || '')).join(', ')})</span><button class="ad-mini" data-fn="${esc(x.name)}">ejecutar</button></div>`;
-        const saca = escribe.filter((x) => /retir|withdraw|rescue|sweep|claim|banca|bankroll|fond|owner/i.test(x.name));
-        // Cada una se puede lanzar desde aquí, rellenando sus datos.
-        setTimeout(() => out.querySelectorAll('[data-fn]').forEach((b) => b.onclick = () => {
-          const fn = abi.find((x) => x.name === b.dataset.fn && x.type === 'function');
-          if (!fn) return;
-          const campos = (fn.inputs || []).map((i, k) => ({ id: 'p' + k, lab: `${i.name || 'dato ' + (k + 1)} (${i.type})`, val: /address/.test(i.type) ? (wallet.cuentaActual() || '') : '' }));
-          pedirDatos(fn.name, campos.length ? campos : [{ id: 'nada', lab: 'Sin datos: pulsa Continuar', val: '' }], async (v) => {
-            try {
-              const frag = `function ${fn.name}(${(fn.inputs || []).map((i) => i.type + ' ' + (i.name || '')).join(',')})`;
-              const c = await escribirC(objetivo === LOTERIA ? LOTERIA : LOTERIA, [frag]);
-              const args = (fn.inputs || []).map((i, k) => {
-                const raw = v['p' + k] || '';
-                if (/^uint/.test(i.type)) return raw.includes('.') ? ethers.parseUnits(raw, 18) : BigInt(raw || '0');
-                if (i.type === 'bool') return /^(si|true|1)$/i.test(raw);
-                return raw;
-              });
-              firmar(() => c[fn.name](...args), 'Hecho. Revisa tu wallet.');
-            } catch (e) { decir('No se pudo: ' + (e?.shortMessage || e?.message || e), 'mal'); }
-          });
-        }), 60);
-        window._abiLoteria = abi;
+        const codigo = (await lector().getCode(objetivo)).toLowerCase();
+        if (!codigo || codigo === '0x') { out.innerHTML = `<div class="ad-vacio">No se pudo leer el código del contrato.</div>`; return; }
+
+        // Candidatas: combinamos verbos y formas de argumentos habituales.
+        const VERBOS = [
+          'retirarBanca', 'sacarBanca', 'retirarFondos', 'sacarFondos', 'retirarToken',
+          'defondearToken', 'desfondearToken', 'retirarBancaToken', 'retirarNativo',
+          'withdrawBankroll', 'withdrawBanca', 'withdraw', 'retirarBeneficios',
+          'sacarBeneficios', 'cobrarBeneficios', 'retirarComision', 'retirarComisiones',
+          'withdrawFees', 'reclamarBeneficios', 'rescate', 'rescatar', 'rescueToken',
+          'rescueOtherToken', 'sweep', 'sweepToken', 'emergencyWithdraw', 'retirarTodo',
+          'fondearToken', 'fondearNativo', 'retirar'
+        ];
+        const FORMAS = ['()', '(address)', '(uint256)', '(address,uint256)', '(address,address)',
+                        '(address,uint256,address)', '(uint256,address)', '(address,address,uint256)'];
+        const encontradas = [];
+        for (const v of VERBOS) {
+          for (const fo of FORMAS) {
+            const firma = v + fo;
+            const sel = ethers.id(firma).slice(2, 10).toLowerCase();
+            if (codigo.includes(sel)) encontradas.push({ firma, sel });
+          }
+        }
+        window._fnLoteria = encontradas;
+        const saca = encontradas.filter((x) => /retir|sacar|withdraw|rescue|sweep|cobrar|reclamar|defond|desfond/i.test(x.firma));
+        const pinta = (x) => `<div class="ad-fn"><span><b>${esc(x.firma.split('(')[0])}</b>(${esc(x.firma.split('(')[1].replace(')', ''))})</span><button class="ad-mini" data-firma="${esc(x.firma)}">ejecutar</button></div>`;
         out.innerHTML = `
           ${nota}
-          <div class="ad-sec">Funciones que sacan dinero</div>
-          ${saca.length ? saca.map(pinta).join('') : '<div class="ad-vacio">Ninguna con nombre reconocible.</div>'}
-          <div class="ad-sec">Todas las que modifican algo (${escribe.length})</div>
-          ${escribe.map(pinta).join('')}`;
+          <div class="ad-sec">Funciones que sacan dinero (${saca.length})</div>
+          ${saca.length ? saca.map(pinta).join('') : '<div class="ad-vacio">Ninguna de las habituales. Pásame la parte del código donde está la retirada.</div>'}
+          ${encontradas.length > saca.length ? `<div class="ad-sec">Otras encontradas</div>${encontradas.filter((x) => !saca.includes(x)).map(pinta).join('')}` : ''}`;
+
+        // Cada una se puede lanzar aquí mismo.
+        out.querySelectorAll('[data-firma]').forEach((b) => b.onclick = () => {
+          const firma = b.dataset.firma;
+          const nom = firma.split('(')[0];
+          const tipos = (firma.split('(')[1] || '').replace(')', '').split(',').filter(Boolean);
+          const campos = tipos.map((t, k) => ({
+            id: 'p' + k,
+            lab: `${t}  ${/address/.test(t) ? '(dirección de la moneda, o tu wallet)' : '(cantidad; 0 = todo)'}`,
+            val: /address/.test(t) ? '' : '0'
+          }));
+          pedirDatos(nom, campos.length ? campos : [{ id: 'x', lab: 'Sin datos: pulsa Continuar', val: '' }], async (v) => {
+            try {
+              const w = await escribirC(LOTERIA, ['function ' + firma]);
+              const args = tipos.map((t, k) => {
+                const raw = (v['p' + k] || '').trim();
+                if (/^uint/.test(t)) return BigInt(raw || '0');
+                return raw;
+              });
+              firmar(() => w[nom](...args), 'Hecho. Revisa tu wallet.');
+            } catch (e) { decir('No se pudo: ' + (e?.shortMessage || e?.message || e), 'mal'); }
+          });
+        });
       } catch (e) {
         out.innerHTML = `<div class="ad-vacio">No se pudo consultar: ${esc(e?.message || e)}</div>`;
       }
