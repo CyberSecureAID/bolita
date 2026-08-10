@@ -1,9 +1,65 @@
 /* ================================================================
    JESÚS — Asistente de Aurex · estilos
-   Mismo lenguaje que el resto del sitio: cristal, filamento dorado,
-   navy. Usa los tokens existentes, así que responde solo a los dos
-   temas sin una línea extra.
-================================================================ */
+   ================================================================
+   ESTE BLOQUE ES IMPRESCINDIBLE. Los estilos venían de otra web que
+   tenía sus propias variables de color y tipografía. En Aurex no
+   existen, así que TODO salía transparente y sin forma.
+   Aquí se traduce cada una a los colores reales de Aurex.
+   ================================================================ */
+:root {
+  /* Fondos: del negro de la web al panel elevado */
+  --void:          #0b0e11;
+  --void-soft:     #12161c;
+  --void-elevated: #161b22;
+
+  /* Cristal: los paneles translúcidos con borde tenue */
+  --glass-fill:          rgba(255, 255, 255, .035);
+  --glass-fill-hover:    rgba(255, 255, 255, .06);
+  --glass-border:        #2b3139;
+  --glass-border-strong: #3a424c;
+  --rule:                rgba(255, 255, 255, .07);
+  --line:                #2b3139;
+
+  /* Texto */
+  --text-primary: #eaecef;
+  --text-dim:     #b7bdc6;
+  --text-faint:   #7d8794;
+  --ink:          #eaecef;
+  --ink-3:        #7d8794;
+
+  /* Dorado de Aurex (sustituye al acento de la otra web) */
+  --gold:      #E8B84B;
+  --gold-soft: #C9A84B;
+  --cyan:      #E8B84B;
+  --cyan-dim:  rgba(232, 184, 75, .55);
+  --cyan-glow: rgba(232, 184, 75, .22);
+
+  /* Botón dorado con relieve, igual que el resto de la web */
+  --btn-glass:             linear-gradient(180deg, #f7db8d, #E8B84B 45%, #c79426);
+  --btn-edge:              #c79426;
+  --btn-sheen:             rgba(255, 255, 255, .35);
+  --btn-inner-light:       rgba(255, 255, 255, .28);
+  --btn-inner-light-hover: rgba(255, 255, 255, .45);
+  --btn-text:              #3a2800;
+
+  /* Tipografías: las mismas de Aurex */
+  --font-display: 'Chakra Petch', system-ui, sans-serif;
+  --font-body:    system-ui, -apple-system, sans-serif;
+  --font-mono:    ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --mono:         ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* Curvas y tiempos */
+  --radius-sm:   10px;
+  --radius-lg:   18px;
+  --radius-pill: 999px;
+  --dur-fast:    .15s;
+  --dur-base:    .22s;
+  --ease-out:    cubic-bezier(.22, .61, .36, 1);
+
+  /* Medidas de la ventana del chat */
+  --np-w: 370px;
+  --np-h: 560px;
+}
 
 .np-chat-root {
   --np-w: 312px;    /* estrecho a propósito: es un chat, no un panel */
