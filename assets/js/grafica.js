@@ -157,30 +157,58 @@ async function montar(host, g) {
   });
   velasSerie.setData(datos);
 
-  /* ══════════ MARCAS SOBRE LAS VELAS ══════════
-     Una flecha en la vela exacta donde ocurrió cada cosa. Es lo que hace que
-     el usuario ENTIENDA su bot: no un precio suelto, sino el momento. */
-  const marcas = [];
-  const seg = (t) => Math.floor(Number(t));
+  /* ══════════ MARCAS EN SU PRECIO EXACTO ══════════
+     OJO: las "marcas" normales de esta librería se colocan por TIEMPO, encima
+     o debajo de la vela, NO en un precio concreto. Si se usan para señalar un
+     precio, la marca no coincide con su línea horizontal y el gráfico miente.
+     Por eso usamos puntos de una serie de precio: van a la coordenada exacta
+     (momento + precio), así que SIEMPRE caen sobre su línea.               */
+  const puntos = (datosPuntos, color, radio) => {
+    if (!datosPuntos.length) return null;
+    try {
+      const ser = chart.addLineSeries({
+        color, lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: radio,
+        lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+        autoscaleInfoProvider: () => null           // no toca la escala
+      });
+      ser.setData(datosPuntos);
+      return ser;
+    } catch (_) { return null; }
+  };
+  // Un mismo momento no puede repetirse en una serie: nos quedamos con el último.
+  const limpiar = (arr) => {
+    const m = new Map();
+    arr.filter((x) => x && x.time > 0 && isFinite(x.value) && x.value > 0)
+       .forEach((x) => m.set(x.time, x));
+    return [...m.values()].sort((a, b) => a.time - b.time);
+  };
 
-  // 1) Cuándo nació el bot. Este dato SIEMPRE lo tenemos (no depende de logs).
-  if (g.creado > 0) {
-    marcas.push({
-      time: seg(g.creado), position: 'inBar', color: '#E8B84B', shape: 'circle',
-      text: 'empezó aquí'
-    });
+  const ops = (g.operaciones || []).filter((o) => o && o.tiempo > 0 && Number(o.precio) > 0);
+  puntos(limpiar(ops.filter((o) => o.compra).map((o) => ({ time: Math.floor(o.tiempo), value: Number(o.precio) }))), '#2ee86a', 4);
+  puntos(limpiar(ops.filter((o) => !o.compra).map((o) => ({ time: Math.floor(o.tiempo), value: Number(o.precio) }))), '#f6465d', 4);
+
+  // El punto de entrada va EXACTAMENTE en su precio, el mismo de la línea dorada.
+  const precioEntrada = Number(g.precioMedio) > 0 ? Number(g.precioMedio) : 0;
+  if (g.creado > 0 && precioEntrada > 0) {
+    puntos([{ time: Math.floor(g.creado), value: precioEntrada }], '#E8B84B', 5);
   }
 
-  // 2) Cada compra y cada venta que el bot ya ejecutó.
-  for (const o of (g.operaciones || [])) {
-    if (!o || !o.tiempo) continue;
+  /* Las flechas de compra/venta SÍ van encima y debajo de la vela, que es lo
+     habitual en cualquier gráfico de trading: ahí no señalan un precio, marcan
+     el momento. Y el precio exacto lo da el punto de arriba. */
+  const marcas = [];
+  for (const o of ops) {
     marcas.push({
-      time: seg(o.tiempo),
+      time: Math.floor(o.tiempo),
       position: o.compra ? 'belowBar' : 'aboveBar',
       color: o.compra ? '#2ee86a' : '#f6465d',
       shape: o.compra ? 'arrowUp' : 'arrowDown',
-      text: (o.compra ? 'compró' : 'vendió') + (o.precio ? ' ' + Number(o.precio).toFixed(dec) : '')
+      text: (o.compra ? 'compró ' : 'vendió ') + Number(o.precio).toFixed(dec)
     });
+  }
+  if (marcas.length) {
+    marcas.sort((a, b) => a.time - b.time);
+    try { velasSerie.setMarkers(marcas); } catch (_) {}
   }
 
   /* 3) La BANDA del rango: de un vistazo ves dónde opera tu bot y si el

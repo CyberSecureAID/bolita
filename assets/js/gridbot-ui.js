@@ -3063,7 +3063,8 @@ async function tarjeta(cuenta, clave, par, R) {
         <div class="leg">
           <span><svg class="lg-i" viewBox="0 0 12 12"><path d="M6 1.5 10.5 8H1.5z" fill="#2ee86a"/></svg>compró</span>
           <span><svg class="lg-i" viewBox="0 0 12 12"><path d="M6 10.5 1.5 4h9z" fill="#f6465d"/></svg>vendió</span>
-          <span><svg class="lg-i" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="#E8B84B"/></svg>empezó aquí</span>
+          <span><svg class="lg-i" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="#E8B84B"/></svg>tu entrada</span>
+          <span><svg class="lg-i" viewBox="0 0 12 12"><circle cx="6" cy="6" r="3.2" fill="#2ee86a"/></svg><svg class="lg-i" viewBox="0 0 12 12" style="margin-left:-3px"><circle cx="6" cy="6" r="3.2" fill="#f6465d"/></svg>precio exacto</span>
           <span><svg class="lg-i" viewBox="0 0 14 12"><path d="M0 6h14" stroke="#2ee86a" stroke-width="1.6" stroke-dasharray="3 2"/></svg>espera comprar</span>
           <span><svg class="lg-i" viewBox="0 0 14 12"><path d="M0 6h14" stroke="#f6465d" stroke-width="1.6" stroke-dasharray="3 2"/></svg>espera vender</span>
         </div></div>
