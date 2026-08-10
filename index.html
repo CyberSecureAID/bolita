@@ -30,6 +30,7 @@
   <link rel="icon" type="image/png" href="assets/img/aurex-32.png">
   <link rel="apple-touch-icon" href="assets/img/aurex-apple.png">
   <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="stylesheet" href="assets/css/asistente.css?v=107">
   <!-- App instalable: icono propio, pantalla completa y arranque sin conexión -->
   <link rel="manifest" href="manifest-aurex.webmanifest">
   <meta name="theme-color" content="#0b0e11">
@@ -98,6 +99,11 @@
     }, 20000);
   })();
   </script>
+  <!-- Asistente de la web. Funciona por reglas, sin depender de ninguna IA
+       externa: responde al instante, no cuesta nada y sigue funcionando
+       aunque la conexión vaya mal. Todo lo que sabe está en conocimiento.js -->
+  <script src="assets/js/asistente/conocimiento.js?v=107" defer></script>
+  <script src="assets/js/asistente/motor.js?v=107" defer></script>
 </body>
 </html>
  
