@@ -127,10 +127,12 @@ export async function abrirAcademy() {
   d.id = 'ac-overlay';
   d.innerHTML = `<div class="ac-bg"></div>
     <div class="ac-c">
-      <button class="ac-x" aria-label="Cerrar">✕</button>
+      <div class="ac-top">
+        <div class="ac-eyebrow">Aurex Academy</div>
+        <button class="ac-x" aria-label="Cerrar">✕</button>
+      </div>
 
       <div class="ac-cab">
-        <div class="ac-eyebrow">Aurex Academy</div>
         <h2 class="ac-t">De cero a operar con criterio</h2>
         <p class="ac-s">Una ruta ordenada, con exámenes que hay que aprobar para avanzar. No es una carpeta de vídeos sueltos.</p>
       </div>
@@ -561,9 +563,11 @@ function estilos() {
   #ac-overlay .ac-bg{position:absolute;inset:0;background:rgba(3,5,8,.9);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
   #ac-overlay .ac-c{position:relative;width:100%;max-width:840px;max-height:calc(100vh - 36px);overflow-y:auto;
     background:linear-gradient(180deg,#141922,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:22px;padding:32px 30px}
-  #ac-overlay .ac-x{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;padding:0;
+  #ac-overlay .ac-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  #ac-overlay .ac-top .ac-eyebrow{text-align:left}
+  #ac-overlay .ac-x{position:static;flex:0 0 auto;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;padding:0;
     background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6;cursor:pointer;font-size:15px}
-  #ac-overlay .ac-cab{text-align:center;margin-bottom:26px}
+  #ac-overlay .ac-cab{text-align:center;margin-bottom:24px}
   #ac-overlay .ac-eyebrow{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);text-transform:uppercase;letter-spacing:2.2px}
   #ac-overlay .ac-t{font-family:var(--display,sans-serif);font-weight:800;font-size:30px;color:#eaecef;margin:9px 0 10px;line-height:1.15}
   #ac-overlay .ac-s{font-family:var(--sans,sans-serif);font-size:14px;color:#8b96a3;line-height:1.6;max-width:52ch;margin:0 auto}
@@ -835,9 +839,12 @@ function estilos() {
     #ac-overlay .ap-b{flex:1;justify-content:center}
     #ac-overlay .ap-cab{flex-direction:column;align-items:stretch}
     #ac-overlay .ap-grupo{justify-content:center}
-    #ac-overlay .ap-tab span{display:none}
-    #ac-overlay .ap-tab{padding:0 12px;min-width:52px}
-    #ac-overlay .ap-tab.on span{display:inline}
+    /* AQUÍ ESTABA EL DESASTRE. Había un "display:none" que escondía el
+       texto de TODAS las pestañas menos la activa. Resultado en el móvil:
+       un recuadro negro con un solo botón dorado arriba a la izquierda, y
+       nada más. El usuario no tenía forma de saber que había cuatro
+       secciones más. Se quedaba en la primera y se iba. */
+    #ac-overlay .ap-tab{padding:0 4px;min-width:0}
   }
 
   @media(max-width:860px){
@@ -849,13 +856,54 @@ function estilos() {
     #ac-overlay .ac-t{font-size:25px}
   }
   @media(max-width:560px){
-    #ac-overlay{padding:10px}
-    #ac-overlay .ac-c{padding:22px 15px;border-radius:18px}
-    #ac-overlay .ac-t{font-size:22px}
-    #ac-overlay .ac-s{font-size:13px}
+    /* ══════ MÓVIL: menos texto, más camino ══════
+       En una pantalla de 360px, tres párrafos antes de llegar a lo útil
+       hacen que el usuario se pierda antes de empezar. Se recorta lo
+       decorativo y se deja lo que sirve. */
+    #ac-overlay{padding:8px}
+    #ac-overlay .ac-c{padding:16px 13px;border-radius:16px;max-height:calc(100vh - 16px)}
+    #ac-overlay .ac-eyebrow{font-size:9px;letter-spacing:1.6px}
+    #ac-overlay .ac-cab{margin-bottom:18px}
+    #ac-overlay .ac-t{font-size:20px;line-height:1.2}
+    #ac-overlay .ac-s{font-size:12.5px;line-height:1.55}
+    #ac-overlay .ac-cifras{gap:7px;margin:16px 0 14px}
+    #ac-overlay .ac-cif{padding:12px 7px;border-radius:12px}
+    #ac-overlay .ac-cif b{font-size:23px}
+    #ac-overlay .ac-cif span{font-size:11.5px;margin-top:5px}
+    #ac-overlay .ac-cif i{font-size:9.5px}
+    #ac-overlay .ac-que{padding:14px}
+    #ac-overlay .ac-lista li{font-size:12.5px;padding-left:21px;margin-bottom:10px}
+    #ac-overlay .ac-plan{padding:18px 15px}
     #ac-overlay .ac-plan-p b{font-size:29px}
+    #ac-overlay .ac-sec-t{font-size:19px;margin-top:26px}
+    #ac-overlay .ac-sec-s{font-size:12.5px;margin-bottom:16px}
     #ac-pago .ap-pagos{flex-direction:column}
+
+    /* Panel: todo más compacto */
+    #ac-overlay .ap-cab{padding:14px 15px;margin-bottom:11px}
+    #ac-overlay .ap-cab-t{font-size:17px}
+    #ac-overlay .ap-regla{padding:13px 14px;margin-bottom:13px}
+    #ac-overlay .ap-regla > b:first-child{font-size:13.5px}
+    #ac-overlay .ap-regla p,#ac-overlay .ap-regla i{font-size:12px}
+    #ac-overlay .ap-fila{padding:12px 13px;gap:11px}
+    #ac-overlay .ap-fila-t{font-size:13.5px}
+    #ac-overlay .ap-fila-s{font-size:11.5px}
+    #ac-overlay .ap-num{width:29px;height:29px;font-size:12px}
+    #ac-overlay .ap-intro{font-size:12.5px}
+    #ac-overlay .ap-audio-t{font-size:12px}
   }
+
+  /* ══════ LAS BARRAS DE DESPLAZAMIENTO ══════
+     Por defecto el navegador pinta una barra gris del sistema, con sus
+     flechas, que no pega nada con el resto. Aquí va una fina y discreta. */
+  #ac-overlay .ac-c{scrollbar-width:thin;scrollbar-color:rgba(232,184,75,.35) transparent}
+  #ac-overlay .ac-c::-webkit-scrollbar{width:7px}
+  #ac-overlay .ac-c::-webkit-scrollbar-track{background:transparent}
+  #ac-overlay .ac-c::-webkit-scrollbar-thumb{background:rgba(232,184,75,.3);border-radius:20px}
+  #ac-overlay .ac-c::-webkit-scrollbar-thumb:hover{background:rgba(232,184,75,.5)}
+  #ac-pago .ap-c,#ac-ok .ao-c{scrollbar-width:thin;scrollbar-color:rgba(232,184,75,.35) transparent}
+  #ac-pago .ap-c::-webkit-scrollbar,#ac-ok .ao-c::-webkit-scrollbar{width:7px}
+  #ac-pago .ap-c::-webkit-scrollbar-thumb,#ac-ok .ao-c::-webkit-scrollbar-thumb{background:rgba(232,184,75,.3);border-radius:20px}
   @media(prefers-reduced-motion:reduce){#ac-overlay .ac-plan{transition:none}}`;
   document.head.appendChild(s);
 }
