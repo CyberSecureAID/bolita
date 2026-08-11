@@ -395,12 +395,27 @@ async function pintarPlanes() {
   const box = $('ac-planes'); if (!box) return;
   try {
     const c = leer();
-    const datos = await Promise.all(PLANES.map(async (p) => {
-      const info = await c.planes(p.id);
+    /* Los tres planes, uno detrás de otro y con reintento. Antes iban los
+       tres a la vez y si UNA sola consulta fallaba —cosa habitual en los
+       servidores públicos— se caía todo y salía "no pudimos consultar los
+       precios". Los precios son fijos y están en el contrato: no hay
+       motivo para no mostrarlos. */
+    const datos = [];
+    for (const p of PLANES) {
+      let info = null;
+      for (let i = 0; i < 3 && !info; i++) {
+        try { info = await c.planes(p.id); }
+        catch (_) { await new Promise((r) => setTimeout(r, 400)); }
+      }
+      // Si el contrato no responde, se usan los precios acordados. Mejor
+      // enseñar el precio correcto que un mensaje de error.
+      const respaldo = [{ dias: 30, usd: 10 }, { dias: 90, usd: 20 }, { dias: 365, usd: 50 }][p.id] || { dias: 30, usd: 10 };
       let bnb = 0n;
       try { bnb = await c.costeEnBnb(p.id); } catch (_) {}
-      return { ...p, dias: Number(info.dias), usd: Number(info.precioUsd) / 100, activo: info.activo, bnb };
-    }));
+      datos.push(info
+        ? { ...p, dias: Number(info.dias), usd: Number(info.precioUsd) / 100, activo: info.activo, bnb }
+        : { ...p, dias: respaldo.dias, usd: respaldo.usd, activo: true, bnb });
+    }
 
     const mensual = datos[0]?.usd || 10;
     box.innerHTML = datos.filter((p) => p.activo).map((p) => {
