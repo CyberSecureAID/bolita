@@ -7,10 +7,10 @@
 //   · Colector de polvo — junta los restos de monedas y los pasa a una sola
 //   · Alertas de precio — avisa cuando una moneda llega a un precio
 
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=126';
-import * as wallet from './wallet.js?v=126';
-import * as gb from './gridbot.js?v=126';
-import { MONEDAS } from './tokens.js?v=126';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=125';
+import * as wallet from './wallet.js?v=125';
+import * as gb from './gridbot.js?v=125';
+import { MONEDAS } from './tokens.js?v=125';
 
 const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -340,52 +340,96 @@ async function abrirAlertas() {
   pintarAlertas();
 }
 
+let _alMoneda = 'BNB';
+let _alDir = 'sube';
+
 function pintarAlertas() {
   const box = $('al-cuerpo'); if (!box) return;
   const alertas = leerAlertas();
+  /* Aquí sí van TODAS las que tengan precio: aunque una moneda no se
+     pueda operar en el marketplace, sí se puede vigilar su precio. */
   const monedas = Object.entries(MONEDAS).filter(([, m]) => m.cg);
 
   box.innerHTML = `
-    <div class="al-nueva">
-      <div class="al-campos">
-        <select id="al-mon" class="al-sel">
-          ${monedas.map(([id, m]) => `<option value="${id}">${esc(m.simbolo)}</option>`).join('')}
-        </select>
-        <select id="al-dir" class="al-sel">
-          <option value="sube">suba a</option>
-          <option value="baja">baje a</option>
-        </select>
-        <input id="al-precio" class="al-in" type="number" step="any" placeholder="precio" inputmode="decimal">
-      </div>
-      <button class="pv-b" id="al-add">Crear alerta</button>
+    <div class="al-paso"><span>1</span>Elige la moneda</div>
+    <div class="al-monedas">
+      ${monedas.map(([id, m]) => `
+        <button class="al-mon ${id === _alMoneda ? 'on' : ''}" data-mon="${id}" title="${esc(m.nombre)}">
+          <span class="al-mon-i" style="background:${m.color}22;color:${m.color};border-color:${m.color}55">${esc(m.icono || m.simbolo[0])}</span>
+          <span class="al-mon-s">${esc(m.simbolo)}</span>
+        </button>`).join('')}
     </div>
 
-    ${alertas.length ? `<div class="al-lista">${alertas.map((a, i) => `
-      <div class="al-fila ${a.saltada ? 'saltada' : ''}">
-        <span class="al-tx"><b>${esc(a.sim)}</b> ${a.dir === 'sube' ? 'suba a' : 'baje a'} <b>$${num(a.precio, 6)}</b></span>
-        ${a.saltada ? '<span class="al-ya">avisada</span>' : ''}
-        <button class="al-del" data-del="${i}" aria-label="Borrar">✕</button>
-      </div>`).join('')}</div>`
-      : `<div class="tl-vacio">No tienes alertas todavía.</div>`}
+    <div class="al-paso"><span>2</span>Avísame cuando el precio…</div>
+    <div class="al-dirs">
+      <button class="al-dir ${_alDir === 'sube' ? 'on' : ''}" data-dir="sube">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        suba a
+      </button>
+      <button class="al-dir ${_alDir === 'baja' ? 'on' : ''}" data-dir="baja">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        baje a
+      </button>
+    </div>
+
+    <div class="al-paso"><span>3</span>El precio</div>
+    <div class="al-precio">
+      <span class="al-dolar">$</span>
+      <input id="al-precio" class="al-in" type="number" step="any" placeholder="0.00" inputmode="decimal">
+    </div>
+    <div class="al-ahora" id="al-ahora"></div>
+
+    <button class="pv-b" id="al-add">Crear alerta</button>
+
+    ${alertas.length ? `
+      <div class="al-titulo">Tus alertas</div>
+      <div class="al-lista">${alertas.map((a, i) => {
+        const mm = MONEDAS[a.id] || {};
+        return `<div class="al-fila ${a.saltada ? 'saltada' : ''}">
+          <span class="al-mon-i chico" style="background:${mm.color || '#888'}22;color:${mm.color || '#888'};border-color:${(mm.color || '#888')}55">${esc(mm.icono || a.sim[0])}</span>
+          <span class="al-tx"><b>${esc(a.sim)}</b> ${a.dir === 'sube' ? 'suba a' : 'baje a'} <b>$${num(a.precio, 6)}</b></span>
+          ${a.saltada ? '<span class="al-ya">avisada</span>' : ''}
+          <button class="al-del" data-del="${i}" aria-label="Borrar">✕</button>
+        </div>`;
+      }).join('')}</div>` : ''}
 
     <div class="pv-nota">
       Las alertas viven <b>en este navegador</b>, no en un servidor. Funcionan mientras tengas Aurex abierto o instalado como app.
-      ${Notification && Notification.permission !== 'granted'
-        ? '<br><br><b>Para que te avise aunque estés en otra pestaña</b>, hay que dar permiso de notificaciones.'
-        : ''}
     </div>`;
 
+  // Precio de ahora, para que sepa dónde está antes de elegir
+  const verPrecio = async () => {
+    const el = $('al-ahora'); if (!el) return;
+    const m = MONEDAS[_alMoneda];
+    el.textContent = 'consultando…';
+    try {
+      const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${m.cg}&vs_currencies=usd`);
+      const j = await r.json();
+      const p = j[m.cg] && j[m.cg].usd;
+      el.innerHTML = p ? `${esc(m.simbolo)} está ahora en <b>$${num(p, 6)}</b>` : '';
+    } catch (_) { el.textContent = ''; }
+  };
+  verPrecio();
+
+  box.querySelectorAll('[data-mon]').forEach((b) => b.onclick = () => {
+    _alMoneda = b.dataset.mon;
+    box.querySelectorAll('.al-mon').forEach((x) => x.classList.toggle('on', x.dataset.mon === _alMoneda));
+    verPrecio();
+  });
+  box.querySelectorAll('[data-dir]').forEach((b) => b.onclick = () => {
+    _alDir = b.dataset.dir;
+    box.querySelectorAll('.al-dir').forEach((x) => x.classList.toggle('on', x.dataset.dir === _alDir));
+  });
+
   $('al-add').onclick = async () => {
-    const id = $('al-mon').value;
-    const dir = $('al-dir').value;
     const precio = Number($('al-precio').value);
     if (!isFinite(precio) || precio <= 0) { decirP('Escribe un precio válido.', 'mal'); return; }
-    const m = MONEDAS[id];
+    const m = MONEDAS[_alMoneda];
     const a = leerAlertas();
-    a.push({ id, sim: m.simbolo, cg: m.cg, dir, precio, saltada: false, creada: Date.now() });
+    a.push({ id: _alMoneda, sim: m.simbolo, cg: m.cg, dir: _alDir, precio, saltada: false, creada: Date.now() });
     guardarAlertas(a);
-    try { if (Notification && Notification.permission === 'default') await Notification.requestPermission(); } catch (_) {}
-    decirP('Alerta creada.', 'ok');
+    try { if (window.Notification && Notification.permission === 'default') await Notification.requestPermission(); } catch (_) {}
+    decirP(`Listo: te avisamos cuando ${esc(m.simbolo)} ${_alDir === 'sube' ? 'suba a' : 'baje a'} $${num(precio, 6)}.`, 'ok');
     pintarAlertas();
     vigilar();
   };
@@ -521,11 +565,40 @@ function estilos() {
   #pv-conf .pvc-aviso i{display:block;font-style:normal;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07);font-size:11.5px;color:#7d8794}
   #pv-conf .pvc-acts{display:flex;flex-direction:column;gap:8px}
 
-  #al-overlay .al-nueva{padding:14px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid #2b3139;margin-bottom:14px}
-  #al-overlay .al-campos{display:flex;gap:7px;margin-bottom:10px}
-  #al-overlay .al-sel,#al-overlay .al-in{flex:1;min-width:0;padding:12px;border-radius:11px;border:1px solid #2b3139;
-    background:#0b0e12;color:#eaecef;font-family:var(--mono,monospace);font-size:13px;min-height:46px}
-  #al-overlay .al-sel:focus,#al-overlay .al-in:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
+  #al-overlay .al-paso{display:flex;align-items:center;gap:9px;font-family:var(--mono,monospace);font-size:10px;
+    color:#7d8794;text-transform:uppercase;letter-spacing:1px;margin:18px 0 10px}
+  #al-overlay .al-paso:first-child{margin-top:0}
+  #al-overlay .al-paso span{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;flex:0 0 auto;
+    background:rgba(232,184,75,.14);color:var(--gold,#E8B84B);font-size:10px;font-weight:700}
+  #al-overlay .al-monedas{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:7px;
+    max-height:214px;overflow-y:auto;padding-right:4px}
+  #al-overlay .al-mon{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 6px;border-radius:12px;
+    background:rgba(255,255,255,.025);border:1px solid #2b3139;cursor:pointer;min-height:74px;
+    transition:border-color .15s ease,background .15s ease}
+  #al-overlay .al-mon:hover{border-color:var(--gold-soft,#C9A84B)}
+  #al-overlay .al-mon.on{border-color:var(--gold,#E8B84B);background:rgba(232,184,75,.1)}
+  #al-overlay .al-mon-i{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;
+    border:1px solid;font-family:var(--display,sans-serif);font-weight:800;font-size:13px}
+  #al-overlay .al-mon-i.chico{width:26px;height:26px;font-size:11px}
+  #al-overlay .al-mon-s{font-family:var(--mono,monospace);font-size:10.5px;color:#b7bdc6;
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #al-overlay .al-mon.on .al-mon-s{color:var(--gold,#E8B84B)}
+  #al-overlay .al-dirs{display:flex;gap:8px}
+  #al-overlay .al-dir{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;
+    padding:0 14px;border-radius:12px;background:rgba(255,255,255,.025);border:1px solid #2b3139;color:#8b96a3;
+    font-family:var(--display,sans-serif);font-weight:700;font-size:13px;cursor:pointer}
+  #al-overlay .al-dir svg{width:16px;height:16px}
+  #al-overlay .al-dir.on{border-color:var(--gold,#E8B84B);background:rgba(232,184,75,.1);color:var(--gold,#E8B84B)}
+  #al-overlay .al-precio{display:flex;align-items:center;border-radius:12px;border:1px solid #2b3139;background:#0b0e12;overflow:hidden}
+  #al-overlay .al-precio:focus-within{border-color:var(--gold-soft,#C9A84B)}
+  #al-overlay .al-dolar{padding:0 4px 0 15px;font-family:var(--display,sans-serif);font-size:19px;color:#6b7681}
+  #al-overlay .al-in{flex:1;min-width:0;padding:14px 14px 14px 3px;border:none;background:transparent;color:#eaecef;
+    font-family:var(--display,sans-serif);font-size:19px;font-weight:700;min-height:52px}
+  #al-overlay .al-in:focus{outline:none}
+  #al-overlay .al-ahora{font-family:var(--mono,monospace);font-size:11.5px;color:#7d8794;text-align:center;margin:9px 0 14px;min-height:16px}
+  #al-overlay .al-ahora b{color:var(--gold,#E8B84B)}
+  #al-overlay .al-titulo{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;
+    letter-spacing:1.1px;margin:22px 0 10px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.07)}
   #al-overlay .al-lista{display:flex;flex-direction:column;gap:6px}
   #al-overlay .al-fila{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;
     background:rgba(255,255,255,.025);border:1px solid #2b3139}

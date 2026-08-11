@@ -159,11 +159,20 @@ export function iniciarTirarParaActualizar(alSoltar) {
     ocupado = true;
     ind.classList.add('girando');
     ind.querySelector('.ti-t').textContent = 'Actualizando…';
-    try { await alSoltar(); } catch (_) {}
-    setTimeout(() => {
+
+    /* TOPE DE TIEMPO. Si una de las peticiones no responde nunca (pasa con
+       la blockchain), el indicador se quedaba girando para siempre. Ahora
+       se cierra a los 1,2 s pase lo que pase: la actualización sigue por
+       detrás, pero el usuario no se queda mirando una rueda infinita. */
+    const cerrar = () => {
       ind.classList.remove('girando');
-      soltar(); ocupado = false;
-    }, 420);
+      soltar();
+      ocupado = false;
+    };
+    const tope = setTimeout(cerrar, 1200);
+    try { await alSoltar(); } catch (_) {}
+    clearTimeout(tope);
+    setTimeout(cerrar, 200);
   }, { passive: true });
 }
 

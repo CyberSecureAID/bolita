@@ -1373,7 +1373,7 @@ function wireHeader() {
   // Herramientas: se cargan solo al pedirlas.
   if ($('c-tools')) $('c-tools').onclick = async () => {
     try {
-      const t = await import('./tools.js?v=126');
+      const t = await import('./tools.js?v=125');
       t.abrirTools();
       t.vigilar();                    // arranca la vigilancia de alertas
     } catch (e) { console.warn('[Aurex] tools:', e); }
@@ -1585,7 +1585,7 @@ function render() {
               <div><span>Compra inicial (a mercado)</span><b id="fa-p-ini">—</b></div>
               <div><span>Precio promedio estimado</span><b id="fa-p-prom">—</b></div>
             </div>
-            <div class="as-nota">Compra en la caída (más volumen mientras más baja) y vende TODO junto cuando el total gane el % que elijas. Luego repite. Menos comisiones.</div>
+            <div class="as-nota">Compra más cuanto más baja el precio. Cuando el conjunto gana el % que elijas, <b>vende todo de golpe</b>.</div>
           </div>
         </div>
         <div id="f-cash" style="${F.tipo==='cash'?'':'display:none'}">
@@ -1827,7 +1827,7 @@ function actualizarVista() {
   let aviso1 = '';
   if (NOTA_GAS) aviso1 += `<div class="hint">${NOTA_GAS}</div>`;
   if (F.precio && pMin > 0 && pMax > pMin && (F.precio < pMin || F.precio > pMax))
-    aviso1 = `<div class="hint">El precio de ahora (${precioFmt(F.precio)}) está fuera de tu rango. El bot esperará a que entre; si quieres que opere ya, ajusta el rango.</div>`;
+    aviso1 = `<div class="hint">El precio (${precioFmt(F.precio)}) está fuera de tu rango. El bot esperará. Ajusta el rango si quieres que opere ya.</div>`;
   if (hint) hint.innerHTML = aviso1;
 
   if (valido) {
@@ -2146,7 +2146,7 @@ function recomputarPorMargen() {
     const n = parseInt($('f-niv')?.value, 10) || 0;
     if (!(n >= 2 && F.precio && nota)) return;
     if (total > 0 && n > maxViable) {
-      nota.innerHTML = `<div class="hint" style="color:var(--rojo)">⚠ Con ${num(total, 0)} ${simQ} y ${n} cuadrículas al ${num(margen, 1)}%, cada cuadrícula es demasiado pequeña: el gas se comería la ganancia. Con este capital lo rentable es <b>máximo ~${maxViable} cuadrículas</b>. Sube el capital, sube el % o baja las cuadrículas.</div>`;
+      nota.innerHTML = `<div class="hint" style="color:var(--rojo)">⚠ Con ${num(total, 0)} ${simQ} en ${n} cuadrículas, cada una es muy pequeña: el gas se comería la ganancia. Con este capital lo rentable es <b>máximo ~${maxViable} cuadrículas</b>. Sube el capital, sube el % o baja las cuadrículas.</div>`;
       return;
     }
     const { pMin, pMax } = rangoNecesario(n, margen);
@@ -2263,8 +2263,12 @@ async function cerrarTodosLosBots(cuenta) {
   let claves = [];
   try { claves = await gb.misRejillas(cuenta); } catch (_) {}
   const vivos = [];
-  for (const k of claves) {
-    try { const R = await gb.resumenK(k); if (R.activa) vivos.push({ k, R }); } catch (_) {}
+  // Todos a la vez, no uno detrás de otro.
+  const _res = await Promise.all(claves.map((k) =>
+    gb.resumenK(k).then((R) => ({ k, R })).catch(() => null)
+  ));
+  for (const x of _res) {
+    try { if (x && x.R && x.R.activa) vivos.push(x); } catch (_) {}
   }
   soltar();
   if (vivos.length === 0) { modalError('No tienes bots activos que cerrar.'); return; }
@@ -2429,16 +2433,24 @@ async function contarBots(cuenta) {
   const r = { total: 0, grid: 0, acum: 0, cash: 0, dca: 0 };
   try {
     const claves = await gb.misRejillas(cuenta);
-    for (const k of claves) {
+    /* Antes se preguntaba por cada bot ESPERANDO la respuesta del anterior.
+       Con 8 bots eran 16 viajes en fila: en una conexión lenta, eterno, y
+       el usuario veía "cargando" sin fin. Ahora se preguntan todos a la vez
+       y se espera una sola tanda. */
+    const datos = await Promise.all(claves.map(async (k) => {
       try {
-        const R = await gb.resumenK(k);
-        if (!R.activa) continue;
-        r.total++;
-        let m = 0;
-        try { const md = await gb.modoDe(k); m = Number(Array.isArray(md) ? md[0] : 0); } catch (_) {}
-        const t = m === 1 ? 'acum' : m === 2 ? 'cash' : m === 3 ? 'dca' : 'grid';
-        r[t]++;
-      } catch (_) {}
+        const [R, md] = await Promise.all([
+          gb.resumenK(k),
+          gb.modoDe(k).catch(() => [0])
+        ]);
+        return { R, m: Number(Array.isArray(md) ? md[0] : 0) };
+      } catch (_) { return null; }
+    }));
+    for (const d of datos) {
+      if (!d || !d.R || !d.R.activa) continue;
+      r.total++;
+      const t = d.m === 1 ? 'acum' : d.m === 2 ? 'cash' : d.m === 3 ? 'dca' : 'grid';
+      r[t]++;
     }
   } catch (_) {}
   return r;
@@ -3070,20 +3082,22 @@ async function refrescarRejillas() {
     const claves = await gb.misRejillas(cuenta);
     const store = JSON.parse(localStorage.getItem('bot-pares') || '{}');
     const cerradas = JSON.parse(localStorage.getItem('bot-cerradas') || '{}');
-    const cards = [];
-    for (const clave of claves) {
-      if (cerradas[clave]) continue; // ocultado local (mismo navegador)
-      // Estado real en el contrato: si el bot está inactivo (cancelado), no se muestra.
+    /* TODAS las tarjetas a la vez. Antes cada una esperaba a la anterior:
+       con 8 bots eran 8 rondas encadenadas y en el móvil se quedaba
+       cargando sin fin. Ahora es una sola espera para todas. */
+    const _visibles = claves.filter((c) => !cerradas[c]);
+    const _cards = await Promise.all(_visibles.map(async (clave) => {
       let R = null;
       try { R = await gb.resumenK(clave); } catch (_) {}
-      if (R && R.activa === false) continue;   // bot cancelado/inactivo → fuera
+      if (R && R.activa === false) return null;   // cancelado → fuera
       let par = store[clave];
-      if (!par) par = { tipo: 'grid', reconstruido: true };   // tarjeta saca el par del resumen (R.base/R.quote)
+      if (!par) par = { tipo: 'grid', reconstruido: true };
       par.__cuenta = cuenta;
-      // NUNCA ocultar un bot en silencio: si el detalle falla, tarjeta mínima gestionable.
-      try { cards.push(await tarjeta(cuenta, clave, par, R)); }
-      catch (e) { cards.push(tarjetaMinima(clave, par, e, R)); }
-    }
+      // NUNCA ocultar un bot en silencio: si el detalle falla, tarjeta mínima.
+      try { return await tarjeta(cuenta, clave, par, R); }
+      catch (e) { return tarjetaMinima(clave, par, e, R); }
+    }));
+    const cards = _cards.filter(Boolean);
     cont.innerHTML = cards.length ? cards.join('')
       : `<div class="vacio-ok">
           <div class="vacio-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
