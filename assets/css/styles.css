@@ -2249,6 +2249,38 @@ body {
    la gente arrastra o hace scroll. */
 *::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 
+/* ══════════════════════════════════════════════════════════════
+   LAS FLECHITAS DE LOS CAMPOS NUMÉRICOS
+   Al tocar las barras de desplazamiento con el selector universal (*),
+   los navegadores móviles recalculan también los botones de los campos
+   de número: salían enormes y desplazados hacia abajo. Aquí se fijan a
+   un tamaño concreto y centrados.
+   ══════════════════════════════════════════════════════════════ */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: inner-spin-button;
+  appearance: auto;
+  width: 16px;
+  height: auto;
+  align-self: stretch;
+  margin: 0;
+  opacity: 1;
+  position: relative;
+  transform: none;
+}
+input[type="number"] { -moz-appearance: textfield; }
+@media (max-width: 760px) {
+  /* En el móvil no aportan nada: se escribe con el teclado, y el dedo
+     nunca acierta en una flecha de 8px. Se quitan y el campo respira. */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+    margin: 0;
+  }
+}
+
 /* Las barras que solo sirven para deslizar con el dedo (pestañas,
    listas de monedas) no necesitan barra visible: estorba. */
 .c-tabs, .bot-tabs, .cm-lista, .mk-tabs, .ap-tabs, .ad-tabs, .np-chat__mnu {
