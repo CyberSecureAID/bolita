@@ -794,6 +794,9 @@ function inyectarEstilo() {
   #colmena-app .rangowarn.arriba b{color:var(--neon-lit)}
   #colmena-app .rangowarn.cerca{background:rgba(232,184,75,.08);border:1px solid rgba(232,184,75,.32);color:var(--ink-2)}
   #colmena-app .rangowarn.cerca b{color:var(--gold)}
+  #colmena-app .sinleer{padding:12px 14px;border-radius:11px;margin-top:8px;
+    background:rgba(255,255,255,.025);border:1px dashed #3a424c;
+    font-family:var(--sans);font-size:12px;color:var(--ink-3);text-align:center;line-height:1.5}
   #colmena-app .gaswarn{background:rgba(255,107,107,.08);border:1px solid var(--rojo);color:var(--rojo);border-radius:10px;padding:9px 12px;font-family:var(--mono);font-size:11.5px;margin-top:12px}
   #colmena-app .pio-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   #colmena-app .pio-box{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:11px 12px}
@@ -2264,9 +2267,9 @@ async function cerrarTodosLosBots(cuenta) {
   try { claves = await gb.misRejillas(cuenta); } catch (_) {}
   const vivos = [];
   // Todos a la vez, no uno detrás de otro.
-  const _res = await Promise.all(claves.map((k) =>
+  const _res = await enLotes(claves, (k) =>
     gb.resumenK(k).then((R) => ({ k, R })).catch(() => null)
-  ));
+  );
   for (const x of _res) {
     try { if (x && x.R && x.R.activa) vivos.push(x); } catch (_) {}
   }
@@ -2334,6 +2337,19 @@ function prepararPanelOculto() {
   };
   z.addEventListener('click', golpe);
   z.addEventListener('touchend', (e) => { e.preventDefault(); golpe(); }, { passive: false });
+}
+
+/** Pide en lotes pequeños en vez de todo a la vez.
+ *  Los servidores públicos de BSC rechazan las ráfagas: 30 peticiones
+ *  simultáneas devuelven la mitad vacías. De cuatro en cuatro responden
+ *  todas, y no tarda apenas más. */
+async function enLotes(lista, fn, tam = 4) {
+  const out = [];
+  for (let i = 0; i < lista.length; i += tam) {
+    const res = await Promise.all(lista.slice(i, i + tam).map(fn));
+    out.push(...res);
+  }
+  return out;
 }
 
 /* ── AVISO DE RIESGO ANTES DEL PRIMER BOT ─────────────────────────────
@@ -2437,7 +2453,7 @@ async function contarBots(cuenta) {
        Con 8 bots eran 16 viajes en fila: en una conexión lenta, eterno, y
        el usuario veía "cargando" sin fin. Ahora se preguntan todos a la vez
        y se espera una sola tanda. */
-    const datos = await Promise.all(claves.map(async (k) => {
+    const datos = await enLotes(claves, async (k) => {
       try {
         const [R, md] = await Promise.all([
           gb.resumenK(k),
@@ -2445,7 +2461,7 @@ async function contarBots(cuenta) {
         ]);
         return { R, m: Number(Array.isArray(md) ? md[0] : 0) };
       } catch (_) { return null; }
-    }));
+    });
     for (const d of datos) {
       if (!d || !d.R || !d.R.activa) continue;
       r.total++;
@@ -3082,22 +3098,62 @@ async function refrescarRejillas() {
     const claves = await gb.misRejillas(cuenta);
     const store = JSON.parse(localStorage.getItem('bot-pares') || '{}');
     const cerradas = JSON.parse(localStorage.getItem('bot-cerradas') || '{}');
-    /* TODAS las tarjetas a la vez. Antes cada una esperaba a la anterior:
-       con 8 bots eran 8 rondas encadenadas y en el móvil se quedaba
-       cargando sin fin. Ahora es una sola espera para todas. */
+    /* ══════════════════════════════════════════════════════════════
+       CÓMO SE CARGAN LOS BOTS (y por qué así)
+
+       La lista de claves incluye TODOS los bots que has creado alguna
+       vez, también los cancelados. Para saber cuáles siguen vivos hay
+       que preguntar por cada uno.
+
+       [FALLO GRAVE CORREGIDO] Antes se preguntaba por los 30 a la vez.
+       El servidor rechazaba la mayoría por exceso de peticiones, y cada
+       fallo pintaba una tarjeta rota con "no se pudieron leer sus
+       detalles" y un botón rojo. Resultado: 30 rectángulos negros de
+       bots que llevaban meses cerrados.
+
+       Ahora: en lotes pequeños, con un reintento, y si aun así no se
+       puede leer un bot NO se pinta nada. Un bot que no se puede leer
+       no es un bot roto: es una respuesta que no llegó.
+       ══════════════════════════════════════════════════════════════ */
     const _visibles = claves.filter((c) => !cerradas[c]);
-    const _cards = await Promise.all(_visibles.map(async (clave) => {
-      let R = null;
-      try { R = await gb.resumenK(clave); } catch (_) {}
-      if (R && R.activa === false) return null;   // cancelado → fuera
-      let par = store[clave];
-      if (!par) par = { tipo: 'grid', reconstruido: true };
-      par.__cuenta = cuenta;
-      // NUNCA ocultar un bot en silencio: si el detalle falla, tarjeta mínima.
-      try { return await tarjeta(cuenta, clave, par, R); }
-      catch (e) { return tarjetaMinima(clave, par, e, R); }
-    }));
-    const cards = _cards.filter(Boolean);
+    const LOTE = 4;
+    const _cards = [];
+    let _sinLeer = 0;
+
+    for (let i = 0; i < _visibles.length; i += LOTE) {
+      const lote = _visibles.slice(i, i + LOTE);
+      const res = await Promise.all(lote.map(async (clave) => {
+        // Un intento, y si falla, otro tras una pausa corta.
+        let R = null, fallo = false;
+        try { R = await gb.resumenK(clave); }
+        catch (_) {
+          await new Promise((r) => setTimeout(r, 350));
+          try { R = await gb.resumenK(clave); } catch (_) { fallo = true; }
+        }
+
+        if (fallo || !R) return { sinLeer: true };      // no se pudo leer → NO se pinta
+        if (R.activa === false) return null;            // cancelado → fuera
+
+        let par = store[clave];
+        if (!par) par = { tipo: 'grid', reconstruido: true };
+        par.__cuenta = cuenta;
+        try { return { html: await tarjeta(cuenta, clave, par, R) }; }
+        catch (e) { return { html: tarjetaMinima(clave, par, e, R) }; }
+      }));
+
+      for (const x of res) {
+        if (!x) continue;
+        if (x.sinLeer) { _sinLeer++; continue; }
+        if (x.html) _cards.push(x.html);
+      }
+    }
+
+    const cards = _cards;
+    // Si hubo bots que no se pudieron leer, UN solo aviso discreto.
+    // Nunca treinta tarjetas rotas.
+    if (_sinLeer > 0 && cards.length > 0) {
+      cards.push(`<div class="sinleer">No pudimos leer ${_sinLeer} bot${_sinLeer > 1 ? 's' : ''} ahora mismo. La red va lenta; se mostrarán al refrescar.</div>`);
+    }
     cont.innerHTML = cards.length ? cards.join('')
       : `<div class="vacio-ok">
           <div class="vacio-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>

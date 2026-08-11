@@ -112,7 +112,13 @@ async function abrirPolvo() {
         <button class="pv-x" aria-label="Cerrar">✕</button>
       </div>
       <p class="tl-s">Estos son los restos que tienes repartidos. Elige a qué moneda quieres pasarlos todos.</p>
-      <div id="pv-cuerpo"><div class="tl-cargando">Mirando tu wallet…</div></div>
+      <div id="pv-cuerpo">
+        <div class="pv-cargando">
+          <div class="pv-spin"></div>
+          <div class="pv-carga-t">Revisando tu wallet</div>
+          <div class="pv-carga-s" id="pv-avance">Buscando monedas con saldo…</div>
+        </div>
+      </div>
       <div class="tl-msg" id="pv-msg"></div>
     </div>`;
   document.body.appendChild(d);
@@ -142,23 +148,30 @@ async function cargarSaldos(cuenta) {
     precios = await r.json();
   } catch (_) {}
 
-  const lista = Object.entries(MONEDAS).filter(([, m]) => !m.soloBot);
+  /* Los saldos, en lotes de 5. De una en una tardaba una eternidad (28
+     viajes encadenados); todas a la vez, el servidor rechaza la mitad. */
+  const lista = Object.entries(MONEDAS);
   const encontrados = [];
 
-  for (const [id, m] of lista) {
-    try {
-      let saldo = 0n;
-      if (!m.address || m.address === '0x0000000000000000000000000000000000000000') {
-        saldo = await prov.getBalance(cuenta);
-      } else {
-        saldo = await new ethers.Contract(m.address, ABI20, prov).balanceOf(cuenta);
-      }
-      if (saldo === 0n) continue;
-      const cant = Number(ethers.formatUnits(saldo, m.decimals ?? 18));
-      const precio = (precios[m.cg] && precios[m.cg].usd) || 0;
-      const usd = cant * precio;
-      encontrados.push({ id, m, saldo, cant, usd, precio });
-    } catch (_) {}
+  for (let i = 0; i < lista.length; i += 5) {
+    const res = await Promise.all(lista.slice(i, i + 5).map(async ([id, m]) => {
+      try {
+        let saldo = 0n;
+        if (!m.address || m.address === '0x0000000000000000000000000000000000000000') {
+          saldo = await prov.getBalance(cuenta);
+        } else {
+          saldo = await new ethers.Contract(m.address, ABI20, prov).balanceOf(cuenta);
+        }
+        if (saldo === 0n) return null;
+        const cant = Number(ethers.formatUnits(saldo, m.decimals ?? 18));
+        const precio = (precios[m.cg] && precios[m.cg].usd) || 0;
+        return { id, m, saldo, cant, usd: cant * precio, precio };
+      } catch (_) { return null; }
+    }));
+    res.forEach((x) => { if (x) encontrados.push(x); });
+    // Se va pintando lo que ya hay: el usuario ve avance, no una pantalla muerta.
+    const av = $('pv-avance');
+    if (av) av.textContent = `Revisando… ${Math.min(i + 5, lista.length)} de ${lista.length} monedas`;
   }
 
   encontrados.sort((a, b) => b.usd - a.usd);
@@ -223,10 +236,19 @@ async function cargarSaldos(cuenta) {
   box.querySelectorAll('.pv-chk').forEach((c) => c.onchange = recalcular);
   recalcular();
 
+  /* Cambiar de destino NO recarga los saldos (eso tardaba y parecía que
+     se rompía). Solo se marca la moneda destino como no seleccionable. */
   box.querySelectorAll('[data-dest]').forEach((b) => b.onclick = () => {
     _destino = b.dataset.dest;
     box.querySelectorAll('.pv-opt').forEach((x) => x.classList.toggle('on', x.dataset.dest === _destino));
-    cargarSaldos(cuenta);          // se recarga: la moneda destino no se cambia a sí misma
+    box.querySelectorAll('.pv-chk').forEach((c) => {
+      const x = polvo[Number(c.dataset.i)];
+      const esDestino = x && x.id === _destino;
+      c.disabled = esDestino;
+      if (esDestino) c.checked = false;
+      c.closest('.pv-fila').classList.toggle('destino', !!esDestino);
+    });
+    recalcular();
   });
 
   $('pv-juntar').onclick = () => {
@@ -346,16 +368,18 @@ let _alDir = 'sube';
 function pintarAlertas() {
   const box = $('al-cuerpo'); if (!box) return;
   const alertas = leerAlertas();
-  /* Aquí sí van TODAS las que tengan precio: aunque una moneda no se
-     pueda operar en el marketplace, sí se puede vigilar su precio. */
-  const monedas = Object.entries(MONEDAS).filter(([, m]) => m.cg);
+  /* Solo monedas cuyo precio SE MUEVE. Poner una alerta a USDT o USDC
+     no tiene sentido: valen un dólar y ahí se quedan. */
+  const ESTABLES = ['USDT', 'USDC', 'USDTZ', 'BUSD', 'DAI', 'TUSD', 'FDUSD'];
+  const monedas = Object.entries(MONEDAS)
+    .filter(([id, m]) => m.cg && !ESTABLES.includes(id));
 
   box.innerHTML = `
     <div class="al-paso"><span>1</span>Elige la moneda</div>
     <div class="al-monedas">
       ${monedas.map(([id, m]) => `
         <button class="al-mon ${id === _alMoneda ? 'on' : ''}" data-mon="${id}" title="${esc(m.nombre)}">
-          <span class="al-mon-i" style="background:${m.color}22;color:${m.color};border-color:${m.color}55">${esc(m.icono || m.simbolo[0])}</span>
+          <span class="al-mon-i" data-logo="${esc(m.cg)}" style="border-color:${m.color}55"></span>
           <span class="al-mon-s">${esc(m.simbolo)}</span>
         </button>`).join('')}
     </div>
@@ -386,7 +410,7 @@ function pintarAlertas() {
       <div class="al-lista">${alertas.map((a, i) => {
         const mm = MONEDAS[a.id] || {};
         return `<div class="al-fila ${a.saltada ? 'saltada' : ''}">
-          <span class="al-mon-i chico" style="background:${mm.color || '#888'}22;color:${mm.color || '#888'};border-color:${(mm.color || '#888')}55">${esc(mm.icono || a.sim[0])}</span>
+          <span class="al-mon-i chico" data-logo="${esc(a.cg || '')}" style="border-color:${(mm.color || '#888')}55"></span>
           <span class="al-tx"><b>${esc(a.sim)}</b> ${a.dir === 'sube' ? 'suba a' : 'baje a'} <b>$${num(a.precio, 6)}</b></span>
           ${a.saltada ? '<span class="al-ya">avisada</span>' : ''}
           <button class="al-del" data-del="${i}" aria-label="Borrar">✕</button>
@@ -396,6 +420,8 @@ function pintarAlertas() {
     <div class="pv-nota">
       Las alertas viven <b>en este navegador</b>, no en un servidor. Funcionan mientras tengas Aurex abierto o instalado como app.
     </div>`;
+
+  ponerLogos();
 
   // Precio de ahora, para que sepa dónde está antes de elegir
   const verPrecio = async () => {
@@ -439,6 +465,39 @@ function pintarAlertas() {
     a.splice(Number(b.dataset.del), 1);
     guardarAlertas(a);
     pintarAlertas();
+  });
+}
+
+/* ── LOGOS DE LAS MONEDAS ──────────────────────────────────────
+   Los trae CoinGecko, que es la misma fuente que ya usamos para los
+   precios. Se guardan en el navegador un día: así no se piden otra vez
+   en cada visita. Si alguno no llega, queda el círculo con su color y
+   no se rompe nada. */
+const CLAVE_LOGOS = 'aurex-logos';
+let _logos = null;
+
+async function ponerLogos() {
+  if (!_logos) {
+    try {
+      const g = JSON.parse(localStorage.getItem(CLAVE_LOGOS) || 'null');
+      if (g && Date.now() - g.cuando < 86400000) _logos = g.datos;
+    } catch (_) {}
+  }
+  if (!_logos) {
+    try {
+      const ids = [...new Set(Object.values(MONEDAS).map((m) => m.cg).filter(Boolean))];
+      const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids.join(',')}&per_page=250`);
+      const j = await r.json();
+      _logos = {};
+      j.forEach((x) => { _logos[x.id] = x.image; });
+      try { localStorage.setItem(CLAVE_LOGOS, JSON.stringify({ cuando: Date.now(), datos: _logos })); } catch (_) {}
+    } catch (_) { _logos = {}; }
+  }
+  document.querySelectorAll('[data-logo]').forEach((el) => {
+    const url = _logos[el.dataset.logo];
+    if (!url) return;
+    el.style.backgroundImage = `url(${url})`;
+    el.classList.add('con-logo');
   });
 }
 
@@ -518,6 +577,14 @@ function estilos() {
   .tl-msg{font-family:var(--mono,monospace);font-size:12px;text-align:center;margin-top:14px;min-height:17px;line-height:1.6}
   .tl-msg.ok{color:var(--neon-lit,#2ee86a)} .tl-msg.mal{color:var(--rojo,#f6465d)} .tl-msg.info{color:var(--gold,#E8B84B)}
 
+  #pv-overlay .pv-cargando{text-align:center;padding:38px 16px}
+  #pv-overlay .pv-spin{width:34px;height:34px;margin:0 auto 16px;border-radius:50%;
+    border:2.5px solid rgba(232,184,75,.18);border-top-color:var(--gold,#E8B84B);animation:pvGira .8s linear infinite}
+  @keyframes pvGira{to{transform:rotate(360deg)}}
+  #pv-overlay .pv-carga-t{font-family:var(--display,sans-serif);font-weight:800;font-size:15px;color:#eaecef}
+  #pv-overlay .pv-carga-s{font-family:var(--mono,monospace);font-size:11.5px;color:#7d8794;margin-top:6px}
+  #pv-overlay .pv-fila.destino{opacity:.45}
+  @media(prefers-reduced-motion:reduce){#pv-overlay .pv-spin{animation:none}}
   #pv-overlay .pv-destino{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
     padding:13px 15px;border-radius:13px;background:rgba(255,255,255,.03);border:1px solid #2b3139;margin-bottom:13px}
   #pv-overlay .pv-destino > span{font-family:var(--sans,sans-serif);font-size:13px;color:#b7bdc6}
@@ -577,8 +644,9 @@ function estilos() {
     transition:border-color .15s ease,background .15s ease}
   #al-overlay .al-mon:hover{border-color:var(--gold-soft,#C9A84B)}
   #al-overlay .al-mon.on{border-color:var(--gold,#E8B84B);background:rgba(232,184,75,.1)}
-  #al-overlay .al-mon-i{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;
-    border:1px solid;font-family:var(--display,sans-serif);font-weight:800;font-size:13px}
+  #al-overlay .al-mon-i{width:30px;height:30px;border-radius:50%;flex:0 0 auto;border:1px solid;
+    background:rgba(255,255,255,.05) center/cover no-repeat}
+  #al-overlay .al-mon-i.con-logo{background-color:transparent;background-size:cover}
   #al-overlay .al-mon-i.chico{width:26px;height:26px;font-size:11px}
   #al-overlay .al-mon-s{font-family:var(--mono,monospace);font-size:10.5px;color:#b7bdc6;
     max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -595,6 +663,10 @@ function estilos() {
   #al-overlay .al-in{flex:1;min-width:0;padding:14px 14px 14px 3px;border:none;background:transparent;color:#eaecef;
     font-family:var(--display,sans-serif);font-size:19px;font-weight:700;min-height:52px}
   #al-overlay .al-in:focus{outline:none}
+  /* Las flechitas del campo de precio: fuera. Se escribe el número y ya. */
+  #al-overlay .al-in::-webkit-inner-spin-button,
+  #al-overlay .al-in::-webkit-outer-spin-button{-webkit-appearance:none;appearance:none;margin:0;display:none}
+  #al-overlay .al-in{-moz-appearance:textfield}
   #al-overlay .al-ahora{font-family:var(--mono,monospace);font-size:11.5px;color:#7d8794;text-align:center;margin:9px 0 14px;min-height:16px}
   #al-overlay .al-ahora b{color:var(--gold,#E8B84B)}
   #al-overlay .al-titulo{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;
