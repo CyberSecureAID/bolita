@@ -717,3 +717,39 @@
 }
 .np-chat__op:active { transform: translateY(1px); }
 @media (prefers-reduced-motion: reduce) { .np-chat__op { transition: none; } }
+
+/* ══════════════ TOCABLES CÓMODOS EN EL MÓVIL ══════════════
+   Auditoría en 320–430px: la ✕ de cerrar medía 24px, "Temas" 30 y los
+   botones del menú 35. Con el dedo eso se falla. El mínimo cómodo son
+   44px, que es lo que recomiendan tanto Apple como Google. */
+@media (max-width: 560px) {
+  .np-chat__x {
+    min-width: 44px;
+    min-height: 44px;
+    display: grid;
+    place-items: center;
+    font-size: 22px;
+    line-height: 1;
+  }
+  .np-chat__topics {
+    min-height: 42px;
+    padding: 0 14px;
+  }
+  .np-chat__mi {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    font-size: 13.5px;
+  }
+  /* El botón de enviar también: es el que más se toca de todos. */
+  .np-chat__send {
+    min-width: 46px;
+    min-height: 46px;
+  }
+  /* Y el campo de escribir, que con el teclado abierto se queda justo. */
+  .np-chat__input {
+    min-height: 46px;
+    font-size: 16px;   /* 16px evita que iOS haga zoom al enfocar */
+  }
+}
