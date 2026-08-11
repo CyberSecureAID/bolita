@@ -54,7 +54,7 @@ const OWNER = '0x97e01a1c430e0cc826aca6e9be643721e45bca7d';
 const CONTENIDO = [
   'Un plan de <b>gestión de riesgo</b> con software para aplicarlo',
   '<b>17 clases</b> de cero a cien, cada una con su examen',
-  '<b>19 audiolibros</b> escogidos por un trader de más de 10 años',
+  '<b>19 audiolibros</b> escogidos por un trader con más de <b>10 años</b> en trading y criptomonedas',
   'Mi estrategia <b>Lógica Estructural Avanzada</b>, en tres fases',
   'Tutoriales de las herramientas que se usan de verdad',
   'Ejemplos reales de la estrategia sobre operaciones',
@@ -86,7 +86,7 @@ const RUTA = [
   {
     n: '03',
     t: 'La biblioteca',
-    d: '19 audiolibros escogidos uno a uno. No los escribí yo: los elegí por lo que me sirvieron a mí.',
+    d: '19 audiolibros escogidos uno a uno por alguien con más de 10 años en trading y criptomonedas. No los escribí yo: los elegí por lo que me sirvieron a mí.',
     x: 'Empieza con una <b>masterclass de economía</b> de 3 horas: 10 títulos sobre la verdad del dinero y el Bitcoin.',
     nota: 'Muchos de estos títulos se venden. Aquí van dentro, y en el orden en que conviene escucharlos.',
     items: ['19 audiolibros seleccionados', 'Masterclass de economía, 3 h', 'Examen para pasar al siguiente']

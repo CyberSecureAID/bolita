@@ -148,6 +148,13 @@ function inyectarEstilo() {
     #colmena-app .c-sep{display:none}
   }
   /* En el móvil todo se puede tocar cómodo */
+  /* Las equis de cerrar tienen que ser cómodas con el dedo: 44px es el
+     mínimo que recomiendan Apple y Google. Varias se habían quedado en 34. */
+  @media(max-width:560px){
+    #colmena-app .cf-x,#colmena-app .cm-x,#conf-box .cf-x,#colmena-modal .cm-x,
+    #riesgo-box .rg-x,#colmena-app .modal-x{min-width:44px;min-height:44px;font-size:20px}
+    #colmena-app .btn-conf,#colmena-app .btn-max,#colmena-app .btn-sug{min-height:42px}
+  }
   @media(max-width:560px){
     #colmena-app .c-swap,#colmena-app .c-prize,#colmena-app .c-market,
     #colmena-app .c-loteria,#colmena-app .c-perfil,#colmena-app .dir,
