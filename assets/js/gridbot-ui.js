@@ -813,15 +813,15 @@ function inyectarEstilo() {
     /* Las flechitas de los campos numéricos: FUERA en el móvil.
        Se escribe con el teclado y el dedo nunca acierta en una flecha
        de 8px. En la web se quedan, que ahí van bien. */
-    #colmena-app input[type="number"]::-webkit-inner-spin-button,
-    #colmena-app input[type="number"]::-webkit-outer-spin-button,
-    #conf-box input[type="number"]::-webkit-inner-spin-button,
-    #conf-box input[type="number"]::-webkit-outer-spin-button,
-    input[type="number"]::-webkit-inner-spin-button,
-    input[type="number"]::-webkit-outer-spin-button{
+    #colmena-app input[type="${tipoNum()}"]::-webkit-inner-spin-button,
+    #colmena-app input[type="${tipoNum()}"]::-webkit-outer-spin-button,
+    #conf-box input[type="${tipoNum()}"]::-webkit-inner-spin-button,
+    #conf-box input[type="${tipoNum()}"]::-webkit-outer-spin-button,
+    input[type="${tipoNum()}"]::-webkit-inner-spin-button,
+    input[type="${tipoNum()}"]::-webkit-outer-spin-button{
       -webkit-appearance:none !important;appearance:none !important;
       margin:0 !important;display:none !important;width:0 !important}
-    input[type="number"]{-moz-appearance:textfield !important}
+    input[type="${tipoNum()}"]{-moz-appearance:textfield !important}
   }
   #colmena-app .cerrar-corto{display:none}
   #colmena-app .cerrar-largo{display:inline}
@@ -1131,7 +1131,7 @@ function wirePops(root) { (root || document).querySelectorAll('.i-btn').forEach(
 function campoNum(id, o = {}) {
   const min = o.min ?? 0;
   const attrs = [
-    `id="${id}"`, 'type="number"', 'inputmode="decimal"',
+    `id="${id}"`, 'type="${tipoNum()}"', 'inputmode="decimal"',
     o.placeholder != null ? `placeholder="${o.placeholder}"` : '',
     o.value != null ? `value="${o.value}"` : '',
     `min="${min}"`, o.max != null ? `max="${o.max}"` : '',
@@ -1265,6 +1265,12 @@ function headerHTML() {
     <button class="c-menu-btn" id="c-menu-btn" type="button" aria-label="Menú"><span></span><span></span><span></span></button>
   </header>`;
 }
+/* En el móvil, algunos navegadores pintan unas flechitas en los campos
+   numéricos que no hay forma de quitar con CSS. Con type=text más
+   inputmode=decimal sale el mismo teclado y ninguna flecha. */
+const _movil = () => window.matchMedia('(max-width: 760px)').matches;
+const tipoNum = () => (_movil() ? 'text' : 'number');
+
 const escT = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /* Logo de la wallet conectada (lo envía la propia wallet, sin servidores externos) */
@@ -1748,7 +1754,7 @@ function render() {
           <div class="gasbox">
             <div class="gas-row">
               <div class="stepper gas-stepper">
-                <input id="f-gas" type="number" inputmode="decimal" placeholder="0.01 BNB" min="0" step="0.005" data-min="0" data-step="0.005">
+                <input id="f-gas" type="${tipoNum()}" inputmode="decimal" placeholder="0.01 BNB" min="0" step="0.005" data-min="0" data-step="0.005">
                 <span class="gas-hint">Gas del bot <button class="i-btn gas-ibtn" data-info="gas" type="button">i</button></span>
                 <span class="stepper-btns"><button type="button" class="st-up" tabindex="-1">▲</button><button type="button" class="st-dn" tabindex="-1">▼</button></span>
               </div>
@@ -2049,7 +2055,7 @@ function ventanaConfiguraciones() {
       <div class="cf-sim">
         <div class="cf-sim-t">Prueba con tu cantidad</div>
         <div class="cf-sim-in">
-          <input type="number" id="cf-monto" value="${usada.toFixed(0)}" min="20" max="100000" step="10" inputmode="decimal">
+          <input type="${tipoNum()}" id="cf-monto" value="${usada.toFixed(0)}" min="20" max="100000" step="10" inputmode="decimal">
           <span>USDT</span>
         </div>
         <div class="cf-sim-out" id="cf-sim-out"></div>
@@ -3171,6 +3177,21 @@ async function refrescarRejillas() {
         if (fallo || !R) return { sinLeer: true };      // no se pudo leer → NO se pinta
         if (R.activa === false) return null;            // cancelado → fuera
 
+        /* [BOTS FANTASMA CORREGIDOS] Un bot de verdad tiene niveles y
+           dinero dentro. Si el contrato dice que está "activo" pero no
+           tiene ni cuadrículas ni posición ni saldo, es un resto de una
+           creación que no llegó a completarse. Antes se pintaba igual,
+           con el rango mínimo y el máximo iguales y datos sin sentido.
+           Ahora no se muestra: no hay nada que gestionar ahí. */
+        try {
+          const _niv = Number(R.niveles || 0);
+          const _pos = BigInt(R.posicionBase || 0n);
+          const _cos = BigInt(R.costeQuote || 0n);
+          const _ord = BigInt(R.ordenQuote || 0n);
+          const _ops = Number(R.totalOps || 0);
+          if (_niv === 0 && _pos === 0n && _cos === 0n && _ord === 0n && _ops === 0) return null;
+        } catch (_) {}
+
         let par = store[clave];
         if (!par) par = { tipo: 'grid', reconstruido: true };
         par.__cuenta = cuenta;
@@ -3346,8 +3367,16 @@ async function tarjeta(cuenta, clave, par, R) {
   // Objetivo de salida del Acumulador (el % al que vende todo de golpe)
   let objBps = 0;
   try { const md = await gb.modoDe(clave); objBps = Number(Array.isArray(md) ? md[1] : 0) || 0; } catch (_) {}
+  /* ══════════════════════════════════════════════════════════════
+     [LENTITUD CORREGIDA] Aquí se pedía el historial de operaciones con
+     eth_getLogs, que es la consulta MÁS LENTA de todas y la que más
+     falla en los servidores públicos. Con 30 bots, eran 30 consultas
+     lentas encadenadas: por eso la lista tardaba una eternidad.
+
+     La tarjeta no lo necesita para pintarse: solo sirve para dibujar
+     las flechitas de compra/venta sobre la gráfica. Así que la tarjeta
+     sale YA, y las marcas se añaden después, sin bloquear a nadie. */
   let ops = [], sinHistorial = false;
-  try { const r = await gb.operacionesDe(cuenta, bAddr, qAddr, decB, decQ); ops = r.ops || r || []; sinHistorial = r.error === 'sin-historial'; } catch {}
   const chart = ps.length ? dibujar(ps, precio, pmin, pmax, null, ops) : svgVacio(560, 300, 'este bot ya no tiene órdenes');
 
   // Números
@@ -3360,7 +3389,27 @@ async function tarjeta(cuenta, clave, par, R) {
   const baseInv = invertido > 0 ? invertido : costeQ;
   const pct = (x) => baseInv > 0 ? (x / baseInv * 100) : 0;
   const sg = (x) => (x < 0 ? '−' : '+'), cls = (x) => (x < 0 ? 'neg' : 'pos');
-  const mkt = (par.entry && precio) ? (precio - par.entry) / par.entry * 100 : null;
+  /* ══════════════════════════════════════════════════════════════
+     EL PRECIO DE ENTRADA — [FALLO HISTÓRICO CORREGIDO]
+
+     Salía un guion casi siempre porque se leía de `store`, que es la
+     memoria de ESTE navegador. Si el bot se creó en el móvil y lo miras
+     en el ordenador, o si se limpió la caché, ahí no había nada.
+
+     Pero el contrato SÍ lo sabe: guarda `costeQuote` (lo que gastaste)
+     y `posicionBase` (lo que compraste). El precio medio de entrada es
+     dividir uno entre otro. Ese dato es fijo, está en la blockchain y
+     no depende de ningún navegador.
+     ══════════════════════════════════════════════════════════════ */
+  let entrada = par.entry;
+  if (!(entrada > 0) && R) {
+    try {
+      const pos = Number(gb.fmt(R.posicionBase || 0n, decB));
+      const cos = Number(gb.fmt(R.costeQuote || 0n, decQ));
+      if (pos > 0 && cos > 0) entrada = cos / pos;
+    } catch (_) {}
+  }
+  const mkt = (entrada && precio) ? (precio - entrada) / entrada * 100 : null;
   const sinPos = posBase <= 0 && Number(R.comprasHechas) === 0;
   const gas = Number(gb.fmtBNB(R.gasSaldoWei)).toFixed(5);   // 5 decimales: con 4, 0.00396 salía 0.0040 y parecía que no cambiaba
   const gasLow = R.gasSaldoWei < (GASMIN || 0n);
@@ -3382,14 +3431,14 @@ async function tarjeta(cuenta, clave, par, R) {
   const nombreBot = tipo === 'cash' ? 'Bot Cash Out' : tipo === 'acum' ? 'Bot Accumulator' : tipo === 'dca' ? 'Bot DCA' : 'Bot Smart Grid';
   const invLabel = tipo === 'cash' ? simB : simQ;
   const invValue = tipo === 'cash' ? num((par.cantBase != null ? Number(par.cantBase) : posBase), 6) : num(invertido, 2);
-  const _entValida = par.entry != null && precioFmt(par.entry) !== '—';
+  const _entValida = entrada != null && entrada > 0 && precioFmt(entrada) !== '—';
   // Dos datos distintos, cada uno con su nombre claro. Antes ponía
   // "Entrada → Ahora" y, si no había precio de entrada, cambiaba a "Precio
   // ahora": el cartel bailaba y no se entendía qué era cada número.
   // Una sola casilla: el precio al que entraste y cuánto se ha movido desde
   // entonces. Tener otra con el precio de mercado repetía el mismo dato.
   const _boxEntrada = _entValida
-    ? `<div class="pio-box" data-box="entrada"><div class="k">Precio de entrada</div><div class="v" style="font-size:15px">${precioFmt(par.entry)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}" style="${mkt == null ? 'color:var(--ink-3)' : ''}">${mkt == null ? 'al crear el bot' : 'ahora ' + precioFmt(precio) + ' · ' + sg(mkt) + num(Math.abs(mkt), 2) + '%'}</div></div>`
+    ? `<div class="pio-box" data-box="entrada"><div class="k">Precio de entrada</div><div class="v" style="font-size:15px">${precioFmt(entrada)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}" style="${mkt == null ? 'color:var(--ink-3)' : ''}">${mkt == null ? 'al crear el bot' : 'ahora ' + precioFmt(precio) + ' · ' + sg(mkt) + num(Math.abs(mkt), 2) + '%'}</div></div>`
     : `<div class="pio-box" data-box="entrada"><div class="k">Precio del mercado</div><div class="v" style="font-size:15px">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">ahora mismo</div></div>`;
   const _boxFlotante = `<div class="pio-box" data-box="flotante"><div class="k">Flotante ${iBtn('ganancia')}</div><div class="v ${cls(noRealizado)} numgo" data-to="${Math.abs(noRealizado)}" data-dec="4" data-pre="${sg(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div><div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>`;
   const _boxGas = `<div class="pio-box" data-box="gas"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>`;

@@ -14,6 +14,10 @@ import { MONEDAS } from './tokens.js?v=125';
 
 const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+/* En el móvil los campos numéricos pintan unas flechitas que no hay
+   forma de quitar en algunos navegadores. Con type=text + inputmode
+   sale el mismo teclado numérico y ninguna flecha. */
+const esMovil = () => window.matchMedia('(max-width: 760px)').matches;
 const num = (v, d = 2) => Number(v).toLocaleString('es', { maximumFractionDigits: d });
 
 /* ══════════════════ MENÚ DE HERRAMIENTAS ══════════════════ */
@@ -397,7 +401,7 @@ function pintarAlertas() {
     <div class="al-paso"><span>3</span>El precio</div>
     <div class="al-precio">
       <span class="al-dolar">$</span>
-      <input id="al-precio" class="al-in" type="number" step="any" placeholder="0.00" inputmode="decimal">
+      <input id="al-precio" class="al-in" type="${esMovil() ? 'text' : 'number'}" step="any" placeholder="0.00" inputmode="decimal" autocomplete="off">
     </div>
     <div class="al-ahora" id="al-ahora"></div>
 
@@ -443,7 +447,8 @@ function pintarAlertas() {
         </div>
       </div>`;
     document.body.appendChild(d);
-    ponerLogos();
+    // Los logos, DESPUÉS de que el desplegable esté en la página.
+    setTimeout(ponerLogos, 30);
     const q = () => d.remove();
     d.querySelector('.alp-bg').onclick = q;
     d.querySelector('.alp-x').onclick = q;
@@ -528,7 +533,7 @@ async function ponerLogos() {
     } catch (_) { _logos = {}; }
   }
   document.querySelectorAll('[data-logo]').forEach((el) => {
-    const url = _logos[el.dataset.logo];
+    const url = _logos && _logos[el.dataset.logo];
     if (!url) return;
     el.style.backgroundImage = `url(${url})`;
     el.classList.add('con-logo');
@@ -727,8 +732,12 @@ function estilos() {
      a ajustar), en el móvil fuera (el dedo nunca acierta). */
   @media(max-width:760px){
     #al-overlay .al-in::-webkit-inner-spin-button,
-    #al-overlay .al-in::-webkit-outer-spin-button{-webkit-appearance:none;appearance:none;margin:0;display:none}
-    #al-overlay .al-in{-moz-appearance:textfield}
+    #al-overlay .al-in::-webkit-outer-spin-button,
+    #al-overlay input[type="number"]::-webkit-inner-spin-button,
+    #al-overlay input[type="number"]::-webkit-outer-spin-button{
+      -webkit-appearance:none !important;appearance:none !important;
+      margin:0 !important;display:none !important;width:0 !important}
+    #al-overlay .al-in,#al-overlay input[type="number"]{-moz-appearance:textfield !important}
   }
   #al-overlay .al-ahora{font-family:var(--mono,monospace);font-size:11.5px;color:#7d8794;text-align:center;margin:9px 0 14px;min-height:16px}
   #al-overlay .al-ahora b{color:var(--gold,#E8B84B)}
