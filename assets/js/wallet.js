@@ -60,7 +60,7 @@ function cargarWC() {
       document.head.appendChild(sc);
     });
     // El generador de QR hace falta para el ordenador (en el móvil no molesta).
-    Promise.all([traer('walletconnect.umd.js?v=107'), traer('qrcode.js?v=107')])
+    Promise.all([traer('walletconnect.umd.js?v=124'), traer('qrcode.js?v=124')])
       .then(() => res(!!window['@walletconnect/ethereum-provider']));
     setTimeout(() => res(!!window['@walletconnect/ethereum-provider']), 25000);   // conexiones lentas
   });

@@ -16,8 +16,8 @@
 //  6. DESHACER: se guarda el valor anterior y se restaura con un botón.
 //  7. Todo se firma con la wallet. Sin firma del dueño, el contrato rechaza.
 
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=107';
-import * as wallet from './wallet.js?v=107';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=124';
+import * as wallet from './wallet.js?v=124';
 
 const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

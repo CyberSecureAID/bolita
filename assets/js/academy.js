@@ -46,14 +46,76 @@ const PLANES = [
   { id: 2, nombre: 'Un año',      etiqueta: 'el que sale a cuenta', destacado: false }
 ];
 
+/* La wallet del dueño ve todo sin pagar. */
+const OWNER = '0x97e01a1c430e0cc826aca6e9be643721e45bca7d';
+
+/* Lo que se enseña en la portada: poco, y lo que de verdad diferencia.
+   Detallar el temario aquí sería regalar el motivo para pagar. */
 const CONTENIDO = [
-  'Los 17 vídeos del curso, de lo básico a lo avanzado',
+  'Un plan de <b>gestión de riesgo</b> con software para aplicarlo',
+  '<b>17 clases</b> de cero a cien, cada una con su examen',
+  '<b>19 audiolibros</b> escogidos por un trader de más de 10 años',
   'Mi estrategia <b>Lógica Estructural Avanzada</b>, en tres fases',
-  'Mi plan de gestión de riesgo, el mismo que uso yo',
-  'Cómo leer la dirección del mercado en menos de 3 minutos',
-  'Ejemplos reales de análisis técnico, con capturas',
-  'Spread, apalancamiento, spot y futuros, órdenes, pares… todo explicado',
+  'Tutoriales de las herramientas que se usan de verdad',
+  'Ejemplos reales de la estrategia sobre operaciones',
   'Acceso al grupo mientras dure tu plan'
+];
+
+/* ══════════════════════════════════════════════════════════════
+   LA HOJA DE RUTA
+   El orden importa: cada bloque se apoya en el anterior. Por eso
+   se enseña como camino, no como lista de contenidos.
+   ══════════════════════════════════════════════════════════════ */
+const RUTA = [
+  {
+    n: '01',
+    t: 'Plan de gestión de riesgo',
+    d: 'Antes de operar un solo dólar. Cómo repartir tu dinero, cuánto arriesgar por operación y cuándo parar.',
+    x: 'Incluye un <b>software</b> para aplicarlo sin cuentas a mano.',
+    nota: 'Este plan está hecho a medida de nuestra estrategia. No es un plan genérico de internet.',
+    items: ['Vídeo explicado paso a paso', 'Software de gestión incluido']
+  },
+  {
+    n: '02',
+    t: 'Formación de cero a cien',
+    d: '17 clases en vídeo que empiezan por qué es una criptomoneda y terminan en apalancamiento, spread y mercados de futuros.',
+    x: '<b>Cada clase tiene su examen</b> de 20 preguntas.',
+    nota: 'Regla de la casa: <b>80 puntos o no pasas.</b> Si fallas, el software te explica por qué era verdadero o falso, estudias y repites. Nadie avanza sin entender.',
+    items: ['17 clases en vídeo', '20 preguntas por clase', 'Repaso guiado de lo que fallaste']
+  },
+  {
+    n: '03',
+    t: 'La biblioteca',
+    d: '19 audiolibros escogidos uno a uno. No los escribí yo: los elegí por lo que me sirvieron a mí.',
+    x: 'Empieza con una <b>masterclass de economía</b> de 3 horas: 10 títulos sobre la verdad del dinero y el Bitcoin.',
+    nota: 'Muchos de estos títulos se venden. Aquí van dentro, y en el orden en que conviene escucharlos.',
+    items: ['19 audiolibros seleccionados', 'Masterclass de economía, 3 h', 'Examen para pasar al siguiente']
+  },
+  {
+    n: '04',
+    t: 'Las herramientas',
+    d: 'Tutoriales de las plataformas que se usan de verdad. Desde abrir la cuenta hasta leer un gráfico sin perderte.',
+    x: 'Incluye <b>cómo identificar la dirección del mercado</b> en menos de tres minutos.',
+    items: ['Tutoriales de TradingView', 'Leer la dirección del mercado']
+  },
+  {
+    n: '05',
+    t: 'La estrategia, en imágenes',
+    d: 'Las tres fases aplicadas sobre operaciones reales, con capturas y una guía que explica qué mirar en cada una.',
+    items: ['Ejemplos de las tres fases', 'Guía de contexto']
+  },
+  {
+    n: '06',
+    t: 'Lógica Estructural Avanzada',
+    d: 'Mi estrategia completa. Aquí es donde todo lo anterior encaja.',
+    x: 'Tres fases y un <b>repaso especial</b> en medio.',
+    fases: [
+      { f: 'Fase 1', t: 'Determina la tendencia', d: 'Saber hacia dónde va el mercado antes de tocar nada.' },
+      { f: 'Repaso', t: 'Los cimientos', d: 'Vela japonesa, gráfico contra línea, tipos de tendencia y cómo detectar que cambia. Con su software: 80 puntos para seguir.' },
+      { f: 'Fase 2', t: 'Zona Swing', d: 'Dónde entrar y por qué ahí y no en otro sitio.' },
+      { f: 'Fase 3', t: 'Movimiento en rango', d: 'Cómo se comporta el precio dentro de un rango y cuándo continúa.' }
+    ]
+  }
 ];
 
 /* ══════════════════ ABRIR ══════════════════ */
@@ -69,20 +131,18 @@ export async function abrirAcademy() {
 
       <div class="ac-cab">
         <div class="ac-eyebrow">Aurex Academy</div>
-        <h2 class="ac-t">Aprende a leer el mercado</h2>
-        <p class="ac-s">No son teorías de manual. Es lo que hago yo cada día, explicado en vídeos cortos y directos.</p>
+        <h2 class="ac-t">De cero a operar con criterio</h2>
+        <p class="ac-s">Una ruta ordenada, con exámenes que hay que aprobar para avanzar. No es una carpeta de vídeos sueltos.</p>
       </div>
 
-      <div class="ac-cuerpo">
-        <div class="ac-que">
-          <div class="ac-que-t">Qué llevas dentro</div>
-          <ul class="ac-lista">${CONTENIDO.map((x) => `<li>${x}</li>`).join('')}</ul>
-        </div>
-
-        <div class="ac-planes" id="ac-planes">
-          <div class="ac-cargando">Consultando precios…</div>
-        </div>
+      <div class="ac-que">
+        <div class="ac-que-t">Qué llevas dentro</div>
+        <ul class="ac-lista">${CONTENIDO.map((x) => `<li>${x}</li>`).join('')}</ul>
       </div>
+
+      <div class="ac-planes" id="ac-planes"><div class="ac-cargando">Consultando precios…</div></div>
+
+      <div class="ac-ruta-zona" id="ac-ruta-zona"></div>
 
       <div class="ac-msg" id="ac-msg"></div>
     </div>`;
@@ -93,6 +153,102 @@ export async function abrirAcademy() {
   d.querySelector('.ac-x').onclick = cerrar;
 
   pintarPlanes();
+  pintarRuta();
+}
+
+/* ══════════════════ ¿PUEDE VER LA RUTA? ══════════════════ */
+const CLAVE_USER = 'aurex-academy-user';
+
+function esOwner() {
+  const c = wallet.cuentaActual && wallet.cuentaActual();
+  return c && String(c).toLowerCase() === OWNER;
+}
+
+async function tieneAcceso(usuario) {
+  try { return await leer().tieneAcceso(String(usuario).replace(/^@/, '').toLowerCase()); }
+  catch (_) { return false; }
+}
+
+async function pintarRuta() {
+  const box = $('ac-ruta-zona'); if (!box) return;
+
+  // El dueño entra siempre, sin comprobar nada.
+  if (esOwner()) { rutaAbierta(box, true); return; }
+
+  // ¿Ya se identificó antes en este navegador?
+  let guardado = '';
+  try { guardado = localStorage.getItem(CLAVE_USER) || ''; } catch (_) {}
+  if (guardado && await tieneAcceso(guardado)) { rutaAbierta(box, false, guardado); return; }
+
+  rutaCerrada(box);
+}
+
+/* Cerrada: se ve que hay algo, pero borroso. Eso vende más que ocultarlo. */
+function rutaCerrada(box) {
+  box.innerHTML = `
+    <div class="ac-sec-t">La hoja de ruta</div>
+    <p class="ac-sec-s">El orden exacto en que hay que estudiarlo. Cada bloque se apoya en el anterior.</p>
+
+    <div class="ac-ruta-cerrada">
+      <div class="ac-ruta-borrosa">${ruteroHTML()}</div>
+      <div class="ac-candado">
+        <div class="ac-candado-i"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <div class="ac-candado-t">Solo para miembros</div>
+        <div class="ac-candado-s">Elige un plan arriba y tendrás la ruta completa, con todo lo que hay en cada paso.</div>
+        <div class="ac-candado-ya">
+          <span>¿Ya eres miembro?</span>
+          <div class="ac-ya-in"><span>@</span><input id="ac-ya-user" placeholder="tu usuario de Telegram" autocomplete="off" spellcheck="false"></div>
+          <button class="ac-ya-b" id="ac-ya-b">Entrar</button>
+          <div class="ac-ya-err" id="ac-ya-err"></div>
+        </div>
+      </div>
+    </div>`;
+
+  const comprobar = async () => {
+    const u = ($('ac-ya-user').value || '').trim().replace(/^@/, '').toLowerCase();
+    const err = $('ac-ya-err');
+    if (u.length < 5) { err.textContent = 'Escribe tu usuario de Telegram.'; return; }
+    err.textContent = 'Comprobando…';
+    if (await tieneAcceso(u)) {
+      try { localStorage.setItem(CLAVE_USER, u); } catch (_) {}
+      rutaAbierta($('ac-ruta-zona'), false, u);
+    } else {
+      err.textContent = 'No me consta que ese usuario tenga acceso activo.';
+    }
+  };
+  $('ac-ya-b').onclick = comprobar;
+  $('ac-ya-user').onkeydown = (e) => { if (e.key === 'Enter') comprobar(); };
+}
+
+/* Abierta: la ruta completa. */
+function rutaAbierta(box, owner, usuario) {
+  box.innerHTML = `
+    <div class="ac-sec-t">La hoja de ruta</div>
+    <p class="ac-sec-s">Este es el orden. Cada bloque se apoya en el anterior, así que sáltate uno y el siguiente te costará el doble.</p>
+    <div class="ac-abierto">${owner ? 'Entras como dueño' : `Miembro · @${esc(usuario || '')}`}</div>
+    ${ruteroHTML()}
+    <a class="ac-grupo-b" href="${GRUPO}" target="_blank" rel="noopener">Ir al grupo y empezar</a>`;
+}
+
+/* El HTML de la ruta. Se usa igual borroso que nítido: si fueran dos
+   versiones distintas, se descuadrarían al cambiar una. */
+function ruteroHTML() {
+  return `<div class="ac-ruta">${RUTA.map((p) => `
+    <div class="ac-paso">
+      <div class="ac-paso-n">${p.n}</div>
+      <div class="ac-paso-c">
+        <div class="ac-paso-t">${p.t}</div>
+        <div class="ac-paso-d">${p.d}</div>
+        ${p.x ? `<div class="ac-paso-x">${p.x}</div>` : ''}
+        ${p.items ? `<div class="ac-chips">${p.items.map((i) => `<span>${i}</span>`).join('')}</div>` : ''}
+        ${p.fases ? `<div class="ac-fases">${p.fases.map((f) => `
+          <div class="ac-fase">
+            <span class="ac-fase-n">${f.f}</span>
+            <div><b>${f.t}</b><em>${f.d}</em></div>
+          </div>`).join('')}</div>` : ''}
+        ${p.nota ? `<div class="ac-paso-nota">${p.nota}</div>` : ''}
+      </div>
+    </div>`).join('')}</div>`;
 }
 
 function decir(txt, clase = '') {
@@ -290,7 +446,6 @@ function estilos() {
   #ac-overlay .ac-eyebrow{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);text-transform:uppercase;letter-spacing:2.2px}
   #ac-overlay .ac-t{font-family:var(--display,sans-serif);font-weight:800;font-size:30px;color:#eaecef;margin:9px 0 10px;line-height:1.15}
   #ac-overlay .ac-s{font-family:var(--sans,sans-serif);font-size:14px;color:#8b96a3;line-height:1.6;max-width:52ch;margin:0 auto}
-  #ac-overlay .ac-cuerpo{display:grid;grid-template-columns:1fr 1.15fr;gap:26px;align-items:start}
   #ac-overlay .ac-que{padding:20px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid #2b3139}
   #ac-overlay .ac-que-t{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;letter-spacing:1.1px;margin-bottom:14px}
   #ac-overlay .ac-lista{list-style:none;margin:0;padding:0}
@@ -298,22 +453,25 @@ function estilos() {
   #ac-overlay .ac-lista li:last-child{margin-bottom:0}
   #ac-overlay .ac-lista li b{color:#eaecef}
   #ac-overlay .ac-lista li:before{content:'';position:absolute;left:0;top:6px;width:13px;height:8px;border-left:2px solid var(--gold,#E8B84B);border-bottom:2px solid var(--gold,#E8B84B);transform:rotate(-45deg)}
-  #ac-overlay .ac-planes{display:flex;flex-direction:column;gap:11px}
-  #ac-overlay .ac-plan{position:relative;text-align:left;padding:18px 20px;border-radius:16px;border:1px solid #2b3139;
-    background:linear-gradient(180deg,#1a212b,#0e1218);cursor:pointer;color:var(--ink,#eaecef);transition:border-color .16s ease,transform .16s ease}
+  /* TRES COLUMNAS. Cada plan en vertical, como se comparan los precios
+     en cualquier sitio: de un vistazo se ve qué da cada uno. */
+  #ac-overlay .ac-planes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:24px 0 8px;align-items:stretch}
+  #ac-overlay .ac-plan{position:relative;display:flex;flex-direction:column;text-align:center;padding:26px 18px 20px;
+    border-radius:18px;border:1px solid #2b3139;background:linear-gradient(180deg,#1a212b,#0e1218);
+    cursor:pointer;color:var(--ink,#eaecef);transition:border-color .16s ease,transform .16s ease}
   #ac-overlay .ac-plan:hover{border-color:var(--gold-soft,#C9A84B);transform:translateY(-2px)}
   #ac-overlay .ac-plan.top{border-color:var(--gold,#E8B84B);background:linear-gradient(180deg,rgba(232,184,75,.13),rgba(232,184,75,.03))}
-  #ac-overlay .ac-badge{position:absolute;top:-9px;right:16px;padding:3px 11px;border-radius:20px;
+  #ac-overlay .ac-badge{position:absolute;top:-9px;left:50%;transform:translateX(-50%);white-space:nowrap;padding:3px 11px;border-radius:20px;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800;
     font-family:var(--mono,monospace);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px}
   #ac-overlay .ac-plan-n{font-family:var(--display,sans-serif);font-weight:800;font-size:17px;color:#eaecef}
-  #ac-overlay .ac-plan-p{display:flex;align-items:baseline;gap:6px;margin:6px 0 3px}
-  #ac-overlay .ac-plan-p b{font-family:var(--display,sans-serif);font-size:34px;color:var(--gold,#E8B84B);line-height:1}
+  #ac-overlay .ac-plan-p{display:flex;align-items:baseline;justify-content:center;gap:6px;margin:10px 0 4px}
+  #ac-overlay .ac-plan-p b{font-family:var(--display,sans-serif);font-size:38px;color:var(--gold,#E8B84B);line-height:1}
   #ac-overlay .ac-plan-p span{font-family:var(--mono,monospace);font-size:12px;color:#7d8794}
   #ac-overlay .ac-plan-d{font-family:var(--mono,monospace);font-size:11px;color:#7d8794}
-  #ac-overlay .ac-plan-ah{margin-top:9px;font-family:var(--sans,sans-serif);font-size:12px;color:var(--neon-lit,#2ee86a)}
+  #ac-overlay .ac-plan-ah{margin-top:9px;flex:1;font-family:var(--sans,sans-serif);font-size:12px;color:var(--neon-lit,#2ee86a)}
   #ac-overlay .ac-plan-ah.neutro{color:#7d8794}
-  #ac-overlay .ac-plan-b{display:inline-block;margin-top:13px;padding:9px 20px;border-radius:11px;
+  #ac-overlay .ac-plan-b{display:block;margin-top:16px;padding:9px 20px;border-radius:11px;
     border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
     font-family:var(--display,sans-serif);font-weight:800;font-size:13px}
   #ac-overlay .ac-cargando{font-family:var(--mono,monospace);font-size:12px;color:#7d8794;text-align:center;padding:40px 10px;line-height:1.7}
@@ -373,8 +531,67 @@ function estilos() {
   #ac-ok .ao-n{font-family:var(--sans,sans-serif);font-size:11px;color:#6b7681;line-height:1.5;margin-top:12px}
   #ac-ok .ao-n b{color:var(--ink-3,#7d8794)}
 
+  /* ── LA HOJA DE RUTA ── */
+  #ac-overlay .ac-sec-t{font-family:var(--display,sans-serif);font-weight:800;font-size:22px;color:#eaecef;margin:34px 0 6px;text-align:center}
+  #ac-overlay .ac-sec-s{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;text-align:center;margin:0 auto 20px;max-width:54ch;line-height:1.6}
+  #ac-overlay .ac-ruta{display:flex;flex-direction:column;gap:11px}
+  #ac-overlay .ac-paso{display:flex;gap:16px;padding:18px;border-radius:15px;background:rgba(255,255,255,.025);border:1px solid #2b3139}
+  #ac-overlay .ac-paso-n{flex:0 0 auto;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
+    background:rgba(232,184,75,.12);border:1px solid rgba(232,184,75,.32);color:var(--gold,#E8B84B);
+    font-family:var(--display,sans-serif);font-weight:800;font-size:14px}
+  #ac-overlay .ac-paso-c{flex:1;min-width:0}
+  #ac-overlay .ac-paso-t{font-family:var(--display,sans-serif);font-weight:800;font-size:16.5px;color:#eaecef}
+  #ac-overlay .ac-paso-d{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.6;margin-top:5px}
+  #ac-overlay .ac-paso-x{font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.55;margin-top:7px}
+  #ac-overlay .ac-paso-x b{color:var(--gold,#E8B84B)}
+  #ac-overlay .ac-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+  #ac-overlay .ac-chips span{padding:5px 11px;border-radius:20px;background:rgba(255,255,255,.04);border:1px solid #3a424c;
+    font-family:var(--mono,monospace);font-size:10.5px;color:#8b96a3}
+  #ac-overlay .ac-paso-nota{margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(232,184,75,.07);
+    border-left:2px solid var(--gold-soft,#C9A84B);font-family:var(--sans,sans-serif);font-size:12px;color:#b7bdc6;line-height:1.55}
+  #ac-overlay .ac-paso-nota b{color:var(--gold,#E8B84B)}
+  #ac-overlay .ac-fases{margin-top:13px;display:flex;flex-direction:column;gap:8px}
+  #ac-overlay .ac-fase{display:flex;gap:11px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.03)}
+  #ac-overlay .ac-fase-n{flex:0 0 auto;padding:3px 9px;border-radius:6px;background:rgba(232,184,75,.14);color:var(--gold,#E8B84B);
+    font-family:var(--mono,monospace);font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:1px}
+  #ac-overlay .ac-fase b{display:block;font-family:var(--display,sans-serif);font-size:13.5px;color:#eaecef}
+  #ac-overlay .ac-fase em{display:block;font-style:normal;font-family:var(--sans,sans-serif);font-size:12px;color:#7d8794;margin-top:3px;line-height:1.5}
+
+  /* Cerrada: se intuye lo que hay, pero no se lee. */
+  #ac-overlay .ac-ruta-cerrada{position:relative;border-radius:18px;overflow:hidden}
+  #ac-overlay .ac-ruta-borrosa{filter:blur(7px);opacity:.4;pointer-events:none;user-select:none;max-height:430px;overflow:hidden}
+  #ac-overlay .ac-candado{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:26px 22px;background:linear-gradient(180deg,rgba(11,14,18,.55),rgba(11,14,18,.9))}
+  #ac-overlay .ac-candado-i{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;margin-bottom:13px;
+    background:rgba(232,184,75,.12);border:1px solid rgba(232,184,75,.4);color:var(--gold,#E8B84B)}
+  #ac-overlay .ac-candado-t{font-family:var(--display,sans-serif);font-weight:800;font-size:19px;color:#eaecef}
+  #ac-overlay .ac-candado-s{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;margin:8px 0 20px;max-width:40ch;line-height:1.6}
+  #ac-overlay .ac-candado-ya{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;
+    padding:14px 16px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid #3a424c;max-width:100%}
+  #ac-overlay .ac-candado-ya > span{font-family:var(--sans,sans-serif);font-size:12.5px;color:#7d8794;width:100%}
+  #ac-overlay .ac-ya-in{display:flex;align-items:center;border-radius:10px;border:1px solid #2b3139;background:#0b0e12;overflow:hidden}
+  #ac-overlay .ac-ya-in span{padding:0 2px 0 11px;font-family:var(--mono,monospace);font-size:14px;color:#6b7681}
+  #ac-overlay .ac-ya-in input{width:190px;max-width:46vw;padding:11px 11px 11px 2px;border:none;background:transparent;color:#eaecef;
+    font-family:var(--mono,monospace);font-size:13.5px}
+  #ac-overlay .ac-ya-in input:focus{outline:none}
+  #ac-overlay .ac-ya-b{padding:11px 19px;border-radius:10px;border:1px solid #c79426;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:13px;cursor:pointer;min-height:42px}
+  #ac-overlay .ac-ya-err{width:100%;font-family:var(--sans,sans-serif);font-size:11.5px;color:var(--gold,#E8B84B);min-height:15px}
+  #ac-overlay .ac-abierto{display:inline-block;padding:6px 14px;border-radius:20px;margin:0 auto 18px;
+    background:rgba(46,232,106,.1);border:1px solid rgba(46,232,106,.35);color:var(--neon-lit,#2ee86a);
+    font-family:var(--mono,monospace);font-size:11px}
+  #ac-overlay .ac-ruta-zona{text-align:center}
+  #ac-overlay .ac-ruta-zona .ac-ruta{text-align:left}
+  #ac-overlay .ac-grupo-b{display:inline-block;margin-top:20px;padding:14px 30px;border-radius:13px;border:1px solid #c79426;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;text-decoration:none;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:14.5px;box-shadow:0 4px 0 #8f6a1a}
+
   @media(max-width:860px){
-    #ac-overlay .ac-cuerpo{grid-template-columns:1fr;gap:20px}
+    #ac-overlay .ac-planes{grid-template-columns:1fr;gap:11px}
+    #ac-overlay .ac-plan{text-align:left;padding:20px 18px}
+    #ac-overlay .ac-plan-p{justify-content:flex-start}
+    #ac-overlay .ac-badge{left:auto;right:16px;transform:none}
     #ac-overlay .ac-c{padding:26px 18px}
     #ac-overlay .ac-t{font-size:25px}
   }

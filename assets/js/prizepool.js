@@ -1,8 +1,8 @@
 // prizepool.js — Módulo Prize Pool (independiente). No toca la lógica de los bots.
 // La librería vive en ESTE repositorio. Carga directa: sin CDN, sin esperas,
 // sin nada externo que pueda quedarse colgado y dejar la app en 'Cargando…'.
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=107';
-import * as wallet from './wallet.js?v=107';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=124';
+import * as wallet from './wallet.js?v=124';
 
 /* ───────── Config ───────── */
 const PRIZEPOOL = '0x595CD563F236DAEba21219D60AEF656a750A8132';
