@@ -149,11 +149,15 @@ window.NP_BOT_KB = {
     },
 
     /* Empujoncitos para seguir la conversación. Suaves, nunca vendedores. */
+    /* Los empujoncitos NO son para vender. Son para no dejar al usuario
+       mirando la pantalla sin saber qué escribir. Preguntan si le queda
+       alguna duda, no le ofrecen productos. Quien llega aquí suele venir
+       con un problema, y lo último que necesita es que le vendan algo. */
     nudges: {
-      any:      ['¿Quieres que te cuente algo más?', '¿Te aclaro alguna otra cosa?'],
-      nuevo:    ['¿Te explico cómo empezar?', '¿Quieres que veamos qué bot te encaja?'],
-      experto:  ['¿Quieres el detalle de cómo se calcula?'],
-      problema: ['¿Te paso con una persona para que lo miren contigo?']
+      any:      ['¿Te aclaro algo más?', '¿Alguna otra duda?', '¿Necesitas algo más?'],
+      nuevo:    ['¿Te queda alguna duda?', '¿Quieres que te lo explique de otra forma?'],
+      experto:  ['¿Necesitas el detalle de algo?'],
+      problema: ['¿Sigue el problema, o se resolvió?', '¿Te ayudo con algo más de eso?']
     },
 
     /* Recapitula lo que entendió (del flujo de datos, que aquí no usamos). */
@@ -538,6 +542,26 @@ window.NP_BOT_KB = {
       ]
     },
     {
+      topic: 'guía para vender',
+      guia: 'vender', guiaLabel: 'Empezar',
+      keys: ['guiame para vender', 'guia para vender', 'ensename a vender',
+             'como publico una oferta de venta', 'quiero publicar una oferta'],
+      answer: [
+        'Vamos allá. Te llevo paso a paso para publicar tu oferta de venta.',
+        'Perfecto. Te guío para vender, con calma.'
+      ]
+    },
+    {
+      topic: 'guía para comprar',
+      guia: 'comprar', guiaLabel: 'Empezar',
+      keys: ['guiame para comprar', 'guia para comprar', 'ensename a comprar',
+             'quiero comprar cripto a alguien'],
+      answer: [
+        'Vamos allá. Te llevo paso a paso para comprarle a otra persona con seguridad.',
+        'Perfecto. Te guío para comprar.'
+      ]
+    },
+    {
       topic: 'vender en el marketplace',
       guia: 'vender', guiaLabel: 'Guíame para vender',
       accion: 'market',
@@ -643,13 +667,14 @@ window.NP_BOT_KB = {
       topic: 'qué es Aurex',
       keys: [
         'que es aurex', 'qué es aurex', 'que es esto', 'que es esta pagina',
+        'que es aurex finance',
         'que es este sitio', 'que es la plataforma', 'de que va', 'de que va esto',
         'de que se trata', 'que hacen', 'que hacen aqui', 'que ofrecen',
         'para que sirve', 'para que sirve esto', 'que puedo hacer aqui',
         'explicame la plataforma', 'explicame esto', 'como funciona la pagina',
         'como funciona aurex', 'como funciona esto', 'que tipo de plataforma es',
         'que es aurex finance', 'aurex', 'hablame de aurex', 'cuentame de aurex',
-        'que es', 'informacion', 'informame', 'quiero saber mas', 'de que trata',
+        'informacion', 'informame', 'quiero saber mas', 'de que trata',
         'que servicios tienen', 'que servicios ofrecen', 'que hay aqui',
         'esto que es', 'y esto', 'nunca habia visto esto', 'primera vez aqui'
       ],
@@ -862,11 +887,13 @@ window.NP_BOT_KB = {
     /* ══════════════ OTRAS SECCIONES ══════════════ */
     {
       topic: 'marketplace',
-      guia: 'comprar', guiaLabel: 'Guíame para comprar',
+      /* Aquí llega tanto quien quiere comprar como quien quiere vender.
+         En vez de adivinar cuál es, se le pregunta y se le dan las dos
+         guías: así nadie acaba en la explicación equivocada. */
       opciones: [
-        { label: 'Quiero comprar', q: 'como compro en el marketplace' },
-        { label: 'Quiero vender',  q: 'como publico una oferta de venta' },
-        { label: '¿Es seguro?',    q: 'y si el vendedor no me manda el dinero' }
+        { label: 'Quiero comprar', q: 'guiame para comprar' },
+        { label: 'Quiero vender',  q: 'guiame para vender' },
+        { label: '¿Es seguro?',    q: 'y si el vendedor no libera' }
       ],
       accion: 'market',
       keys: ['marketplace', 'market', 'p2p', 'comprar usdt', 'vender usdt',
@@ -975,7 +1002,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'guiarme paso a paso',
-      keys: ['me puedes guiar', 'guiame', 'guiarme', 'ayudame a montar', 'como monto mi bot',
+      keys: ['me puedes guiar', 'guiarme', 'ayudame a montar', 'como monto mi bot',
              'ayudame a crear', 'paso a paso', 'que hago primero', 'y despues que hago',
              'cual me recomiendas', 'que me recomiendas', 'que bot me conviene',
              'no se cual elegir', 'ayudame a elegir'],
@@ -1081,8 +1108,8 @@ window.NP_BOT_KB = {
              'hace falta experiencia', 'soy nuevo puedo usar los bots',
              'debo aprender', 'me conviene aprender', 'vale la pena la academia'],
       answer: [
-        'No hace falta saber para empezar: las configuraciones ya vienen calculadas y puedes encender un bot hoy mismo.\n\nPero te digo lo que veo: **quien entiende lo que hace su bot, aguanta mejor las malas rachas**. El que no entiende, se asusta y cancela justo en el peor momento.',
-        'Puedes empezar sin saber nada, de verdad. Elige una configuración recomendada y listo.\n\nAhora, si te interesa entender lo que pasa por debajo, para eso está la academia. No es obligatoria, pero cambia mucho cómo vives las bajadas.'
+        'No hace falta saber nada para empezar: las configuraciones vienen calculadas y puedes encender un bot hoy mismo.\n\nDicho eso, **quien entiende lo que hace su bot aguanta mejor las malas rachas**. El que no entiende se asusta y cancela en el peor momento.',
+        'Puedes empezar sin saber nada, de verdad. Eliges una configuración recomendada y listo.\n\nSi más adelante quieres entender lo que pasa por debajo, tenemos formación. Pero no te hace falta para arrancar.'
       ],
       accion: 'academy'
     },
@@ -1139,6 +1166,24 @@ window.NP_BOT_KB = {
       ],
       more: [
         'Las reglas, claras:\n\n**Entrar:** pagas la participación y quedas dentro de la ronda.\n**Salir:** puedes retirarte y recuperar tu aporte hasta **24 h antes** del cierre. Después ya no, para que nadie infle el pozo y se marche antes del sorteo.\n**El sorteo:** al cerrar la ronda se pide un número aleatorio verificable. Si no hay participantes suficientes, se **devuelve el dinero a todos**.\n**Cobrar:** si ganas, te aparece un botón para reclamar tu premio.\n\nY una idea, por si te sirve: el sorteo es suerte. **Si lo que quieres es que tu dinero crezca de forma constante, los bots o la formación te van a servir más.**'
+      ]
+    },
+
+    {
+      topic: 'tengo un problema',
+      keys: ['tengo un problema', 'necesito ayuda', 'ayuda', 'ayudame', 'algo va mal',
+             'me pasa algo', 'no me funciona nada', 'estoy preocupado', 'estoy perdido',
+             'no entiendo nada', 'estoy agobiado', 'no se que hacer'],
+      answer: [
+        'Cuéntame qué pasa y lo miramos. Sin prisa.',
+        'Dime qué te ocurre. Cuanto más concreto, mejor te puedo ayudar.',
+        'A ver, cuéntame. ¿Qué está pasando exactamente?'
+      ],
+      opciones: [
+        { label: 'Mi bot no opera',   q: 'mi bot no vende nada' },
+        { label: 'No conecta wallet', q: 'no me conecta la wallet' },
+        { label: 'Perdí dinero',      q: 'perdi dinero' },
+        { label: 'Otra cosa',         q: 'contacto' }
       ]
     },
 
