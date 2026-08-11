@@ -198,7 +198,14 @@ function rutaCerrada(box) {
     <p class="ac-sec-s">El orden exacto en que hay que estudiarlo. Cada bloque se apoya en el anterior.</p>
 
     <div class="ac-ruta-cerrada">
-      <div class="ac-ruta-borrosa">${ruteroHTML()}</div>
+      <div class="ac-ruta-borrosa">${RUTA.map((p) => `
+        <div class="ac-paso">
+          <div class="ac-paso-n">${p.n}</div>
+          <div class="ac-paso-c">
+            <div class="ac-paso-t">${p.t}</div>
+            <div class="ac-paso-d">${p.d}</div>
+          </div>
+        </div>`).join('')}</div>
       <div class="ac-candado">
         <div class="ac-candado-i"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
         <div class="ac-candado-t">Solo para miembros</div>
@@ -417,6 +424,53 @@ async function pintarPlanes() {
   }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   VALIDAR EL USUARIO DE TELEGRAM
+   Lo más delicado del flujo: si alguien escribe mal su usuario, paga
+   igual pero el bot no lo reconoce y no puede entrar. Y el dinero ya
+   está en la blockchain, así que no hay vuelta atrás.
+
+   Reglas reales de Telegram (comprobadas):
+     · de 5 a 32 caracteres (los usuarios NFT admiten 4)
+     · solo a-z, A-Z, 0-9 y guion bajo
+     · empieza por LETRA, nunca por número ni guion bajo
+     · no termina en guion bajo, ni lleva dos seguidos
+     · no distingue mayúsculas: Pepe y pepe son el mismo
+
+   Cada fallo devuelve un motivo CONCRETO. Decirle a alguien qué tiene
+   mal es la diferencia entre que lo corrija o que se rinda.
+   ══════════════════════════════════════════════════════════════ */
+function revisarUsuario(bruto) {
+  let u = String(bruto || '').trim();
+
+  // Pegó el enlace entero en vez del usuario
+  const enlace = u.match(/(?:https?:\/\/)?(?:t\.me|telegram\.me)\/(?:@)?([A-Za-z0-9_]+)/i);
+  if (enlace) u = enlace[1];
+
+  u = u.replace(/^@+/, '');            // quita una o varias arrobas
+
+  if (!u) return { error: 'Escribe tu usuario de Telegram.' };
+  if (/@/.test(u)) return { error: 'Sobra una arroba. Escribe solo el usuario, sin @.' };
+  if (/^\+?\d[\d\s-]{6,}$/.test(u)) return { error: 'Eso parece un número de teléfono. Necesito tu <b>usuario</b>, el que empieza por @.' };
+  if (/\s/.test(u)) return { error: 'Un usuario de Telegram no lleva espacios.' };
+  if (/[\u00E1\u00E9\u00ED\u00F3\u00FA\u00FC\u00F1\u00C1\u00C9\u00CD\u00D3\u00DA\u00DC\u00D1]/.test(u)) return { error: 'No se admiten tildes ni la ñ. Solo letras sin acento, números y guion bajo.' };
+  if (/-/.test(u)) return { error: 'El guion normal (-) no vale. Telegram solo admite el guion bajo (_).' };
+  if (/[^A-Za-z0-9_]/.test(u)) return { error: 'Solo se admiten letras, números y guion bajo (_).' };
+  if (u.length < 4) return { error: 'Muy corto: tiene ' + u.length + ' caracteres y Telegram pide al menos 5.' };
+  if (u.length > 32) return { error: 'Muy largo: tiene ' + u.length + ' caracteres y el máximo de Telegram son 32.' };
+  if (/^[0-9]/.test(u)) return { error: 'Un usuario de Telegram empieza por letra, nunca por número.' };
+  if (/^_/.test(u)) return { error: 'No puede empezar por guion bajo.' };
+  if (/_$/.test(u)) return { error: 'No puede terminar en guion bajo.' };
+  if (/__/.test(u)) return { error: 'No puede llevar dos guiones bajos seguidos.' };
+
+  // 4 caracteres: solo los usuarios NFT. Se admite, pero se avisa.
+  const aviso = u.length === 4
+    ? 'Cuatro caracteres solo lo tienen los usuarios NFT. Si el tuyo es normal, revísalo.'
+    : null;
+
+  return { ok: u.toLowerCase(), mostrar: u, aviso: aviso };
+}
+
 /* ══════════════════ USUARIO Y PAGO ══════════════════ */
 function pedirDatos(planId, datos) {
   const p = datos.find((x) => x.id === planId); if (!p) return;
@@ -454,20 +508,72 @@ function pedirDatos(planId, datos) {
   d.querySelector('.ap-bg').onclick = cerrar;
   d.querySelector('.ap-x').onclick = cerrar;
 
-  const validar = () => {
-    const u = ($('ap-user').value || '').trim().replace(/^@/, '');
-    const err = $('ap-err');
-    if (u.length < 5) { err.textContent = 'El usuario de Telegram tiene al menos 5 caracteres.'; return null; }
-    if (!/^[a-zA-Z0-9_]+$/.test(u)) { err.textContent = 'Solo letras, números y guion bajo. Sin espacios ni signos.'; return null; }
-    err.textContent = '';
-    return u.toLowerCase();
+  const err = $('ap-err');
+  const campo = $('ap-user');
+
+  /* Revisa mientras escribe: mejor avisar antes que después de pagar. */
+  const revisar = (silencioso) => {
+    const r = revisarUsuario(campo.value);
+    if (r.error) {
+      if (!silencioso) { err.className = 'ap-err mal'; err.innerHTML = r.error; }
+      return null;
+    }
+    err.className = 'ap-err' + (r.aviso ? ' aviso' : ' ok');
+    err.innerHTML = r.aviso || `Se registrará como <b>@${esc(r.mostrar)}</b>`;
+    return r;
   };
+  campo.oninput = () => revisar(campo.value.length < 3);
 
   d.querySelectorAll('[data-pago]').forEach((b) => b.onclick = () => {
-    const u = validar(); if (!u) return;
-    cerrar();
-    pagar(p, u, b.dataset.pago);
+    const r = revisar(false);
+    if (!r) { campo.focus(); return; }
+    confirmarUsuario(p, r, b.dataset.pago, cerrar);
   });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ÚLTIMA PARADA ANTES DE PAGAR
+   El usuario ve su nombre GRANDE y tiene que confirmar que es correcto.
+   Aquí se le dice claro que no hay reembolso: el pago va a un contrato
+   en la blockchain, y de ahí nadie lo saca. Vale más un segundo de
+   fricción ahora que un problema irreparable después.
+   ══════════════════════════════════════════════════════════════ */
+function confirmarUsuario(plan, r, moneda, cerrarAnterior) {
+  const d = document.createElement('div');
+  d.id = 'ac-conf';
+  d.innerHTML = `<div class="acf-bg"></div>
+    <div class="acf-c">
+      <div class="acf-t">Revisa tu usuario</div>
+      <p class="acf-s">Es con este nombre con el que te dejaremos entrar. <b>Si está mal, no podremos reconocerte.</b></p>
+
+      <div class="acf-user">@${esc(r.mostrar)}</div>
+
+      <label class="acf-check">
+        <input type="checkbox" id="acf-ok">
+        <span>He comprobado que <b>ese es exactamente</b> mi usuario de Telegram</span>
+      </label>
+
+      <div class="acf-aviso">
+        <b>Sin reembolso.</b> El pago va directo a un contrato en la blockchain. Ni yo ni nadie puede devolvértelo.
+        <i>¿Cómo comprobarlo? En Telegram: Ajustes → Nombre de usuario. O abre <b>t.me/${esc(r.mostrar)}</b> y mira si eres tú.</i>
+      </div>
+
+      <div class="acf-acts">
+        <button class="acf-b gris" id="acf-no">Volver y corregir</button>
+        <button class="acf-b" id="acf-si" disabled>Pagar ${plan.usd} USD</button>
+      </div>
+    </div>`;
+  document.body.appendChild(d);
+
+  const q = () => d.remove();
+  d.querySelector('.acf-bg').onclick = q;
+  $('acf-no').onclick = q;
+  $('acf-ok').onchange = (e) => { $('acf-si').disabled = !e.target.checked; };
+  $('acf-si').onclick = () => {
+    q();
+    if (cerrarAnterior) cerrarAnterior();
+    pagar(plan, r.ok, moneda);
+  };
 }
 
 async function pagar(plan, usuario, moneda) {
@@ -638,6 +744,38 @@ function estilos() {
   #ac-pago .ap-b b{display:block;font-family:var(--display,sans-serif);font-size:15px}
   #ac-pago .ap-b span{display:block;font-family:var(--mono,monospace);font-size:12px;color:var(--gold,#E8B84B);margin-top:3px}
   #ac-pago .ap-n{font-family:var(--sans,sans-serif);font-size:11px;color:#6b7681;line-height:1.5;margin-top:14px}
+
+  #ac-conf{position:fixed;inset:0;z-index:9815;display:flex;align-items:center;justify-content:center;padding:18px}
+  #ac-conf .acf-bg{position:absolute;inset:0;background:rgba(3,5,8,.93)}
+  #ac-conf .acf-c{position:relative;width:100%;max-width:390px;max-height:calc(100vh - 36px);overflow-y:auto;text-align:center;
+    background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:20px;padding:26px 20px}
+  #ac-conf .acf-t{font-family:var(--display,sans-serif);font-weight:800;font-size:20px;color:var(--gold,#E8B84B)}
+  #ac-conf .acf-s{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.6;margin:9px 0 16px}
+  #ac-conf .acf-s b{color:#eaecef}
+  #ac-conf .acf-user{padding:16px 12px;border-radius:14px;background:rgba(232,184,75,.09);border:1px solid rgba(232,184,75,.35);
+    font-family:var(--mono,monospace);font-size:20px;font-weight:700;color:var(--gold,#E8B84B);
+    word-break:break-all;line-height:1.3;margin-bottom:16px}
+  #ac-conf .acf-check{display:flex;align-items:flex-start;gap:11px;text-align:left;padding:13px;border-radius:12px;
+    background:rgba(255,255,255,.03);border:1px solid #2b3139;cursor:pointer;margin-bottom:14px}
+  #ac-conf .acf-check input{width:20px;height:20px;flex:0 0 auto;margin-top:1px;accent-color:var(--gold,#E8B84B);cursor:pointer}
+  #ac-conf .acf-check span{font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.5}
+  #ac-conf .acf-check b{color:#eaecef}
+  #ac-conf .acf-aviso{text-align:left;padding:13px;border-radius:12px;background:rgba(246,70,93,.07);
+    border:1px solid rgba(246,70,93,.28);font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.6;margin-bottom:18px}
+  #ac-conf .acf-aviso b{color:var(--rojo,#f6465d)}
+  #ac-conf .acf-aviso i{display:block;font-style:normal;margin-top:9px;padding-top:9px;
+    border-top:1px solid rgba(246,70,93,.2);font-size:11.5px;color:#7d8794}
+  #ac-conf .acf-aviso i b{color:var(--gold,#E8B84B)}
+  #ac-conf .acf-acts{display:flex;flex-direction:column;gap:9px}
+  #ac-conf .acf-b{width:100%;min-height:48px;padding:13px;border-radius:12px;border:1px solid #c79426;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 4px 0 #8f6a1a}
+  #ac-conf .acf-b.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:#b7bdc6;box-shadow:0 3px 0 rgba(0,0,0,.4)}
+  #ac-conf .acf-b:disabled{opacity:.4;cursor:default;box-shadow:none}
+  #ac-conf .acf-b:active:not(:disabled){transform:translateY(2px)}
+  #ac-pago .ap-err.mal{color:var(--rojo,#f6465d)}
+  #ac-pago .ap-err.ok{color:var(--neon-lit,#2ee86a)}
+  #ac-pago .ap-err.aviso{color:var(--gold,#E8B84B)}
 
   #ac-ok{position:fixed;inset:0;z-index:9820;display:flex;align-items:center;justify-content:center;padding:18px}
   #ac-ok .ao-bg{position:absolute;inset:0;background:rgba(3,5,8,.93)}
