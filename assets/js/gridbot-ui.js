@@ -3317,13 +3317,30 @@ async function refrescarPnls() {
       };
       upd(qbox('realizado'), realizado, P(realizado));
       upd(qbox('flotante'), noRealizado, P(noRealizado));
+      /* [CORREGIDO] Este refresco pintaba "— → 600.08": una flecha desde
+         un dato que no existe. Y además con un formato distinto al que
+         usa la tarjeta al dibujarse, así que el cartel cambiaba solo a
+         los pocos segundos. Ahora respeta el mismo formato, y si no hay
+         precio de entrada no inventa ninguna flecha. */
       const entry = Number(card.dataset.entry) || null;
       const ea = qbox('entrada');
       if (ea && precio) {
-        const v = ea.querySelector('.v'); if (v) v.textContent = (entry ? precioFmt(entry) : '—') + ' → ' + precioFmt(precio);
-        const mkt = entry ? (precio - entry) / entry * 100 : null;
+        const v = ea.querySelector('.v');
         const v2 = ea.querySelector('.v2');
-        if (v2 && mkt !== null) { v2.classList.remove('pos', 'neg'); v2.classList.add(cls(mkt)); v2.textContent = sg(mkt) + num(Math.abs(mkt), 2) + '% mercado'; }
+        if (entry > 0) {
+          if (v) v.textContent = precioFmt(entry);
+          const mkt = (precio - entry) / entry * 100;
+          if (v2) {
+            v2.classList.remove('pos', 'neg');
+            v2.classList.add(cls(mkt));
+            v2.textContent = 'ahora ' + precioFmt(precio) + ' · ' + sg(mkt) + num(Math.abs(mkt), 2) + '%';
+          }
+        } else {
+          // Sin precio de entrada, la casilla enseña el de mercado. Igual
+          // que al dibujarse: un solo dato, claro, sin flechas huérfanas.
+          if (v) v.textContent = precioFmt(precio);
+          if (v2) { v2.classList.remove('pos', 'neg'); v2.style.color = 'var(--ink-3)'; v2.textContent = 'ahora mismo'; }
+        }
       }
       const vu = qbox('vueltas');
       if (vu) { const v = vu.querySelector('.v'); const v2 = vu.querySelector('.v2');
@@ -3511,14 +3528,41 @@ async function tarjeta(cuenta, clave, par, R) {
   const invLabel = tipo === 'cash' ? simB : simQ;
   const invValue = tipo === 'cash' ? num((par.cantBase != null ? Number(par.cantBase) : posBase), 6) : num(invertido, 2);
   const _entValida = entrada != null && entrada > 0 && precioFmt(entrada) !== '—';
+  // Se guarda en la tarjeta para que el refresco automático lo tenga.
+  // Antes solo se guardaba el del navegador: por eso al refrescar
+  // aparecía el guion aunque la tarjeta lo hubiera calculado bien.
+  par.__entryCalc = _entValida ? entrada : null;
   // Dos datos distintos, cada uno con su nombre claro. Antes ponía
   // "Entrada → Ahora" y, si no había precio de entrada, cambiaba a "Precio
   // ahora": el cartel bailaba y no se entendía qué era cada número.
   // Una sola casilla: el precio al que entraste y cuánto se ha movido desde
   // entonces. Tener otra con el precio de mercado repetía el mismo dato.
+  /* ══════════════════════════════════════════════════════════════
+     PRECIO DE ENTRADA — POR QUÉ FALLABA TRES VECES
+
+     No era un fallo de lectura. Es que el dato NO EXISTE hasta que el
+     bot compra algo: sin compras no hay precio medio de entrada. La
+     tarjeta enseñaba un guion y parecía que la web estaba rota.
+
+     Lo que sí tiene sentido en ese momento es decir a qué precio está
+     ESPERANDO comprar, que es la cuadrícula de compra más alta. Ese
+     dato sí existe desde el primer segundo.
+     ══════════════════════════════════════════════════════════════ */
+  const _esperaEn = (() => {
+    if (_entValida) return null;
+    try {
+      const compras = ps.filter((x) => x.tipo === 'compra' && x.p > 0).map((x) => x.p);
+      if (compras.length) return Math.max(...compras);
+      if (tipo === 'cash' && objetivo > 0) return null;   // el Cash Out no compra
+    } catch (_) {}
+    return null;
+  })();
+
   const _boxEntrada = _entValida
     ? `<div class="pio-box" data-box="entrada"><div class="k">Precio de entrada</div><div class="v" style="font-size:15px">${precioFmt(entrada)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}" style="${mkt == null ? 'color:var(--ink-3)' : ''}">${mkt == null ? 'al crear el bot' : 'ahora ' + precioFmt(precio) + ' · ' + sg(mkt) + num(Math.abs(mkt), 2) + '%'}</div></div>`
-    : `<div class="pio-box" data-box="entrada"><div class="k">Precio del mercado</div><div class="v" style="font-size:15px">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">ahora mismo</div></div>`;
+    : _esperaEn
+      ? `<div class="pio-box" data-box="entrada"><div class="k">Compra al llegar a</div><div class="v" style="font-size:15px">${precioFmt(_esperaEn)}</div><div class="v2" style="color:var(--ink-3)">ahora ${precioFmt(precio)}${precio > 0 ? ' · falta ' + num(Math.abs((precio - _esperaEn) / precio * 100), 2) + '%' : ''}</div></div>`
+      : `<div class="pio-box" data-box="entrada"><div class="k">Precio del mercado</div><div class="v" style="font-size:15px">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">${sinPos ? 'aún no ha comprado' : 'ahora mismo'}</div></div>`;
   const _boxFlotante = `<div class="pio-box" data-box="flotante"><div class="k">Flotante ${iBtn('ganancia')}</div><div class="v ${cls(noRealizado)} numgo" data-to="${Math.abs(noRealizado)}" data-dec="4" data-pre="${sg(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div><div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>`;
   const _boxGas = `<div class="pio-box" data-box="gas"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>`;
   const _boxGrid = `<div class="pio-box" data-box="realizado"><div class="k">Grid profit ${iBtn('porcuad')}</div><div class="v ${cls(realizado)} numgo" data-to="${Math.abs(realizado)}" data-dec="4" data-pre="${sg(realizado)}">${sg(realizado)}${num(Math.abs(realizado), 4)}</div><div class="v2 ${cls(realizado)}">${sg(pct(realizado))}${num(Math.abs(pct(realizado)), 2)}%</div></div>`;
@@ -3532,7 +3576,17 @@ async function tarjeta(cuenta, clave, par, R) {
     `<div class="v2" style="color:var(--ink-3)">${R.niveles} cuadrícula${Number(R.niveles) === 1 ? '' : 's'}${_rangoOk ? '' : ' activa' + (Number(R.niveles) === 1 ? '' : 's')}</div></div>`;
   const _boxVueltas = `<div class="pio-box" data-box="vueltas"><div class="k">Vueltas / Ops ${iBtn('vueltas')}</div><div class="v numgo" data-to="${Number(R.ciclos)}" data-dec="0">${R.ciclos}</div><div class="v2" style="color:var(--ink-3)">${R.totalOps} operaciones</div></div>`;
   const _boxMedio = `<div class="pio-box" data-box="medio"><div class="k">Precio medio ${iBtn('promedio')}</div><div class="v" style="font-size:14px">${posBase > 0 ? precioFmt(costeQ / posBase) : '—'}</div><div class="v2" style="color:var(--ink-3)">tu coste</div></div>`;
-  const _boxObjetivo = `<div class="pio-box"><div class="k">Objetivo</div><div class="v" style="font-size:14px">${par.targetPrice ? precioFmt(Number(par.targetPrice)) : '—'}</div><div class="v2" style="color:var(--ink-3)">precio de venta</div></div>`;
+  /* [CORREGIDO] Aquí leía `par.targetPrice`, o sea del navegador, en vez
+     de la variable `objetivo` que ya se calcula del contrato unas líneas
+     más arriba. Por eso salía un guion aunque el dato existiera. */
+  const _objOk = objetivo > 0 && precioFmt(objetivo) !== '—';
+  const _boxObjetivo = `<div class="pio-box"><div class="k">Objetivo</div>` +
+    (_objOk
+      ? `<div class="v" style="font-size:14px">${precioFmt(objetivo)}</div>
+         <div class="v2" style="color:var(--ink-3)">precio de venta</div>`
+      : `<div class="v" style="font-size:14px;color:var(--ink-3)">sin fijar</div>
+         <div class="v2" style="color:var(--ink-3)">vende manualmente</div>`) +
+    `</div>`;
   const _interv = Number(par.intervalo || R.intervalo || 0);
   const _restante = (Number(R.ultimaOpEn) || 0) + _interv - Math.floor(Date.now() / 1000);
   const _proxTxt = _interv <= 0 ? '—' : _restante <= 0 ? 'pronto' : _restante < 3600 ? 'en ' + Math.ceil(_restante / 60) + ' min' : _restante < 86400 ? 'en ' + Math.ceil(_restante / 3600) + ' h' : 'en ' + Math.ceil(_restante / 86400) + ' días';
@@ -3578,7 +3632,7 @@ async function tarjeta(cuenta, clave, par, R) {
 
   return `<div class="rej" data-b="${bAddr}" data-q="${qAddr}" data-sq="${simQ}" data-sb="${simB}"
      data-bid="${idDe(bAddr) || ''}" data-qid="${idDe(qAddr) || ''}" data-pmin="${pmin}" data-pmax="${pmax}"
-     data-niv="${R.niveles}" data-total="${invertido}" data-decb="${decB}" data-decq="${decQ}" data-entry="${par.entry || ''}" data-tipo="${par.tipo || 'grid'}" data-cant="${par.cantBase != null ? par.cantBase : ''}" data-clave="${clave}">
+     data-niv="${R.niveles}" data-total="${invertido}" data-decb="${decB}" data-decq="${decQ}" data-entry="${entrada > 0 ? entrada : ''}" data-tipo="${tipo}" data-cant="${par.cantBase != null ? par.cantBase : ''}" data-clave="${clave}">
     <div class="pio-head">
       ${logoDe(bAddr, simB)}
       <div class="pio-titles">

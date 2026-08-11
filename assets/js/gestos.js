@@ -120,7 +120,16 @@ export function iniciarTirarParaActualizar(alSoltar) {
 
   const ind = document.createElement('div');
   ind.id = 'tirar-ind';
-  ind.innerHTML = `<div class="ti-c"><svg viewBox="0 0 24 24" class="ti-i"><path d="M12 4v13M6 11l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="ti-t">Tira para actualizar</span></div>`;
+  /* Flecha CIRCULAR, la de "recargar" de toda la vida. Antes era una
+     flecha recta girando sobre sí misma, que no significa nada y quedaba
+     rara. Esta es un arco con su punta: se entiende sola. */
+  ind.innerHTML = `<div class="ti-c">
+    <svg viewBox="0 0 24 24" class="ti-i" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
+      <path d="M21 3v6h-6"/>
+    </svg>
+    <span class="ti-t">Tira para actualizar</span>
+  </div>`;
   document.body.appendChild(ind);
 
   const poner = (d) => {
@@ -184,7 +193,7 @@ function estilos() {
   #tirar-ind .ti-c{display:inline-flex;align-items:center;gap:9px;padding:9px 16px;border-radius:22px;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid #3a424c;box-shadow:0 8px 22px rgba(0,0,0,.55);color:#8b96a3;font-family:var(--sans,sans-serif);font-size:12.5px}
   #tirar-ind.listo .ti-c{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
   #tirar-ind .ti-i{width:16px;height:16px;flex:0 0 auto;transition:transform .2s ease}
-  #tirar-ind.listo .ti-i{transform:rotate(180deg)}
+  #tirar-ind.listo .ti-i{transform:rotate(-90deg);color:var(--gold,#E8B84B)}
   #tirar-ind.girando .ti-i{animation:tiGira .8s linear infinite}
   @keyframes tiGira{to{transform:rotate(360deg)}}
   @media(prefers-reduced-motion:reduce){

@@ -381,7 +381,7 @@ function pintarAlertas() {
   box.innerHTML = `
     <div class="al-paso"><span>1</span>Elige la moneda</div>
     <button class="al-selector" id="al-abrir">
-      <span class="al-mon-i" data-logo="${esc((MONEDAS[_alMoneda] || {}).cg || '')}" style="border-color:${(MONEDAS[_alMoneda] || {}).color}55"></span>
+      <span class="al-mon-i" data-logo="${esc((MONEDAS[_alMoneda] || {}).cg || '')}" data-dir="${esc((MONEDAS[_alMoneda] || {}).address || '')}" data-ini="${esc(((MONEDAS[_alMoneda] || {}).simbolo || '?')[0])}" style="border-color:${(MONEDAS[_alMoneda] || {}).color}55;--c:${(MONEDAS[_alMoneda] || {}).color}"></span>
       <span class="al-sel-tx"><b>${esc((MONEDAS[_alMoneda] || {}).simbolo || '')}</b><em>${esc((MONEDAS[_alMoneda] || {}).nombre || '')}</em></span>
       <svg class="al-sel-v" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
     </button>
@@ -401,7 +401,11 @@ function pintarAlertas() {
     <div class="al-paso"><span>3</span>El precio</div>
     <div class="al-precio">
       <span class="al-dolar">$</span>
-      <input id="al-precio" class="al-in" type="${esMovil() ? 'text' : 'number'}" step="any" placeholder="0.00" inputmode="decimal" autocomplete="off">
+      <input id="al-precio" class="al-in" type="text" placeholder="0.00" inputmode="decimal" autocomplete="off">
+      <div class="al-pasos">
+        <button class="al-paso-b" id="al-mas" type="button" aria-label="Subir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg></button>
+        <button class="al-paso-b" id="al-menos" type="button" aria-label="Bajar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9l-7 7-7-7"/></svg></button>
+      </div>
     </div>
     <div class="al-ahora" id="al-ahora"></div>
 
@@ -412,7 +416,7 @@ function pintarAlertas() {
       <div class="al-lista">${alertas.map((a, i) => {
         const mm = MONEDAS[a.id] || {};
         return `<div class="al-fila ${a.saltada ? 'saltada' : ''}">
-          <span class="al-mon-i chico" data-logo="${esc(a.cg || '')}" style="border-color:${(mm.color || '#888')}55"></span>
+          <span class="al-mon-i chico" data-logo="${esc(a.cg || '')}" data-dir="${esc(mm.address || '')}" data-ini="${esc(a.sim[0])}" style="border-color:${(mm.color || '#888')}55;--c:${mm.color || '#888'}"></span>
           <span class="al-tx"><b>${esc(a.sim)}</b> ${a.dir === 'sube' ? 'suba a' : 'baje a'} <b>$${num(a.precio, 6)}</b></span>
           ${a.saltada ? '<span class="al-ya">avisada</span>' : ''}
           <button class="al-del" data-del="${i}" aria-label="Borrar">✕</button>
@@ -440,7 +444,7 @@ function pintarAlertas() {
         <div class="alp-lista" id="alp-lista">
           ${monedas.map(([id, m]) => `
             <button class="alp-item ${id === _alMoneda ? 'on' : ''}" data-pick="${id}" data-busca="${esc((m.simbolo + ' ' + m.nombre).toLowerCase())}">
-              <span class="al-mon-i" data-logo="${esc(m.cg)}" style="border-color:${m.color}55"></span>
+              <span class="al-mon-i" data-logo="${esc(m.cg)}" data-dir="${esc(m.address || '')}" data-ini="${esc(m.simbolo[0])}" style="border-color:${m.color}55;--c:${m.color}"></span>
               <span class="alp-tx"><b>${esc(m.simbolo)}</b><em>${esc(m.nombre)}</em></span>
               ${id === _alMoneda ? '<svg class="alp-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg>' : ''}
             </button>`).join('')}
@@ -485,6 +489,28 @@ function pintarAlertas() {
     _alDir = b.dataset.dir;
     box.querySelectorAll('.al-dir').forEach((x) => x.classList.toggle('on', x.dataset.dir === _alDir));
   });
+
+  /* Los botones de subir y bajar el precio: el paso se adapta al valor,
+     que no es lo mismo ajustar 0,08 que 68.000. */
+  const _paso = (v) => {
+    const a = Math.abs(v);
+    if (a >= 10000) return 100;
+    if (a >= 1000) return 10;
+    if (a >= 100) return 1;
+    if (a >= 10) return 0.1;
+    if (a >= 1) return 0.01;
+    if (a >= 0.01) return 0.001;
+    return 0.00001;
+  };
+  const _mover = (signo) => {
+    const el = $('al-precio');
+    const v = Number(String(el.value).replace(',', '.')) || 0;
+    const p = _paso(v);
+    const nuevo = Math.max(0, v + signo * p);
+    el.value = nuevo.toFixed(String(p).split('.')[1]?.length || 0);
+  };
+  $('al-mas').onclick = () => _mover(1);
+  $('al-menos').onclick = () => _mover(-1);
 
   $('al-add').onclick = async () => {
     const precio = Number($('al-precio').value);
@@ -532,11 +558,28 @@ async function ponerLogos() {
       try { localStorage.setItem(CLAVE_LOGOS, JSON.stringify({ cuando: Date.now(), datos: _logos })); } catch (_) {}
     } catch (_) { _logos = {}; }
   }
+  /* Si CoinGecko no responde (pasa a menudo), se usa el repositorio de
+     iconos de TrustWallet, que sirve la imagen por DIRECCIÓN del token.
+     Y si tampoco, queda la inicial de la moneda con su color: nunca un
+     círculo vacío. */
   document.querySelectorAll('[data-logo]').forEach((el) => {
-    const url = _logos && _logos[el.dataset.logo];
-    if (!url) return;
-    el.style.backgroundImage = `url(${url})`;
-    el.classList.add('con-logo');
+    const id = el.dataset.logo;
+    const url = (_logos && _logos[id]) || null;
+    const dir = el.dataset.dir;
+
+    const poner = (u) => {
+      const img = new Image();
+      img.onload = () => { el.style.backgroundImage = `url(${u})`; el.classList.add('con-logo'); };
+      img.onerror = () => { el.classList.add('sin-logo'); };
+      img.src = u;
+    };
+
+    if (url) { poner(url); return; }
+    if (dir && dir.length === 42) {
+      poner(`https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/${ethers.getAddress(dir)}/logo.png`);
+      return;
+    }
+    el.classList.add('sin-logo');
   });
 }
 
@@ -712,6 +755,13 @@ function estilos() {
   #al-overlay .al-mon-i{width:30px;height:30px;border-radius:50%;flex:0 0 auto;border:1px solid;
     background:rgba(255,255,255,.05) center/cover no-repeat}
   #al-overlay .al-mon-i.con-logo{background-color:transparent;background-size:cover}
+  /* Respaldo: la inicial con el color de la moneda. Nunca un hueco. */
+  #al-overlay .al-mon-i.sin-logo:after,#al-picker .al-mon-i.sin-logo:after{
+    content:attr(data-ini);display:grid;place-items:center;width:100%;height:100%;
+    color:var(--c,#8b96a3);font-family:var(--display,sans-serif);font-weight:800;font-size:13px}
+  #al-picker .al-mon-i{width:30px;height:30px;border-radius:50%;flex:0 0 auto;border:1px solid;
+    background:rgba(255,255,255,.05) center/cover no-repeat}
+  #al-picker .al-mon-i.con-logo{background-color:transparent}
   #al-overlay .al-mon-i.chico{width:26px;height:26px;font-size:11px}
   #al-overlay .al-mon-s{font-family:var(--mono,monospace);font-size:10.5px;color:#b7bdc6;
     max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -721,7 +771,11 @@ function estilos() {
     padding:0 14px;border-radius:12px;background:rgba(255,255,255,.025);border:1px solid #2b3139;color:#8b96a3;
     font-family:var(--display,sans-serif);font-weight:700;font-size:13px;cursor:pointer}
   #al-overlay .al-dir svg{width:16px;height:16px}
-  #al-overlay .al-dir.on{border-color:var(--gold,#E8B84B);background:rgba(232,184,75,.1);color:var(--gold,#E8B84B)}
+  /* Verde sube, rojo baja: es el lenguaje de cualquier gráfico. */
+  #al-overlay .al-dir[data-dir="sube"].on{border-color:var(--neon-lit,#2ee86a);background:rgba(46,232,106,.12);color:var(--neon-lit,#2ee86a)}
+  #al-overlay .al-dir[data-dir="baja"].on{border-color:var(--rojo,#f6465d);background:rgba(246,70,93,.12);color:var(--rojo,#f6465d)}
+  #al-overlay .al-dir[data-dir="sube"]:not(.on):hover{border-color:rgba(46,232,106,.45);color:#8fdcab}
+  #al-overlay .al-dir[data-dir="baja"]:not(.on):hover{border-color:rgba(246,70,93,.45);color:#e79aa5}
   #al-overlay .al-precio{display:flex;align-items:center;border-radius:12px;border:1px solid #2b3139;background:#0b0e12;overflow:hidden}
   #al-overlay .al-precio:focus-within{border-color:var(--gold-soft,#C9A84B)}
   #al-overlay .al-dolar{padding:0 4px 0 15px;font-family:var(--display,sans-serif);font-size:19px;color:#6b7681}
@@ -730,15 +784,23 @@ function estilos() {
   #al-overlay .al-in:focus{outline:none}
   /* Flechitas del precio: en el escritorio se quedan (van bien y ayudan
      a ajustar), en el móvil fuera (el dedo nunca acierta). */
-  @media(max-width:760px){
-    #al-overlay .al-in::-webkit-inner-spin-button,
-    #al-overlay .al-in::-webkit-outer-spin-button,
-    #al-overlay input[type="number"]::-webkit-inner-spin-button,
-    #al-overlay input[type="number"]::-webkit-outer-spin-button{
-      -webkit-appearance:none !important;appearance:none !important;
-      margin:0 !important;display:none !important;width:0 !important}
-    #al-overlay .al-in,#al-overlay input[type="number"]{-moz-appearance:textfield !important}
-  }
+  /* Las flechitas del campo de precio: FUERA, también en el escritorio.
+     Salían sin estilo, con el gris del sistema, y desentonaban con todo.
+     En su lugar hay dos botones propios, que sí encajan. */
+  #al-overlay .al-in::-webkit-inner-spin-button,
+  #al-overlay .al-in::-webkit-outer-spin-button,
+  #al-overlay input[type="number"]::-webkit-inner-spin-button,
+  #al-overlay input[type="number"]::-webkit-outer-spin-button{
+    -webkit-appearance:none !important;appearance:none !important;
+    margin:0 !important;display:none !important;width:0 !important}
+  #al-overlay .al-in,#al-overlay input[type="number"]{-moz-appearance:textfield !important}
+  /* Los nuestros: discretos y con el estilo de la casa. */
+  #al-overlay .al-pasos{display:flex;flex-direction:column;border-left:1px solid #2b3139;flex:0 0 auto}
+  #al-overlay .al-paso-b{width:38px;flex:1;display:grid;place-items:center;padding:0;cursor:pointer;
+    background:transparent;border:none;color:#6b7681;transition:color .15s ease,background .15s ease}
+  #al-overlay .al-paso-b:hover{color:var(--gold,#E8B84B);background:rgba(232,184,75,.07)}
+  #al-overlay .al-paso-b:first-child{border-bottom:1px solid #2b3139}
+  #al-overlay .al-paso-b svg{width:13px;height:13px}
   #al-overlay .al-ahora{font-family:var(--mono,monospace);font-size:11.5px;color:#7d8794;text-align:center;margin:9px 0 14px;min-height:16px}
   #al-overlay .al-ahora b{color:var(--gold,#E8B84B)}
   #al-overlay .al-titulo{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;
