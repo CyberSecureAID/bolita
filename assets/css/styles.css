@@ -2224,3 +2224,32 @@ body {
   .nav-right { flex-shrink: 0; }
   .brand { flex-shrink: 0; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   BARRAS DE DESPLAZAMIENTO
+   Sin esto, el navegador pinta la barra gris del sistema —con sus
+   flechitas arriba y abajo— en cada ventana que tenga scroll:
+   Academy, Prize Pool, Market, Perfil. Desentona con todo lo demás.
+   Aquí va una fina, dorada y discreta, en toda la aplicación.
+   ══════════════════════════════════════════════════════════════ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 184, 75, .3) transparent;
+}
+*::-webkit-scrollbar { width: 7px; height: 7px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(232, 184, 75, .3);
+  border-radius: 20px;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(232, 184, 75, .5); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* Las barras que solo sirven para deslizar con el dedo (pestañas,
+   listas de monedas) no necesitan barra visible: estorba. */
+.c-tabs, .bot-tabs, .cm-lista, .mk-tabs, .ap-tabs, .ad-tabs, .np-chat__mnu {
+  scrollbar-width: none;
+}
+.c-tabs::-webkit-scrollbar, .bot-tabs::-webkit-scrollbar,
+.cm-lista::-webkit-scrollbar, .mk-tabs::-webkit-scrollbar,
+.ap-tabs::-webkit-scrollbar, .ad-tabs::-webkit-scrollbar { display: none; }
