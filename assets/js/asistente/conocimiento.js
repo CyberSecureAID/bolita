@@ -49,7 +49,7 @@ window.NP_BOT_KB = {
       {
         texto: 'Mira, algo que mucha gente no sabe:\n\nEl **Accumulator** puede ganar dinero incluso cuando el precio no para de caer. Suena raro, pero tiene sentido: **cuanto más baja, más compra**, y cada compra abarata tu precio medio. Así no necesitas que el mercado vuelva a lo más alto para recuperar; basta con que suba un poco desde tu promedio.\n\n¿Te lo explico con números, o prefieres ver otro bot?',
         opciones: [
-          { label: 'Explícamelo con números', q: 'explicame el acumulador con numeros' },
+          { label: 'Con números', q: 'explicame el acumulador con numeros' },
           { label: 'Ver los otros bots',      q: 'que bots hay' },
           { label: 'Cómo empiezo',            q: 'como empiezo' }
         ]
@@ -58,7 +58,7 @@ window.NP_BOT_KB = {
         texto: 'Te cuento lo que más le sorprende a la gente:\n\nEl **Smart Grid** no necesita que el precio suba para ganar. Le basta con que **se mueva**. Compra cuando baja un escalón y vende cuando sube al siguiente, una y otra vez. Un día lateral, de esos que parecen aburridos, es su mejor día.\n\n¿Quieres que te enseñe cómo se configura?',
         opciones: [
           { label: 'Sí, enséñame',      q: 'como funciona el smart grid' },
-          { label: 'Prefiero algo más simple', q: 'que es el cash out' },
+          { label: 'Algo más simple', q: 'que es el cash out' },
           { label: 'Cuánto necesito',   q: 'cuanto dinero necesito' }
         ]
       },
@@ -74,7 +74,7 @@ window.NP_BOT_KB = {
         texto: 'Va un consejo que ahorra disgustos:\n\n**Empieza con poco.** Con 50 USDT ya ves cómo se comporta un bot, y con eso decides si meter más. La prisa en esto sale cara.\n\n¿Te ayudo a montar el primero?',
         opciones: [
           { label: 'Sí, guíame',        q: 'guiame a montar mi bot' },
-          { label: 'Antes cuéntame más', q: 'que es aurex' },
+          { label: 'Cuéntame más', q: 'que es aurex' },
           { label: '¿Es seguro?',        q: 'es seguro mi dinero' }
         ]
       }
@@ -95,7 +95,7 @@ window.NP_BOT_KB = {
       { label: '¿Qué bots hay?',        q: 'que bots hay' },
       { label: '¿Es seguro?',           q: 'es seguro mi dinero' },
       { label: '¿Cuánto cobran?',       q: 'comisiones' },
-      { label: 'Hablar con una persona', q: 'contacto' }
+      { label: 'Hablar con alguien', q: 'contacto' }
     ],
 
     /* ── FRASES DEL MOTOR ────────────────────────────────────────
@@ -314,9 +314,9 @@ window.NP_BOT_KB = {
       ],
       fin: 'Listo, tu Smart Grid ya está trabajando.\n\nLo verás abajo en **Mis bots**. Ahí puedes ver sus cuadrículas en la gráfica y cuánto le falta a cada una para dispararse.\n\nUn consejo: déjalo un par de días antes de tocar nada. Estos bots trabajan con el tiempo.',
       despues: [
-        { label: '¿Cuándo va a operar?', q: 'cuando empieza a operar el bot' },
+        { label: '¿Cuándo opera?', q: 'cuando empieza a operar el bot' },
         { label: 'Montar otro bot',      q: 'que bots hay' },
-        { label: '¿Y si el precio baja?', q: 'que pasa si el precio baja' }
+        { label: 'Si el precio baja', q: 'que pasa si el precio baja' }
       ]
     },
 
@@ -336,7 +336,7 @@ window.NP_BOT_KB = {
       ],
       fin: 'Ya está. Tu Accumulator empieza comprando su primera parte y seguirá comprando cada vez que el precio baje.\n\nCuando todo lo comprado valga un 10% más de lo que te costó, venderá de golpe y verás el resultado.',
       despues: [
-        { label: '¿Cómo veo el precio medio?', q: 'precio medio del acumulador' },
+        { label: 'El precio medio', q: 'precio medio del acumulador' },
         { label: '¿Y si sigue bajando?',       q: 'que pasa si el precio baja' },
         { label: 'Montar otro bot',            q: 'que bots hay' }
       ]
@@ -357,7 +357,7 @@ window.NP_BOT_KB = {
       ],
       fin: 'Hecho. Ahora el bot vigila el precio día y noche.\n\nCuando llegue a tu objetivo, vende y el dinero aparece en tu wallet. Si no llega, tu moneda sigue siendo tuya: no pierdes nada por intentarlo.',
       despues: [
-        { label: '¿Y si no llega el precio?', q: 'y si el precio no llega al objetivo' },
+        { label: '¿Y si no llega?', q: 'y si el precio no llega al objetivo' },
         { label: 'Montar otro bot',           q: 'que bots hay' }
       ]
     },
@@ -394,7 +394,7 @@ window.NP_BOT_KB = {
       fin: 'Ya estás dentro. Cuando cierre la ronda se sortea con un número aleatorio verificable en la blockchain, y si ganas te aparece un botón para cobrar tu premio.\n\nSi cambias de idea, puedes salirte y recuperar tu aporte hasta 24 horas antes del cierre.',
       despues: [
         { label: '¿Cómo se sortea?', q: 'como se hace el sorteo' },
-        { label: 'Volver a los bots', q: 'que bots hay' }
+        { label: 'Ver los bots', q: 'que bots hay' }
       ]
     },
 
@@ -433,6 +433,80 @@ window.NP_BOT_KB = {
       ]
     },
 
+    permisos: {
+      titulo: 'Quitar permisos a los bots',
+      accion: 'perfil',
+      intro: 'Vamos a quitarle el permiso a los bots sobre tus monedas. Son cuatro pasos y es la mejor costumbre de seguridad que puedes tener.',
+      pasos: [
+        'Arriba a la derecha, entra en tu **perfil** (el icono de la persona).',
+        'Baja hasta la sección **Permisos de gasto**.\n\nAhí ves cada moneda con permiso activo y hasta cuánto puede mover el contrato.',
+        'Al lado de la que quieras cortar, pulsa **quitar**.',
+        'Firma en tu wallet. Listo: ese contrato ya no puede tocar esa moneda.'
+      ],
+      fin: 'Hecho. A partir de ahora, esa moneda **solo se mueve si tú firmas**.\n\nSi vuelves a encender un bot con ella, te pedirá el permiso otra vez. No pierdes nada por quitarlo.',
+      despues: [
+        { label: '¿Por qué importa?', q: 'por que quitar permisos' },
+        { label: 'Ver mi perfil',     q: 'que hay en el perfil' }
+      ]
+    },
+
+    vender: {
+      titulo: 'Vender en el Marketplace',
+      accion: 'market',
+      intro: 'Vamos a poner tu oferta de venta. Con calma, que aquí se maneja dinero de otra persona.',
+      pasos: [
+        'Menú de arriba → **Market**.',
+        'Pestaña **Vender** → botón **Publicar oferta**.',
+        'Elige la moneda y cuánto vendes.\n\nSi es tu primera vez, tendrás que **depositar la fianza**: es tu garantía y la recuperas cuando dejes de vender.',
+        'Pon tu precio y cómo aceptas el pago: transferencia, efectivo, lo que uses.',
+        'Elige en cuántas **partes** entregas.\n\nEn varias partes es más seguro para los dos: se paga y libera poco a poco.',
+        'Publica y firma. Tu cripto **queda bloqueada en el contrato**, no en tus manos ni en las nuestras.',
+        'Cuando alguien tome tu oferta, te llega aviso. Comprueba que recibiste el pago **en tu banco o en tu mano**, y solo entonces pulsa **Liberar**.'
+      ],
+      fin: 'Ya está. Un consejo que vale oro: **nunca liberes sin haber visto el dinero en tu cuenta.** Una captura no es un pago.\n\nSi el comprador dice que pagó y no lo ves, abre disputa y explica lo que pasó.',
+      despues: [
+        { label: '¿Y si me estafan?', q: 'y si el comprador no paga' },
+        { label: 'Quiero comprar',    q: 'como compro en el marketplace' }
+      ]
+    },
+
+    comprar: {
+      titulo: 'Comprar en el Marketplace',
+      accion: 'market',
+      intro: 'Te guío para comprar cripto a otra persona con seguridad.',
+      pasos: [
+        'Menú de arriba → **Market**.',
+        'Pestaña **Comprar**. Cada oferta dice cuánto vende, a qué precio y cómo acepta el pago.',
+        'Mira la **valoración del vendedor** y cuántas operaciones lleva. Es información pública y dice mucho.',
+        'Pulsa la oferta que te encaje.\n\nLa cripto **queda bloqueada al momento**: el vendedor ya no puede llevársela.',
+        'Paga por donde acordasteis y **guarda el comprobante**.',
+        'Vuelve y pulsa **Ya pagué**. El vendedor lo ve y libera tu cripto.'
+      ],
+      fin: 'Eso es todo. La clave: **la cripto nunca está en manos del vendedor mientras tú pagas**.\n\nSi no libera, pulsa **Abrir disputa** con tu comprobante. Un árbitro decide, y el vendedor tiene una fianza depositada para responder.',
+      despues: [
+        { label: '¿Y si no libera?', q: 'y si el vendedor no libera' },
+        { label: 'Quiero vender',    q: 'como vendo en el marketplace' }
+      ]
+    },
+
+    perfilGuia: {
+      titulo: 'Tu perfil',
+      accion: 'perfil',
+      intro: 'Te enseño qué hay en tu perfil, que es donde controlas todo.',
+      pasos: [
+        'Arriba a la derecha, el icono de la persona.',
+        '**Tus números**: cuánto llevas ganado, cuántas operaciones han hecho tus bots y cuánto te cuesta cada una.',
+        '**Gas**: tu saldo para que los bots operen. Aquí lo recargas o lo retiras: es tuyo.',
+        '**Suscripción**: hasta cuándo tienes activo el servicio.',
+        '**Permisos de gasto**: lo más importante. Qué contratos pueden mover tus monedas, y el botón para quitárselo.'
+      ],
+      fin: 'Ese último apartado es el que más gente ignora y el que más protege.\n\nCostumbre sana: **cuando dejes de usar un bot, quítale el permiso.** Treinta segundos que te ahorran disgustos.',
+      despues: [
+        { label: 'Quitar permisos', q: 'como quito los permisos' },
+        { label: 'Recargar gas',    q: 'como recargo el gas' }
+      ]
+    },
+
     wallet: {
       titulo: 'Conectar tu wallet',
       accion: 'conectar',
@@ -451,6 +525,59 @@ window.NP_BOT_KB = {
   },
 
   kb: [
+    {
+      topic: 'qué hay en el perfil',
+      guia: 'perfilGuia', guiaLabel: 'Enséñamelo',
+      accion: 'perfil',
+      keys: ['que hay en el perfil', 'perfil', 'mi perfil', 'para que sirve el perfil',
+             'que veo en el perfil', 'donde esta mi perfil', 'como veo mis datos',
+             'mis estadisticas', 'cuanto llevo ganado', 'mis numeros', 'donde veo mis ganancias'],
+      answer: [
+        'En tu perfil tienes cuatro cosas: **tus números** (cuánto llevas ganado y cuántas operaciones), **el gas** para que los bots operen, **tu suscripción**, y los **permisos de gasto**.\n\nEse último es el más importante y el que menos gente mira.',
+        'Es tu centro de control: estadísticas reales, saldo de gas, suscripción y los permisos que tienen los contratos sobre tus monedas.\n\nEstá arriba a la derecha, en el icono de la persona.'
+      ]
+    },
+    {
+      topic: 'vender en el marketplace',
+      guia: 'vender', guiaLabel: 'Guíame para vender',
+      accion: 'market',
+      keys: ['como vendo en el marketplace', 'como vendo en el market',
+             'vender en el marketplace', 'quiero vender en el marketplace',
+             'como publico una oferta de venta', 'como vendo mis criptos',
+             'como vendo', 'quiero vender', 'vendo cripto',
+             'publicar oferta', 'poner en venta', 'vender mis criptos', 'ser vendedor',
+             'como pongo una orden de venta', 'orden de venta'],
+      answer: [
+        'Para vender publicas tu oferta, depositas una **fianza** y tu cripto queda bloqueada en el contrato hasta que confirmes el pago.\n\nLa fianza es tu garantía ante el comprador, y la recuperas cuando dejes de vender.',
+        'Publicas cuánto vendes, a qué precio y cómo aceptas el pago. La cripto se retiene sola.\n\nCuando el comprador pague y **lo veas en tu cuenta**, pulsas Liberar. Ni antes.'
+      ]
+    },
+    {
+      topic: 'comprar en el marketplace',
+      guia: 'comprar', guiaLabel: 'Guíame para comprar',
+      accion: 'market',
+      keys: ['como compro', 'quiero comprar', 'comprar en el marketplace', 'comprar cripto a alguien',
+             'como pongo una orden de compra', 'orden de compra', 'tomar una oferta'],
+      answer: [
+        'Eliges una oferta y **la cripto se bloquea al momento**: el vendedor ya no puede llevársela.\n\nPagas por donde acordéis, pulsas «Ya pagué» y el vendedor libera. Si no lo hace, abres disputa.',
+        'Miras las ofertas, te fijas en la valoración del vendedor, y tomas la que te encaje.\n\nEl contrato hace de intermediario: nadie puede irse con el dinero del otro.'
+      ]
+    },
+    {
+      topic: 'no puedo entrar al grupo de la academia',
+      keys: ['pague y no puedo entrar al grupo', 'pague la academia y no entro',
+             'no puedo entrar al grupo de la academia', 'compre la academia y no entro',
+             'no me deja entrar al grupo', 'como entro al grupo de la academia',
+             'donde esta el contenido de la academia', 'ya pague la academia'],
+      answer: [
+        'Vamos a resolverlo ahora mismo. Casi siempre es una de estas:\n\n**1.** Tu cuenta **no tiene nombre de usuario** → Telegram → Ajustes → Nombre de usuario.\n**2.** Pusiste **otro usuario** al pagar.\n**3.** Tienes **restringido** que te añadan a grupos → Ajustes → Privacidad → Grupos y canales → **Todos**.\n\nSi ninguna es, escríbeme y te meto a mano.',
+        'No te preocupes, esto se arregla siempre y has pagado, así que es cosa mía.\n\nPrimero: comprueba que tu cuenta tiene **nombre de usuario** y que es el mismo que escribiste al pagar. Es el 90% de los casos.\n\nSi está bien, escríbeme directo:'
+      ],
+      more: [
+        'Paso a paso:\n\n**1.** Telegram → Ajustes → **Nombre de usuario**. Si está vacío, ponlo.\n**2.** Ajustes → Privacidad y seguridad → **Grupos y canales** → **Todos**.\n**3.** Escríbele **/estado** a nuestro bot: te dirá si te consta el acceso y hasta cuándo.\n**4.** Vuelve a pedir entrar al grupo.\n\nSi el bot dice que no te consta pero tú pagaste, mándame **el usuario que pusiste** y la captura del pago. Lo arreglo en minutos.'
+      ],
+      contactCard: true
+    },
 
     /* ══════════════ CORTESÍA ══════════════ */
     {
@@ -463,7 +590,7 @@ window.NP_BOT_KB = {
              'buenas noches', 'que tal', 'ke tal', 'q tal', 'qtal', 'saludos',
              'hey', 'hello', 'hi', 'oye', 'oiga', 'alo', 'hola como estas',
              'hol como ests', 'como estas', 'como esta', 'komo estas', 'como andas',
-             'que hay', 'q hay', 'que onda', 'que hubo', 'saludo', 'holi'],
+             'que onda', 'que hubo', 'saludo', 'holi'],
       answer: [
         'Hola. ¿En qué te ayudo?',
         '¡Hola! Dime qué necesitas.',
@@ -579,7 +706,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'Smart Grid',
-      guia: 'grid', guiaLabel: 'Montar mi Smart Grid paso a paso',
+      guia: 'grid', guiaLabel: 'Guíame paso a paso',
       accion: 'grid',
       keys: ['smart grid', 'grid', 'cuadricula', 'cuadriculas', 'rejilla', 'bot grid',
              'como funciona el grid', 'que es el smart grid'],
@@ -594,7 +721,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'Accumulator',
-      guia: 'acum', guiaLabel: 'Montar mi Accumulator paso a paso',
+      guia: 'acum', guiaLabel: 'Guíame paso a paso',
       accion: 'acum',
       keys: ['accumulator', 'acumulador', 'bot acumulador', 'como funciona el acumulador',
              'promediar', 'precio medio', 'bajar el promedio'],
@@ -609,7 +736,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'Cash Out',
-      guia: 'cash', guiaLabel: 'Montar mi Cash Out paso a paso',
+      guia: 'cash', guiaLabel: 'Guíame paso a paso',
       accion: 'cash',
       keys: ['cash out', 'cashout', 'take profit', 'vender a un precio',
              'orden de venta', 'como funciona el cash out'],
@@ -624,7 +751,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'DCA',
-      guia: 'dca', guiaLabel: 'Montar mi DCA paso a paso',
+      guia: 'dca', guiaLabel: 'Guíame paso a paso',
       accion: 'dca',
       keys: ['dca', 'compra recurrente', 'comprar cada semana', 'comprar poco a poco',
              'promedio de costo', 'como funciona el dca'],
@@ -643,8 +770,8 @@ window.NP_BOT_KB = {
       topic: 'cómo empezar',
       opciones: [
         { label: 'Conectar wallet',  q: 'como conecto la wallet' },
-        { label: '¿Cuánto necesito?', q: 'cuanto dinero necesito' },
-        { label: 'Guíame paso a paso', q: 'guiame a montar mi bot' }
+        { label: '¿Cuánto pongo?', q: 'cuanto dinero necesito' },
+        { label: 'Guíame', q: 'guiame a montar mi bot' }
       ],
       keys: ['como empiezo', 'como empezar', 'primeros pasos', 'soy nuevo',
              'como creo un bot', 'como hago un bot', 'quiero empezar', 'que necesito'],
@@ -735,12 +862,17 @@ window.NP_BOT_KB = {
     /* ══════════════ OTRAS SECCIONES ══════════════ */
     {
       topic: 'marketplace',
-      guia: 'market', guiaLabel: 'Guíame para comprar',
+      guia: 'comprar', guiaLabel: 'Guíame para comprar',
+      opciones: [
+        { label: 'Quiero comprar', q: 'como compro en el marketplace' },
+        { label: 'Quiero vender',  q: 'como publico una oferta de venta' },
+        { label: '¿Es seguro?',    q: 'y si el vendedor no me manda el dinero' }
+      ],
       accion: 'market',
       keys: ['marketplace', 'market', 'p2p', 'comprar usdt', 'vender usdt',
              'comprar cripto', 'cambiar a pesos', 'efectivo', 'transferencia',
              'que es el marketplace', 'que es el market', 'como funciona el marketplace',
-             'vender entre personas', 'comprar entre personas', 'mercado'],
+             'mercado'],
       answer: [
         'El Marketplace es para comprar y vender cripto **entre personas**, pagando como acordéis (transferencia, efectivo, lo que sea).\n\nLa cripto queda bloqueada en el contrato hasta que el pago se confirma, así ninguno de los dos se arriesga.',
         'Es un mercado entre usuarios. El vendedor deja una fianza, la cripto queda retenida, y solo se libera cuando confirma que recibió el pago.\n\nSi hay problema, se abre una disputa y un árbitro decide.',
@@ -858,6 +990,7 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'seguridad del marketplace',
+      guia: 'vender', guiaLabel: 'Guíame para vender',
       keys: ['si no me paga', 'y si no me manda el dinero', 'y si me estafa el vendedor',
              'y si el comprador no paga', 'que pasa si me estafan', 'como me protegen',
              'y si hay problema con la venta', 'que pasa si hay disputa',
@@ -915,6 +1048,97 @@ window.NP_BOT_KB = {
       ],
       more: [
         'Por qué importa el tamaño de cada cuadrícula:\n\nEl gas cuesta lo mismo muevas 2 USDT o 20. Así que con inversiones muy pequeñas repartidas en muchas cuadrículas, las comisiones se comen la ganancia.\n\n**Referencia:** que cada cuadrícula mueva al menos **10 USDT**. Con 200 USDT y 20 cuadrículas, cada una mueve 10. Justo en el punto.'
+      ]
+    },
+
+
+
+    /* ══════════════ LA ACADEMIA ══════════════ */
+    {
+      topic: 'la academia',
+      accion: 'academy',
+      keys: ['que es la academia', 'academy', 'curso', 'cursos', 'formacion', 'aprender',
+             'clases', 'quiero aprender', 'ensename', 'estudiar', 'donde aprendo',
+             'como aprendo a operar', 'aprender trading', 'curso de trading',
+             'quiero aprender trading', 'me ensenas', 'hay formacion'],
+      answer: [
+        'Sí, tenemos **Aurex Academy**: 17 clases con examen, 20 audiolibros y mi estrategia completa en tres fases.\n\nLa idea es que no dependas de los bots para siempre. Está bien que trabajen por ti, pero **entender lo que hacen es lo que te da tranquilidad**.',
+        '**Aurex Academy** es la parte de formación. De cero: qué es una criptomoneda, qué es el spread, cómo leer un gráfico, hasta la estrategia que uso yo.\n\nCada clase tiene examen y hacen falta 80 puntos para pasar. No es una carpeta de vídeos: es un camino.',
+        'Hay academia, sí. Y te digo por qué merece la pena aunque uses bots:\n\nEl bot opera por ti, pero **eres tú quien decide el rango, la moneda y cuándo parar**. Esas decisiones se toman mejor sabiendo qué miras.\n\nDesde 10 USD al mes.'
+      ],
+      more: [
+        'Lo que hay dentro:\n\n· **Plan de gestión de riesgo** con software para aplicarlo\n· **17 clases** de cero a cien, cada una con su examen de 20 preguntas\n· **20 audiolibros** escogidos uno a uno\n· **Lógica Estructural Avanzada**: mi estrategia, en tres fases\n· Tutoriales y ejemplos sobre operaciones reales\n· **Certificado** al aprobar cada materia\n\nTres planes: 10 USD al mes, 20 el trimestre o 50 el año.'
+      ],
+      opciones: [
+        { label: 'Ver los planes',   q: 'planes de la academia' },
+        { label: '¿Qué incluye?',    q: 'que incluye la academia' },
+        { label: 'Ver los bots', q: 'que bots hay' }
+      ]
+    },
+    {
+      topic: 'aprender mientras uso bots',
+      keys: ['tengo que saber trading', 'necesito saber de trading', 'sin saber nada puedo',
+             'hace falta experiencia', 'soy nuevo puedo usar los bots',
+             'debo aprender', 'me conviene aprender', 'vale la pena la academia'],
+      answer: [
+        'No hace falta saber para empezar: las configuraciones ya vienen calculadas y puedes encender un bot hoy mismo.\n\nPero te digo lo que veo: **quien entiende lo que hace su bot, aguanta mejor las malas rachas**. El que no entiende, se asusta y cancela justo en el peor momento.',
+        'Puedes empezar sin saber nada, de verdad. Elige una configuración recomendada y listo.\n\nAhora, si te interesa entender lo que pasa por debajo, para eso está la academia. No es obligatoria, pero cambia mucho cómo vives las bajadas.'
+      ],
+      accion: 'academy'
+    },
+
+    /* ══════════════ SEGURIDAD Y PERMISOS ══════════════ */
+    {
+      topic: 'los permisos de gasto',
+      guia: 'permisos', guiaLabel: 'Guíame para quitarlos',
+      accion: 'perfil',
+      keys: ['permisos', 'permiso', 'quitar permisos', 'revocar', 'revocar permisos',
+             'allowance', 'aprobacion', 'approve', 'como quito los permisos',
+             'por que quitar permisos', 'permisos de gasto', 'quitar acceso a los bots',
+             'que puede mover el bot', 'el bot puede tocar mi dinero'],
+      answer: [
+        'Cuando enciendes un bot le das permiso para mover **una cantidad concreta** de una moneda. Nunca ilimitado.\n\nEse permiso lo ves y lo quitas en tu perfil, sección **Permisos de gasto**. Es lo más eficaz que puedes hacer por tu seguridad.',
+        'Los bots necesitan permiso para operar con tus monedas, pero **tú decides cuánto y hasta cuándo**.\n\nEn tu perfil ves cada permiso activo y hay un botón para cortarlo. Treinta segundos.',
+        'Es un buen hábito: **cuando dejes de usar un bot, quítale el permiso.**\n\nEstá en tu perfil, en Permisos de gasto. Y si vuelves a usarlo, te lo pide otra vez. No pierdes nada.'
+      ],
+      more: [
+        'Por qué esto importa tanto:\n\nLa mayoría de robos grandes en cripto no son por contratos rotos, sino por **permisos que la gente dejó abiertos años atrás**. Si un contrato se ve comprometido y tú le diste permiso hace seis meses, puede vaciarte.\n\nAquí: permisos por cantidad exacta, siempre visibles, y se cortan en un clic.\n\nCosas que **nunca** debes hacer: dar tu frase de recuperación a nadie, ni firmar algo que no entiendas.'
+      ]
+    },
+
+    /* ══════════════ PROBLEMA DE ACCESO AL GRUPO ══════════════ */
+    {
+      topic: 'no puedo entrar al grupo',
+      keys: ['no puedo entrar al grupo', 'no me deja entrar', 'no me acepta el bot',
+             'pague y no entro', 'pague y no puedo entrar', 'el bot no me agrega',
+             'no me agrega al grupo', 'restriccion telegram', 'no puedo unirme',
+             'me rechaza el grupo', 'no me llega la invitacion', 'privacidad telegram',
+             'no puedo ser agregado a grupos', 'ya pague y nada'],
+      answer: [
+        'Vamos a resolverlo. Lo más habitual es una de estas tres:\n\n**1.** Tu cuenta **no tiene nombre de usuario**. Ponlo en Telegram → Ajustes → Nombre de usuario.\n**2.** Escribiste **otro usuario** al pagar. Revisa que sea exactamente el tuyo.\n**3.** Tienes la **privacidad restringida** para grupos.\n\n¿Cuál te suena?',
+        'Tranquilo, esto se arregla siempre.\n\nPrimero comprueba que tu cuenta **tiene nombre de usuario** (Ajustes → Nombre de usuario) y que es el mismo que pusiste al pagar. Es el fallo del 90% de los casos.\n\nSi ya lo tienes bien, escríbeme directo y te meto a mano:'
+      ],
+      more: [
+        'Paso a paso:\n\n**1.** Telegram → Ajustes → **Nombre de usuario**. Si está vacío, pon uno.\n**2.** Ajustes → Privacidad y seguridad → **Grupos y canales** → ponlo en **Todos**.\n**3.** Escríbele **/estado** a nuestro bot: te dice si te consta el acceso.\n**4.** Vuelve a pedir entrar al grupo.\n\n**Si aun así no entras, no te quedes atascado: escríbeme y lo soluciono a mano.** Has pagado, así que es problema mío, no tuyo.'
+      ],
+      contactCard: true
+    },
+
+    /* ══════════════ POR QUÉ MERECE LA PENA ══════════════ */
+    {
+      topic: 'por qué el prize pool es rentable',
+      guia: 'prize', guiaLabel: 'Guíame para participar',
+      accion: 'prize',
+      keys: ['por que es rentable el prize pool', 'el sorteo es rentable', 'vale la pena el sorteo',
+             'me conviene el prize pool', 'cuanto se gana en el sorteo', 'como funciona el sorteo',
+             'reglas del sorteo', 'cuando puedo salirme', 'abandonar el sorteo',
+             'que gano en el prize pool', 'probabilidades sorteo'],
+      answer: [
+        'Te lo cuento sin adornos: **es un sorteo, no una inversión.** Pones una cantidad pequeña y puede tocarte el pozo o no.\n\nLo que sí puedo garantizarte es que **no está trucado**: el número sale de un sistema verificable en la blockchain que nadie puede manipular, ni nosotros.',
+        'Lo bueno del Prize Pool es lo que lo diferencia de una lotería normal:\n\n· El sorteo es **verificable en cadena**, cualquiera lo comprueba\n· Puedes **salirte y recuperar tu aporte** hasta 24 horas antes\n· El pozo y los participantes son **públicos** en todo momento\n\nAhora bien: participa con lo que no te importe perder.'
+      ],
+      more: [
+        'Las reglas, claras:\n\n**Entrar:** pagas la participación y quedas dentro de la ronda.\n**Salir:** puedes retirarte y recuperar tu aporte hasta **24 h antes** del cierre. Después ya no, para que nadie infle el pozo y se marche antes del sorteo.\n**El sorteo:** al cerrar la ronda se pide un número aleatorio verificable. Si no hay participantes suficientes, se **devuelve el dinero a todos**.\n**Cobrar:** si ganas, te aparece un botón para reclamar tu premio.\n\nY una idea, por si te sirve: el sorteo es suerte. **Si lo que quieres es que tu dinero crezca de forma constante, los bots o la formación te van a servir más.**'
       ]
     },
 

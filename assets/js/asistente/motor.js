@@ -1269,7 +1269,9 @@
     cash:    { txt: 'Ver el Cash Out',      ir: function () { bot('cash'); } },
     dca:     { txt: 'Ver el DCA',           ir: function () { bot('dca'); } },
     conectar:{ txt: 'Conectar mi wallet',   ir: function () { clic('#c-conectar') || clic('#c-conectar2'); } },
-    instalar:{ txt: 'Instalar la app',      ir: function () { clic('#c-instalar'); } }
+    instalar:{ txt: 'Instalar la app',      ir: function () { clic('#c-instalar'); } },
+    academy: { txt: 'Ver la Academia',      ir: function () { clic('#c-academy'); } },
+    perfil2: { txt: 'Abrir mi perfil',      ir: function () { clic('#c-perfil'); } }
   };
   function clic(sel) {
     var e = document.querySelector(sel);
@@ -1326,16 +1328,28 @@
         a.textContent = entry.nav.label + ' \u2192';
         b.appendChild(a);
       }
-      if (entry && entry.accion) { var bi = botonIr(entry.accion); if (bi) b.appendChild(bi); }
+      /* Todos los botones dentro de UNA zona con su separación, en vez de
+         colgando sueltos del final del texto. */
+      var zona = null;
+      var enZona = function (el) {
+        if (!el) return;
+        if (!zona) { zona = document.createElement('div'); zona.className = 'np-chat__acciones'; b.appendChild(zona); }
+        zona.appendChild(el);
+      };
+      if (entry && entry.accion) enZona(botonIr(entry.accion));
       if (entry && entry.guia) {
         var bg = document.createElement('button');
         bg.className = 'np-chat__ir';
         bg.type = 'button';
         bg.textContent = entry.guiaLabel || 'Guíame paso a paso';
         bg.addEventListener('click', function () { send('__guia:' + entry.guia); });
-        b.appendChild(bg);
+        enZona(bg);
       }
-      if (entry && entry.opciones && entry.opciones.length) b.appendChild(botonesOpciones(entry.opciones));
+      if (entry && entry.opciones && entry.opciones.length) enZona(botonesOpciones(entry.opciones));
+      /* Cuando el motor junta varios temas en una respuesta, el "entry" que
+         llega aquí es el del ÚLTIMO. Si ese no tenía opciones pero otro sí,
+         los botones se perdían. Se recuperan del primero que las tenga. */
+      if (entry && entry._opcionesExtra && entry._opcionesExtra.length) enZona(botonesOpciones(entry._opcionesExtra));
       if (entry && entry.contactCard) b.appendChild(contactCard());
       if (entry && entry.editButton && flow) editPanel(b);
       bottom();
@@ -2973,6 +2987,13 @@
         out += '\n\n' + pickVariant(roleList(BOT.nudges), roleKey('nudge'));
       }
 
+      // Si otro de los temas de esta respuesta traía opciones, se conservan.
+      if (isLast && !entry.opciones) {
+        for (var _z = 0; _z < topics.length; _z++) {
+          var _e2 = topics[_z].entry;
+          if (_e2 && _e2.opciones && _e2.opciones.length) { entry._opcionesExtra = _e2.opciones; break; }
+        }
+      }
       speak(out, entry, function () {
         if (isLast && willOffer) {
           pendingFlow = entryFlow;
