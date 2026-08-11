@@ -3141,6 +3141,7 @@ async function refrescarRejillas() {
     const claves = await gb.misRejillas(cuenta);
     const store = JSON.parse(localStorage.getItem('bot-pares') || '{}');
     const cerradas = JSON.parse(localStorage.getItem('bot-cerradas') || '{}');
+    let _limpiarCerradas = false;
     /* ══════════════════════════════════════════════════════════════
        CÓMO SE CARGAN LOS BOTS (y por qué así)
 
@@ -3158,7 +3159,19 @@ async function refrescarRejillas() {
        puede leer un bot NO se pinta nada. Un bot que no se puede leer
        no es un bot roto: es una respuesta que no llegó.
        ══════════════════════════════════════════════════════════════ */
-    const _visibles = claves.filter((c) => !cerradas[c]);
+    /* ══════════════════════════════════════════════════════════════
+       [MALA PRÁCTICA CORREGIDA] Esta lista ocultaba bots según lo que
+       dijera ESTE navegador. Dos problemas graves:
+
+       · Ocultaba en un dispositivo un bot que seguía VIVO en la cadena.
+         El usuario lo daba por cerrado y su dinero seguía dentro.
+       · Y al revés: en otro dispositivo aparecía "resucitado".
+
+       Ahora la lista local solo sirve para no parpadear mientras la
+       cancelación se confirma. Quien decide si un bot existe es el
+       CONTRATO, siempre: más abajo se comprueba R.activa.
+       ══════════════════════════════════════════════════════════════ */
+    const _visibles = claves;
     const LOTE = 4;
     const _cards = [];
     let _sinLeer = 0;
@@ -3175,7 +3188,15 @@ async function refrescarRejillas() {
         }
 
         if (fallo || !R) return { sinLeer: true };      // no se pudo leer → NO se pinta
-        if (R.activa === false) return null;            // cancelado → fuera
+        if (R.activa === false) {
+          // El contrato manda: si está cancelado, se limpia también la
+          // marca local para que no quede basura acumulándose.
+          if (cerradas[clave]) { delete cerradas[clave]; _limpiarCerradas = true; }
+          return null;
+        }
+        // Marcado como cerrado aquí pero VIVO en la cadena: se muestra.
+        // Su dinero sigue dentro y el usuario tiene que poder sacarlo.
+        if (cerradas[clave]) { delete cerradas[clave]; _limpiarCerradas = true; }
 
         /* [BOTS FANTASMA CORREGIDOS] Un bot de verdad tiene niveles y
            dinero dentro. Si el contrato dice que está "activo" pero no
@@ -3222,6 +3243,11 @@ async function refrescarRejillas() {
         if (x.sinLeer) { _sinLeer++; continue; }
         if (x.html) _cards.push(x.html);
       }
+    }
+
+    // Si hubo marcas locales que ya no valían, se guardan limpias.
+    if (_limpiarCerradas) {
+      try { localStorage.setItem('bot-cerradas', JSON.stringify(cerradas)); } catch (_) {}
     }
 
     const cards = _cards;
@@ -3387,6 +3413,23 @@ async function tarjeta(cuenta, clave, par, R) {
        El rango de verdad es el que se fijó al crear el bot: si lo tenemos
        guardado, ese manda. */
     if (par.pMin > 0 && par.pMax > par.pMin) { pmin = Number(par.pMin); pmax = Number(par.pMax); }
+
+    /* ══════════════════════════════════════════════════════════════
+       EL RANGO, SIN DEPENDER DEL NAVEGADOR
+       Si no lo tenemos guardado, se reconstruye de las cuadrículas que
+       el CONTRATO devuelve: la más baja y la más alta son el rango. Un
+       bot creado en el móvil se ve igual de bien desde el ordenador.
+       ══════════════════════════════════════════════════════════════ */
+    if (!(pmin > 0 && pmax > pmin)) {
+      try {
+        const nv = await gb.nivelesDe(clave);
+        const ob = Number(gb.fmt(R.ordenBase || 0n, decB)) || 1;
+        const precios = nv
+          .map((x) => Number(gb.fmt(x.minOutVenta, decQ)) / ob)
+          .filter((p) => isFinite(p) && p > 0);
+        if (precios.length >= 2) { pmin = Math.min(...precios); pmax = Math.max(...precios); }
+      } catch (_) {}
+    }
   } catch {}
   // Objetivo de salida del Acumulador (el % al que vende todo de golpe)
   let objBps = 0;
@@ -3425,6 +3468,18 @@ async function tarjeta(cuenta, clave, par, R) {
      dividir uno entre otro. Ese dato es fijo, está en la blockchain y
      no depende de ningún navegador.
      ══════════════════════════════════════════════════════════════ */
+  /* El objetivo del Cash Out también sale del contrato: modoDe()
+     devuelve el modo Y el objetivo en puntos básicos. Antes solo se
+     leía del navegador, y al cambiar de dispositivo desaparecía. */
+  let objetivo = par.targetPrice;
+  if (!(objetivo > 0)) {
+    try {
+      const md = await gb.modoDe(clave);
+      const bps = Number(Array.isArray(md) ? md[1] : 0);
+      if (bps > 0 && precio > 0) objetivo = precio * (1 + bps / 10000);
+    } catch (_) {}
+  }
+
   let entrada = par.entry;
   if (!(entrada > 0) && R) {
     try {
