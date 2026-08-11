@@ -1377,7 +1377,11 @@
 
   /* ── Historial ────────────────────────────────────────── */
 
+  var _esSaludo = false;
+
   function save(role, text, entry) {
+    // El saludo de bienvenida no es conversación: no se guarda.
+    if (_esSaludo && role !== 'user') return;
     try {
       var h = JSON.parse(sessionStorage.getItem(STORE) || '[]');
       /* [FALLO CORREGIDO] El botón de editar no se guardaba: quien navegaba
@@ -1392,6 +1396,19 @@
   function restore() {
     var h = [];
     try { h = JSON.parse(sessionStorage.getItem(STORE) || '[]'); } catch (e) {}
+
+    /* Limpieza de lo ya guardado: si en el historial hay saludos de
+       versiones anteriores, se quitan. Sin esto, quien ya tenga ocho
+       apilados los seguiría viendo. */
+    var saludos = (BOT.greeting || []).map(function (x) { return String(x).trim(); });
+    var antes = h.length;
+    h = h.filter(function (m) {
+      return m.r === 'user' || saludos.indexOf(String(m.t).trim()) === -1;
+    });
+    if (h.length !== antes) {
+      try { sessionStorage.setItem(STORE, JSON.stringify(h)); } catch (e) {}
+    }
+
     if (!h.length) return;              // el saludo se escribe al abrir
     h.forEach(function (m) {
       if (m.r === 'user') { var b = bubble('user'); b.textContent = m.t; }
@@ -3037,10 +3054,23 @@
 
     /* el asistente saluda EN VIVO: pausa, puntos, y escribe. Nunca un cartel
        ya puesto esperando. Diez saludos posibles, sin repetir. */
+    /* ══════════════════════════════════════════════════════════════
+       [SALUDOS REPETIDOS CORREGIDOS] El saludo se guardaba en el
+       historial. Al recargar la página, el historial se restauraba CON
+       el saludo dentro y encima se escribía otro. Diez recargas, diez
+       saludos apilados.
+
+       Ahora: el saludo NO se guarda (es de bienvenida, no conversación)
+       y solo se escribe si de verdad no hay nada en pantalla.
+       ══════════════════════════════════════════════════════════════ */
     if (!elMsgs.children.length && !busy) {
       busy = true;
       setTimeout(function () {
-        speak(pickVariant(BOT.greeting, 'greeting'), null, function () { busy = false; });
+        _esSaludo = true;
+        speak(pickVariant(BOT.greeting, 'greeting'), null, function () {
+          _esSaludo = false;
+          busy = false;
+        });
       }, 350);
     }
     bottom();
