@@ -5,17 +5,17 @@
  * botones (i), gráfica viva con las cuadrículas, e inversión total en una cifra.
  */
 
-import * as gb from './gridbot.js?v=124';
-import * as wallet from './wallet.js?v=124';
-import { MONEDAS, LISTA_TODAS } from './tokens.js?v=124';
-import * as perfil from './perfil.js?v=124';
-import * as prizepool from './prizepool.js?v=124';
-import * as tutorial from './tutorial.js?v=124';
-import * as market from './market.js?v=124';
-import * as avisos from './avisos.js?v=124';
-import * as grafica from './grafica.js?v=124';
-import * as extras from './extras.js?v=124';
-import * as gestos from './gestos.js?v=124';
+import * as gb from './gridbot.js?v=125';
+import * as wallet from './wallet.js?v=125';
+import { MONEDAS, LISTA_TODAS } from './tokens.js?v=125';
+import * as perfil from './perfil.js?v=125';
+import * as prizepool from './prizepool.js?v=125';
+import * as tutorial from './tutorial.js?v=125';
+import * as market from './market.js?v=125';
+import * as avisos from './avisos.js?v=125';
+import * as grafica from './grafica.js?v=125';
+import * as extras from './extras.js?v=125';
+import * as gestos from './gestos.js?v=125';
 
 const $ = (id) => document.getElementById(id);
 const APP = 'colmena-app';
@@ -1369,7 +1369,7 @@ function wireHeader() {
   // La academia se carga solo cuando alguien la pide: no pesa al entrar.
   if ($('c-academy')) $('c-academy').onclick = async () => {
     try {
-      const ac = await import('./academy.js?v=124');
+      const ac = await import('./academy.js?v=125');
       ac.abrirAcademy();
     } catch (e) { console.warn('[Aurex] academy:', e); }
   };
@@ -2307,7 +2307,7 @@ function prepararPanelOculto() {
     if (clics < 5 || cargando) return;
     clics = 0; cargando = true;
     try {
-      const admin = await import('./admin.js?v=124');
+      const admin = await import('./admin.js?v=125');
       z.remove();                          // el panel pone la suya
       admin.iniciarPanelOculto();
       // Se acaba de cargar: hay que darle los 5 clics otra vez, así que

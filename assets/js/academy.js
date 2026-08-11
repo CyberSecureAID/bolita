@@ -1,8 +1,8 @@
 // academy.js — Aurex Academy: acceso de pago al grupo de formación.
 // Módulo independiente. Lo único que necesita de fuera es la wallet.
 
-import * as ethers from './vendor/ethers-6.13.4.min.js?v=124';
-import * as wallet from './wallet.js?v=124';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=125';
+import * as wallet from './wallet.js?v=125';
 
 const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -135,8 +135,14 @@ export async function abrirAcademy() {
         <p class="ac-s">Una ruta ordenada, con exámenes que hay que aprobar para avanzar. No es una carpeta de vídeos sueltos.</p>
       </div>
 
+      <div class="ac-cifras">
+        <div class="ac-cif"><b>17</b><span>clases con examen</span></div>
+        <div class="ac-cif"><b>20</b><span>audiolibros</span></div>
+        <div class="ac-cif"><b>3</b><span>fases de estrategia</span></div>
+        <div class="ac-cif"><b>+100</b><span>preguntas de repaso</span></div>
+      </div>
+
       <div class="ac-que">
-        <div class="ac-que-t">Qué llevas dentro</div>
         <ul class="ac-lista">${CONTENIDO.map((x) => `<li>${x}</li>`).join('')}</ul>
       </div>
 
@@ -220,36 +226,130 @@ function rutaCerrada(box) {
   $('ac-ya-user').onkeydown = (e) => { if (e.key === 'Enter') comprobar(); };
 }
 
-/* Abierta: la ruta completa. */
-function rutaAbierta(box, owner, usuario) {
+/* ══════════════════════════════════════════════════════════════
+   EL PANEL DE APRENDIZAJE
+   Con pestañas, no con scroll: 17 clases + 20 audiolibros en una sola
+   columna serían tres pantallas de desplazamiento y nadie encontraría
+   nada. Así el usuario siempre sabe en qué parte del camino está.
+   ══════════════════════════════════════════════════════════════ */
+let _RUTA = null;   // se carga una sola vez
+
+async function rutaAbierta(box, owner, usuario) {
+  box.innerHTML = `<div class="ac-cargando">Abriendo tu panel…</div>`;
+  if (!_RUTA) {
+    try { _RUTA = await import('./academy-ruta.js?v=125'); }
+    catch (e) { box.innerHTML = `<div class="ac-cargando">No se pudo cargar el panel. Recarga la página.</div>`; return; }
+  }
+  const R = _RUTA;
+
   box.innerHTML = `
-    <div class="ac-sec-t">La hoja de ruta</div>
-    <p class="ac-sec-s">Este es el orden. Cada bloque se apoya en el anterior, así que sáltate uno y el siguiente te costará el doble.</p>
-    <div class="ac-abierto">${owner ? 'Entras como dueño' : `Miembro · @${esc(usuario || '')}`}</div>
-    ${ruteroHTML()}
-    <a class="ac-grupo-b" href="${GRUPO}" target="_blank" rel="noopener">Ir al grupo y empezar</a>`;
+    <div class="ap-panel">
+      <div class="ap-cab">
+        <div>
+          <div class="ap-cab-t">Tu panel de aprendizaje</div>
+          <div class="ap-cab-s">${owner ? 'Entras como dueño' : `Miembro · @${esc(usuario || '')}`}</div>
+        </div>
+        <a class="ap-grupo" href="${GRUPO}" target="_blank" rel="noopener">Ir al grupo</a>
+      </div>
+
+      <div class="ap-regla">
+        <b>Cómo funciona esto</b>
+        Ves la clase, haces el examen y necesitas <b>80 puntos</b> para pasar a la siguiente.
+        En la primera vuelta responde aunque no lo sepas: al final te dice qué fallaste y por qué,
+        y repites. Al aprobar puedes descargar tu <b>certificado</b>.
+        <i>Vuelve siempre aquí para pasar de una clase a otra. Si vas saltando por el grupo, pierdes el hilo y no queda constancia de tu avance.</i>
+      </div>
+
+      <div class="ap-tabs" id="ap-tabs">
+        ${R.SECCIONES.map((x, i) => `<button class="ap-tab ${i === 0 ? 'on' : ''}" data-sec="${x.id}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${R.ICONOS[x.ico]}</svg>
+          <span>${x.t}</span></button>`).join('')}
+      </div>
+
+      <div class="ap-cuerpo" id="ap-cuerpo"></div>
+    </div>`;
+
+  const pintar = (id) => { $('ap-cuerpo').innerHTML = seccionHTML(id, R); };
+  box.querySelectorAll('[data-sec]').forEach((b) => b.onclick = () => {
+    box.querySelectorAll('.ap-tab').forEach((x) => x.classList.remove('on'));
+    b.classList.add('on');
+    pintar(b.dataset.sec);
+    $('ap-cuerpo').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  pintar('empieza');
 }
 
-/* El HTML de la ruta. Se usa igual borroso que nítido: si fueran dos
-   versiones distintas, se descuadrarían al cambiar una. */
-function ruteroHTML() {
-  return `<div class="ac-ruta">${RUTA.map((p) => `
-    <div class="ac-paso">
-      <div class="ac-paso-n">${p.n}</div>
-      <div class="ac-paso-c">
-        <div class="ac-paso-t">${p.t}</div>
-        <div class="ac-paso-d">${p.d}</div>
-        ${p.x ? `<div class="ac-paso-x">${p.x}</div>` : ''}
-        ${p.items ? `<div class="ac-chips">${p.items.map((i) => `<span>${i}</span>`).join('')}</div>` : ''}
-        ${p.fases ? `<div class="ac-fases">${p.fases.map((f) => `
-          <div class="ac-fase">
-            <span class="ac-fase-n">${f.f}</span>
-            <div><b>${f.t}</b><em>${f.d}</em></div>
-          </div>`).join('')}</div>` : ''}
-        ${p.nota ? `<div class="ac-paso-nota">${p.nota}</div>` : ''}
-      </div>
-    </div>`).join('')}</div>`;
+/* Una fila: título, botón de ver y botón de examen. */
+function fila(R, { num, tit, sub, video, examen, destacado }) {
+  return `<div class="ap-fila ${destacado ? 'top' : ''}">
+    ${num !== undefined ? `<div class="ap-num">${num}</div>` : ''}
+    <div class="ap-fila-c">
+      <div class="ap-fila-t">${tit}</div>
+      ${sub ? `<div class="ap-fila-s">${sub}</div>` : ''}
+    </div>
+    <div class="ap-fila-b">
+      ${video ? `<a class="ap-b ver" href="${video}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor">${R.ICONOS.play}</svg>Ver</a>` : ''}
+      ${examen ? `<a class="ap-b test" href="${examen}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${R.ICONOS.test}</svg>Examen</a>` : ''}
+    </div>
+  </div>`;
 }
+
+function seccionHTML(id, R) {
+  const O = R.OTROS;
+
+  if (id === 'empieza') {
+    return `
+      <div class="ap-intro">Antes de cualquier clase, esto. Es lo que separa a quien opera con criterio de quien apuesta.</div>
+      ${fila(R, { num: '0', tit: O.riesgo.t, sub: 'Cómo repartir tu dinero y cuánto arriesgar. Hecho a medida de nuestra estrategia, no es un plan genérico.', video: O.riesgo.v, examen: O.riesgo.e, destacado: true })}
+      <div class="ap-aviso">Cuando lo tengas, pasa a <b>Las 17 clases</b>. Van en orden por una razón: cada una se apoya en la anterior.</div>`;
+  }
+
+  if (id === 'clases') {
+    return `
+      <div class="ap-intro">De cero a cien. Cada clase tiene su examen y hacen falta <b>80 puntos</b> para pasar a la siguiente.</div>
+      ${R.CLASES.map((c) => fila(R, { num: c.n, tit: c.t, video: c.v, examen: R.examenDe(c) })).join('')}
+      <div class="ap-aviso">Terminadas las 17, sigue con <b>La estrategia</b>.</div>`;
+  }
+
+  if (id === 'estrategia') {
+    return `
+      <div class="ap-intro">Aquí encaja todo lo anterior. <b>Lógica Estructural Avanzada</b>: tres fases y un repaso en medio.</div>
+      ${fila(R, { tit: O.direccion.t, sub: 'Empieza por aquí: leer hacia dónde va el mercado.', video: O.direccion.v })}
+      ${fila(R, { num: '1', tit: O.fase1.t, video: O.fase1.v, destacado: true })}
+      ${fila(R, { tit: O.repaso.t, sub: 'Vela japonesa, gráfico contra línea, tipos de tendencia y cómo detectar que cambia. Con examen: 80 puntos para seguir.', video: O.repaso.v, examen: O.repaso.e })}
+      ${fila(R, { num: '2', tit: O.fase2.t, video: O.fase2.v, destacado: true })}
+      ${fila(R, { num: '3', tit: O.fase3.t, video: O.fase3.v, destacado: true })}
+
+      <div class="ap-sub">Ejemplos sobre operaciones reales</div>
+      ${fila(R, { tit: O.ej1.t, video: O.ej1.v })}
+      ${fila(R, { tit: O.ej2.t, video: O.ej2.v })}
+      ${fila(R, { tit: O.ej3.t, video: O.ej3.v })}
+      ${fila(R, { tit: O.contexto.t, sub: 'Qué mirar en cada ejemplo.', video: O.contexto.v })}`;
+  }
+
+  if (id === 'audios') {
+    return `
+      <div class="ap-intro">20 audiolibros escogidos uno a uno. El <b>0</b> es la base: escúchalo primero.</div>
+      ${fila(R, { num: '0', tit: AUDIO0(R), sub: '10 títulos, 3 horas. La verdad del dinero y el Bitcoin. Tiene su propio examen dentro.', video: R.AUDIOS[0].v, destacado: true })}
+      <div class="ap-sub">Y después, en este orden</div>
+      <div class="ap-audios">
+        ${R.AUDIOS.slice(1).map((a) => `<a class="ap-audio" href="${a.v}" target="_blank" rel="noopener">
+          <span class="ap-audio-n">${a.n}</span><span class="ap-audio-t">${a.t}</span>
+          <svg viewBox="0 0 24 24" fill="currentColor">${R.ICONOS.play}</svg></a>`).join('')}
+      </div>`;
+  }
+
+  return `
+    <div class="ap-intro">Las herramientas y el software de repaso general.</div>
+    ${fila(R, { tit: O.tuto1.t, sub: 'Abrir la cuenta y moverte por la plataforma.', video: O.tuto1.v })}
+    ${fila(R, { tit: O.tuto2.t, sub: 'Sacarle partido a los gráficos.', video: O.tuto2.v })}
+    ${fila(R, { tit: O.softGen.t, sub: 'Unas 100 preguntas de todo lo estudiado. Para repasar cuando quieras.', examen: O.softGen.e, destacado: true })}
+    <div class="ap-aviso">Y recuerda: <b>sé sincero contigo mismo.</b> Aprobar haciendo trampa no engaña a nadie más que a ti.</div>`;
+}
+
+const AUDIO0 = (R) => R.AUDIOS[0].t;
 
 function decir(txt, clase = '') {
   const e = $('ac-msg'); if (!e) return;
@@ -586,6 +686,102 @@ function estilos() {
   #ac-overlay .ac-grupo-b{display:inline-block;margin-top:20px;padding:14px 30px;border-radius:13px;border:1px solid #c79426;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;text-decoration:none;
     font-family:var(--display,sans-serif);font-weight:800;font-size:14.5px;box-shadow:0 4px 0 #8f6a1a}
+
+  #ac-overlay .ac-cifras{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:22px 0 16px}
+  #ac-overlay .ac-cif{text-align:center;padding:16px 10px;border-radius:14px;
+    background:linear-gradient(180deg,rgba(232,184,75,.09),rgba(232,184,75,.015));border:1px solid rgba(232,184,75,.22)}
+  #ac-overlay .ac-cif b{display:block;font-family:var(--display,sans-serif);font-size:30px;color:var(--gold,#E8B84B);line-height:1}
+  #ac-overlay .ac-cif span{display:block;font-family:var(--sans,sans-serif);font-size:11.5px;color:#8b96a3;margin-top:6px;line-height:1.35}
+  @media(max-width:700px){
+    #ac-overlay .ac-cifras{grid-template-columns:repeat(2,1fr);gap:8px}
+    #ac-overlay .ac-cif{padding:13px 8px}
+    #ac-overlay .ac-cif b{font-size:25px}
+  }
+
+  /* ══════════ PANEL DE APRENDIZAJE ══════════ */
+  #ac-overlay .ap-panel{text-align:left}
+  #ac-overlay .ap-cab{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    padding:18px 20px;border-radius:16px;background:linear-gradient(135deg,rgba(232,184,75,.11),rgba(232,184,75,.02));
+    border:1px solid rgba(232,184,75,.28);margin-bottom:14px}
+  #ac-overlay .ap-cab-t{font-family:var(--display,sans-serif);font-weight:800;font-size:19px;color:#eaecef}
+  #ac-overlay .ap-cab-s{font-family:var(--mono,monospace);font-size:11px;color:var(--gold,#E8B84B);margin-top:4px}
+  #ac-overlay .ap-grupo{flex:0 0 auto;padding:10px 18px;border-radius:11px;border:1px solid #c79426;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;text-decoration:none;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;min-height:42px;display:inline-flex;align-items:center}
+  #ac-overlay .ap-regla{padding:15px 17px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid #2b3139;
+    font-family:var(--sans,sans-serif);font-size:12.5px;color:#8b96a3;line-height:1.65;margin-bottom:16px}
+  #ac-overlay .ap-regla b{color:#eaecef}
+  #ac-overlay .ap-regla > b:first-child{display:block;font-family:var(--display,sans-serif);font-size:14px;color:var(--gold,#E8B84B);margin-bottom:6px}
+  #ac-overlay .ap-regla i{display:block;font-style:normal;margin-top:9px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07);font-size:12px;color:#7d8794}
+  #ac-overlay .ap-regla i b{color:#b7bdc6}
+
+  #ac-overlay .ap-tabs{display:flex;gap:5px;overflow-x:auto;padding:4px;border-radius:13px;background:#0b0e12;
+    border:1px solid #2b3139;margin-bottom:16px;scrollbar-width:none}
+  #ac-overlay .ap-tabs::-webkit-scrollbar{display:none}
+  #ac-overlay .ap-tab{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    min-height:44px;padding:0 15px;border:none;border-radius:10px;background:transparent;color:#8b96a3;
+    font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap;
+    transition:background .15s ease,color .15s ease}
+  #ac-overlay .ap-tab svg{width:16px;height:16px;flex:0 0 auto}
+  #ac-overlay .ap-tab.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
+  #ac-overlay .ap-tab:not(.on):hover{background:rgba(255,255,255,.05);color:#b7bdc6}
+
+  #ac-overlay .ap-intro{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.6;margin-bottom:14px}
+  #ac-overlay .ap-intro b{color:var(--gold,#E8B84B)}
+  #ac-overlay .ap-sub{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;
+    letter-spacing:1.1px;margin:22px 0 11px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.07)}
+  #ac-overlay .ap-aviso{margin-top:16px;padding:12px 14px;border-radius:11px;background:rgba(232,184,75,.07);
+    border-left:2px solid var(--gold-soft,#C9A84B);font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.6}
+  #ac-overlay .ap-aviso b{color:var(--gold,#E8B84B)}
+
+  #ac-overlay .ap-fila{display:flex;align-items:center;gap:13px;padding:13px 15px;border-radius:13px;
+    background:rgba(255,255,255,.025);border:1px solid #2b3139;margin-bottom:8px}
+  #ac-overlay .ap-fila.top{border-color:rgba(232,184,75,.35);background:rgba(232,184,75,.055)}
+  #ac-overlay .ap-num{flex:0 0 auto;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;
+    background:rgba(232,184,75,.13);border:1px solid rgba(232,184,75,.3);color:var(--gold,#E8B84B);
+    font-family:var(--display,sans-serif);font-weight:800;font-size:13px}
+  #ac-overlay .ap-fila-c{flex:1;min-width:0}
+  #ac-overlay .ap-fila-t{font-family:var(--display,sans-serif);font-weight:700;font-size:14px;color:#eaecef;line-height:1.35}
+  #ac-overlay .ap-fila-s{font-family:var(--sans,sans-serif);font-size:12px;color:#7d8794;line-height:1.5;margin-top:4px}
+  #ac-overlay .ap-fila-b{flex:0 0 auto;display:flex;gap:7px}
+  #ac-overlay .ap-b{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;
+    text-decoration:none;font-family:var(--display,sans-serif);font-weight:700;font-size:12px;min-height:40px;white-space:nowrap}
+  #ac-overlay .ap-b svg{width:13px;height:13px;flex:0 0 auto}
+  #ac-overlay .ap-b.ver{border:1px solid #c79426;background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800}
+  #ac-overlay .ap-b.test{border:1px solid rgba(46,232,106,.4);background:rgba(46,232,106,.09);color:var(--neon-lit,#2ee86a)}
+  #ac-overlay .ap-b.test:hover{background:rgba(46,232,106,.16)}
+
+  #ac-overlay .ap-audios{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+  #ac-overlay .ap-audio{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;
+    background:rgba(255,255,255,.025);border:1px solid #2b3139;text-decoration:none;color:#b7bdc6;min-height:48px;
+    transition:border-color .15s ease,background .15s ease}
+  #ac-overlay .ap-audio:hover{border-color:var(--gold-soft,#C9A84B);background:rgba(232,184,75,.06)}
+  #ac-overlay .ap-audio-n{flex:0 0 auto;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;
+    background:rgba(255,255,255,.05);color:#7d8794;font-family:var(--mono,monospace);font-size:11px;font-weight:700}
+  #ac-overlay .ap-audio-t{flex:1;min-width:0;font-family:var(--sans,sans-serif);font-size:12.5px;line-height:1.35}
+  #ac-overlay .ap-audio svg{width:12px;height:12px;flex:0 0 auto;color:var(--gold,#E8B84B);opacity:.7}
+
+  @media(max-width:700px){
+    /* Las 5 pestañas no caben en una fila estrecha y había que deslizar a
+       ciegas. En rejilla se ven todas de golpe, que es lo que importa
+       cuando el usuario está buscando por dónde iba. */
+    #ac-overlay .ap-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;overflow:visible}
+    #ac-overlay .ap-tab{min-width:0;padding:0 6px;flex-direction:column;gap:3px;min-height:52px;font-size:10.5px}
+    #ac-overlay .ap-tab span{display:block;font-size:10px;line-height:1.15;text-align:center;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
+    #ac-overlay .ap-tab svg{width:15px;height:15px}
+    #ac-overlay .ap-audios{grid-template-columns:1fr}
+    #ac-overlay .ap-fila{flex-wrap:wrap}
+    #ac-overlay .ap-fila-c{flex:1 1 100%;order:1}
+    #ac-overlay .ap-num{order:0}
+    #ac-overlay .ap-fila-b{flex:1 1 100%;order:2;margin-top:4px}
+    #ac-overlay .ap-b{flex:1;justify-content:center}
+    #ac-overlay .ap-cab{flex-direction:column;align-items:stretch}
+    #ac-overlay .ap-grupo{justify-content:center}
+    #ac-overlay .ap-tab span{display:none}
+    #ac-overlay .ap-tab{padding:0 12px;min-width:52px}
+    #ac-overlay .ap-tab.on span{display:inline}
+  }
 
   @media(max-width:860px){
     #ac-overlay .ac-planes{grid-template-columns:1fr;gap:11px}
