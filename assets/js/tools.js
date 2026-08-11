@@ -376,13 +376,11 @@ function pintarAlertas() {
 
   box.innerHTML = `
     <div class="al-paso"><span>1</span>Elige la moneda</div>
-    <div class="al-monedas">
-      ${monedas.map(([id, m]) => `
-        <button class="al-mon ${id === _alMoneda ? 'on' : ''}" data-mon="${id}" title="${esc(m.nombre)}">
-          <span class="al-mon-i" data-logo="${esc(m.cg)}" style="border-color:${m.color}55"></span>
-          <span class="al-mon-s">${esc(m.simbolo)}</span>
-        </button>`).join('')}
-    </div>
+    <button class="al-selector" id="al-abrir">
+      <span class="al-mon-i" data-logo="${esc((MONEDAS[_alMoneda] || {}).cg || '')}" style="border-color:${(MONEDAS[_alMoneda] || {}).color}55"></span>
+      <span class="al-sel-tx"><b>${esc((MONEDAS[_alMoneda] || {}).simbolo || '')}</b><em>${esc((MONEDAS[_alMoneda] || {}).nombre || '')}</em></span>
+      <svg class="al-sel-v" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
 
     <div class="al-paso"><span>2</span>Avísame cuando el precio…</div>
     <div class="al-dirs">
@@ -423,6 +421,46 @@ function pintarAlertas() {
 
   ponerLogos();
 
+  /* Desplegable de monedas, con la misma dinámica que en los bots:
+     una barra que abre una lista, no 26 botones ocupando la pantalla. */
+  $('al-abrir').onclick = () => {
+    const d = document.createElement('div');
+    d.id = 'al-picker';
+    d.innerHTML = `<div class="alp-bg"></div>
+      <div class="alp-c">
+        <div class="alp-cab">
+          <span>Elige la moneda</span>
+          <button class="alp-x" aria-label="Cerrar">✕</button>
+        </div>
+        <input class="alp-buscar" id="alp-q" placeholder="Buscar…" autocomplete="off">
+        <div class="alp-lista" id="alp-lista">
+          ${monedas.map(([id, m]) => `
+            <button class="alp-item ${id === _alMoneda ? 'on' : ''}" data-pick="${id}" data-busca="${esc((m.simbolo + ' ' + m.nombre).toLowerCase())}">
+              <span class="al-mon-i" data-logo="${esc(m.cg)}" style="border-color:${m.color}55"></span>
+              <span class="alp-tx"><b>${esc(m.simbolo)}</b><em>${esc(m.nombre)}</em></span>
+              ${id === _alMoneda ? '<svg class="alp-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg>' : ''}
+            </button>`).join('')}
+        </div>
+      </div>`;
+    document.body.appendChild(d);
+    ponerLogos();
+    const q = () => d.remove();
+    d.querySelector('.alp-bg').onclick = q;
+    d.querySelector('.alp-x').onclick = q;
+    $('alp-q').oninput = (e) => {
+      const t = e.target.value.toLowerCase().trim();
+      d.querySelectorAll('.alp-item').forEach((x) => {
+        x.style.display = !t || x.dataset.busca.includes(t) ? '' : 'none';
+      });
+    };
+    d.querySelectorAll('[data-pick]').forEach((b) => b.onclick = () => {
+      _alMoneda = b.dataset.pick;
+      q();
+      pintarAlertas();
+    });
+    setTimeout(() => { try { $('alp-q').focus(); } catch (_) {} }, 100);
+  };
+
   // Precio de ahora, para que sepa dónde está antes de elegir
   const verPrecio = async () => {
     const el = $('al-ahora'); if (!el) return;
@@ -437,11 +475,7 @@ function pintarAlertas() {
   };
   verPrecio();
 
-  box.querySelectorAll('[data-mon]').forEach((b) => b.onclick = () => {
-    _alMoneda = b.dataset.mon;
-    box.querySelectorAll('.al-mon').forEach((x) => x.classList.toggle('on', x.dataset.mon === _alMoneda));
-    verPrecio();
-  });
+
   box.querySelectorAll('[data-dir]').forEach((b) => b.onclick = () => {
     _alDir = b.dataset.dir;
     box.querySelectorAll('.al-dir').forEach((x) => x.classList.toggle('on', x.dataset.dir === _alDir));
@@ -637,13 +671,39 @@ function estilos() {
   #al-overlay .al-paso:first-child{margin-top:0}
   #al-overlay .al-paso span{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;flex:0 0 auto;
     background:rgba(232,184,75,.14);color:var(--gold,#E8B84B);font-size:10px;font-weight:700}
-  #al-overlay .al-monedas{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:7px;
-    max-height:214px;overflow-y:auto;padding-right:4px}
-  #al-overlay .al-mon{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 6px;border-radius:12px;
-    background:rgba(255,255,255,.025);border:1px solid #2b3139;cursor:pointer;min-height:74px;
-    transition:border-color .15s ease,background .15s ease}
-  #al-overlay .al-mon:hover{border-color:var(--gold-soft,#C9A84B)}
-  #al-overlay .al-mon.on{border-color:var(--gold,#E8B84B);background:rgba(232,184,75,.1)}
+  /* La barra que abre el desplegable */
+  #al-overlay .al-selector{display:flex;align-items:center;gap:12px;width:100%;padding:13px 15px;border-radius:13px;
+    background:rgba(255,255,255,.03);border:1px solid #2b3139;color:#eaecef;cursor:pointer;min-height:60px;
+    transition:border-color .15s ease}
+  #al-overlay .al-selector:hover{border-color:var(--gold-soft,#C9A84B)}
+  #al-overlay .al-sel-tx{flex:1;min-width:0;text-align:left}
+  #al-overlay .al-sel-tx b{display:block;font-family:var(--display,sans-serif);font-size:15px}
+  #al-overlay .al-sel-tx em{display:block;font-style:normal;font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;margin-top:2px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #al-overlay .al-sel-v{width:18px;height:18px;flex:0 0 auto;color:#6b7681}
+
+  /* El desplegable */
+  #al-picker{position:fixed;inset:0;z-index:9730;display:flex;align-items:center;justify-content:center;padding:16px}
+  #al-picker .alp-bg{position:absolute;inset:0;background:rgba(3,5,8,.9);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  #al-picker .alp-c{position:relative;width:100%;max-width:400px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:18px;padding:16px;overflow:hidden}
+  #al-picker .alp-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+  #al-picker .alp-cab span{font-family:var(--display,sans-serif);font-weight:800;font-size:16px;color:#eaecef}
+  #al-picker .alp-x{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;padding:0;
+    background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6;cursor:pointer}
+  #al-picker .alp-buscar{width:100%;box-sizing:border-box;padding:12px 14px;border-radius:11px;border:1px solid #2b3139;
+    background:#0b0e12;color:#eaecef;font-family:var(--sans,sans-serif);font-size:14px;margin-bottom:10px;min-height:46px}
+  #al-picker .alp-buscar:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
+  #al-picker .alp-lista{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin:0 -4px;padding:0 4px}
+  #al-picker .alp-item{display:flex;align-items:center;gap:12px;width:100%;padding:11px 13px;border-radius:12px;
+    background:transparent;border:1px solid transparent;color:#eaecef;cursor:pointer;min-height:56px;text-align:left}
+  #al-picker .alp-item:hover{background:rgba(255,255,255,.04)}
+  #al-picker .alp-item.on{background:rgba(232,184,75,.1);border-color:rgba(232,184,75,.35)}
+  #al-picker .alp-tx{flex:1;min-width:0}
+  #al-picker .alp-tx b{display:block;font-family:var(--display,sans-serif);font-size:14px}
+  #al-picker .alp-tx em{display:block;font-style:normal;font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;margin-top:2px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #al-picker .alp-ok{width:17px;height:17px;flex:0 0 auto;color:var(--gold,#E8B84B)}
   #al-overlay .al-mon-i{width:30px;height:30px;border-radius:50%;flex:0 0 auto;border:1px solid;
     background:rgba(255,255,255,.05) center/cover no-repeat}
   #al-overlay .al-mon-i.con-logo{background-color:transparent;background-size:cover}
@@ -663,10 +723,13 @@ function estilos() {
   #al-overlay .al-in{flex:1;min-width:0;padding:14px 14px 14px 3px;border:none;background:transparent;color:#eaecef;
     font-family:var(--display,sans-serif);font-size:19px;font-weight:700;min-height:52px}
   #al-overlay .al-in:focus{outline:none}
-  /* Las flechitas del campo de precio: fuera. Se escribe el número y ya. */
-  #al-overlay .al-in::-webkit-inner-spin-button,
-  #al-overlay .al-in::-webkit-outer-spin-button{-webkit-appearance:none;appearance:none;margin:0;display:none}
-  #al-overlay .al-in{-moz-appearance:textfield}
+  /* Flechitas del precio: en el escritorio se quedan (van bien y ayudan
+     a ajustar), en el móvil fuera (el dedo nunca acierta). */
+  @media(max-width:760px){
+    #al-overlay .al-in::-webkit-inner-spin-button,
+    #al-overlay .al-in::-webkit-outer-spin-button{-webkit-appearance:none;appearance:none;margin:0;display:none}
+    #al-overlay .al-in{-moz-appearance:textfield}
+  }
   #al-overlay .al-ahora{font-family:var(--mono,monospace);font-size:11.5px;color:#7d8794;text-align:center;margin:9px 0 14px;min-height:16px}
   #al-overlay .al-ahora b{color:var(--gold,#E8B84B)}
   #al-overlay .al-titulo{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;

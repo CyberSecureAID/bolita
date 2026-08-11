@@ -794,6 +794,37 @@ function inyectarEstilo() {
   #colmena-app .rangowarn.arriba b{color:var(--neon-lit)}
   #colmena-app .rangowarn.cerca{background:rgba(232,184,75,.08);border:1px solid rgba(232,184,75,.32);color:var(--ink-2)}
   #colmena-app .rangowarn.cerca b{color:var(--gold)}
+  /* ══════ TEXTOS: LARGO EN LA WEB, CORTO EN EL MÓVIL ══════
+     El mismo texto que se lee bien en un monitor ocupa seis líneas en un
+     móvil. Se escriben las dos versiones y cada pantalla usa la suya. */
+  #colmena-app .nota-corta{display:none}
+  #colmena-app .nota-larga{display:inline}
+  @media(max-width:760px){
+    #colmena-app .nota-corta{display:inline}
+    #colmena-app .nota-larga{display:none}
+    /* El cupo y el botón de cerrar: en móvil, lo mínimo. "3/8" dice lo
+       mismo que "3 bots activos" y no empuja al título "Mis bots". */
+    #colmena-app .c-cupo .cupo-tx{display:none}
+    #colmena-app .c-cupo{padding:0 10px;gap:3px}
+    #colmena-app .c-cupo:after{content:'/8';font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+    #colmena-app .cerrar-largo{display:none !important}
+    #colmena-app .cerrar-corto{display:inline !important}
+    #colmena-app .btn-cerrar-todos{padding:0 13px}
+    /* Las flechitas de los campos numéricos: FUERA en el móvil.
+       Se escribe con el teclado y el dedo nunca acierta en una flecha
+       de 8px. En la web se quedan, que ahí van bien. */
+    #colmena-app input[type="number"]::-webkit-inner-spin-button,
+    #colmena-app input[type="number"]::-webkit-outer-spin-button,
+    #conf-box input[type="number"]::-webkit-inner-spin-button,
+    #conf-box input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button{
+      -webkit-appearance:none !important;appearance:none !important;
+      margin:0 !important;display:none !important;width:0 !important}
+    input[type="number"]{-moz-appearance:textfield !important}
+  }
+  #colmena-app .cerrar-corto{display:none}
+  #colmena-app .cerrar-largo{display:inline}
   #colmena-app .sinleer{padding:12px 14px;border-radius:11px;margin-top:8px;
     background:rgba(255,255,255,.025);border:1px dashed #3a424c;
     font-family:var(--sans);font-size:12px;color:var(--ink-3);text-align:center;line-height:1.5}
@@ -1588,7 +1619,7 @@ function render() {
               <div><span>Compra inicial (a mercado)</span><b id="fa-p-ini">—</b></div>
               <div><span>Precio promedio estimado</span><b id="fa-p-prom">—</b></div>
             </div>
-            <div class="as-nota">Compra más cuanto más baja el precio. Cuando el conjunto gana el % que elijas, <b>vende todo de golpe</b>.</div>
+            <div class="as-nota"><span class="nota-larga">Compra más cuanto más baja el precio. Cuando el conjunto gana el % que elijas, <b>vende todo de golpe</b>.</span><span class="nota-corta">Compra en las caídas y <b>vende todo junto</b> al llegar a tu objetivo.</span></div>
           </div>
         </div>
         <div id="f-cash" style="${F.tipo==='cash'?'':'display:none'}">
@@ -1624,7 +1655,10 @@ function render() {
               <div class="cr-row"><span>Comisión de la venta</span><b id="fc-p-com">—</b></div>
               <div class="cr-row cr-gan"><span>Ganancia estimada</span><b id="fc-p-gan" class="pos">—</b></div>
             </div>
-            <div class="cr-note">Vende solo cuando el precio llegue a tu objetivo y recibe <b id="fc-p-est">${moneda(F.quoteId).simbolo}</b> en tu wallet.<br><span style="opacity:.75">Ten esa moneda agregada en tu wallet para verla — llega igual.</span></div>
+            <div class="cr-note">
+              <span class="nota-larga">Vende solo cuando el precio llegue a tu objetivo y recibe <b id="fc-p-est">${moneda(F.quoteId).simbolo}</b> en tu wallet.<br><span style="opacity:.75">Ten esa moneda agregada en tu wallet para verla: llega igual.</span></span>
+              <span class="nota-corta">Vende al llegar a tu objetivo y recibes <b>${moneda(F.quoteId).simbolo}</b> en tu wallet.</span>
+            </div>
           </div>
         </div>
         <div id="f-dca" style="${F.tipo==='dca'?'':'display:none'}">
@@ -1657,7 +1691,10 @@ function render() {
               <div class="cr-row"><span>Total a invertir</span><b id="fd-p-total">—</b></div>
               <div class="cr-row"><span>Precio ahora</span><b id="fd-p-precio">—</b></div>
             </div>
-            <div class="cr-note">La primera compra se hace al encender. Ten <b id="fd-p-est">${moneda(F.quoteId).simbolo}</b> cargado en tu wallet para las siguientes.</div>
+            <div class="cr-note">
+              <span class="nota-larga">La primera compra se hace al encender. Ten <b>${moneda(F.quoteId).simbolo}</b> cargado en tu wallet para las siguientes.</span>
+              <span class="nota-corta">La primera compra es al encender. Ten <b>${moneda(F.quoteId).simbolo}</b> cargado para las siguientes.</span>
+            </div>
           </div>
         </div>
         <div style="text-align:right"><button class="btn-avz" id="f-toggleavz">${F.avanzado ? '− Opciones avanzadas' : '+ Opciones avanzadas'}</button></div>
@@ -1728,7 +1765,7 @@ function render() {
         </div>
       </div>
     </div>
-    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><div class="mb-der"><span class="c-cupo" id="c-cupo"><b>—</b><span>bots activos</span></span><button class="btn-cerrar-todos" id="c-cerrar-todos" type="button" title="Cerrar todos tus bots">Cerrar todos</button></div></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
+    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><div class="mb-der"><span class="c-cupo" id="c-cupo"><b>—</b><span class="cupo-tx">bots activos</span></span><button class="btn-cerrar-todos" id="c-cerrar-todos" type="button" title="Cerrar todos tus bots"><span class="cerrar-largo">Cerrar todos</span><span class="cerrar-corto">Cerrar</span></button></div></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
     ${footerHTML()}
   </div>`;
 
@@ -3285,7 +3322,25 @@ async function tarjeta(cuenta, clave, par, R) {
         });
       }
     }
-    try { const pr = await gb.precioPar(bAddr, qAddr, decB, decQ); precio = pr.precio; } catch {}
+    /* [FALLO HISTÓRICO CORREGIDO] Aquí había un `catch {}` vacío: si la
+       primera consulta fallaba, el precio se quedaba en nulo y la tarjeta
+       mostraba un guion. Y como los servidores públicos fallan a menudo,
+       pasaba casi siempre. Ahora se reintenta y, si aun así no llega, se
+       usa el precio en dólares de CoinGecko, que ya tenemos cargado. */
+    for (let _i = 0; _i < 3 && precio == null; _i++) {
+      try {
+        const pr = await gb.precioPar(bAddr, qAddr, decB, decQ);
+        if (pr && pr.precio > 0) precio = pr.precio;
+      } catch (_) {}
+      if (precio == null) await new Promise((r) => setTimeout(r, 400));
+    }
+    // Último recurso: calcularlo con los precios en dólares que ya tenemos.
+    if (precio == null) {
+      try {
+        const lb = LOGOS[simboloDe(bAddr)], lq = LOGOS[simboloDe(qAddr)];
+        if (lb && lq && lb.price > 0 && lq.price > 0) precio = lb.price / lq.price;
+      } catch (_) {}
+    }
     if (ps.length) { pmin = Math.min(...ps.map((x) => x.p)); pmax = Math.max(...ps.map((x) => x.p)); }
   } catch {}
   // Objetivo de salida del Acumulador (el % al que vende todo de golpe)
