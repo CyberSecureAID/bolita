@@ -2244,6 +2244,10 @@ body {
 }
 *::-webkit-scrollbar-thumb:hover { background: rgba(232, 184, 75, .5); }
 *::-webkit-scrollbar-corner { background: transparent; }
+/* Las flechitas de arriba y abajo: fuera. Son del sistema, no encajan con
+   nada, y en las ventanas se salían del borde redondeado. Nadie las usa:
+   la gente arrastra o hace scroll. */
+*::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 
 /* Las barras que solo sirven para deslizar con el dedo (pestañas,
    listas de monedas) no necesitan barra visible: estorba. */
