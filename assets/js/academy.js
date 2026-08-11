@@ -256,8 +256,8 @@ async function rutaAbierta(box, owner, usuario) {
         <b>Cómo funciona esto</b>
         <div class="ap-pasos3">
           <div><span>1</span>Ves la clase</div>
-          <div><span>2</span>Haces su examen</div>
-          <div><span>3</span>Con <b>80 puntos</b> pasas a la siguiente</div>
+          <div><span>2</span>Haces el examen</div>
+          <div><span>3</span>Sacas <b>80 puntos</b></div>
         </div>
         <p>En la primera vuelta <b>responde aunque no lo sepas</b>. No pasa nada: sirve para ver dónde flojeas. Al terminar tienes la lista de lo que fallaste y un botón <b>«estudiar sobre este tema»</b> que te lo explica. Luego repites.</p>
         <p class="ap-cert"><b>Al aprobar, tu certificado.</b> Baja hasta el final del examen y encontrarás <b>Ver certificado</b>. Te avala <b>XactTrader Academy</b> en la materia que acabas de estudiar.</p>
@@ -766,9 +766,13 @@ function estilos() {
     font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.7}
   #ac-overlay .ap-fin b{font-family:var(--display,sans-serif);font-size:15px;color:var(--neon-lit,#2ee86a)}
   /* Los tres pasos de la regla, en fila */
-  #ac-overlay .ap-pasos3{display:flex;gap:9px;flex-wrap:wrap;margin:11px 0 12px}
-  #ac-overlay .ap-pasos3 > div{flex:1;min-width:130px;display:flex;align-items:center;gap:9px;padding:10px 12px;
-    border-radius:11px;background:rgba(255,255,255,.035);font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6}
+  /* Los tres del mismo ancho SIEMPRE (1fr cada uno). Con flex, el que
+     tenía más texto se comía el espacio de los otros y se descuadraba. */
+  #ac-overlay .ap-pasos3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:11px 0 12px}
+  #ac-overlay .ap-pasos3 > div{display:flex;align-items:center;gap:9px;padding:11px 12px;min-width:0;
+    border-radius:11px;background:rgba(255,255,255,.035);font-family:var(--sans,sans-serif);
+    font-size:12.5px;color:#b7bdc6;line-height:1.35}
+  #ac-overlay .ap-pasos3 > div b{color:var(--gold,#E8B84B);white-space:nowrap}
   #ac-overlay .ap-pasos3 span{flex:0 0 auto;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800;
     font-family:var(--display,sans-serif);font-weight:800;font-size:11px}
@@ -822,7 +826,7 @@ function estilos() {
     #ac-overlay .ap-siguiente{flex-wrap:wrap;gap:9px;padding:15px 16px}
     #ac-overlay .ap-sig-t{flex:1 1 100%;font-size:15px;order:2}
     #ac-overlay .ap-siguiente svg{order:3}
-    #ac-overlay .ap-pasos3 > div{min-width:100%}
+    #ac-overlay .ap-pasos3{grid-template-columns:1fr;gap:7px}
     #ac-overlay .ap-audios{grid-template-columns:1fr}
     #ac-overlay .ap-fila{flex-wrap:wrap}
     #ac-overlay .ap-fila-c{flex:1 1 100%;order:1}
