@@ -136,10 +136,10 @@ export async function abrirAcademy() {
       </div>
 
       <div class="ac-cifras">
-        <div class="ac-cif"><b>17</b><span>clases con examen</span></div>
-        <div class="ac-cif"><b>20</b><span>audiolibros</span></div>
-        <div class="ac-cif"><b>3</b><span>fases de estrategia</span></div>
-        <div class="ac-cif"><b>+100</b><span>preguntas de repaso</span></div>
+        <div class="ac-cif"><b>17</b><span>clases<i>cada una con examen</i></span></div>
+        <div class="ac-cif"><b>20</b><span>audiolibros<i>escogidos uno a uno</i></span></div>
+        <div class="ac-cif"><b>3</b><span>fases<i>de la estrategia</i></span></div>
+        <div class="ac-cif"><b>100</b><span>preguntas<i>en el examen final</i></span></div>
       </div>
 
       <div class="ac-que">
@@ -254,29 +254,50 @@ async function rutaAbierta(box, owner, usuario) {
 
       <div class="ap-regla">
         <b>Cómo funciona esto</b>
-        Ves la clase, haces el examen y necesitas <b>80 puntos</b> para pasar a la siguiente.
-        En la primera vuelta responde aunque no lo sepas: al final te dice qué fallaste y por qué,
-        y repites. Al aprobar puedes descargar tu <b>certificado</b>.
-        <i>Vuelve siempre aquí para pasar de una clase a otra. Si vas saltando por el grupo, pierdes el hilo y no queda constancia de tu avance.</i>
+        <div class="ap-pasos3">
+          <div><span>1</span>Ves la clase</div>
+          <div><span>2</span>Haces su examen</div>
+          <div><span>3</span>Con <b>80 puntos</b> pasas a la siguiente</div>
+        </div>
+        <p>En la primera vuelta <b>responde aunque no lo sepas</b>. No pasa nada: sirve para ver dónde flojeas. Al terminar tienes la lista de lo que fallaste y un botón <b>«estudiar sobre este tema»</b> que te lo explica. Luego repites.</p>
+        <p class="ap-cert"><b>Al aprobar, tu certificado.</b> Baja hasta el final del examen y encontrarás <b>Ver certificado</b>. Te avala <b>XactTrader Academy</b> en la materia que acabas de estudiar.</p>
+        <i><b>Vuelve siempre aquí</b> para pasar de una clase a otra. Si te quedas en el grupo bajando de una a otra, pierdes el hilo y no queda constancia de tu avance.</i>
+        <i class="ap-honesto"><b>Sé sincero contigo mismo.</b> Puedes saltarte un examen o copiar las respuestas, y nadie se enterará. Pero el día que operes con tu dinero, el mercado no acepta certificados: acepta lo que de verdad sabes.</i>
       </div>
 
       <div class="ap-tabs" id="ap-tabs">
         ${R.SECCIONES.map((x, i) => `<button class="ap-tab ${i === 0 ? 'on' : ''}" data-sec="${x.id}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${R.ICONOS[x.ico]}</svg>
-          <span>${x.t}</span></button>`).join('')}
+          <span class="ap-tab-n">${x.n}</span>
+          <span class="ap-tab-t">${x.corto}</span></button>`).join('')}
       </div>
 
       <div class="ap-cuerpo" id="ap-cuerpo"></div>
     </div>`;
 
-  const pintar = (id) => { $('ap-cuerpo').innerHTML = seccionHTML(id, R); };
+  const ir = (id) => {
+    box.querySelectorAll('.ap-tab').forEach((x) => x.classList.toggle('on', x.dataset.sec === id));
+    const sec = R.SECCIONES.find((x) => x.id === id);
+    const sig = sec && sec.sig ? R.SECCIONES.find((x) => x.id === sec.sig) : null;
+
+    /* El paso siguiente, SIEMPRE visible al final. Sin esto el usuario
+       termina una sección, no ve a dónde ir, y da por hecho que ya está
+       todo. Es el motivo por el que la gente se quedaba en la primera. */
+    $('ap-cuerpo').innerHTML = seccionHTML(id, R) + (sig
+      ? `<button class="ap-siguiente" data-ir="${sig.id}">
+           <span class="ap-sig-e">Paso ${sig.n} de 5</span>
+           <span class="ap-sig-t">${sig.t}</span>
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+         </button>`
+      : `<div class="ap-fin">Has recorrido las cinco etapas.<br><b>Ahora toca practicar.</b></div>`);
+
+    const bs = $('ap-cuerpo').querySelector('[data-ir]');
+    if (bs) bs.onclick = () => { ir(bs.dataset.ir); box.querySelector('.ap-tabs').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  };
   box.querySelectorAll('[data-sec]').forEach((b) => b.onclick = () => {
-    box.querySelectorAll('.ap-tab').forEach((x) => x.classList.remove('on'));
-    b.classList.add('on');
-    pintar(b.dataset.sec);
+    ir(b.dataset.sec);
     $('ap-cuerpo').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
-  pintar('empieza');
+  ir('empieza');
 }
 
 /* Una fila: título, botón de ver y botón de examen. */
@@ -316,7 +337,6 @@ function seccionHTML(id, R) {
   if (id === 'estrategia') {
     return `
       <div class="ap-intro">Aquí encaja todo lo anterior. <b>Lógica Estructural Avanzada</b>: tres fases y un repaso en medio.</div>
-      ${fila(R, { tit: O.direccion.t, sub: 'Empieza por aquí: leer hacia dónde va el mercado.', video: O.direccion.v })}
       ${fila(R, { num: '1', tit: O.fase1.t, video: O.fase1.v, destacado: true })}
       ${fila(R, { tit: O.repaso.t, sub: 'Vela japonesa, gráfico contra línea, tipos de tendencia y cómo detectar que cambia. Con examen: 80 puntos para seguir.', video: O.repaso.v, examen: O.repaso.e })}
       ${fila(R, { num: '2', tit: O.fase2.t, video: O.fase2.v, destacado: true })}
@@ -345,6 +365,7 @@ function seccionHTML(id, R) {
     <div class="ap-intro">Las herramientas y el software de repaso general.</div>
     ${fila(R, { tit: O.tuto1.t, sub: 'Abrir la cuenta y moverte por la plataforma.', video: O.tuto1.v })}
     ${fila(R, { tit: O.tuto2.t, sub: 'Sacarle partido a los gráficos.', video: O.tuto2.v })}
+    ${fila(R, { tit: O.direccion.t, sub: 'Leer hacia dónde va el mercado antes de tocar nada.', video: O.direccion.v })}
     ${fila(R, { tit: O.softGen.t, sub: 'Unas 100 preguntas de todo lo estudiado. Para repasar cuando quieras.', examen: O.softGen.e, destacado: true })}
     <div class="ap-aviso">Y recuerda: <b>sé sincero contigo mismo.</b> Aprobar haciendo trampa no engaña a nadie más que a ti.</div>`;
 }
@@ -691,7 +712,8 @@ function estilos() {
   #ac-overlay .ac-cif{text-align:center;padding:16px 10px;border-radius:14px;
     background:linear-gradient(180deg,rgba(232,184,75,.09),rgba(232,184,75,.015));border:1px solid rgba(232,184,75,.22)}
   #ac-overlay .ac-cif b{display:block;font-family:var(--display,sans-serif);font-size:30px;color:var(--gold,#E8B84B);line-height:1}
-  #ac-overlay .ac-cif span{display:block;font-family:var(--sans,sans-serif);font-size:11.5px;color:#8b96a3;margin-top:6px;line-height:1.35}
+  #ac-overlay .ac-cif span{display:block;font-family:var(--display,sans-serif);font-weight:700;font-size:13px;color:#eaecef;margin-top:7px;line-height:1.25}
+  #ac-overlay .ac-cif i{display:block;font-style:normal;font-family:var(--sans,sans-serif);font-size:10.5px;color:#7d8794;margin-top:3px;line-height:1.3}
   @media(max-width:700px){
     #ac-overlay .ac-cifras{grid-template-columns:repeat(2,1fr);gap:8px}
     #ac-overlay .ac-cif{padding:13px 8px}
@@ -722,10 +744,39 @@ function estilos() {
     min-height:44px;padding:0 15px;border:none;border-radius:10px;background:transparent;color:#8b96a3;
     font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap;
     transition:background .15s ease,color .15s ease}
-  #ac-overlay .ap-tab svg{width:16px;height:16px;flex:0 0 auto}
+  #ac-overlay .ap-tab-n{flex:0 0 auto;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;
+    background:rgba(255,255,255,.07);font-family:var(--mono,monospace);font-size:10.5px;font-weight:700}
+  #ac-overlay .ap-tab.on .ap-tab-n{background:rgba(58,40,0,.22);color:#3a2800}
+  #ac-overlay .ap-tab-t{white-space:nowrap}
   #ac-overlay .ap-tab.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
   #ac-overlay .ap-tab:not(.on):hover{background:rgba(255,255,255,.05);color:#b7bdc6}
 
+  /* El paso siguiente: grande y al final. Es lo que evita que el usuario
+     crea que ya ha visto todo y se marche en la primera sección. */
+  #ac-overlay .ap-siguiente{display:flex;align-items:center;gap:13px;width:100%;margin-top:22px;padding:17px 20px;
+    border-radius:15px;border:1px solid rgba(232,184,75,.4);background:linear-gradient(135deg,rgba(232,184,75,.13),rgba(232,184,75,.03));
+    color:#eaecef;cursor:pointer;text-align:left;transition:border-color .16s ease,transform .16s ease}
+  #ac-overlay .ap-siguiente:hover{border-color:var(--gold,#E8B84B);transform:translateX(3px)}
+  #ac-overlay .ap-sig-e{flex:0 0 auto;font-family:var(--mono,monospace);font-size:9.5px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:1px;padding:5px 10px;border-radius:20px;background:rgba(232,184,75,.14)}
+  #ac-overlay .ap-sig-t{flex:1;font-family:var(--display,sans-serif);font-weight:800;font-size:16px}
+  #ac-overlay .ap-siguiente svg{width:19px;height:19px;flex:0 0 auto;color:var(--gold,#E8B84B)}
+  #ac-overlay .ap-fin{margin-top:22px;padding:20px;border-radius:15px;text-align:center;
+    background:rgba(46,232,106,.07);border:1px solid rgba(46,232,106,.3);
+    font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.7}
+  #ac-overlay .ap-fin b{font-family:var(--display,sans-serif);font-size:15px;color:var(--neon-lit,#2ee86a)}
+  /* Los tres pasos de la regla, en fila */
+  #ac-overlay .ap-pasos3{display:flex;gap:9px;flex-wrap:wrap;margin:11px 0 12px}
+  #ac-overlay .ap-pasos3 > div{flex:1;min-width:130px;display:flex;align-items:center;gap:9px;padding:10px 12px;
+    border-radius:11px;background:rgba(255,255,255,.035);font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6}
+  #ac-overlay .ap-pasos3 span{flex:0 0 auto;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:11px}
+  #ac-overlay .ap-regla p{margin:0 0 9px;font-family:var(--sans,sans-serif);font-size:12.5px;color:#8b96a3;line-height:1.65}
+  #ac-overlay .ap-cert{padding:11px 13px;border-radius:11px;background:rgba(46,232,106,.07);border:1px solid rgba(46,232,106,.25)}
+  #ac-overlay .ap-cert b{color:var(--neon-lit,#2ee86a)}
+  #ac-overlay .ap-honesto{border-top-color:rgba(232,184,75,.22)}
+  #ac-overlay .ap-honesto b{color:var(--gold,#E8B84B)}
   #ac-overlay .ap-intro{font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.6;margin-bottom:14px}
   #ac-overlay .ap-intro b{color:var(--gold,#E8B84B)}
   #ac-overlay .ap-sub{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;
@@ -766,10 +817,12 @@ function estilos() {
        ciegas. En rejilla se ven todas de golpe, que es lo que importa
        cuando el usuario está buscando por dónde iba. */
     #ac-overlay .ap-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;overflow:visible}
-    #ac-overlay .ap-tab{min-width:0;padding:0 6px;flex-direction:column;gap:3px;min-height:52px;font-size:10.5px}
-    #ac-overlay .ap-tab span{display:block;font-size:10px;line-height:1.15;text-align:center;
-      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
-    #ac-overlay .ap-tab svg{width:15px;height:15px}
+    #ac-overlay .ap-tab{min-width:0;padding:0 5px;flex-direction:column;gap:3px;min-height:54px}
+    #ac-overlay .ap-tab-t{font-size:9.5px;line-height:1.15;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+    #ac-overlay .ap-siguiente{flex-wrap:wrap;gap:9px;padding:15px 16px}
+    #ac-overlay .ap-sig-t{flex:1 1 100%;font-size:15px;order:2}
+    #ac-overlay .ap-siguiente svg{order:3}
+    #ac-overlay .ap-pasos3 > div{min-width:100%}
     #ac-overlay .ap-audios{grid-template-columns:1fr}
     #ac-overlay .ap-fila{flex-wrap:wrap}
     #ac-overlay .ap-fila-c{flex:1 1 100%;order:1}

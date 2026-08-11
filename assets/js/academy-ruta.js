@@ -76,12 +76,15 @@ export const OTROS = {
 
 /* Las cinco secciones del panel. Cada una es una pestaña: así se evita
    el scroll infinito y el usuario ve dónde está en todo momento. */
+/* Cinco etapas EN ORDEN. Se numeran a propósito: sin el número, el
+   usuario cree que son cinco cajones sueltos y se queda en el primero.
+   Con número entiende que hay un camino y que le falta recorrerlo. */
 export const SECCIONES = [
-  { id: 'empieza',  t: 'Empieza aquí',  ico: 'bandera' },
-  { id: 'clases',   t: 'Las 17 clases', ico: 'clase'   },
-  { id: 'estrategia', t: 'La estrategia', ico: 'diana' },
-  { id: 'audios',   t: 'Audiolibros',   ico: 'audio'   },
-  { id: 'extras',   t: 'Herramientas',  ico: 'llave'   }
+  { id: 'empieza',    n: 1, t: 'Empieza aquí',   corto: 'Empieza',    ico: 'bandera', sig: 'clases' },
+  { id: 'clases',     n: 2, t: 'Las 17 clases',  corto: 'Clases',     ico: 'clase',   sig: 'estrategia' },
+  { id: 'estrategia', n: 3, t: 'La estrategia',  corto: 'Estrategia', ico: 'diana',   sig: 'audios' },
+  { id: 'audios',     n: 4, t: 'Audiolibros',    corto: 'Audios',     ico: 'audio',   sig: 'extras' },
+  { id: 'extras',     n: 5, t: 'Herramientas',   corto: 'Extras',     ico: 'llave',   sig: null }
 ];
 
 export const ICONOS = {
