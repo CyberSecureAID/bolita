@@ -52,12 +52,12 @@ const OWNER = '0x97e01a1c430e0cc826aca6e9be643721e45bca7d';
 /* Lo que se enseña en la portada: poco, y lo que de verdad diferencia.
    Detallar el temario aquí sería regalar el motivo para pagar. */
 const CONTENIDO = [
-  'Un plan de <b>gestión de riesgo</b> con software para aplicarlo',
-  '<b>17 clases</b> de cero a cien, cada una con su examen',
-  '<b>20 audiolibros</b> escogidos por un trader con más de <b>10 años</b> en trading y criptomonedas',
+  'Plan de <b>gestión de riesgo</b>, con software para aplicarlo',
+  '<b>17 clases</b> de cero a cien, con examen cada una',
+  '<b>20 audiolibros</b> escogidos por un trader con <b>10 años</b> de oficio',
   'Mi estrategia <b>Lógica Estructural Avanzada</b>, en tres fases',
-  'Tutoriales de las herramientas que se usan de verdad',
-  'Ejemplos reales de la estrategia sobre operaciones',
+  'Tutoriales de las herramientas de verdad',
+  'Ejemplos sobre operaciones reales',
   'Acceso al grupo mientras dure tu plan'
 ];
 
@@ -134,14 +134,14 @@ export async function abrirAcademy() {
 
       <div class="ac-cab">
         <h2 class="ac-t">De cero a operar con criterio</h2>
-        <p class="ac-s">Una ruta ordenada, con exámenes que hay que aprobar para avanzar. No es una carpeta de vídeos sueltos.</p>
+        <p class="ac-s">Una ruta ordenada, con exámenes para avanzar. No es una carpeta de vídeos sueltos.</p>
       </div>
 
       <div class="ac-cifras">
-        <div class="ac-cif"><b>17</b><span>clases<i>cada una con examen</i></span></div>
-        <div class="ac-cif"><b>20</b><span>audiolibros<i>escogidos uno a uno</i></span></div>
+        <div class="ac-cif"><b>17</b><span>clases<i>con examen</i></span></div>
+        <div class="ac-cif"><b>20</b><span>audiolibros<i>uno a uno</i></span></div>
         <div class="ac-cif"><b>3</b><span>fases<i>de la estrategia</i></span></div>
-        <div class="ac-cif"><b>100</b><span>preguntas<i>en el examen final</i></span></div>
+        <div class="ac-cif"><b>100</b><span>preguntas<i>examen final</i></span></div>
       </div>
 
       <div class="ac-que">
@@ -202,7 +202,7 @@ function rutaCerrada(box) {
       <div class="ac-candado">
         <div class="ac-candado-i"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
         <div class="ac-candado-t">Solo para miembros</div>
-        <div class="ac-candado-s">Elige un plan arriba y tendrás la ruta completa, con todo lo que hay en cada paso.</div>
+        <div class="ac-candado-s">Elige un plan y tendrás la ruta completa.</div>
         <div class="ac-candado-ya">
           <span>¿Ya eres miembro?</span>
           <div class="ac-ya-in"><span>@</span><input id="ac-ya-user" placeholder="tu usuario de Telegram" autocomplete="off" spellcheck="false"></div>
@@ -251,7 +251,7 @@ async function rutaAbierta(box, owner, usuario) {
           <div class="ap-cab-t">Tu panel de aprendizaje</div>
           <div class="ap-cab-s">${owner ? 'Entras como dueño' : `Miembro · @${esc(usuario || '')}`}</div>
         </div>
-        <a class="ap-grupo" href="${GRUPO}" target="_blank" rel="noopener">Ir al grupo</a>
+        <a class="ap-grupo" href="${GRUPO}" target="_blank" rel="noopener">Abrir la Academia</a>
       </div>
 
       <div class="ap-regla">
@@ -270,7 +270,9 @@ async function rutaAbierta(box, owner, usuario) {
       <div class="ap-tabs" id="ap-tabs">
         ${R.SECCIONES.map((x, i) => `<button class="ap-tab ${i === 0 ? 'on' : ''}" data-sec="${x.id}">
           <span class="ap-tab-n">${x.n}</span>
-          <span class="ap-tab-t">${x.corto}</span></button>`).join('')}
+          <span class="ap-tab-t">${x.t}</span>
+          <span class="ap-tab-f"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span>
+        </button>`).join('')}
       </div>
 
       <div class="ap-cuerpo" id="ap-cuerpo"></div>
@@ -324,14 +326,14 @@ function seccionHTML(id, R) {
 
   if (id === 'empieza') {
     return `
-      <div class="ap-intro">Antes de cualquier clase, esto. Es lo que separa a quien opera con criterio de quien apuesta.</div>
+      <div class="ap-intro">Antes de cualquier clase, esto.</div>
       ${fila(R, { num: '0', tit: O.riesgo.t, sub: 'Cómo repartir tu dinero y cuánto arriesgar. Hecho a medida de nuestra estrategia, no es un plan genérico.', video: O.riesgo.v, examen: O.riesgo.e, destacado: true })}
       <div class="ap-aviso">Cuando lo tengas, pasa a <b>Las 17 clases</b>. Van en orden por una razón: cada una se apoya en la anterior.</div>`;
   }
 
   if (id === 'clases') {
     return `
-      <div class="ap-intro">De cero a cien. Cada clase tiene su examen y hacen falta <b>80 puntos</b> para pasar a la siguiente.</div>
+      <div class="ap-intro">De cero a cien. Cada clase, su examen. <b>80 puntos</b> para pasar.</div>
       ${R.CLASES.map((c) => fila(R, { num: c.n, tit: c.t, video: c.v, examen: R.examenDe(c) })).join('')}
       <div class="ap-aviso">Terminadas las 17, sigue con <b>La estrategia</b>.</div>`;
   }
@@ -353,7 +355,7 @@ function seccionHTML(id, R) {
 
   if (id === 'audios') {
     return `
-      <div class="ap-intro">20 audiolibros escogidos uno a uno. El <b>0</b> es la base: escúchalo primero.</div>
+      <div class="ap-intro">20 audiolibros. El <b>0</b> es la base: escúchalo primero.</div>
       ${fila(R, { num: '0', tit: AUDIO0(R), sub: '10 títulos, 3 horas. La verdad del dinero y el Bitcoin. Tiene su propio examen dentro.', video: R.AUDIOS[0].v, destacado: true })}
       <div class="ap-sub">Y después, en este orden</div>
       <div class="ap-audios">
@@ -364,7 +366,7 @@ function seccionHTML(id, R) {
   }
 
   return `
-    <div class="ap-intro">Las herramientas y el software de repaso general.</div>
+    <div class="ap-intro">Herramientas y repaso general.</div>
     ${fila(R, { tit: O.tuto1.t, sub: 'Abrir la cuenta y moverte por la plataforma.', video: O.tuto1.v })}
     ${fila(R, { tit: O.tuto2.t, sub: 'Sacarle partido a los gráficos.', video: O.tuto2.v })}
     ${fila(R, { tit: O.direccion.t, sub: 'Leer hacia dónde va el mercado antes de tocar nada.', video: O.direccion.v })}
@@ -563,9 +565,12 @@ function estilos() {
   #ac-overlay .ac-bg{position:absolute;inset:0;background:rgba(3,5,8,.9);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
   #ac-overlay .ac-c{position:relative;width:100%;max-width:840px;max-height:calc(100vh - 36px);overflow-y:auto;
     background:linear-gradient(180deg,#141922,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:22px;padding:32px 30px}
-  #ac-overlay .ac-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
-  #ac-overlay .ac-top .ac-eyebrow{text-align:left}
-  #ac-overlay .ac-x{position:static;flex:0 0 auto;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;padding:0;
+  /* La X va en su esquina, pero SIN empujar el texto a un lado: por eso
+     va posicionada y el título queda centrado de verdad. */
+  #ac-overlay .ac-top{position:relative;display:flex;align-items:center;justify-content:center;
+    min-height:38px;margin-bottom:12px}
+  #ac-overlay .ac-top .ac-eyebrow{text-align:center}
+  #ac-overlay .ac-x{position:absolute;top:0;right:0;flex:0 0 auto;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;padding:0;
     background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6;cursor:pointer;font-size:15px}
   #ac-overlay .ac-cab{text-align:center;margin-bottom:24px}
   #ac-overlay .ac-eyebrow{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);text-transform:uppercase;letter-spacing:2.2px}
@@ -741,17 +746,21 @@ function estilos() {
   #ac-overlay .ap-regla i{display:block;font-style:normal;margin-top:9px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07);font-size:12px;color:#7d8794}
   #ac-overlay .ap-regla i b{color:#b7bdc6}
 
-  #ac-overlay .ap-tabs{display:flex;gap:5px;overflow-x:auto;padding:4px;border-radius:13px;background:#0b0e12;
-    border:1px solid #2b3139;margin-bottom:16px;scrollbar-width:none}
-  #ac-overlay .ap-tabs::-webkit-scrollbar{display:none}
-  #ac-overlay .ap-tab{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;
-    min-height:44px;padding:0 15px;border:none;border-radius:10px;background:transparent;color:#8b96a3;
-    font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap;
-    transition:background .15s ease,color .15s ease}
+  /* ══════ LAS CINCO ETAPAS ══════
+     En el escritorio son pestañas en fila. En el móvil se convierten en
+     una LISTA vertical, que es como se lee un camino de verdad: una
+     debajo de otra, con su número, su nombre completo y una flecha. */
+  #ac-overlay .ap-tabs{display:flex;gap:5px;padding:5px;border-radius:14px;background:#0b0e12;
+    border:1px solid #2b3139;margin-bottom:16px}
+  #ac-overlay .ap-tab{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    min-height:46px;padding:0 10px;border:none;border-radius:11px;background:transparent;color:#8b96a3;
+    font-family:var(--display,sans-serif);font-weight:700;font-size:11.5px;cursor:pointer;
+    transition:background .15s ease,color .15s ease;min-width:0}
+  #ac-overlay .ap-tab-f{display:none}
   #ac-overlay .ap-tab-n{flex:0 0 auto;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;
     background:rgba(255,255,255,.07);font-family:var(--mono,monospace);font-size:10.5px;font-weight:700}
   #ac-overlay .ap-tab.on .ap-tab-n{background:rgba(58,40,0,.22);color:#3a2800}
-  #ac-overlay .ap-tab-t{white-space:nowrap}
+  #ac-overlay .ap-tab-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
   #ac-overlay .ap-tab.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
   #ac-overlay .ap-tab:not(.on):hover{background:rgba(255,255,255,.05);color:#b7bdc6}
 
@@ -821,12 +830,20 @@ function estilos() {
   #ac-overlay .ap-audio svg{width:12px;height:12px;flex:0 0 auto;color:var(--gold,#E8B84B);opacity:.7}
 
   @media(max-width:700px){
-    /* Las 5 pestañas no caben en una fila estrecha y había que deslizar a
-       ciegas. En rejilla se ven todas de golpe, que es lo que importa
-       cuando el usuario está buscando por dónde iba. */
-    #ac-overlay .ap-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;overflow:visible}
-    #ac-overlay .ap-tab{min-width:0;padding:0 5px;flex-direction:column;gap:3px;min-height:54px}
-    #ac-overlay .ap-tab-t{font-size:9.5px;line-height:1.15;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+    /* ══════ LAS ETAPAS EN MÓVIL: UNA LISTA ══════
+       Cinco pestañas en 360px no caben: o se recortan, o se amontonan en
+       tres líneas cada una, o hay que deslizar a ciegas. Como lista
+       vertical cada etapa se lee entera y se ve el camino de un vistazo. */
+    #ac-overlay .ap-tabs{display:flex;flex-direction:column;gap:6px;padding:0;background:transparent;border:none}
+    #ac-overlay .ap-tab{width:100%;flex:0 0 auto;flex-direction:row;justify-content:flex-start;align-items:center;
+      gap:12px;min-height:54px;padding:0 14px;border-radius:12px;
+      background:rgba(255,255,255,.03);border:1px solid #2b3139;font-size:13.5px}
+    #ac-overlay .ap-tab-n{width:26px;height:26px;font-size:12px;flex:0 0 auto}
+    #ac-overlay .ap-tab-t{flex:1;text-align:left;white-space:normal;font-size:13.5px;line-height:1.25;overflow:visible}
+    #ac-overlay .ap-tab-f{display:grid;place-items:center;width:18px;height:18px;flex:0 0 auto;opacity:.4}
+    #ac-overlay .ap-tab-f svg{width:15px;height:15px}
+    #ac-overlay .ap-tab.on{border-color:#c79426;box-shadow:0 3px 0 #8f6a1a}
+    #ac-overlay .ap-tab.on .ap-tab-f{opacity:.7}
     #ac-overlay .ap-siguiente{flex-wrap:wrap;gap:9px;padding:15px 16px}
     #ac-overlay .ap-sig-t{flex:1 1 100%;font-size:15px;order:2}
     #ac-overlay .ap-siguiente svg{order:3}
@@ -839,19 +856,27 @@ function estilos() {
     #ac-overlay .ap-b{flex:1;justify-content:center}
     #ac-overlay .ap-cab{flex-direction:column;align-items:stretch}
     #ac-overlay .ap-grupo{justify-content:center}
-    /* AQUÍ ESTABA EL DESASTRE. Había un "display:none" que escondía el
-       texto de TODAS las pestañas menos la activa. Resultado en el móvil:
-       un recuadro negro con un solo botón dorado arriba a la izquierda, y
-       nada más. El usuario no tenía forma de saber que había cuatro
-       secciones más. Se quedaba en la primera y se iba. */
-    #ac-overlay .ap-tab{padding:0 4px;min-width:0}
+    /* ══════ LAS ETAPAS EN MÓVIL: UNA LISTA, NO PESTAÑAS ══════
+       Cinco pestañas en 360px no caben de ninguna forma: o se recortan,
+       o se amontonan, o hay que deslizar a ciegas. Como lista vertical
+       cada etapa tiene su sitio, se lee entera y se ve el camino. */
+    #ac-overlay .ap-tabs{display:flex;flex-direction:column;gap:6px;padding:6px;background:transparent;border:none}
+    #ac-overlay .ap-tab{width:100%;justify-content:flex-start;gap:12px;min-height:52px;padding:0 14px;
+      border-radius:12px;background:rgba(255,255,255,.03);border:1px solid #2b3139;font-size:13.5px}
+    #ac-overlay .ap-tab-n{width:26px;height:26px;font-size:12px}
+    #ac-overlay .ap-tab-t{flex:1;text-align:left;white-space:normal;line-height:1.25}
+    #ac-overlay .ap-tab-f{display:grid;place-items:center;width:18px;height:18px;flex:0 0 auto;opacity:.45}
+    #ac-overlay .ap-tab-f svg{width:15px;height:15px}
+    #ac-overlay .ap-tab.on{border-color:#c79426;box-shadow:0 3px 0 #8f6a1a}
+    #ac-overlay .ap-tab.on .ap-tab-f{opacity:.75}
   }
 
   @media(max-width:860px){
     #ac-overlay .ac-planes{grid-template-columns:1fr;gap:11px}
-    #ac-overlay .ac-plan{text-align:left;padding:20px 18px}
-    #ac-overlay .ac-plan-p{justify-content:flex-start}
-    #ac-overlay .ac-badge{left:auto;right:16px;transform:none}
+    /* AQUÍ ESTABA EL FALLO: en móvil ponía todo a la izquierda. Se veía
+       como si el diseño se hubiera roto. Los planes van centrados en
+       cualquier pantalla, igual que en el escritorio. */
+    #ac-overlay .ac-plan{padding:20px 16px}
     #ac-overlay .ac-c{padding:26px 18px}
     #ac-overlay .ac-t{font-size:25px}
   }
