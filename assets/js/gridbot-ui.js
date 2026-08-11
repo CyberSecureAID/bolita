@@ -3193,7 +3193,25 @@ async function refrescarRejillas() {
         } catch (_) {}
 
         let par = store[clave];
-        if (!par) par = { tipo: 'grid', reconstruido: true };
+        if (!par) {
+          /* ══════════════════════════════════════════════════════════
+             [FALLO GRAVE CORREGIDO] Aquí ponía `tipo: 'grid'` por
+             defecto. Resultado: si el navegador no tenía guardado el
+             bot (creado en otro dispositivo, caché limpiada), TU CASH
+             OUT SE MOSTRABA COMO SMART GRID. Se estaba adivinando el
+             tipo en vez de preguntarlo.
+
+             El contrato lo sabe: modoDe() devuelve 0=Grid, 1=Acumulador,
+             2=Cash Out, 3=DCA. Se pregunta y se acabó el adivinar.
+             ══════════════════════════════════════════════════════════ */
+          let _t = 'grid';
+          try {
+            const md = await gb.modoDe(clave);
+            const m = Number(Array.isArray(md) ? md[0] : (md?.modo ?? md ?? 0));
+            _t = m === 1 ? 'acum' : m === 2 ? 'cash' : m === 3 ? 'dca' : 'grid';
+          } catch (_) {}
+          par = { tipo: _t, reconstruido: true };
+        }
         par.__cuenta = cuenta;
         try { return { html: await tarjeta(cuenta, clave, par, R) }; }
         catch (e) { return { html: tarjetaMinima(clave, par, e, R) }; }
@@ -3363,6 +3381,12 @@ async function tarjeta(cuenta, clave, par, R) {
       } catch (_) {}
     }
     if (ps.length) { pmin = Math.min(...ps.map((x) => x.p)); pmax = Math.max(...ps.map((x) => x.p)); }
+    /* [RANGO IGUAL CORREGIDO] Estos límites salen de las cuadrículas que
+       QUEDAN VIVAS. Si solo queda una, el mínimo y el máximo son el mismo
+       número, y la tarjeta mostraba "600 – 600", que no dice nada.
+       El rango de verdad es el que se fijó al crear el bot: si lo tenemos
+       guardado, ese manda. */
+    if (par.pMin > 0 && par.pMax > par.pMin) { pmin = Number(par.pMin); pmax = Number(par.pMax); }
   } catch {}
   // Objetivo de salida del Acumulador (el % al que vende todo de golpe)
   let objBps = 0;
@@ -3443,7 +3467,14 @@ async function tarjeta(cuenta, clave, par, R) {
   const _boxFlotante = `<div class="pio-box" data-box="flotante"><div class="k">Flotante ${iBtn('ganancia')}</div><div class="v ${cls(noRealizado)} numgo" data-to="${Math.abs(noRealizado)}" data-dec="4" data-pre="${sg(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div><div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>`;
   const _boxGas = `<div class="pio-box" data-box="gas"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>`;
   const _boxGrid = `<div class="pio-box" data-box="realizado"><div class="k">Grid profit ${iBtn('porcuad')}</div><div class="v ${cls(realizado)} numgo" data-to="${Math.abs(realizado)}" data-dec="4" data-pre="${sg(realizado)}">${sg(realizado)}${num(Math.abs(realizado), 4)}</div><div class="v2 ${cls(realizado)}">${sg(pct(realizado))}${num(Math.abs(pct(realizado)), 2)}%</div></div>`;
-  const _boxRango = `<div class="pio-box"><div class="k">Rango (${simQ})</div><div class="v" style="font-size:13px">${precioFmt(pmin)} – ${precioFmt(pmax)}</div><div class="v2" style="color:var(--ink-3)">${R.niveles} cuadrículas</div></div>`;
+  /* Un rango con el mismo número arriba y abajo no es un rango: es un
+     dato que no tenemos. Mejor decirlo que enseñar "600 – 600". */
+  const _rangoOk = pmin > 0 && pmax > pmin;
+  const _boxRango = `<div class="pio-box"><div class="k">Rango (${simQ})</div>` +
+    (_rangoOk
+      ? `<div class="v" style="font-size:13px">${precioFmt(pmin)} – ${precioFmt(pmax)}</div>`
+      : `<div class="v" style="font-size:13px;color:var(--ink-3)">—</div>`) +
+    `<div class="v2" style="color:var(--ink-3)">${R.niveles} cuadrícula${Number(R.niveles) === 1 ? '' : 's'}${_rangoOk ? '' : ' activa' + (Number(R.niveles) === 1 ? '' : 's')}</div></div>`;
   const _boxVueltas = `<div class="pio-box" data-box="vueltas"><div class="k">Vueltas / Ops ${iBtn('vueltas')}</div><div class="v numgo" data-to="${Number(R.ciclos)}" data-dec="0">${R.ciclos}</div><div class="v2" style="color:var(--ink-3)">${R.totalOps} operaciones</div></div>`;
   const _boxMedio = `<div class="pio-box" data-box="medio"><div class="k">Precio medio ${iBtn('promedio')}</div><div class="v" style="font-size:14px">${posBase > 0 ? precioFmt(costeQ / posBase) : '—'}</div><div class="v2" style="color:var(--ink-3)">tu coste</div></div>`;
   const _boxObjetivo = `<div class="pio-box"><div class="k">Objetivo</div><div class="v" style="font-size:14px">${par.targetPrice ? precioFmt(Number(par.targetPrice)) : '—'}</div><div class="v2" style="color:var(--ink-3)">precio de venta</div></div>`;
