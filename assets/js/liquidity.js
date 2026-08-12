@@ -40,33 +40,34 @@ const rgba = (c) => {
 };
 
 /* Monedas disponibles, con su par en Binance. */
+/* El campo `cg` es el identificador en CoinGecko, para el logo. */
 const PARES = [
-  { id: 'BTC',   s: 'BTCUSDT',   n: 'Bitcoin' },
-  { id: 'ETH',   s: 'ETHUSDT',   n: 'Ethereum' },
-  { id: 'BNB',   s: 'BNBUSDT',   n: 'BNB' },
-  { id: 'SOL',   s: 'SOLUSDT',   n: 'Solana' },
-  { id: 'XRP',   s: 'XRPUSDT',   n: 'XRP' },
-  { id: 'DOGE',  s: 'DOGEUSDT',  n: 'Dogecoin' },
-  { id: 'ADA',   s: 'ADAUSDT',   n: 'Cardano' },
-  { id: 'AVAX',  s: 'AVAXUSDT',  n: 'Avalanche' },
-  { id: 'LINK',  s: 'LINKUSDT',  n: 'Chainlink' },
-  { id: 'DOT',   s: 'DOTUSDT',   n: 'Polkadot' },
-  { id: 'MATIC', s: 'MATICUSDT', n: 'Polygon' },
-  { id: 'LTC',   s: 'LTCUSDT',   n: 'Litecoin' },
-  { id: 'TRX',   s: 'TRXUSDT',   n: 'TRON' },
-  { id: 'SHIB',  s: 'SHIBUSDT',  n: 'Shiba Inu' },
-  { id: 'PEPE',  s: 'PEPEUSDT',  n: 'Pepe' },
-  { id: 'NEAR',  s: 'NEARUSDT',  n: 'NEAR' },
-  { id: 'APT',   s: 'APTUSDT',   n: 'Aptos' },
-  { id: 'ARB',   s: 'ARBUSDT',   n: 'Arbitrum' },
-  { id: 'OP',    s: 'OPUSDT',    n: 'Optimism' },
-  { id: 'INJ',   s: 'INJUSDT',   n: 'Injective' },
-  { id: 'SUI',   s: 'SUIUSDT',   n: 'Sui' },
-  { id: 'ATOM',  s: 'ATOMUSDT',  n: 'Cosmos' },
-  { id: 'FIL',   s: 'FILUSDT',   n: 'Filecoin' },
-  { id: 'UNI',   s: 'UNIUSDT',   n: 'Uniswap' },
-  { id: 'WIF',   s: 'WIFUSDT',   n: 'dogwifhat' },
-  { id: 'TIA',   s: 'TIAUSDT',   n: 'Celestia' }
+  { id: 'BTC',   s: 'BTCUSDT',   n: 'Bitcoin',   cg: 'bitcoin' },
+  { id: 'ETH',   s: 'ETHUSDT',   n: 'Ethereum',  cg: 'ethereum' },
+  { id: 'BNB',   s: 'BNBUSDT',   n: 'BNB',       cg: 'binancecoin' },
+  { id: 'SOL',   s: 'SOLUSDT',   n: 'Solana',    cg: 'solana' },
+  { id: 'XRP',   s: 'XRPUSDT',   n: 'XRP',       cg: 'ripple' },
+  { id: 'DOGE',  s: 'DOGEUSDT',  n: 'Dogecoin',  cg: 'dogecoin' },
+  { id: 'ADA',   s: 'ADAUSDT',   n: 'Cardano',   cg: 'cardano' },
+  { id: 'AVAX',  s: 'AVAXUSDT',  n: 'Avalanche', cg: 'avalanche-2' },
+  { id: 'LINK',  s: 'LINKUSDT',  n: 'Chainlink', cg: 'chainlink' },
+  { id: 'DOT',   s: 'DOTUSDT',   n: 'Polkadot',  cg: 'polkadot' },
+  { id: 'MATIC', s: 'MATICUSDT', n: 'Polygon',   cg: 'matic-network' },
+  { id: 'LTC',   s: 'LTCUSDT',   n: 'Litecoin',  cg: 'litecoin' },
+  { id: 'TRX',   s: 'TRXUSDT',   n: 'TRON',      cg: 'tron' },
+  { id: 'SHIB',  s: 'SHIBUSDT',  n: 'Shiba Inu', cg: 'shiba-inu' },
+  { id: 'PEPE',  s: 'PEPEUSDT',  n: 'Pepe',      cg: 'pepe' },
+  { id: 'NEAR',  s: 'NEARUSDT',  n: 'NEAR',      cg: 'near' },
+  { id: 'APT',   s: 'APTUSDT',   n: 'Aptos',     cg: 'aptos' },
+  { id: 'ARB',   s: 'ARBUSDT',   n: 'Arbitrum',  cg: 'arbitrum' },
+  { id: 'OP',    s: 'OPUSDT',    n: 'Optimism',  cg: 'optimism' },
+  { id: 'INJ',   s: 'INJUSDT',   n: 'Injective', cg: 'injective-protocol' },
+  { id: 'SUI',   s: 'SUIUSDT',   n: 'Sui',       cg: 'sui' },
+  { id: 'ATOM',  s: 'ATOMUSDT',  n: 'Cosmos',    cg: 'cosmos' },
+  { id: 'FIL',   s: 'FILUSDT',   n: 'Filecoin',  cg: 'filecoin' },
+  { id: 'UNI',   s: 'UNIUSDT',   n: 'Uniswap',   cg: 'uniswap' },
+  { id: 'WIF',   s: 'WIFUSDT',   n: 'dogwifhat', cg: 'dogwifcoin' },
+  { id: 'TIA',   s: 'TIAUSDT',   n: 'Celestia',  cg: 'celestia' }
 ];
 const TFS = [
   { id: '5m',  n: '5 minutos' },
@@ -99,7 +100,8 @@ const V = {
   yMin: 0, yMax: 0,   // rango de precio visible
   autoY: true,        // ¿la escala vertical se ajusta sola?
   apal: 'todos',      // filtro de apalancamiento
-  intensidad: 1.0,        // el deslizador arranca a media escala
+  intensidad: 0.55,       // al mínimo: así se parece más a la referencia
+  verPerfil: false,       // el perfil de volumen, apagado por defecto
   verMapa: true,
   arrastrando: false,
   x0: 0, y0: 0,
@@ -233,21 +235,39 @@ function construirMapa(velas) {
      tres veces acumula muchísimo más que uno tocado una vez.
      ══════════════════════════════════════════════════════════════ */
   const refuerzo = new Float32Array(FILAS).fill(1);
-  const { altos, bajos } = pivotes(velas, 2);
-  const tol = (pAlto - pBajo) * 0.005;
+  const { altos, bajos } = pivotes(velas, 3);
+  const tol = (pAlto - pBajo) * 0.006;
 
-  [...altos, ...bajos].forEach((piv) => {
-    const lista = altos.includes(piv) ? altos : bajos;
+  /* Cada pivote aporta según lo importante que sea:
+       · cuántas veces se tocó ese nivel
+       · el tamaño de la mecha (una mecha larga = mucha liquidez barrida)
+       · el volumen de esa vela
+     Los extremos absolutos del gráfico —el máximo y el mínimo de todo
+     el rango— reciben un extra: son los niveles que todo el mundo mira. */
+  const marcar = (piv, lista) => {
     const toques = lista.filter((o) => Math.abs(o.p - piv.p) <= tol).length;
+    const v = velas[piv.i];
+    const esAlto = lista === altos;
+    // La mecha: cuanto más larga, más órdenes se barrieron ahí
+    const mecha = esAlto ? (v.h - Math.max(v.o, v.c)) : (Math.min(v.o, v.c) - v.l);
+    const relMecha = Math.min(1, mecha / ((pAlto - pBajo) * 0.02));
+    // ¿Es el extremo absoluto del gráfico?
+    const extremo = (esAlto && Math.abs(piv.p - pAlto) < tol) ||
+                    (!esAlto && Math.abs(piv.p - pBajo) < tol);
+
+    let fuerza = 1.6 + toques * 1.1 + relMecha * 2.4;
+    if (extremo) fuerza += 3.2;
+
     const f0 = filaDe(piv.p);
-    // Se reparte en pocas filas, con caída suave
-    for (let d = -3; d <= 3; d++) {
+    for (let d = -4; d <= 4; d++) {
       const f = f0 + d;
       if (f < 0 || f >= FILAS) continue;
-      const caida = Math.exp(-(d * d) / 4);
-      refuerzo[f] = Math.max(refuerzo[f], 1 + Math.min(1.5, toques * 0.4) * caida);
+      const caida = Math.exp(-(d * d) / 5.5);
+      refuerzo[f] = Math.max(refuerzo[f], 1 + fuerza * caida);
     }
-  });
+  };
+  altos.forEach((p) => marcar(p, altos));
+  bajos.forEach((p) => marcar(p, bajos));
 
   /* ── 5. LIQUIDACIONES POR APALANCAMIENTO ── */
   velas.forEach((v, ci) => {
@@ -299,7 +319,7 @@ function construirMapa(velas) {
    liquidación cae donde el precio rebotó varias veces, se refuerza y
    sube a rojo. El rojo sale donde debe, sin romper el dibujo.
    ══════════════════════════════════════════════════════════════ */
-function columnaDe(mapa, c) {
+function columnaDe(mapa, c, sinRefuerzo) {
   const out = new Float32Array(FILAS);
   const lista = V.apal === 'todos'
     ? APALANCAMIENTOS.map((a) => a.x)
@@ -309,6 +329,11 @@ function columnaDe(mapa, c) {
     if (!col) return;
     for (let f = 0; f < FILAS; f++) out[f] += col[f];
   });
+  /* El refuerzo por estructura se aplica AQUÍ, antes de que se calcule
+     el máximo. Si se aplicaba al pintar, el máximo ya estaba fijado sin
+     él y el efecto se perdía: por eso los picos no salían en rojo. */
+  const r = mapa.refuerzo;
+  if (r && !sinRefuerzo) for (let f = 0; f < FILAS; f++) out[f] *= r[f];
   return out;
 }
 
@@ -387,11 +412,14 @@ export async function abrirLiquidity() {
         </div>
         <div class="lq-grupo lq-slider">
           <span>Intensidad</span>
-          <input type="range" id="lq-int" min="30" max="220" value="100">
+          <input type="range" id="lq-int" min="55" max="260" value="55">
         </div>
         <div class="lq-der">
           <button class="lq-ayuda" id="lq-foto" title="Guardar imagen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          </button>
+          <button class="lq-ayuda apagado" id="lq-perfil" title="Perfil de volumen">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M21 6H9M21 11H5M21 16H12M21 21H8"/></svg>
           </button>
           <button class="lq-ayuda" id="lq-ver" title="Mostrar u ocultar el mapa">◉</button>
           <button class="lq-ayuda" id="lq-fit" title="Reencuadrar">⤢</button>
@@ -443,6 +471,11 @@ export async function abrirLiquidity() {
   };
 
   $('lq-fit').onclick = () => encuadrar();
+  $('lq-perfil').onclick = () => {
+    V.verPerfil = !V.verPerfil;
+    $('lq-perfil').classList.toggle('apagado', !V.verPerfil);
+    dibujar();
+  };
 
   $('lq-foto').onclick = () => guardarImagen();
 
@@ -496,7 +529,7 @@ function calor(v) {
   /* Curva 0,52: con 0,62 el amarillo llegaba demasiado pronto y el
      rojo casi no aparecía. Ahora la mayoría se queda en azul y verde,
      y el rojo se reserva para los picos reales. */
-  const p = Math.pow(v, 0.42);
+  const p = Math.pow(v, 0.45);
   /* ══════════════════════════════════════════════════════════════
      PALETA — sacada píxel a píxel de la herramienta de referencia.
 
@@ -595,13 +628,24 @@ function dibujar() {
        con cada capa en su escala. No hay que volver a normalizar. */
     /* El máximo de lo VISIBLE, no el global. Con el global, al hacer
        zoom sobre una zona tranquila todo quedaba del mismo color. */
+    /* El máximo se toma de la BASE, sin el refuerzo. Si se incluyera,
+       el propio refuerzo subiría el techo y se anularía a sí mismo:
+       por eso los picos nunca llegaban a rojo. */
+    /* El techo del color se toma de la MEDIANA alta de la base, no del
+       máximo. Con el máximo, una sola celda enorme aplastaba todas las
+       demás y nada llegaba a rojo. Con este techo, las celdas reforzadas
+       superan el 1 y se van al rojo, que es lo que se busca. */
     const cols = [];
-    let max = 0;
+    const muestras = [];
     for (let c = desde; c < hasta; c++) {
-      const col = columnaDe(V.mapa, c);
-      cols.push(col);
-      for (const v of col) if (v > max) max = v;
+      cols.push(columnaDe(V.mapa, c));
+      const base = columnaDe(V.mapa, c, true);
+      for (const v of base) if (v > 0) muestras.push(v);
     }
+    muestras.sort((a, b) => a - b);
+    const max = muestras.length
+      ? muestras[Math.floor(muestras.length * 0.985)] || muestras[muestras.length - 1]
+      : 1;
     if (max > 0) {
       const fMin = Math.max(0, Math.floor((yMin - V.mapa.yMin) / V.mapa.alturaFila));
       const fMax = Math.min(FILAS, Math.ceil((yMax - V.mapa.yMin) / V.mapa.alturaFila));
@@ -631,11 +675,7 @@ function dibujar() {
         for (let f = fMin; f < fMax; f++) {
           const v = col[f];
           if (v <= 0) continue;
-          /* El refuerzo se aplica AQUÍ, sobre el valor ya normalizado.
-             Aplicarlo antes disparaba el máximo global y aplastaba la
-             escala: todo salía del mismo color. */
-          const ref = (V.mapa.refuerzo && V.mapa.refuerzo[f]) || 1;
-          const rel = Math.min(1, (v / max) * V.intensidad * ref);
+          const rel = Math.min(1, (v / max) * V.intensidad);
           // Por debajo de este umbral no se pinta: deja respirar el
           // gráfico y hace que destaquen las zonas que importan.
           if (rel < 0.02) continue;
@@ -672,6 +712,60 @@ function dibujar() {
     g.setLineDash([5, 4]); g.lineWidth = 1;
     g.beginPath(); g.moveTo(0, yU); g.lineTo(x1, yU); g.stroke();
     g.setLineDash([]);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     PERFIL DE VOLUMEN — como debe ser
+
+     Nace en el borde derecho y crece HACIA LA IZQUIERDA. Es así en
+     todas las plataformas serias: el eje de referencia es la escala de
+     precios, y las barras se alejan de ella.
+
+     Y no invade las velas: vive en el 22% que queda libre a la derecha.
+     ══════════════════════════════════════════════════════════════ */
+  if (V.verPerfil) {
+    const FP = 90;                       // franjas del perfil
+    const perfil = new Float64Array(FP);
+    const altoP = (yMax - yMin) / FP;
+    let pocMax = 0, pocIdx = 0;
+
+    vis.forEach((v) => {
+      // El volumen de la vela se reparte entre las franjas que toca
+      const f1 = Math.max(0, Math.floor((v.l - yMin) / altoP));
+      const f2 = Math.min(FP - 1, Math.floor((v.h - yMin) / altoP));
+      const n = Math.max(1, f2 - f1 + 1);
+      for (let f = f1; f <= f2; f++) perfil[f] += v.v / n;
+    });
+    perfil.forEach((v, i) => { if (v > pocMax) { pocMax = v; pocIdx = i; } });
+
+    if (pocMax > 0) {
+      const xBorde = x1 - 2;                    // nace pegado a la escala
+      const anchoMax = (x1 - xVelas) * 0.94;    // nunca llega a las velas
+
+      for (let f = 0; f < FP; f++) {
+        const v = perfil[f];
+        if (v <= 0) continue;
+        const rel = v / pocMax;
+        const p1 = yMin + f * altoP;
+        const yA = Y(p1 + altoP), yB = Y(p1);
+        if (yB < -10 || yA > y1 + 10) continue;
+        const w = anchoMax * rel;
+        // El punto de control (donde más se negoció) va en dorado
+        const esPoc = f === pocIdx;
+        g.fillStyle = esPoc ? 'rgba(232,184,75,.85)' : 'rgba(120,140,175,.42)';
+        g.fillRect(xBorde - w, yA, w, Math.max(1, yB - yA - 0.8));
+      }
+
+      // La línea del punto de control, cruzando el gráfico
+      const pPoc = yMin + (pocIdx + 0.5) * altoP;
+      const yPoc = Y(pPoc);
+      if (yPoc > 0 && yPoc < y1) {
+        g.strokeStyle = 'rgba(232,184,75,.45)';
+        g.setLineDash([2, 4]); g.lineWidth = 1;
+        g.beginPath(); g.moveTo(0, yPoc); g.lineTo(x1, yPoc); g.stroke();
+        g.setLineDash([]);
+      }
+    }
   }
 
   /* ── LA ESCALA DE PRECIOS ── */
@@ -1030,13 +1124,46 @@ function abrirMenu(anclaje, html, alSeleccionar, conBuscador) {
   setTimeout(() => document.addEventListener('click', cerrarMenus, { once: true }), 10);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   LOGOS DE LAS MONEDAS
+   Vienen de CoinGecko y se guardan un día en el navegador. Si no
+   llegan, queda la inicial: nunca un hueco vacío.
+   ══════════════════════════════════════════════════════════════ */
+const CLAVE_LOGOS_LQ = 'aurex-logos';
+let _logosLq = null;
+
+async function ponerLogosLq() {
+  if (!_logosLq) {
+    try {
+      const g = JSON.parse(localStorage.getItem(CLAVE_LOGOS_LQ) || 'null');
+      if (g && Date.now() - g.cuando < 86400000) _logosLq = g.datos;
+    } catch (_) {}
+  }
+  if (!_logosLq) {
+    try {
+      const ids = PARES.map((p) => p.cg).filter(Boolean).join(',');
+      const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&per_page=250`);
+      const j = await r.json();
+      _logosLq = {};
+      j.forEach((x) => { _logosLq[x.id] = x.image; });
+      try { localStorage.setItem(CLAVE_LOGOS_LQ, JSON.stringify({ cuando: Date.now(), datos: _logosLq })); } catch (_) {}
+    } catch (_) { _logosLq = {}; }
+  }
+  document.querySelectorAll('.lq-logo[data-cg]').forEach((el) => {
+    const url = _logosLq && _logosLq[el.dataset.cg];
+    if (url) { el.style.backgroundImage = `url(${url})`; el.classList.add('con'); }
+  });
+}
+
 function menuPares() {
   const html = PARES.map((p) => `
     <button data-val="${p.id}" data-busca="${(p.id + ' ' + p.n).toLowerCase()}"
             class="lq-op ${p.id === _par ? 'on' : ''}">
+      <i class="lq-logo" data-cg="${esc(p.cg || '')}"></i>
       <b>${p.id}</b><span>${esc(p.n)}</span>
       ${p.id === _par ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg>' : ''}
     </button>`).join('');
+  setTimeout(ponerLogosLq, 40);
   abrirMenu($('lq-sel-par'), html, (v) => {
     _par = v;
     const b = $('lq-sel-par').querySelector('b');
@@ -1238,6 +1365,9 @@ function estilos() {
     background:transparent;border:none;color:#b7bdc6;cursor:pointer;text-align:left;min-height:40px}
   .lq-op:hover{background:rgba(255,255,255,.05)}
   .lq-op.on{background:rgba(232,184,75,.1);color:var(--gold,#E8B84B)}
+  .lq-logo{width:22px;height:22px;border-radius:50%;flex:0 0 auto;
+    background:rgba(255,255,255,.06) center/cover no-repeat;border:1px solid #2b3139}
+  .lq-logo.con{background-color:transparent;border-color:transparent}
   .lq-op b{font-family:var(--mono,monospace);font-size:12px;font-weight:700;min-width:44px}
   .lq-op span{flex:1;font-family:var(--sans,sans-serif);font-size:12px;color:#7d8794;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
