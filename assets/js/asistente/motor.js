@@ -1,6 +1,6 @@
 /* ================================================================
    ASISTENTE — Motor v2
-   Aurex Finance
+   Cripto Cuba Oficial
 
    100 % local. Sin API, sin servidor, sin claves, sin coste.
    Todo lo que sabe vive en js/chatbot-kb.js.
@@ -1259,7 +1259,7 @@
       fila(K.telegram, ICO.tg, 'Escribir por Telegram', 'respuesta directa') +
       (K.whatsapp ? fila(K.whatsapp, ICO.wa, 'Escribir por WhatsApp', 'si lo prefieres') : '') +
       '<a class="np-chat__row np-chat__row--grupo" href="' + K.grupo + '" target="_blank" rel="noopener">' +
-        ICO.grupo + '<span><b>Entrar a la comunidad</b><em>gente que ya usa Aurex</em></span>' + ICO.arrow + '</a>';
+        ICO.grupo + '<span><b>Entrar a la comunidad</b><em>gente que ya usa CriptoCuba</em></span>' + ICO.arrow + '</a>';
 
     return c;
   }
@@ -2526,7 +2526,7 @@
       savePending();
       var _kid = detectTopics(text).filter(function (h) { return h.entry.minor; });
       var _kidAns = _kid.length ? _kid[0].entry.answer
-        : ['Gracias por decírmelo. Como eres menor de edad, no voy a pedirte ningún dato.\n\nAurex es una plataforma donde se opera con **dinero real**, y eso es solo para mayores de 18 años. No es sitio para ti todavía.\n\nSi te interesa aprender cómo funcionan las criptomonedas, hay muchísimo material gratis para empezar sin arriesgar nada.'];
+        : ['Gracias por decírmelo. Como eres menor de edad, no voy a pedirte ningún dato.\n\nCriptoCuba es una plataforma donde se opera con **dinero real**, y eso es solo para mayores de 18 años. No es sitio para ti todavía.\n\nSi te interesa aprender cómo funcionan las criptomonedas, hay muchísimo material gratis para empezar sin arriesgar nada.'];
       speak(pickVariant(_kidAns, 'a child#a'), null, release);
       return;
     }
