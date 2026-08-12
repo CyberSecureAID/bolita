@@ -247,7 +247,24 @@ function inyectarEstilo() {
     #colmena-app .hdr-btn,#colmena-app .hdr-off{min-height:44px}
     #colmena-app .bot-tab,#colmena-app .bot-tipo,#colmena-app .seg button,
     #colmena-app .sug,#colmena-app .btn{min-height:44px}
-    #colmena-app .stepper-btns button{min-height:20px}
+    /* ══════════════════════════════════════════════════════════════
+       LAS FLECHITAS DE LOS CAMPOS — [POR FIN LA CAUSA REAL]
+
+       No eran las flechas del navegador. Son BOTONES PROPIOS de la web,
+       dentro de un <span class="stepper-btns">. Por eso llevo cuatro
+       intentos quitando pseudo-elementos de CSS que no existían aquí.
+
+       Y encima la regla de arriba (min-height:44px para todo lo tocable
+       en móvil) los estaba AGRANDANDO, que es justo lo que se veía:
+       flechas enormes y empujadas hacia abajo.
+
+       En el móvil se quitan: se escribe con el teclado y el dedo nunca
+       acierta en una flecha de 13px. En el escritorio se quedan, que
+       ahí van bien y sí se usan.
+       ══════════════════════════════════════════════════════════════ */
+    #colmena-app .stepper-btns{display:none !important}
+    /* Y el campo recupera el hueco que ocupaban. */
+    #colmena-app .stepper input,#colmena-app .stepper .inp{padding-right:14px !important}
     #colmena-app .btn-avz{min-height:44px;padding:0 14px}
   }
   #colmena-app .vacio-ok{text-align:center;padding:34px 20px;border-radius:16px;background:linear-gradient(180deg,#161b22,#0d1117);border:1px solid var(--line)}
