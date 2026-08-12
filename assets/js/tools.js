@@ -401,7 +401,7 @@ let _wMoneda = 'BTC';
 const WIDGETS = {
   termometro: {
     t: 'Miedo y codicia',
-    s: 'Cuando todos compran por euforia, suele ser mal momento. Cuando todos venden por pánico, suele ser bueno.',
+    s: 'El humor del mercado, de 0 a 100',
     conMonedas: false,
     alto: 460,
     nota: 'Este índice mide el ánimo del mercado de 0 (pánico) a 100 (euforia). No es una señal de compra: es contexto.',
@@ -411,7 +411,7 @@ const WIDGETS = {
   },
   tecnico: {
     t: 'Análisis técnico',
-    s: 'El resumen de los indicadores más usados, en un solo medidor.',
+    s: 'Qué dicen los indicadores más usados, en un solo medidor',
     conMonedas: true,
     alto: 470,
     nota: 'Esto no es un consejo: es lo que dicen los indicadores ahora mismo. Úsalo como una opinión más, no como una orden.',
@@ -424,8 +424,9 @@ const WIDGETS = {
   },
   mapa: {
     t: 'Mapa del mercado',
-    s: 'Cada cuadro es una moneda. Tamaño = capitalización. Color = si sube o baja.',
+    s: 'Cada cuadro es una moneda · el tamaño es su peso · verde sube, rojo baja',
     conMonedas: false,
+    plena: true,
     alto: 500,
     nota: 'Sirve para ver de un vistazo si el mercado entero se mueve o solo una moneda.',
     tv: () => ({
@@ -438,8 +439,9 @@ const WIDGETS = {
   },
   grafica: {
     t: 'Gráfica en directo',
-    s: 'El gráfico completo, con sus herramientas.',
+    s: 'Con velas, indicadores y herramientas de dibujo',
     conMonedas: true,
+    plena: true,
     alto: 500,
     nota: 'Puedes cambiar la temporalidad y dibujar sobre el gráfico.',
     tv: (sim) => ({
@@ -459,6 +461,7 @@ async function abrirWidget(id) {
 
   const d = document.createElement('div');
   d.id = 'w-overlay';
+  if (w.plena) d.classList.add('plena');
   d.innerHTML = `<div class="pv-bg"></div>
     <div class="w-c">
       <div class="tl-top">
@@ -471,7 +474,7 @@ async function abrirWidget(id) {
         ${MON_WIDGET.map((m) => `<button class="w-mon ${m.id === _wMoneda ? 'on' : ''}" data-wm="${m.id}" title="${esc(m.n)}">${esc(m.id)}</button>`).join('')}
       </div>` : ''}
 
-      <div class="w-caja" id="w-caja" style="min-height:${w.alto}px">
+      <div class="w-caja" id="w-caja" style="${w.plena ? '' : 'min-height:' + w.alto + 'px'}">
         <div class="tl-cargando">Cargando…</div>
       </div>
 
@@ -501,7 +504,11 @@ async function abrirWidget(id) {
 /** Mete un widget de TradingView dentro de nuestra caja. */
 function montarTV(def, alto) {
   const caja = $('w-caja'); if (!caja) return;
-  caja.innerHTML = `<div class="tradingview-widget-container" style="height:${alto - 30}px;width:100%">
+  /* En pantalla completa la altura la manda la caja, no un número fijo.
+     Una gráfica de 470px no sirve para analizar nada. */
+  const plena = document.getElementById('w-overlay')?.classList.contains('plena');
+  const h = plena ? '100%' : (alto - 30) + 'px';
+  caja.innerHTML = `<div class="tradingview-widget-container" style="height:${h};width:100%">
     <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
   </div>`;
   const cont = caja.querySelector('.tradingview-widget-container');
@@ -1059,8 +1066,16 @@ function estilos() {
   #w-overlay .tl-top{position:relative;display:flex;align-items:center;justify-content:center;min-height:38px;margin-bottom:10px}
   /* La ✕ heredaba un alto de 21px al posicionarse: hay que fijarlo.
      44px es lo mínimo cómodo para el dedo. */
-  #w-overlay .pv-x{position:absolute;top:0;right:0;width:38px;height:38px;min-height:38px;flex:0 0 auto}
+  /* La ✕ con el mismo estilo que en el resto de la web. Antes heredaba
+     un alto de 21px y salía sin fondo ni borde. */
+  #w-overlay .pv-x{position:absolute;top:0;right:0;width:38px;height:38px;min-height:38px;flex:0 0 auto;
+    border-radius:11px;display:grid;place-items:center;padding:0;cursor:pointer;font-size:15px;
+    background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6;z-index:5}
+  #w-overlay .pv-x:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
   @media(max-width:560px){#w-overlay .pv-x{width:40px;height:40px;min-height:40px}}
+  /* El subtítulo, dorado y centrado como el resto de la web. */
+  #w-overlay .tl-s{color:var(--gold-soft,#C9A84B);font-size:12.5px;text-align:center;
+    font-family:var(--mono,monospace);letter-spacing:.3px;line-height:1.5}
   #w-overlay .w-c{position:relative;width:100%;max-width:620px;max-height:calc(100vh - 32px);overflow-y:auto;
     background:linear-gradient(180deg,#141922,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:20px;padding:22px 20px}
   #w-overlay .w-mons{display:flex;gap:6px;overflow-x:auto;padding:4px;margin-bottom:14px;
@@ -1075,6 +1090,28 @@ function estilos() {
     display:flex;align-items:center;justify-content:center}
   #w-overlay .w-caja iframe{border:none!important;width:100%!important}
   #w-overlay .w-caja .tradingview-widget-copyright{display:none!important}
+  /* ══════════════════════════════════════════════════════════════
+     PANTALLA COMPLETA
+     Para analizar un gráfico hace falta espacio. Estas herramientas
+     ocupan toda la pantalla: en el móvil, vertical de arriba abajo,
+     como se ve TradingView en el teléfono.
+     ══════════════════════════════════════════════════════════════ */
+  #w-overlay.plena{padding:0}
+  #w-overlay.plena .w-c{max-width:none;width:100%;height:100vh;height:100dvh;max-height:none;
+    border-radius:0;border:none;padding:14px 14px 10px;display:flex;flex-direction:column}
+  #w-overlay.plena .tl-s{margin-bottom:12px}
+  #w-overlay.plena .w-caja{flex:1;min-height:0}
+  #w-overlay.plena .w-nota{flex:0 0 auto}
+  #w-overlay.plena .tradingview-widget-container,
+  #w-overlay.plena .tradingview-widget-container__widget{height:100%!important}
+  @media(max-width:560px){
+    #w-overlay.plena .w-c{padding:10px 9px 8px}
+    #w-overlay.plena .tl-s{font-size:11.5px;margin-bottom:9px}
+    #w-overlay.plena .w-mons{margin-bottom:9px}
+    /* En el móvil la nota estorba: el gráfico manda. */
+    #w-overlay.plena .w-nota{display:none}
+  }
+
   #w-overlay .w-nota{margin-top:13px;padding:12px 14px;border-radius:11px;background:rgba(232,184,75,.06);
     border-left:2px solid var(--gold-soft,#C9A84B);font-family:var(--sans,sans-serif);
     font-size:12px;color:var(--ink-2,#b7bdc6);line-height:1.6}
