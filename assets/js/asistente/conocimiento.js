@@ -47,6 +47,18 @@ window.NP_BOT_KB = {
        cuenta algo que de verdad le sirve, y se le dan opciones. */
     sugerencias: [
       {
+        /* Va primera a propósito. Cuando alguien dice "sí" o "dime por
+           dónde empezamos", lo que quiere es que le orienten, no que le
+           suelten un bot al azar. Se le pregunta y él elige. */
+        texto: 'Claro. Para no soltarte un ladrillo, dime qué te encaja mejor:',
+        opciones: [
+          { label: 'Soy nuevo del todo', q: 'como empiezo' },
+          { label: 'Ver los 4 bots',     q: 'que bots hay' },
+          { label: '¿Cuánto necesito?',  q: 'cuanto dinero necesito' },
+          { label: '¿Es seguro?',        q: 'es seguro mi dinero' }
+        ]
+      },
+      {
         texto: 'Mira, algo que mucha gente no sabe:\n\nEl **Accumulator** puede ganar dinero incluso cuando el precio no para de caer. Suena raro, pero tiene sentido: **cuanto más baja, más compra**, y cada compra abarata tu precio medio. Así no necesitas que el mercado vuelva a lo más alto para recuperar; basta con que suba un poco desde tu promedio.\n\n¿Te lo explico con números, o prefieres ver otro bot?',
         opciones: [
           { label: 'Con números', q: 'explicame el acumulador con numeros' },
@@ -530,6 +542,26 @@ window.NP_BOT_KB = {
 
   kb: [
     {
+      topic: 'el acumulador con números',
+      keys: ['explicame el acumulador con numeros', 'acumulador con numeros',
+             'el acumulador con numeros', 'ejemplo del acumulador', 'ejemplo con numeros',
+             'como se calcula el precio medio', 'precio medio del acumulador',
+             'ponme un ejemplo del acumulador'],
+      accion: 'acum',
+      answer: [
+        'Va con números reales.\n\nPones **200 USDT** para comprar BNB, y el bot los reparte en 5 compras según baja:\n\n· A **600** compra 20 USDT → tienes 0,033 BNB\n· A **560** compra 30 → 0,053 BNB más\n· A **520** compra 40 → 0,077 más\n· A **480** compra 50 → 0,104 más\n· A **440** compra 60 → 0,136 más\n\n**Total: 200 USDT y 0,403 BNB. Tu precio medio son 496.**\n\nFíjate en lo importante: el precio bajó de 600 a 440, pero **tú no necesitas que vuelva a 600 para ganar**. Con que suba a 546 (un 10% sobre tu media) el bot vende todo y ganas 20 USDT.',
+        'Te lo pongo con cifras.\n\nCon **200 USDT** repartidos en 5 compras mientras el precio cae de 600 a 440:\n\nCompra más cantidad cuanto más barato está. Al final tienes **0,403 BNB que te costaron 496 de media**, aunque el precio llegara a bajar hasta 440.\n\n**La clave:** con el precio a 546 ya estás ganando, aunque siga estando un 9% por debajo de donde empezaste.'
+      ],
+      more: [
+        'Lo que hace la diferencia es **cuánto compra cada vez**.\n\nSi comprara lo mismo en cada caída (40 y 40 y 40…), tu precio medio sería 520. Comprando más cuanto más barato (20, 30, 40, 50, 60), baja a **496**.\n\nEsos 24 puntos de diferencia son los que hacen que recuperes antes.\n\n**Y lo que puede salir mal:** si el precio se hunde por debajo de tu mínimo, el bot deja de comprar y espera. No pierdes el dinero, lo tienes en moneda, pero puede tardar en recuperar.'
+      ],
+      opciones: [
+        { label: 'Montar uno',      q: 'guiame a montar mi acumulador' },
+        { label: 'Ver otros bots',  q: 'que bots hay' },
+        { label: '¿Y si sigue bajando?', q: 'que pasa si el precio baja' }
+      ]
+    },
+    {
       topic: 'qué hay en el perfil',
       guia: 'perfilGuia', guiaLabel: 'Enséñamelo',
       accion: 'perfil',
@@ -580,7 +612,8 @@ window.NP_BOT_KB = {
       topic: 'comprar en el marketplace',
       guia: 'comprar', guiaLabel: 'Guíame para comprar',
       accion: 'market',
-      keys: ['como compro', 'quiero comprar', 'comprar en el marketplace', 'comprar cripto a alguien',
+      keys: [
+             'como compro en el marketplace', 'como compro', 'quiero comprar', 'comprar en el marketplace', 'comprar cripto a alguien',
              'como pongo una orden de compra', 'orden de compra', 'tomar una oferta'],
       answer: [
         'Eliges una oferta y **la cripto se bloquea al momento**: el vendedor ya no puede llevársela.\n\nPagas por donde acordéis, pulsas «Ya pagué» y el vendedor libera. Si no lo hace, abres disputa.',
@@ -695,7 +728,8 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'no custodial',
-      keys: ['no custodial', 'custodia', 'quien tiene mi dinero', 'donde esta mi dinero',
+      keys: [
+             'es seguro mi dinero', 'no custodial', 'custodia', 'quien tiene mi dinero', 'donde esta mi dinero',
              'tienen mi dinero', 'me pueden robar', 'se quedan con mi dinero',
              'es seguro', 'seguridad', 'confiar', 'es confiable', 'es estafa', 'scam',
              'esto es una estafa', 'es una estafa', 'sera estafa', 'es fraude',
@@ -721,7 +755,11 @@ window.NP_BOT_KB = {
         { label: 'Cash Out',    q: 'que es el cash out' },
         { label: 'DCA',         q: 'que es el dca' }
       ],
-      keys: ['que bots hay', 'tipos de bot', 'cuantos bots', 'que estrategias',
+      keys: [
+             'quiero saber sobre los bots', 'saber de los bots', 'hablame de los bots',
+             'los bots', 'sobre los bots', 'info de los bots', 'que hacen los bots',
+             'cuentame de los bots', 'explicame los bots', 'como son los bots',
+             'que bots tienen', 'bots de la plataforma', 'los bots de la plataforma','que bots hay', 'tipos de bot', 'cuantos bots', 'que estrategias',
              'cual bot elijo', 'que bot me conviene', 'diferencia entre bots'],
       answer: [
         'Hay cuatro:\n\n**Smart Grid** — compra abajo y vende arriba, una y otra vez.\n**Accumulator** — compra más cuanto más baja, y vende todo al alcanzar tu objetivo.\n**Cash Out** — vende cuando el precio llega a lo que marcaste.\n**DCA** — compra un poco cada cierto tiempo.\n\n¿Cuál te explico?',
@@ -733,7 +771,8 @@ window.NP_BOT_KB = {
       topic: 'Smart Grid',
       guia: 'grid', guiaLabel: 'Guíame paso a paso',
       accion: 'grid',
-      keys: ['smart grid', 'grid', 'cuadricula', 'cuadriculas', 'rejilla', 'bot grid',
+      keys: [
+             'como funciona el smart grid', 'guiame a montar el smart grid', 'smart grid', 'grid', 'cuadricula', 'cuadriculas', 'rejilla', 'bot grid',
              'como funciona el grid', 'que es el smart grid'],
       answer: [
         'Imagina una escalera de precios. Tú pones el escalón más bajo y el más alto, y el bot reparte escalones en medio.\n\n**Cuando el precio baja a un escalón, compra. Cuando sube al siguiente, vende.** Y vuelta a empezar.',
@@ -748,8 +787,9 @@ window.NP_BOT_KB = {
       topic: 'Accumulator',
       guia: 'acum', guiaLabel: 'Guíame paso a paso',
       accion: 'acum',
-      keys: ['accumulator', 'acumulador', 'bot acumulador', 'como funciona el acumulador',
-             'promediar', 'precio medio', 'bajar el promedio'],
+      keys: [
+             'que es el accumulator', 'accumulator', 'acumulador', 'bot acumulador', 'como funciona el acumulador',
+             'promediar', 'bajar el promedio'],
       answer: [
         'Compra poco a poco mientras el precio baja, **y compra más cuanto más barato está**. Así baja tu precio medio.\n\nNo vende por partes: espera a que todo valga el porcentaje que fijaste y vende de golpe.',
         'El Accumulator sirve cuando quieres entrar en una moneda pero no sabes si va a bajar más.\n\nEn vez de gastar todo de golpe, va soltando el dinero en cada caída. Tu precio medio acaba siendo mejor.',
@@ -763,7 +803,8 @@ window.NP_BOT_KB = {
       topic: 'Cash Out',
       guia: 'cash', guiaLabel: 'Guíame paso a paso',
       accion: 'cash',
-      keys: ['cash out', 'cashout', 'take profit', 'vender a un precio',
+      keys: [
+             'que es el cash out', 'y si el precio no llega al objetivo', 'cash out', 'cashout', 'take profit', 'vender a un precio',
              'orden de venta', 'como funciona el cash out'],
       answer: [
         'Tú dices "cuando esta moneda llegue a este precio, véndela". El bot vigila día y noche y lo hace en cuanto ocurre.\n\nAunque sea a las cuatro de la mañana.',
@@ -778,7 +819,8 @@ window.NP_BOT_KB = {
       topic: 'DCA',
       guia: 'dca', guiaLabel: 'Guíame paso a paso',
       accion: 'dca',
-      keys: ['dca', 'compra recurrente', 'comprar cada semana', 'comprar poco a poco',
+      keys: [
+             'que es el dca', 'cuando vendo lo del dca', 'dca', 'compra recurrente', 'comprar cada semana', 'comprar poco a poco',
              'promedio de costo', 'como funciona el dca'],
       answer: [
         'Compra la misma cantidad cada cierto tiempo, sin mirar el precio. Por ejemplo 20 USDT todos los lunes.\n\nUnas veces te toca caro y otras barato, y acabas con un precio medio razonable.',
@@ -798,7 +840,11 @@ window.NP_BOT_KB = {
         { label: '¿Cuánto pongo?', q: 'cuanto dinero necesito' },
         { label: 'Guíame', q: 'guiame a montar mi bot' }
       ],
-      keys: ['como empiezo', 'como empezar', 'primeros pasos', 'soy nuevo',
+      keys: [
+             'dime por donde empezamos', 'por donde empezamos', 'por donde empiezo',
+             'dime por donde empiezo', 'por donde empezar', 'por donde',
+             'dime por donde', 'empezamos', 'empecemos', 'vamos a empezar',
+             'guiame a montar mi bot', 'por donde empiezo', 'por donde empezamos', 'dime por donde empezamos', 'como empiezo', 'como empezar', 'primeros pasos', 'soy nuevo',
              'como creo un bot', 'como hago un bot', 'quiero empezar', 'que necesito'],
       answer: [
         'Tres pasos:\n\n**1.** Conecta tu wallet (MetaMask, Trust o SafePal).\n**2.** Deposita un poco de BNB para el gas de las operaciones.\n**3.** Elige un bot, toca "Configuraciones rentables" y escoge una.\n\n¿Te explico alguno de los pasos?',
@@ -810,7 +856,8 @@ window.NP_BOT_KB = {
       topic: 'conectar la wallet',
       guia: 'wallet', guiaLabel: 'Guíame para conectarla',
       accion: 'conectar',
-      keys: ['conectar wallet', 'no conecta', 'no me conecta', 'conectar billetera',
+      keys: [
+             'como conecto la wallet', 'no me conecta la wallet', 'conectar wallet', 'no conecta', 'no me conecta', 'conectar billetera',
              'metamask', 'trust wallet', 'safepal', 'no puedo conectar',
              'como conecto', 'walletconnect'],
       answer: [
@@ -824,7 +871,8 @@ window.NP_BOT_KB = {
     },
     {
       topic: 'gas',
-      keys: ['gas', 'que es el gas', 'para que el gas', 'cuanto gas', 'me quedo sin gas',
+      keys: [
+             'como recargo el gas', 'gas', 'que es el gas', 'para que el gas', 'cuanto gas', 'me quedo sin gas',
              'recargar gas', 'depositar gas', 'bnb para gas', 'comision de red'],
       answer: [
         'El gas es lo que cuesta cada operación en la red. Lo depositas una vez y de ahí van saliendo las compras y ventas de tus bots.\n\nCada operación cuesta unos **0,00002 BNB** (un céntimo). Con 0,01 BNB tienes para cientos.',
@@ -847,7 +895,8 @@ window.NP_BOT_KB = {
     /* ══════════════ PROBLEMAS ══════════════ */
     {
       topic: 'el bot no opera',
-      keys: ['no opera', 'no compra', 'no vende', 'no hace nada', 'esta parado',
+      keys: [
+             'mi bot no vende nada', 'cuando empieza a operar el bot', 'no opera', 'no compra', 'no vende', 'no hace nada', 'esta parado',
              'no funciona el bot', 'no se ejecuta', 'lleva dias sin', 'no pasa nada'],
       answer: [
         'Lo más habitual es que **el precio todavía no haya llegado a ninguna cuadrícula**. El bot solo actúa cuando el mercado toca uno de tus niveles.\n\nEn la gráfica del bot puedes ver cuánto falta para el más cercano.',
@@ -910,7 +959,8 @@ window.NP_BOT_KB = {
       topic: 'prize pool',
       guia: 'prize', guiaLabel: 'Guíame para participar',
       accion: 'prize',
-      keys: ['prize pool', 'sorteo', 'pozo', 'premio', 'ganar premio', 'loteria',
+      keys: [
+             'como se hace el sorteo', 'prize pool', 'sorteo', 'pozo', 'premio', 'ganar premio', 'loteria',
              'como participo en el sorteo'],
       answer: [
         'Es un sorteo comunitario. Entras con una participación y, al cerrar la ronda, se reparten premios entre los ganadores.\n\nEl número aleatorio viene de un sistema **verificable en la blockchain**: nadie puede manipularlo, ni nosotros.',
@@ -921,7 +971,8 @@ window.NP_BOT_KB = {
       topic: 'swap',
       guia: 'swap', guiaLabel: 'Guíame para intercambiar',
       accion: 'swap',
-      keys: ['swap', 'intercambiar', 'cambiar moneda', 'cambiar token', 'convertir'],
+      keys: [
+             'comisiones del swap', 'swap', 'intercambiar', 'cambiar moneda', 'cambiar token', 'convertir'],
       answer: [
         'El swap te deja cambiar una moneda por otra al momento, desde tu propia wallet.\n\nFunciona sobre PancakeSwap, con una comisión pequeña por usar la plataforma.',
         'Intercambio directo entre monedas. Eliges qué das y qué quieres, y se hace en una operación.'
@@ -1018,7 +1069,8 @@ window.NP_BOT_KB = {
     {
       topic: 'seguridad del marketplace',
       guia: 'vender', guiaLabel: 'Guíame para vender',
-      keys: ['si no me paga', 'y si no me manda el dinero', 'y si me estafa el vendedor',
+      keys: [
+             'y si el vendedor no libera', 'y si el vendedor no me manda el dinero', 'si no me paga', 'y si no me manda el dinero', 'y si me estafa el vendedor',
              'y si el comprador no paga', 'que pasa si me estafan', 'como me protegen',
              'y si hay problema con la venta', 'que pasa si hay disputa',
              'y si el que me vende no me manda el dinero', 'si el vendedor no envia',
@@ -1084,7 +1136,8 @@ window.NP_BOT_KB = {
     {
       topic: 'la academia',
       accion: 'academy',
-      keys: ['que es la academia', 'academy', 'curso', 'cursos', 'formacion', 'aprender',
+      keys: [
+             'planes de la academia', 'que incluye la academia', 'que es la academia', 'academy', 'curso', 'cursos', 'formacion', 'aprender',
              'clases', 'quiero aprender', 'ensename', 'estudiar', 'donde aprendo',
              'como aprendo a operar', 'aprender trading', 'curso de trading',
              'quiero aprender trading', 'me ensenas', 'hay formacion'],

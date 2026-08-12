@@ -1020,13 +1020,21 @@
   var AFIRMA_RE = /^(si|sii+|sí|s|dale|claro|ok|oka|okey|okay|vale|bueno|bien|va|yes|yeah|yep|sure|porfa|por favor|porfavor|obvio|de una|hazlo|adelante|sigue|continua|continúa|cuentame|cuéntame|dime|explicame|explícame|mas|más|quiero|me interesa|perfecto|genial|exacto|eso|asi es|así es|correcto|aja|ajá|ya|entiendo)\b/;
   var NIEGA_RE  = /^(no|nop|nope|nel|para nada|nada|ahora no|luego|despues|después|otro dia|no gracias|ninguna|nada mas|nada más|ya esta|ya está|listo|nop)\b/;
 
+  /* Un "sí" de verdad es CORTO y no pide nada concreto.
+     "explicame el acumulador con numeros" empieza por "explicame", que
+     está en la lista de afirmaciones, pero NO es un sí: es una petición.
+     Si el mensaje menciona un tema que sabemos responder, manda el tema. */
   function isFollowUp(text) {
     var n = normalize(text);
-    return n.split(' ').length <= 5 && AFIRMA_RE.test(n);
+    if (n.split(' ').length > 3) return false;
+    if (detectTopics(text).length) return false;
+    return AFIRMA_RE.test(n);
   }
   function diceQueNo(text) {
     var n = normalize(text);
-    return n.split(' ').length <= 5 && NIEGA_RE.test(n);
+    if (n.split(' ').length > 3) return false;
+    if (detectTopics(text).length) return false;
+    return NIEGA_RE.test(n);
   }
 
   /* [MEJORADO] Antes solo se recordaba la ÚLTIMA frase usada. Con tres
@@ -2471,8 +2479,18 @@
       var _n = normalize(text);
       var _corto = _n.split(/\s+/).length <= 5;
 
+      /* [FALLO CORREGIDO] "explicame el acumulador con numeros" empieza
+         por "explicame", que está en la lista de afirmaciones, y tiene 5
+         palabras: se tomaba como un "sí" y se respondía con una sugerencia
+         al azar en vez de explicar el acumulador.
+
+         Un "sí" de verdad es CORTO (1-3 palabras) y no menciona ningún
+         tema. Si el mensaje habla de algo concreto, manda el tema. */
+      var _pideAlgo = detectTopics(text).length > 0;
+      var _muyCorto = _n.split(/\s+/).length <= 3;
+
       // Dice que SÍ: siempre le llevamos a algo concreto.
-      if (_corto && AFIRMA_RE.test(_n) && !isQuestion(text)) {
+      if (_muyCorto && !_pideAlgo && AFIRMA_RE.test(_n) && !isQuestion(text)) {
         if (lastEntry && lastEntry.more) {
           speak(pickVariant(lastEntry.more, (lastEntry.topic || 'x') + '#more'),
                 { nav: lastEntry.nav, contactCard: lastEntry.contactCard, accion: lastEntry.accion },
@@ -2489,7 +2507,7 @@
       }
 
       // Dice que NO: se cierra sin insistir.
-      if (_corto && NIEGA_RE.test(_n) && !isQuestion(text)) {
+      if (_muyCorto && !_pideAlgo && NIEGA_RE.test(_n) && !isQuestion(text)) {
         speak(pickVariant(DATA.bot.cierre || ['Perfecto, aquí sigo.'], 'cierre'), null, release);
         return;
       }
