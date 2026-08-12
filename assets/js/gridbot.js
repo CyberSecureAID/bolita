@@ -498,8 +498,15 @@ export async function construirConfigAcumulador(p) {
 export async function aprobarToken(tokenAddr, montoBI) {
   const s = await firmante();
   const t = new ethers.Contract(tokenAddr, ERC20, s);
-  const monto = (typeof montoBI === 'bigint') ? montoBI : ethers.MaxUint256;
-  const tx = await t.approve(GRIDBOT, monto, { gasLimit: 120000n });
+  /* [AUDITORÍA] Si por un fallo alguien llamara sin cantidad, esto pedía
+     permiso ILIMITADO sobre el token. Hoy todas las llamadas pasan su
+     cantidad, así que nunca ocurre, pero un permiso ilimitado es de las
+     cosas que más dinero han costado en cripto: mejor que sea imposible
+     por diseño y no por costumbre. */
+  if (typeof montoBI !== 'bigint' || montoBI <= 0n) {
+    throw new Error('Permiso sin cantidad: no se aprueban permisos ilimitados.');
+  }
+  const tx = await t.approve(GRIDBOT, montoBI, { gasLimit: 120000n });
   return esperar(tx);
 }
 
