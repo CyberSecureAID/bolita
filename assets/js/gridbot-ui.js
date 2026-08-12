@@ -123,7 +123,14 @@ function inyectarEstilo() {
             mask-image:linear-gradient(90deg,transparent 0,#000 22%,#000 78%,transparent 100%);mask-repeat:no-repeat;mask-size:100% 100%}
   #colmena-app .c-ticker-img{height:100%;width:auto;max-width:none;display:block;will-change:transform;animation:ctSlide 34s ease-in-out infinite alternate}
   #colmena-app .c-ticker:hover .c-ticker-img{animation-play-state:paused}
-  @keyframes ctSlide{from{transform:translateX(0)}to{transform:translateX(-58%)}}
+  /* ══════════════════════════════════════════════════════════════
+     LA CINTA — [CORREGIDO] El desplazamiento era -58% fijo. En el móvil
+     la cinta es más estrecha, así que ese 58% la sacaba de su sitio y
+     se veía el corte del final por la derecha. Ahora cada tamaño mueve
+     lo justo para que el borde nunca asome.
+     ══════════════════════════════════════════════════════════════ */
+  @keyframes ctSlide{from{transform:translateX(0)}to{transform:translateX(-52%)}}
+  @keyframes ctSlideM{from{transform:translateX(0)}to{transform:translateX(-38%)}}
   @media(prefers-reduced-motion:reduce){#colmena-app .c-ticker-img{animation:none}}
   #colmena-app .c-menu-btn{display:none;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:40px;height:36px;box-sizing:border-box;border-radius:11px;background:linear-gradient(180deg,#f7db8d,var(--gold) 50%,#c79426);border:1px solid #c79426;box-shadow:0 3px 0 #8f6a1a,inset 0 1px 0 rgba(255,255,255,.5);cursor:pointer;padding:0}
   #colmena-app .c-menu-btn span{display:block;width:17px;height:2px;border-radius:2px;background:#3a2800}
@@ -164,21 +171,25 @@ function inyectarEstilo() {
     #colmena-app .c-brand-tx{display:none}
     #colmena-app .c-brand .c-logo{display:none}
     #colmena-app .c-brand{min-width:0}
-    /* El indicador, pegado a la izquierda y compacto: solo el punto.
-       Con texto se metía debajo del logo centrado. */
-    #colmena-app .c-estado{display:inline-flex;position:absolute;left:12px;top:50%;
-      transform:translateY(-50%);z-index:3;padding:7px;gap:0}
+    /* El indicador: a la MISMA altura que el menú, no centrado en toda
+       la cabecera (que incluye la cinta y lo empujaba hacia abajo). */
+    #colmena-app .c-estado{display:inline-flex;position:absolute;left:12px;top:11px;
+      transform:none;z-index:3;padding:8px;gap:0}
     #colmena-app .c-estado b{display:none}
     /* [CORREGIDO] Se centraba respecto a TODA la cabecera, que incluye
        la cinta del sorteo: el logo caía debajo, encima de la cinta. Se
        ancla arriba, a la altura de la fila de botones. */
+    /* El logo, bastante más grande: a 30px no se leía el nombre. */
     #colmena-app .c-logo-mov{display:block;position:absolute;
-      left:50%;top:9px;transform:translateX(-50%);
-      height:30px;width:auto;max-width:40vw;object-fit:contain;
+      left:50%;top:4px;transform:translateX(-50%);
+      height:46px;width:auto;max-width:52vw;object-fit:contain;
       pointer-events:none;z-index:1}
+    /* Y la cinta, con su propio recorrido para no enseñar el corte. */
+    #colmena-app .c-ticker-img{animation-name:ctSlideM}
+    #colmena-app .c-ticker{max-width:none;margin-left:0}
   }
   @media(max-width:400px){
-    #colmena-app .c-logo-mov{height:26px;max-width:38vw;top:10px}
+    #colmena-app .c-logo-mov{height:40px;max-width:50vw;top:6px}
   }
   @media(prefers-reduced-motion:reduce){#colmena-app .c-estado.on i{animation:none}}
   /* Etiquetas de las casillas: largas en la web, cortas en el móvil.
@@ -191,7 +202,12 @@ function inyectarEstilo() {
     /* El botón de recargar gas se había estirado. Vuelve a su medida. */
     #colmena-app #f-gasdep{min-height:44px;padding:11px 18px;line-height:1.2}
   }
+  /* El nombre ocupaba demasiado y competía con la cinta. */
+  #colmena-app .c-brand-tx{font-size:15px;letter-spacing:-.2px;white-space:nowrap}
   #colmena-app .c-brand-tx b{font-weight:800;color:var(--gold)}
+  @media(min-width:761px) and (max-width:1100px){
+    #colmena-app .c-brand-tx{font-size:13.5px}
+  }
   /* La wallet: su logo y los 4 últimos caracteres, que es como la
      reconoce todo el mundo. La dirección entera no la lee nadie. */
   #colmena-app .dir-logo{width:15px;height:15px;flex:0 0 auto;border-radius:4px}
@@ -1516,7 +1532,21 @@ function wireHeader() {
     if (t) t.textContent = hay ? 'Activo' : 'Sin conectar';
   };
   pintarEstado();
-  try { wallet.alCambiar(pintarEstado); } catch (_) {}
+  /* [CORREGIDO] El logo de la wallet se dibujaba UNA vez, al montar la
+     cabecera, cuando todavía no se sabía qué wallet era: salía el icono
+     genérico y ahí se quedaba. Ahora se vuelve a pintar al conectar. */
+  const pintarLogoWallet = () => {
+    const d = $('c-dir'); if (!d) return;
+    const svg = d.querySelector('.dir-logo'); if (!svg) return;
+    const tmp = document.createElement('span');
+    tmp.innerHTML = iconoWallet();
+    const nuevo = tmp.firstElementChild;
+    if (nuevo && nuevo.outerHTML !== svg.outerHTML) svg.replaceWith(nuevo);
+  };
+  setTimeout(pintarLogoWallet, 400);
+  try {
+    wallet.alCambiar(() => { pintarEstado(); setTimeout(pintarLogoWallet, 250); });
+  } catch (_) {}
 
   if ($('c-academy')) $('c-academy').onclick = async () => {
     try {
@@ -1698,7 +1728,7 @@ function render() {
           <div class="lab"><span class="v-l">Gan. cuadrícula %</span><span class="v-s">Ganancia %</span> ${iBtn('margen')} <span style="color:var(--ink-3);font-size:11px;font-family:var(--mono)">opcional</span></div>
           ${campoNum('f-margen',{placeholder:'auto',min:0,max:20,step:0.5})}
           <div id="f-margen-nota"></div>
-          <div class="paso-box"><span><span class="v-l">Separación entre cuadrículas</span><span class="v-s">Separación</span> ${iBtn('separacion')}</span><b id="pv-paso">—</b></div>
+          <div class="paso-box"><span><span class="v-l">Separación</span><span class="v-s">Separación</span> ${iBtn('separacion')}</span><b id="pv-paso">—</b></div>
         </div>
         <div id="f-acum" style="${F.tipo==='acum'?'':'display:none'}">
           <button type="button" class="btn-conf" data-conf-bot="acum"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg><span class="v-l">Configuraciones rentables</span><span class="v-s">Configuración</span><span class="bc-sel" id="conf-sel-acum">elegir</span></button>
@@ -3909,18 +3939,40 @@ async function compartirBot(card) {
   if (pct) { g.font = `800 27px ${MONO}`; g.fillText(pct, bX + bW - 36, bY + 148); }
   g.textAlign = 'left';
 
-  // sello
+  // Pie: la web primero, que es lo que queremos que se recuerde.
   shadow(12, 2);
   g.fillStyle = 'rgba(232,184,75,.95)'; g.font = `700 25px ${MONO}`; g.textAlign = 'center';
-  g.fillText('AUREX FINANCE   ·   SIN CUSTODIA   ·   SIN KYC', W / 2, H - 32);
+  g.fillText('CRIPTOCUBAOFICIAL.COM   ·   SIN CUSTODIA   ·   SIN KYC', W / 2, H - 32);
   g.textAlign = 'left'; noShadow();
 
-  cv.toBlob((blob) => {
+  /* El logo, arriba a la derecha con su margen. Se dibuja al final para
+     que quede por encima de todo, y si no carga la imagen no se rompe
+     nada: la tarjeta sale igual, solo que sin logo. */
+  const _pintar = () => cv.toBlob((blob) => {
     if (!blob) return;
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url;
     a.download = `bot-${tipo}-${sb}${sq}.png`;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500);
   }, 'image/png');
+
+  /* El logo va arriba a la derecha, con margen para que no se pegue al
+     borde. Si tarda o falla, la imagen sale igual sin él: nunca se deja
+     al usuario sin su tarjeta por un logo que no cargó. */
+  const _logo = new Image();
+  _logo.crossOrigin = 'anonymous';
+  let _hecho = false;
+  const _una = () => { if (_hecho) return; _hecho = true; _pintar(); };
+  _logo.onload = () => {
+    try {
+      const alto = 74;
+      const ancho = Math.round(_logo.width * (alto / _logo.height));
+      g.drawImage(_logo, W - ancho - 46, 40, ancho, alto);
+    } catch (_) {}
+    _una();
+  };
+  _logo.onerror = _una;
+  setTimeout(_una, 1400);          // por si la imagen se atasca
+  _logo.src = 'assets/img/cco-192.png';
 }
 function enganchar(cuenta) {
   document.querySelectorAll(`#${APP} .rej`).forEach((el) => {
