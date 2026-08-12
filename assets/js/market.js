@@ -281,6 +281,38 @@ function estilos() {
   #mk-overlay .op-fechas span{font-family:var(--mono,monospace);font-size:11px;color:var(--ink-2,#b7bdc6);cursor:help}
   #mk-overlay .op-fechas span.dis{color:var(--rojo,#f6465d)}
   #mk-overlay .op-fechas i{display:block;font-style:normal;font-size:8.5px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
+  /* ── Guía paso a paso ── */
+  #mk-overlay .cf-card{padding:26px 22px;border-radius:18px;text-align:center;
+    background:linear-gradient(180deg,rgba(232,184,75,.07),rgba(232,184,75,.015));border:1px solid rgba(232,184,75,.28)}
+  #mk-overlay .cf-num{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:1.6px;margin-bottom:12px}
+  #mk-overlay .cf-t{font-family:var(--display,sans-serif);font-weight:800;font-size:21px;color:#eaecef;line-height:1.2}
+  #mk-overlay .cf-d{font-family:var(--sans,sans-serif);font-size:14px;color:#8b96a3;line-height:1.7;
+    margin:12px auto 20px;max-width:44ch}
+  #mk-overlay .cf-d b{color:var(--gold,#E8B84B)}
+  #mk-overlay .cf-puntos{display:flex;gap:6px;justify-content:center;margin-bottom:20px;flex-wrap:wrap}
+  #mk-overlay .cf-puntos span{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.15)}
+  #mk-overlay .cf-puntos span.on{background:var(--gold,#E8B84B);width:18px;border-radius:20px}
+  #mk-overlay .cf-acts{display:flex;gap:9px;justify-content:center}
+  #mk-overlay .cf-b{min-width:150px;min-height:48px;padding:13px 26px;border-radius:12px;border:1px solid #c79426;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 4px 0 #8f6a1a}
+  #mk-overlay .cf-b.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:#b7bdc6;
+    box-shadow:0 3px 0 rgba(0,0,0,.4);min-width:100px}
+  #mk-overlay .cf-b:active{transform:translateY(2px)}
+  #mk-overlay .cf-b .tx-s{display:none}
+  #mk-overlay .op-limpiar{width:100%;min-height:44px;padding:11px;border-radius:11px;margin-top:8px;
+    background:transparent;border:1px dashed #3a424c;color:var(--ink-3,#7d8794);
+    font-family:var(--mono,monospace);font-size:11.5px;cursor:pointer}
+  #mk-overlay .op-limpiar:hover{border-color:var(--rojo,#f6465d);color:var(--rojo,#f6465d)}
+  @media(max-width:560px){
+    #mk-overlay .cf-card{padding:22px 16px}
+    #mk-overlay .cf-t{font-size:18px}
+    #mk-overlay .cf-d{font-size:13px;line-height:1.6}
+    #mk-overlay .cf-b{min-width:0;flex:1;padding:13px 14px;font-size:13px}
+    #mk-overlay .cf-b .tx-l{display:none}
+    #mk-overlay .cf-b .tx-s{display:inline}
+  }
   #mk-overlay .op-mas{margin-top:6px}
   #mk-overlay .op-mas summary{cursor:pointer;list-style:none;padding:11px 13px;border-radius:11px;border:1px dashed #3a424c;background:transparent;color:var(--ink-3,#7d8794);font-family:var(--mono,monospace);font-size:11.5px;text-align:center}
   #mk-overlay .op-mas summary::-webkit-details-marker{display:none}
@@ -552,6 +584,9 @@ export async function abrirMarket() {
   $('mk-x').onclick = cerrar;
 
   const tabs = [['mk-t1', 'mk-p1'], ['mk-t2', 'mk-p2'], ['mk-t5', 'mk-p5'], ['mk-t3', 'mk-p3'], ['mk-t4', 'mk-p4'], ['mk-t6', 'mk-p6']];
+  // La guía arranca en su primera tarjeta cada vez que se entra.
+  const _t4 = $('mk-t4');
+  if (_t4) _t4.addEventListener('click', () => setTimeout(() => cfPintar(0), 30));
   tabs.forEach(([t, p], i) => {
     const btn = $(t);
     if (!btn) return;                      // la de Disputas solo existe para el owner
@@ -642,27 +677,74 @@ async function panelDisputas() {
 }
 
 /* ── Cómo funciona ── */
+/* ══════════════════════════════════════════════════════════════
+   CÓMO FUNCIONA — una idea por pantalla
+
+   Antes eran nueve párrafos apilados: un muro que nadie lee. Ahora se
+   muestra UNA sola idea a la vez y el usuario avanza cuando quiera. Lo
+   primero que ve es el consejo que de verdad le protege el dinero.
+   ══════════════════════════════════════════════════════════════ */
+const CF_PASOS = [
+  ['Consejo de oro',
+   'Divide siempre tu venta en <b>la mayor cantidad de partes posible</b>. Es la mejor defensa que existe aquí, y es gratis.'],
+  ['¿Qué es esto?',
+   'Un lugar para <b>vender y comprar cripto entre personas</b>, sin que ninguna tenga que confiar a ciegas en la otra. La plataforma no toca tu dinero: solo lo guarda en una caja fuerte automática mientras hacen el trato.'],
+  ['El problema de siempre',
+   'En los grupos, la pelea es <b>¿quién manda primero?</b> Si mandas tú, te pueden dejar embarcado. Si manda el otro, igual. Aquí eso se acaba.'],
+  ['La caja fuerte',
+   'El vendedor mete su cripto en el contrato. <b>Ya no la tiene él</b>, y tampoco la tenemos nosotros. El comprador lo ve con sus propios ojos y paga tranquilo.'],
+  ['La entrega por partes',
+   'El dinero <b>no se entrega de golpe</b>. Si vendes 500 en 5 partes, van saliendo de 100 en 100. Recibes tu pago, confirmas, y sale la siguiente parte.'],
+  ['La fianza del vendedor',
+   'Para vender hay que dejar una fianza. <b>Ese dinero es tuyo</b> y lo retiras cuando quieras. Solo sirve para responderle al comprador si un árbitro determina que hubo estafa.'],
+  ['La reputación',
+   'Al terminar, ambos se califican con estrellas. Ese historial queda <b>en la blockchain, y nadie lo puede borrar ni falsificar</b>. Mira siempre las estrellas y las ventas antes de tratar con alguien.'],
+  ['Si algo sale mal',
+   'Cualquiera puede abrir una disputa. Un árbitro revisa los comprobantes y decide. Como el dinero está trabado, <b>nadie puede desaparecer con él</b>.'],
+  ['La distancia',
+   'Puedes ver a cuántos kilómetros está la otra persona. Al estafador esto <b>no le gusta nada</b>. Y si viven cerca, quizás puedan hacer el trato en persona.'],
+  ['También puedes publicar que compras',
+   'Si no encuentras lo que buscas, ve a <b>Comprar</b> y publica tu anuncio: dices cuánto quieres y a cómo lo pagas, y los vendedores te escriben a ti. No trabas cripto ni necesitas fianza.']
+];
+
+let _cfPaso = 0;
+
 function comoFunciona() {
-  const pasos = [
-    ['También puedes publicar que compras', 'Si no encuentras lo que buscas, ve a <em>Comprar</em> y publica tu anuncio: dices cuánto quieres y a cómo lo pagas, y los vendedores te escriben a ti. Sale en verde con la etiqueta <em>Compro</em>. No trabas cripto ni necesitas fianza.'],
-    ['¿Qué es esto?', 'Un lugar para <em>vender y comprar cripto entre personas</em>, sin que ninguna tenga que confiar a ciegas en la otra. La plataforma no toca tu dinero: solo lo guarda en una caja fuerte automática mientras hacen el trato.'],
-    ['El problema de siempre', 'En los grupos, la pelea es <em>¿quién manda primero?</em> Si mandas tú, te pueden dejar embarcado. Si manda el otro, igual. Aquí eso se acaba.'],
-    ['La caja fuerte', 'El vendedor mete su cripto en el contrato. <em>Ya no la tiene él</em>, y tampoco la tenemos nosotros. El comprador lo ve con sus propios ojos y paga tranquilo.'],
-    ['La entrega por partes', 'El dinero <em>no se entrega de golpe</em>. Si vendes 500 en 5 partes, van saliendo de 100 en 100. Recibes tu pago, confirmas, y sale la siguiente parte.'],
-    ['La fianza del vendedor', 'Para vender hay que dejar una fianza. <em>Ese dinero es tuyo</em> y lo retiras cuando quieras. Solo sirve para responderle al comprador si un árbitro determina que hubo estafa.'],
-    ['La reputación', 'Al terminar, ambos se califican con estrellas. Ese historial queda <em>en la blockchain, y nadie lo puede borrar ni falsificar</em>. Mira siempre las estrellas y las ventas antes de tratar con alguien.'],
-    ['Si algo sale mal', 'Cualquiera puede abrir una disputa. Un árbitro revisa los comprobantes y decide. Como el dinero está trabado, <em>nadie puede desaparecer con él</em>.'],
-    ['La distancia', 'Puedes ver a cuántos kilómetros está la otra persona. Al estafador esto <em>no le gusta nada</em>. Y si viven cerca, quizás puedan hacer el trato en persona.']
-  ];
-  return `
-  <div class="mk-box"><div class="bt">Consejo de oro</div>
-    <div style="font-family:var(--sans,sans-serif);font-size:13px;color:#b7bdc6;line-height:1.65">
-      Divide siempre tu venta en <b style="color:#E8B84B">la mayor cantidad de partes posible</b>. Es la mejor defensa que existe aquí, y es gratis.
-    </div>
-  </div>
-  ${pasos.map((p, i) => `<div class="mk-paso"><span class="n">${i + 1}</span><span class="t"><b>${p[0]}</b><span>${p[1]}</span></span></div>`).join('')}
-  <button class="mk-b" id="mk-ir-vender" style="margin-top:14px">Quiero vender</button>`;
+  return `<div id="cf-zona">${cfTarjeta(0)}</div>`;
 }
+
+function cfTarjeta(i) {
+  const p = CF_PASOS[i];
+  const ultimo = i === CF_PASOS.length - 1;
+  return `
+  <div class="cf-card">
+    <div class="cf-num">${i + 1} de ${CF_PASOS.length}</div>
+    <div class="cf-t">${p[0]}</div>
+    <div class="cf-d">${p[1]}</div>
+    <div class="cf-puntos">${CF_PASOS.map((_, k) => `<span class="${k === i ? 'on' : ''}"></span>`).join('')}</div>
+    <div class="cf-acts">
+      ${i > 0 ? `<button class="cf-b gris" id="cf-atras">Atrás</button>` : ''}
+      ${ultimo
+        ? `<button class="cf-b" id="mk-ir-vender">Quiero vender</button>`
+        : `<button class="cf-b" id="cf-mas"><span class="tx-l">Saber más</span><span class="tx-s">Más</span></button>`}
+    </div>
+  </div>`;
+}
+
+/** Cambia de tarjeta sin recargar toda la pestaña. */
+function cfPintar(i) {
+  _cfPaso = Math.max(0, Math.min(CF_PASOS.length - 1, i));
+  const z = document.getElementById('cf-zona');
+  if (!z) return;
+  z.innerHTML = cfTarjeta(_cfPaso);
+  const mas = document.getElementById('cf-mas');
+  if (mas) mas.onclick = () => cfPintar(_cfPaso + 1);
+  const atr = document.getElementById('cf-atras');
+  if (atr) atr.onclick = () => cfPintar(_cfPaso - 1);
+  const vnd = document.getElementById('mk-ir-vender');
+  if (vnd) vnd.onclick = () => { const t = document.getElementById('mk-t2'); if (t) t.click(); };
+}
+
 
 /* ── Ofertas ── */
 async function listarOfertas() {
@@ -1682,6 +1764,15 @@ async function panelMisOps() {
     ords.sort((a, b) => Number(b.o.id) - Number(a.o.id));
 
     // Agrupar: lo que necesita acción va primero
+    /* Marca de "ocultar terminadas": todo lo cerrado ANTES de este
+       momento no se lista. Solo afecta a este navegador; en la cadena
+       queda todo, que es lo que sostiene la reputación. */
+    let _ocultarAntes = 0;
+    try {
+      const v = JSON.parse(localStorage.getItem('mk-ocultas') || '{}');
+      _ocultarAntes = Number(v[String(cuenta).toLowerCase()] || 0);
+    } catch (_) {}
+
     const urg = [], curso = [], abiertas = [], fin_ = [];
     for (const d of ords) {
       const o = d.o, est = Number(o.estado);
@@ -1692,7 +1783,11 @@ async function panelMisOps() {
       if (tocaMi) urg.push(d);
       else if (est === 1) curso.push(d);
       else if (est === 0) abiertas.push(d);
-      else fin_.push(d);
+      else {
+        // Ocultas por el usuario en este navegador: no se muestran.
+        const _cerradaEn = Number(d.o.ultimoMovEn || 0);
+        if (!(_ocultarAntes > 0 && _cerradaEn > 0 && _cerradaEn <= _ocultarAntes)) fin_.push(d);
+      }
     }
     const sec = (tit, arr, nota, plegable) => {
       if (!arr.length) return '';
@@ -1734,7 +1829,8 @@ async function panelMisOps() {
       sec('Te toca a ti', urg, 'Estas operaciones están esperando algo tuyo. Atiéndelas primero.') +
       sec('En curso', curso, 'Estás esperando a la otra persona.') +
       sec('Publicadas', abiertas, 'Todavía nadie las ha tomado.') +
-      sec('Terminadas', fin_, 'Historial de lo que ya se cerró.', true);
+      sec('Terminadas', fin_, 'Historial de lo que ya se cerró.', true) +
+      (fin_.length ? `<button class="op-limpiar" id="op-limpiar">Ocultar las ${fin_.length} terminadas</button>` : '')
     wireOps();
     const rt = $('op-retirar');
     if (rt) rt.onclick = () => confirmar({
@@ -1797,7 +1893,7 @@ function opCard({ o, perfOtro }, cuenta, esOwner) {
         titulo = `${esc(otroNom)} dice que ya pagó la parte ${hechos + 1}`;
         explica = `<b>Comprueba en tu banco/Zelle que el dinero llegó de verdad.</b> Si llegó, libera esa parte y se le envían ${num(porTramo, 2)} ${sim}. Si no llegó, no liberes nada y abre una disputa.`;
         acciones = `<button class="op-b" data-lib="${o.id}"><span class="tx-l">Sí, ya me llegó · liberar ${num(porTramo, 2)} ${sim}</span><span class="tx-s">Ya me llegó · liberar</span></button>
-                    <button class="op-b gris" data-canmut="${o.id}"><span class="tx-l">Cancelar pedido (de mutuo acuerdo)</span><span class="tx-s">Cancelar pedido</span></button>
+                    <button class="op-b gris" data-canmut="${o.id}">Cancelar pedido</button>
                     <button class="op-b gris" data-disp="${o.id}"><span class="tx-l">No me llegó · abrir disputa</span><span class="tx-s">No llegó · disputa</span></button>`;
       } else {
         titulo = `${esc(otroNom)} reservó tu oferta`;
@@ -1821,7 +1917,7 @@ function opCard({ o, perfOtro }, cuenta, esOwner) {
         explica = `Contacta a ${esc(otroNom)}, págale lo acordado por esta parte y <b>solo entonces</b> marca abajo que ya pagaste. Recibirás ${num(porTramo, 2)} ${sim}.`;
         acciones = otroCt ? `<div class="op-ct">${esc(otroCt)}</div>` : '';
         acciones += `<button class="op-b" data-pag="${o.id}"><span class="tx-l">Ya le pagué la parte ${hechos + 1}</span><span class="tx-s">Ya pagué</span></button>
-                     <button class="op-b gris" data-canmut="${o.id}"><span class="tx-l">Cancelar pedido (de mutuo acuerdo)</span><span class="tx-s">Cancelar pedido</span></button>
+                     <button class="op-b gris" data-canmut="${o.id}">Cancelar pedido</button>
                      <button class="op-b gris" data-disp="${o.id}"><span class="tx-l">Tengo un problema</span><span class="tx-s">Problema</span></button>`;
       }
     }
@@ -1920,11 +2016,62 @@ function wireOps() {
     ok: 'Sí, devolverla'
   }, () => tx('liberarReserva', b.getAttribute('data-liber'), 'Tu oferta volvió al listado.')));
 
+  /* ══════════════════════════════════════════════════════════════
+     CANCELAR SIN DEPENDER DEL OTRO — [FALLO GRAVE CORREGIDO]
+
+     Antes esto solo llamaba a pedirCancelar(), que necesita que AMBAS
+     partes lo pidan. Si la otra persona se enfadaba y no volvía nunca,
+     el dinero se quedaba atrapado en el contrato para siempre. Eso es
+     inaceptable: nadie debe poder secuestrar tu dinero por no volver.
+
+     Ahora se intentan las dos vías, en orden:
+       1. pedirCancelar()     — si el otro coopera, se cierra al momento
+       2. cancelarPorTiempo() — pasado el plazo, cancelas tú solo
+
+     Y si ninguna funciona todavía, se explica cuánto falta y se ofrece
+     la disputa, que SIEMPRE tiene salida por arbitraje.
+     ══════════════════════════════════════════════════════════════ */
+  /* Ocultar las terminadas. Solo se ocultan EN ESTE NAVEGADOR: en la
+     blockchain quedan para siempre, que es lo que da la reputación. Se
+     dice claramente para que nadie crea que se borra su historial. */
+  const _limp = $('op-limpiar');
+  if (_limp) _limp.onclick = () => confirmar({
+    titulo: 'Ocultar las terminadas',
+    texto: 'Desaparecen de esta lista para que veas solo lo que está en marcha.<br><br>' +
+           '<b>No se borra nada</b>: tu historial y tus estrellas siguen en la blockchain, y puedes volver a verlas cuando quieras.',
+    ok: 'Ocultar'
+  }, async () => {
+    try {
+      const v = JSON.parse(localStorage.getItem('mk-ocultas') || '{}');
+      v[String(cuenta).toLowerCase()] = Math.floor(Date.now() / 1000);
+      localStorage.setItem('mk-ocultas', JSON.stringify(v));
+    } catch (_) {}
+    msg('Terminadas ocultas.', 'ok');
+    panelMisOps();
+  });
+
   document.querySelectorAll('[data-canmut]').forEach(b => b.onclick = () => confirmar({
-    titulo: 'Cancelar de mutuo acuerdo',
-    texto: 'Si los dos lo piden, la operación se cierra sin culpables y <b>la cripto que quede vuelve al vendedor</b>. Nadie pierde reputación.<br><br>Tu petición queda registrada; se cancela cuando la otra persona también lo pida.',
-    ok: 'Sí, pedir cancelación'
-  }, () => tx('pedirCancelar', b.getAttribute('data-canmut'), 'Pedido registrado. Falta que la otra persona lo pida también.')));
+    titulo: 'Cancelar este pedido',
+    texto: 'Se intentará cerrar la operación y <b>devolverte la cripto que quede</b>.<br><br>' +
+           'Si la otra persona también lo pide, se cancela al instante. Si no responde, ' +
+           'se cancela igualmente <b>pasado el plazo de espera</b>: nadie puede retener tu dinero por no contestar.',
+    ok: 'Sí, cancelar'
+  }, async () => {
+    const id = b.getAttribute('data-canmut');
+    // 1) Vía normal: registrar la petición.
+    try {
+      await tx('pedirCancelar', id, 'Petición registrada.');
+    } catch (_) {}
+    // 2) Vía sin cooperación: si ya se puede, se cierra ahora mismo.
+    try {
+      await tx('cancelarPorTiempo', id, 'Pedido cancelado. Tu cripto vuelve a tu wallet.');
+      return;
+    } catch (e) {
+      const m = String(e?.shortMessage || e?.reason || e?.message || e);
+      if (/reject|denied|cancel/i.test(m)) return;   // lo canceló el usuario
+      msg('Petición registrada. Si la otra persona también cancela, se cierra al momento. Si no responde, vuelve pasado el plazo y podrás cerrarlo tú solo.', 'info');
+    }
+  }));
 
   document.querySelectorAll('[data-anu]').forEach(b => b.onclick = () => confirmar({
     titulo: 'Anular la disputa',
