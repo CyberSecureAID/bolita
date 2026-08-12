@@ -12,10 +12,10 @@
   "dir": "ltr",
   "categories": ["finance"],
   "icons": [
-    { "src": "assets/img/aurex-32.png",       "sizes": "32x32",   "type": "image/png" },
+    { "src": "assets/img/cco-32.png",       "sizes": "32x32",   "type": "image/png" },
     { "src": "assets/img/aurex-apple.png",    "sizes": "180x180", "type": "image/png" },
-    { "src": "assets/img/aurex-192.png",      "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "assets/img/aurex-512.png",      "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "assets/img/aurex-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "assets/img/cco-192.png",      "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/img/cco-512.png",      "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/img/cco-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
