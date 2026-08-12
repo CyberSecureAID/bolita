@@ -28,18 +28,16 @@ window.NP_BOT_KB = {
        donde sabemos responder. Los botones hacen el resto: en vez de
        dejarle escribiendo a ciegas, le damos por dónde tirar. */
     greeting: [
-      'Hola, soy **Jesús**, del equipo de Cripto Cuba Oficial.\n\n¿En qué te ayudo?',
-      '¡Hola! Soy **Jesús**. Estoy aquí para resolver cualquier duda sobre CriptoCuba.\n\n¿Qué quieres saber?',
-      'Buenas. Soy **Jesús**, de Cripto Cuba Oficial.\n\nPregúntame lo que quieras: los bots, el marketplace, las comisiones, lo que sea.',
-      'Hola. Soy **Jesús**.\n\n¿Primera vez por aquí, o ya tienes algún bot funcionando?',
-      'Hola, ¿qué tal? Soy **Jesús**, de Cripto Cuba Oficial.\n\nDime qué necesitas y te echo una mano.',
-      '¡Hola! Le atiende **Jesús**, de Cripto Cuba Oficial.\n\n¿Te explico cómo funciona esto, o tienes una duda concreta?',
-      'Buenas, mi nombre es **Jesús** y soy de Cripto Cuba Oficial.\n\nSi te suena a chino todo esto, tranquilo: empezamos por el principio.',
-      'Hola. Soy **Jesús** y llevo la parte de atención de Cripto Cuba Oficial.\n\nDime en qué andas y vemos.',
-      '¿Qué tal? Soy **Jesús**.\n\nPregunta sin miedo, que para eso estoy. Aunque sea la duda más básica.',
-      'Hola, soy **Jesús**, del equipo de Cripto Cuba Oficial.\n\n¿Vienes a informarte, o ya andas operando?',
-      'Buenas, soy **Jesús**.\n\nTe puedo explicar los bots, el marketplace o lo que se te ocurra.',
-      'Hola. Soy **Jesús**, de Cripto Cuba Oficial.\n\nCuéntame qué te trae por aquí.'
+      'Hola, soy **Jesús**. Estoy aquí para ayudarte.\n\n¿Qué necesitas?',
+      '¡Hola! Mi nombre es **Jesús**, de Cripto Cuba Oficial.\n\nDime en qué te ayudo.',
+      'Buenas. Soy **Jesús**.\n\n¿En qué puedo ayudarte hoy?',
+      'Hola, ¿qué tal? Le atiende **Jesús**.\n\nCuéntame qué necesitas.',
+      '¡Hola! Soy **Jesús**, del equipo de Cripto Cuba Oficial.\n\n¿Qué te gustaría saber?',
+      'Buenas, mi nombre es **Jesús**.\n\nEstoy para lo que necesites.',
+      'Hola. **Jesús** al habla, de Cripto Cuba Oficial.\n\n¿Cómo te ayudo?',
+      '¿Qué tal? Soy **Jesús**.\n\nPregúntame lo que quieras.',
+      'Hola, soy **Jesús** y llevo la atención de Cripto Cuba Oficial.\n\nDime qué necesitas.',
+      'Buenas. Soy **Jesús**, encantado.\n\n¿En qué te puedo ayudar?'
     ],
 
     /* ── CUANDO EL USUARIO DICE "SÍ" Y NO HAY MÁS QUE CONTAR ──────
@@ -564,7 +562,7 @@ window.NP_BOT_KB = {
         'Ojalá pudiera darte una cifra, pero sería inventada.\n\n**Nosotros no ofrecemos rendimiento fijo**: el bot gana según cuánto se mueva el precio, y eso no lo controla nadie. En 30 días puedes tener muchas vueltas o casi ninguna.\n\nLo que sí está en tu mano: **elegir monedas que se muevan**. Una moneda volátil da más vueltas que una estable, y cada vuelta es ganancia.\n\n¿Te explico cómo se calcula lo que deja cada vuelta?'
       ],
       more: [
-        'Lo único que puedo darte son las matemáticas, que sí son ciertas:\n\n**Cada vuelta completa deja entre 2% y 4%** de lo que mueve esa cuadrícula, ya sin comisiones.\n\nCon **1.000 USDT** en Equilibrado, cada vuelta son ~1,40 limpios. Si el mercado da 3 vueltas al día, unos 4,20 diarios. Si está plano, cero.\n\n**Lo que nadie puede decirte es cuántas vueltas habrá.** Por eso no hay porcentaje mensual: hay una mecánica que funciona, y un mercado que decide cuánto trabaja.'
+        'Lo que sí puedo explicarte es **cómo se genera el beneficio**.\n\nCada vez que el bot completa una vuelta —compra abajo, vende arriba— se queda con la diferencia, ya descontadas las comisiones.\n\n**Cuantas más vueltas, más beneficio.** Y las vueltas las pone el mercado: un mes movido da muchas, uno plano da pocas.\n\nPor eso conviene operar con monedas que se muevan, y por eso nadie serio te va a prometer un porcentaje fijo.'
       ],
       opciones: [
         { label: 'Monedas volátiles', q: 'que monedas son mas volatiles' },
@@ -623,15 +621,16 @@ window.NP_BOT_KB = {
              'cuanto se necesita para empezar', 'con cuanto puedo arrancar', 'con cuanto',
              'cuanto para empezar', 'cual es el minimo para empezar', 'minimo para empezar'],
       answer: [
-        'Depende de qué quieras hacer, porque aquí hay varias cosas y cada una tiene su mínimo.\n\n¿A qué te refieres?',
-        'Buena pregunta, pero necesito saber para qué. El mínimo no es el mismo en cada servicio.\n\n¿Cuál te interesa?',
-        'Te respondo en cuanto me digas de qué hablamos. Cada servicio tiene su cantidad recomendada.'
+        '¿Puedes darme un poco más de contexto? Te lo pregunto porque aquí hay varios servicios y cada uno funciona distinto:\n\n· **Los bots** operan por ti en el mercado\n· **El Marketplace** es para comprar y vender cripto con otras personas\n· **La Academia** tiene planes de formación\n· **El Prize Pool** es el sorteo comunitario\n\nEscoge una opción y te guío con detalle.',
+        'Déjame entender bien qué buscas, porque tenemos varias cosas y el mínimo no es el mismo en cada una:\n\n· **Bots de trading** — pones capital y operan solos\n· **Marketplace** — vendes tus criptos a quien te las compre\n· **Academia** — formación de cero a cien\n· **Prize Pool** — el sorteo\n\nDime cuál te interesa y te lo explico bien.',
+        'Para responderte bien necesito saber a qué te refieres. Aquí tienes:\n\n· **Los bots**, que operan con tu capital\n· **El Marketplace**, para comprar y vender entre personas\n· **La Academia**, con sus planes\n· **El sorteo comunitario**\n\nEscoge una de las opciones y seguimos.'
       ],
+      noNudge: true,
       opciones: [
-        { label: 'Los bots',      q: 'cuanto necesito para los bots' },
+        { label: 'Los bots',       q: 'cuanto necesito para los bots' },
         { label: 'El Marketplace', q: 'cuanto necesito para el marketplace' },
-        { label: 'La Academia',   q: 'cuanto cuesta la academia' },
-        { label: 'El sorteo',     q: 'cuanto cuesta participar en el sorteo' }
+        { label: 'La Academia',    q: 'cuanto cuesta la academia' },
+        { label: 'El sorteo',      q: 'cuanto cuesta participar en el sorteo' }
       ]
     },
     {
@@ -639,12 +638,14 @@ window.NP_BOT_KB = {
       keys: ['cuanto necesito para los bots', 'cuanto para los bots', 'minimo para un bot',
              'con cuanto abro un bot', 'cuanto para abrir un bot', 'capital minimo bot'],
       answer: [
-        'Con los bots hay una relación directa que conviene entender:\n\n**Con poco capital arriesgas poco, pero también ganas poco.** Con 50 USDT el bot funciona, pero cada vuelta te deja céntimos y el gas se lleva buena parte.\n\n**Con más capital, cada operación pesa más** y el gas deja de importar. A partir de **200 USDT** la cosa empieza a tener sentido.\n\nMi recomendación honesta: empieza con lo que puedas dejar quieto tres meses. Para la mayoría son 100-300.',
-        'Te lo digo con números:\n\n· **50 USDT** — funciona, pero cada vuelta deja ~0,05. Sirve para aprender, no para ganar.\n· **200 USDT** — cada vuelta ~0,26 limpios. Aquí ya se nota.\n· **1.000 USDT** — cada vuelta ~1,40.\n\nEl gas cuesta lo mismo muevas 2 o 20, así que con poco capital se lo come todo. **Que cada cuadrícula mueva al menos 10 USDT.**'
+        'Aquí tengo que ser honesto contigo.\n\n**Nuestro sistema es flexible: puedes abrir un bot con muy poco.** No te ponemos un mínimo alto ni te obligamos a nada.\n\nPero la verdad es esta: **mientras más capital pongas, más beneficio vas a tener.** Con una cantidad muy pequeña el bot funciona igual, pero lo que gane será proporcional a lo poco que puso.\n\nMi recomendación: invierte una cantidad de la que puedas prescindir durante meses. Aquí no hacemos scalping ni usamos apalancamiento: esto trabaja con el tiempo.',
+        'Te lo digo claro, sin venderte nada.\n\n**Puedes empezar con lo que quieras** — el sistema no te limita. Pero el beneficio es proporcional al capital: con poco dinero el bot opera igual, solo que las ganancias serán pequeñas.\n\nLo que sí importa más que la cantidad: **que sea dinero que puedas dejar quieto.** Meses, no días. No usamos apalancamiento ni operamos a corto plazo.\n\nY un consejo: **elige monedas que se muevan.** DOGE, SHIB, SOL dan más vueltas que las tranquilas, y cada vuelta es beneficio.',
+        'Voy a serte honesto porque prefiero eso a que te lleves una sorpresa.\n\n**Puedes abrir un bot con casi cualquier cantidad.** Somos flexibles. Pero si pones muy poco, el beneficio también será muy poco: va en proporción.\n\n**Y una cosa importante:** si esperas un beneficio mensual fijo, esto no funciona así. Tu ganancia depende de cuánto oscile el mercado. **Más movimiento, más beneficio para ti.** Menos movimiento, menos.\n\nPor eso recomiendo monedas volátiles y capital que no necesites pronto.'
       ],
       opciones: [
-        { label: 'Ver los bots',  q: 'que bots hay' },
-        { label: '¿Cuánto gano?', q: 'cuanto puedo ganar' }
+        { label: 'Monedas volátiles', q: 'que monedas son mas volatiles' },
+        { label: 'Ver los bots',      q: 'que bots hay' },
+        { label: '¿Y si baja?',       q: 'que pasa si el precio baja' }
       ]
     },
     {
@@ -669,7 +670,7 @@ window.NP_BOT_KB = {
              'ponme un ejemplo del acumulador'],
       accion: 'acum',
       answer: [
-        'Va con números reales.\n\nPones **200 USDT** para comprar BNB, y el bot los reparte en 5 compras según baja:\n\n· A **600** compra 20 USDT → tienes 0,033 BNB\n· A **560** compra 30 → 0,053 BNB más\n· A **520** compra 40 → 0,077 más\n· A **480** compra 50 → 0,104 más\n· A **440** compra 60 → 0,136 más\n\n**Total: 200 USDT y 0,403 BNB. Tu precio medio son 496.**\n\nFíjate en lo importante: el precio bajó de 600 a 440, pero **tú no necesitas que vuelva a 600 para ganar**. Con que suba a 546 (un 10% sobre tu media) el bot vende todo y ganas 20 USDT.',
+        'Te lo explico con un ejemplo.\n\nImagina que quieres entrar en BNB pero no sabes si va a bajar más. En vez de gastar todo de golpe, el Accumulator **reparte tu dinero en varias compras**, y compra más cantidad cuanto más barato esté.\n\n**El resultado:** tu precio medio queda por debajo del punto donde empezaste. Y cuando el conjunto sube el porcentaje que elegiste, vende todo de una vez.\n\nLa gracia: **no necesitas que el precio vuelva a donde estaba** para ganar. Basta con que suba un poco desde tu media.',
         'Te lo pongo con cifras.\n\nCon **200 USDT** repartidos en 5 compras mientras el precio cae de 600 a 440:\n\nCompra más cantidad cuanto más barato está. Al final tienes **0,403 BNB que te costaron 496 de media**, aunque el precio llegara a bajar hasta 440.\n\n**La clave:** con el precio a 546 ya estás ganando, aunque siga estando un 9% por debajo de donde empezaste.'
       ],
       more: [
@@ -1213,7 +1214,7 @@ window.NP_BOT_KB = {
       answer: [
         'Puedes empezar con **50 USDT** tranquilamente. Las configuraciones están calculadas para que rindan incluso con esa cantidad.\n\nY aparte, un poco de BNB para el gas: con 0,01 tienes para cientos de operaciones.',
         'No hace falta mucho. Con 50 o 100 USDT ya funciona, y es lo que te recomiendo para empezar: poco, ver cómo se comporta, y luego decidir.\n\nSuma un poquito de BNB para el gas y listo.',
-        'Con 50 USDT arrancas. Cuanto más dinero por cuadrícula, mejor rinde (el gas cuesta lo mismo muevas 2 o 20), pero con 50 ya sale rentable.\n\nNunca pongas dinero que vayas a necesitar pronto.'
+        'Puedes arrancar con poco: el sistema es flexible y no te pone trabas.\n\nEso sí, **el beneficio va en proporción al capital**. Con una cantidad pequeña el bot opera igual, pero lo que gane será pequeño también.\n\nMi consejo: pon lo que puedas dejar quieto unos meses, y elige monedas que se muevan.'
       ]
     },
 
@@ -1229,11 +1230,11 @@ window.NP_BOT_KB = {
              'con 10000', 'cuanto con 1000', 'porcentaje mensual', 'apy', 'roi'],
       answer: [
         'Te respondo con números reales, no con promesas.\n\n**Cada vuelta del Smart Grid deja entre un 2% y un 4%** de lo que mueve esa cuadrícula, ya sin comisiones. Cuántas vueltas dé depende del mercado: un día movido puede dar varias, uno plano ninguna.\n\n**Nadie puede decirte cuánto vas a ganar al mes**, y quien te lo diga te está mintiendo.',
-        'Lo que sí sé: con **200 USDT** en un Smart Grid Equilibrado, **cada vuelta deja unos 0,26 USDT limpios**.\n\nSi el mercado se mueve y da 3 vueltas al día, son unos 0,78 al día. Si está plano, cero.\n\nNo hay porcentaje fijo. Depende de cuánto se mueva el precio, y eso no lo controla nadie.',
+        'Lo que sí puedo decirte es cómo funciona:\n\n**El bot gana cuando el precio se mueve.** Cada vuelta completa deja su beneficio, y cuantas más vueltas dé, mejor te va.\n\n**Cuántas vueltas habrá no lo decide nadie más que el mercado.** Por eso no hay porcentaje mensual garantizado: hay una mecánica que funciona y un mercado que marca el ritmo.',
         'No te voy a dar un porcentaje mensual, porque sería inventado.\n\nLo real: cada operación completa deja **entre 2% y 4%** de lo que mueve, después de comisiones. La frecuencia la pone el mercado.\n\nHay meses buenos y meses en que el bot apenas opera.'
       ],
       more: [
-        'Para que te hagas una idea con **1.000 USDT** en Equilibrado (20 cuadrículas):\n\n· Cada cuadrícula mueve 50 USDT\n· Cada vuelta deja **~1,40 USDT** limpios\n· Si el mercado da 2-4 vueltas al día → **entre 2,80 y 5,60 al día**\n· En un mes movido, entre 80 y 170 USDT\n\n**Pero ojo:** eso es en un mercado que sube y baja. Si el precio se va en línea recta y no vuelve, el bot deja de operar y te quedas con la moneda esperando.\n\nY si baja mucho, tendrás pérdida no realizada hasta que recupere.'
+        'Una cosa importante que conviene entender:\n\n**El bot necesita que el precio suba y baje.** Si el mercado se mueve dentro de un rango, va completando vueltas y cada una deja beneficio.\n\n**Si el precio se va en línea recta y no vuelve**, el bot deja de operar y espera. No pierdes tu dinero: lo tienes en forma de moneda. Pero puede tardar en recuperar.\n\nPor eso: capital que puedas dejar quieto, y monedas con movimiento.'
       ]
     },
     {
@@ -1248,7 +1249,7 @@ window.NP_BOT_KB = {
         'Depende menos de la cantidad y más de una cosa: que sea dinero que puedas **dejar quieto**. Estos bots trabajan con el tiempo.\n\nCon 100 ya funciona. Con 300 va cómodo. Y lo que no haría es empezar con todo lo que tienes.'
       ],
       more: [
-        'Por qué importa el tamaño de cada cuadrícula:\n\nEl gas cuesta lo mismo muevas 2 USDT o 20. Así que con inversiones muy pequeñas repartidas en muchas cuadrículas, las comisiones se comen la ganancia.\n\n**Referencia:** que cada cuadrícula mueva al menos **10 USDT**. Con 200 USDT y 20 cuadrículas, cada una mueve 10. Justo en el punto.'
+        'Un consejo práctico:\n\n**Elige monedas que se muevan.** DOGE, SHIB o SOL oscilan bastante más que las tranquilas, y cada oscilación es una oportunidad para el bot.\n\nY otro: **no toques el bot los primeros días.** Estos sistemas trabajan con el tiempo. La gente que cancela a la semana suele hacerlo justo antes de que el mercado se mueva.'
       ]
     },
 
