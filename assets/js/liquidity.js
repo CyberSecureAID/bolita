@@ -322,26 +322,61 @@ function construirMapa(velas) {
     });
   });
 
-  return { niveles, pools, velas, yMin, yMax, alturaFila };
+  /* Máximos globales de cada capa, para poder normalizarlas aparte. */
+  let maxLiq = 0, maxPool = 0;
+  for (let c = 0; c < velas.length; c++) {
+    let sumaLiq = new Float32Array(FILAS);
+    APALANCAMIENTOS.forEach(({ x }) => {
+      const col = niveles[x][c];
+      for (let f = 0; f < FILAS; f++) sumaLiq[f] += col[f];
+    });
+    for (const v of sumaLiq) if (v > maxLiq) maxLiq = v;
+    for (const v of pools[c]) if (v > maxPool) maxPool = v;
+  }
+
+  return { niveles, pools, velas, yMin, yMax, alturaFila, maxLiq, maxPool };
 }
 
 /** Suma los niveles según el filtro de apalancamiento activo. */
+/* ══════════════════════════════════════════════════════════════
+   [CORREGIDO] Aquí estaba el fallo. Los pools estructurales generan
+   cifras muchísimo mayores que las liquidaciones, así que al sumarlos
+   directamente aplastaban todo lo demás: el mapa denso desaparecía y
+   solo quedaban cuatro bandas sueltas.
+
+   La solución: cada capa se normaliza POR SEPARADO a 0-1 y luego se
+   mezclan. Así conviven las dos:
+     · las liquidaciones dan el mapa de fondo, denso, que llena la
+       pantalla (azules y verdes)
+     · los pools estructurales suben por encima y son los que llegan
+       a rojo, porque es donde de verdad está la liquidez
+   ══════════════════════════════════════════════════════════════ */
 function columnaDe(mapa, c) {
-  const out = new Float32Array(FILAS);
+  const liq = new Float32Array(FILAS);
   const lista = V.apal === 'todos'
     ? APALANCAMIENTOS.map((a) => a.x)
     : [Number(V.apal)];
   lista.forEach((x) => {
     const col = mapa.niveles[x] && mapa.niveles[x][c];
     if (!col) return;
-    for (let f = 0; f < FILAS; f++) out[f] += col[f];
+    for (let f = 0; f < FILAS; f++) liq[f] += col[f];
   });
-  /* Los pools estructurales —máximos, mínimos, impulsos, vacíos— se
-     suman SIEMPRE, sin importar el filtro de apalancamiento: no son
-     posiciones apalancadas, son órdenes en espera. Y pesan más, porque
-     son los que de verdad mueven el precio. */
-  const p = mapa.pools && mapa.pools[c];
-  if (p) for (let f = 0; f < FILAS; f++) out[f] += p[f] * 1.5;
+
+  const out = new Float32Array(FILAS);
+  const pool = mapa.pools && mapa.pools[c];
+
+  for (let f = 0; f < FILAS; f++) {
+    // Cada capa en su propia escala, con los máximos globales
+    const a = mapa.maxLiq > 0 ? liq[f] / mapa.maxLiq : 0;
+    const b = (pool && mapa.maxPool > 0) ? pool[f] / mapa.maxPool : 0;
+    /* Las liquidaciones ocupan de 0 a 0,62 (azules y verdes: el fondo
+       que llena el gráfico). Los pools llegan hasta 1 (amarillo y
+       rojo), porque son los muros de verdad. */
+    /* La capa de pools se realza con raíz: así los muros medianos ya
+       suben a naranja y los grandes llegan al rojo pleno, en vez de
+       quedarse todos en amarillo. */
+    out[f] = Math.min(1, a * 0.52 + Math.sqrt(b) * 0.86);
+  }
   return out;
 }
 
@@ -528,7 +563,7 @@ function calor(v) {
   /* Curva 0,52: con 0,62 el amarillo llegaba demasiado pronto y el
      rojo casi no aparecía. Ahora la mayoría se queda en azul y verde,
      y el rojo se reserva para los picos reales. */
-  const p = Math.pow(v, 0.52);
+  const p = Math.pow(v, 0.78);
   /* ══════════════════════════════════════════════════════════════
      PALETA — sacada píxel a píxel de la herramienta de referencia.
 
@@ -623,15 +658,12 @@ function dibujar() {
 
   /* ── EL MAPA DE CALOR ── */
   if (V.verMapa) {
-    // Máximo de lo VISIBLE: así el color siempre aprovecha todo el rango
-    let max = 0;
+    /* Los valores ya vienen normalizados de 0 a 1 desde columnaDe(),
+       con cada capa en su escala. No hay que volver a normalizar. */
     const cols = [];
-    for (let c = desde; c < hasta; c++) {
-      const col = columnaDe(V.mapa, c);
-      cols.push(col);
-      for (const v of col) if (v > max) max = v;
-    }
-    if (max > 0) {
+    for (let c = desde; c < hasta; c++) cols.push(columnaDe(V.mapa, c));
+    const max = 1;
+    if (cols.length) {
       const fMin = Math.max(0, Math.floor((yMin - V.mapa.yMin) / V.mapa.alturaFila));
       const fMax = Math.min(FILAS, Math.ceil((yMax - V.mapa.yMin) / V.mapa.alturaFila));
 
