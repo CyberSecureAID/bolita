@@ -281,12 +281,43 @@ function construirMapa(velas) {
   altos.forEach((p) => puntuar(p, altos));
   bajos.forEach((p) => puntuar(p, bajos));
 
+  /* ══════════════════════════════════════════════════════════════
+     MECHAS GRANDES — zonas de reacción fuerte
+
+     Una mecha del 0,8% o más en una hora significa que el precio llegó
+     ahí, encontró órdenes y fue rechazado con fuerza. Eso es una zona
+     de liquidez, y va marcada aunque el nivel no sea de los seis
+     mejores por otros motivos.
+
+     Se mide en PORCENTAJE sobre el precio, no en valor absoluto: así
+     funciona igual en BTC a 90.000 que en DOGE a 0,15.
+     ══════════════════════════════════════════════════════════════ */
+  const UMBRAL_MECHA = 0.008;          // 0,8%
+
+  velas.forEach((v, i) => {
+    const cuerpoAlto = Math.max(v.o, v.c), cuerpoBajo = Math.min(v.o, v.c);
+    const mechaArriba = (v.h - cuerpoAlto) / v.h;
+    const mechaAbajo = (cuerpoBajo - v.l) / Math.max(1e-9, v.l);
+
+    [[mechaArriba, v.h, true], [mechaAbajo, v.l, false]].forEach(([rel, precio, esAlto]) => {
+      if (rel < UMBRAL_MECHA) return;
+      // Cuanto mayor la mecha, más puntos. Al 2% ya es máximo.
+      const fuerza = Math.min(1, rel / 0.02);
+      candidatos.push({
+        p: precio,
+        pts: 4.2 + fuerza * 4.0,
+        f: filaDe(precio),
+        mecha: true
+      });
+    });
+  });
+
   // Los mejores, sin repetir niveles que estén pegados
   candidatos.sort((a, b) => b.pts - a.pts);
   const elegidos = [];
   for (const c of candidatos) {
-    if (elegidos.length >= 6) break;
-    if (elegidos.some((e) => Math.abs(e.f - c.f) < 12)) continue;
+    if (elegidos.length >= 9) break;
+    if (elegidos.some((e) => Math.abs(e.f - c.f) < 9)) continue;
     elegidos.push(c);
   }
 
@@ -781,47 +812,116 @@ function dibujar() {
      Y no invade las velas: vive en el 22% que queda libre a la derecha.
      ══════════════════════════════════════════════════════════════ */
   if (V.verPerfil) {
-    const FP = 90;                       // franjas del perfil
-    const perfil = new Float64Array(FP);
+    /* ══════════════════════════════════════════════════════════════
+       PERFIL DE VOLUMEN — con información de verdad
+
+       Antes eran barras grises sin criterio. Ahora dice tres cosas
+       que un trader usa a diario:
+
+       · COMPRA vs VENTA. Cada barra se parte en dos: verde el volumen
+         que entró con velas alcistas, rojo el de las bajistas. De un
+         vistazo se ve quién manda a cada precio.
+
+       · EL PUNTO DE CONTROL (POC). El precio donde más se negoció.
+         Va en dorado y con su línea: es el imán del rango.
+
+       · EL ÁREA DE VALOR. Donde ocurrió el 70% del negocio. Fuera de
+         ella el precio suele moverse rápido; dentro, se atasca.
+       ══════════════════════════════════════════════════════════════ */
+    const FP = 74;
+    const compras = new Float64Array(FP);
+    const ventas = new Float64Array(FP);
     const altoP = (yMax - yMin) / FP;
-    let pocMax = 0, pocIdx = 0;
 
     vis.forEach((v) => {
-      // El volumen de la vela se reparte entre las franjas que toca
       const f1 = Math.max(0, Math.floor((v.l - yMin) / altoP));
       const f2 = Math.min(FP - 1, Math.floor((v.h - yMin) / altoP));
       const n = Math.max(1, f2 - f1 + 1);
-      for (let f = f1; f <= f2; f++) perfil[f] += v.v / n;
+      // La vela reparte su volumen, y se apunta de qué lado vino
+      const sube = v.c >= v.o;
+      for (let f = f1; f <= f2; f++) {
+        if (sube) compras[f] += v.v / n; else ventas[f] += v.v / n;
+      }
     });
-    perfil.forEach((v, i) => { if (v > pocMax) { pocMax = v; pocIdx = i; } });
+
+    const total = new Float64Array(FP);
+    let pocMax = 0, pocIdx = 0, suma = 0;
+    for (let f = 0; f < FP; f++) {
+      total[f] = compras[f] + ventas[f];
+      suma += total[f];
+      if (total[f] > pocMax) { pocMax = total[f]; pocIdx = f; }
+    }
 
     if (pocMax > 0) {
-      const xBorde = x1 - 2;                    // nace pegado a la escala
-      const anchoMax = (x1 - xVelas) * 0.94;    // nunca llega a las velas
+      /* El área de valor: se crece desde el POC hacia los lados
+         tomando siempre la franja más gruesa, hasta juntar el 70%. */
+      let acum = total[pocIdx], arriba = pocIdx, abajo = pocIdx;
+      const meta = suma * 0.70;
+      while (acum < meta && (abajo > 0 || arriba < FP - 1)) {
+        const vA = arriba < FP - 1 ? total[arriba + 1] : -1;
+        const vB = abajo > 0 ? total[abajo - 1] : -1;
+        if (vA >= vB) { arriba++; acum += Math.max(0, vA); }
+        else { abajo--; acum += Math.max(0, vB); }
+      }
+
+      const xBorde = x1 - 3;
+      const anchoMax = (x1 - xVelas) * 0.90;
+
+      // El fondo del área de valor, muy sutil
+      const yVA1 = Y(yMin + (arriba + 1) * altoP), yVA2 = Y(yMin + abajo * altoP);
+      g.fillStyle = 'rgba(232,184,75,.045)';
+      g.fillRect(xVelas + 4, yVA1, x1 - xVelas - 4, yVA2 - yVA1);
 
       for (let f = 0; f < FP; f++) {
-        const v = perfil[f];
-        if (v <= 0) continue;
-        const rel = v / pocMax;
+        if (total[f] <= 0) continue;
         const p1 = yMin + f * altoP;
         const yA = Y(p1 + altoP), yB = Y(p1);
         if (yB < -10 || yA > y1 + 10) continue;
-        const w = anchoMax * rel;
-        // El punto de control (donde más se negoció) va en dorado
-        const esPoc = f === pocIdx;
-        g.fillStyle = esPoc ? 'rgba(232,184,75,.85)' : 'rgba(120,140,175,.42)';
-        g.fillRect(xBorde - w, yA, w, Math.max(1, yB - yA - 0.8));
+        const h = Math.max(1.5, yB - yA - 1);
+        const w = anchoMax * (total[f] / pocMax);
+        const dentroVA = f >= abajo && f <= arriba;
+
+        if (f === pocIdx) {
+          // El punto de control: dorado y entero
+          g.fillStyle = 'rgba(232,184,75,.92)';
+          g.fillRect(xBorde - w, yA, w, h);
+        } else {
+          // Compra y venta, cada una su trozo
+          const wC = w * (compras[f] / Math.max(1e-9, total[f]));
+          const wV = w - wC;
+          const op = dentroVA ? 0.72 : 0.34;
+          g.fillStyle = `rgba(38,166,154,${op})`;      // verde: compras
+          g.fillRect(xBorde - wC, yA, wC, h);
+          g.fillStyle = `rgba(239,83,80,${op})`;       // rojo: ventas
+          g.fillRect(xBorde - w, yA, wV, h);
+        }
       }
 
-      // La línea del punto de control, cruzando el gráfico
+      // La línea del POC, cruzando el gráfico
       const pPoc = yMin + (pocIdx + 0.5) * altoP;
       const yPoc = Y(pPoc);
       if (yPoc > 0 && yPoc < y1) {
-        g.strokeStyle = 'rgba(232,184,75,.45)';
-        g.setLineDash([2, 4]); g.lineWidth = 1;
+        g.strokeStyle = 'rgba(232,184,75,.55)';
+        g.setLineDash([3, 4]); g.lineWidth = 1.2;
         g.beginPath(); g.moveTo(0, yPoc); g.lineTo(x1, yPoc); g.stroke();
         g.setLineDash([]);
+        g.font = 'bold 9px ui-monospace,monospace';
+        g.fillStyle = 'rgba(232,184,75,.9)';
+        g.textAlign = 'left';
+        g.fillText('POC', xVelas + 8, yPoc - 4);
       }
+
+      // Los bordes del área de valor
+      [[yVA1, 'VAH'], [yVA2, 'VAL']].forEach(([yy, et]) => {
+        if (yy < 0 || yy > y1) return;
+        g.strokeStyle = 'rgba(232,184,75,.22)';
+        g.setLineDash([2, 5]); g.lineWidth = 1;
+        g.beginPath(); g.moveTo(xVelas + 4, yy); g.lineTo(x1, yy); g.stroke();
+        g.setLineDash([]);
+        g.font = '8px ui-monospace,monospace';
+        g.fillStyle = 'rgba(232,184,75,.5)';
+        g.fillText(et, xVelas + 8, yy - 3);
+      });
     }
   }
 
