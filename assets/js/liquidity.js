@@ -75,7 +75,8 @@ const V = {
   intensidad: 1,      // realce del mapa
   verMapa: true,
   arrastrando: false,
-  x0: 0, y0: 0
+  x0: 0, y0: 0,
+  cruzX: -1, cruzY: -1     // dónde está el puntero, para la cruz
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -355,7 +356,11 @@ async function pintar() {
 /** Paleta de calor. v va de 0 a 1. */
 function calor(v) {
   if (v <= 0) return null;
-  const p = Math.pow(v, 0.42);          // curva: realza lo medio-bajo
+  /* Curva 0,72 en vez de 0,42: antes casi todo saltaba a verde y
+     amarillo y no había jerarquía. Ahora la base se queda en azul y
+     solo lo que de verdad acumula llega a rojo. Es lo que hace legible
+     el mapa: el ojo va directo a los muros. */
+  const p = Math.pow(v, 0.72);
   const paradas = [
     [0.00, [26, 12, 58]],    // morado muy oscuro
     [0.18, [40, 30, 130]],   // azul profundo
@@ -450,18 +455,40 @@ function dibujar() {
       const fMin = Math.max(0, Math.floor((yMin - V.mapa.yMin) / V.mapa.alturaFila));
       const fMax = Math.min(FILAS, Math.ceil((yMax - V.mapa.yMin) / V.mapa.alturaFila));
 
+      /* ══════════════════════════════════════════════════════════
+         CELDAS, NO BARRAS
+
+         Antes se pintaban franjas que cruzaban toda la pantalla y
+         quedaba una masa de color sin lectura. Ahora cada celda es un
+         cuadrito con su hueco alrededor, como en las herramientas de
+         referencia: se ve la rejilla y cada zona se distingue.
+
+         Y el mapa TERMINA donde terminan las velas. Solo la última
+         columna se prolonga un poco: son las zonas que siguen vivas.
+         ══════════════════════════════════════════════════════════ */
+      const hueco = paso > 6 ? 1 : 0.35;        // separación entre celdas
+      const huecoV = altoFila > 5 ? 0.9 : 0.25;
+
       cols.forEach((col, i) => {
         const x = i * paso;
-        // La última columna se prolonga: son las zonas vivas ahora
-        const ancho = (i === cols.length - 1) ? (x1 - x) : paso + 0.7;
+        /* El mapa TERMINA donde terminan las velas. Antes la última
+           columna se estiraba hasta la escala y se comía la zona del
+           perfil de liquidez, que es lo que dejaba el gráfico saturado
+           por la derecha. */
+        const ancho = Math.max(1, paso - hueco);
+
         for (let f = fMin; f < fMax; f++) {
           const v = col[f];
           if (v <= 0) continue;
-          const rgb = calor(Math.min(1, (v / max) * V.intensidad));
+          const rel = Math.min(1, (v / max) * V.intensidad);
+          // Por debajo de este umbral no se pinta: deja respirar el
+          // gráfico y hace que destaquen las zonas que importan.
+          if (rel < 0.045) continue;
+          const rgb = calor(rel);
           if (!rgb) continue;
           const pF = V.mapa.yMin + f * V.mapa.alturaFila;
           const y = Y(pF + V.mapa.alturaFila);
-          const h = Math.max(1, Y(pF) - y);
+          const h = Math.max(1, Y(pF) - y - huecoV);
           g.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
           g.fillRect(x, y, ancho, h);
         }
@@ -490,6 +517,46 @@ function dibujar() {
     g.setLineDash([5, 4]); g.lineWidth = 1;
     g.beginPath(); g.moveTo(0, yU); g.lineTo(x1, yU); g.stroke();
     g.setLineDash([]);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     PERFIL DE LIQUIDEZ — en el margen derecho
+
+     Suma toda la liquidez que hay a cada precio, sin importar cuándo
+     se acumuló. Dice de un vistazo dónde están los muros grandes.
+     ══════════════════════════════════════════════════════════════ */
+  if (V.verMapa && V.mapa) {
+    const perfil = new Float64Array(FILAS);
+    for (let c = desde; c < hasta; c++) {
+      const col = columnaDe(V.mapa, c);
+      for (let f = 0; f < FILAS; f++) perfil[f] += col[f];
+    }
+    let pMax = 0;
+    for (const v of perfil) if (v > pMax) pMax = v;
+
+    if (pMax > 0) {
+      const xP = xVelas + 10;
+      const anchoP = (x1 - xP) * 0.88;
+      const fMin2 = Math.max(0, Math.floor((yMin - V.mapa.yMin) / V.mapa.alturaFila));
+      const fMax2 = Math.min(FILAS, Math.ceil((yMax - V.mapa.yMin) / V.mapa.alturaFila));
+
+      for (let f = fMin2; f < fMax2; f++) {
+        const v = perfil[f];
+        if (v <= 0) continue;
+        const rel = v / pMax;
+        if (rel < 0.02) continue;
+        const rgb = calor(rel);
+        if (!rgb) continue;
+        const pF = V.mapa.yMin + f * V.mapa.alturaFila;
+        const y = Y(pF + V.mapa.alturaFila);
+        const h = Math.max(1, Y(pF) - y - 0.6);
+        g.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},.82)`;
+        g.fillRect(xP, y, Math.max(1, anchoP * rel), h);
+      }
+      // Separador entre el gráfico y el perfil
+      g.strokeStyle = 'rgba(255,255,255,.07)';
+      g.beginPath(); g.moveTo(xVelas + 2.5, 0); g.lineTo(xVelas + 2.5, y1); g.stroke();
+    }
   }
 
   /* ── LA ESCALA DE PRECIOS ── */
@@ -533,6 +600,44 @@ function dibujar() {
     g.fillText(et, x, y1 + 13);
   });
   g.textAlign = 'left';
+
+  /* ══════════════════════════════════════════════════════════════
+     LA CRUZ — precio y hora bajo el puntero
+     ══════════════════════════════════════════════════════════════ */
+  if (V.cruzX >= 0 && V.cruzX < x1 && V.cruzY >= 0 && V.cruzY < y1) {
+    g.strokeStyle = 'rgba(255,255,255,.28)';
+    g.setLineDash([3, 3]); g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(V.cruzX, 0); g.lineTo(V.cruzX, y1);
+    g.moveTo(0, V.cruzY); g.lineTo(x1, V.cruzY);
+    g.stroke();
+    g.setLineDash([]);
+
+    // El precio, en la escala
+    const pCruz = yMin + (yMax - yMin) * ((y1 - V.cruzY) / y1);
+    g.fillStyle = '#2b3139';
+    g.fillRect(x1 + 1, V.cruzY - 9, mDer - 3, 18);
+    g.fillStyle = '#eaecef';
+    g.font = 'bold 10px ui-monospace,monospace';
+    g.textAlign = 'left';
+    g.fillText(fmt(pCruz), x1 + 6, V.cruzY + 4);
+
+    // La hora, abajo
+    const iv = Math.floor(V.cruzX / paso);
+    if (iv >= 0 && iv < vis.length) {
+      const d = new Date(vis[iv].t * 1000);
+      const et = d.toLocaleDateString('es', { day: '2-digit', month: 'short' }) + ' ' +
+                 d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+      g.font = '9px ui-monospace,monospace';
+      const w = g.measureText(et).width + 14;
+      g.fillStyle = '#2b3139';
+      g.fillRect(Math.min(x1 - w, Math.max(0, V.cruzX - w / 2)), y1 + 2, w, 16);
+      g.fillStyle = '#eaecef';
+      g.textAlign = 'center';
+      g.fillText(et, Math.min(x1 - w / 2, Math.max(w / 2, V.cruzX)), y1 + 13);
+      g.textAlign = 'left';
+    }
+  }
 
   const info = $('lq-info');
   if (info) info.textContent = `${_par} · ${_tf} · ${V.apal === 'todos' ? 'todo apalancamiento' : 'x' + V.apal}`;
@@ -586,6 +691,16 @@ function engancharGestos(cv) {
   window.addEventListener('mouseup', () => {
     V.arrastrando = false; cv.style.cursor = 'grab';
   });
+  // La cruz sigue al puntero. Se redibuja solo si de verdad se movió.
+  cv.addEventListener('mousemove', (e) => {
+    const r = cv.getBoundingClientRect();
+    const nx = Math.round(e.clientX - r.left), ny = Math.round(e.clientY - r.top);
+    if (nx === V.cruzX && ny === V.cruzY) return;
+    V.cruzX = nx; V.cruzY = ny;
+    if (!V.arrastrando) dibujar();
+  });
+  cv.addEventListener('mouseleave', () => { V.cruzX = -1; V.cruzY = -1; dibujar(); });
+
   cv.addEventListener('wheel', (e) => {
     e.preventDefault();
     const r = cv.getBoundingClientRect();
