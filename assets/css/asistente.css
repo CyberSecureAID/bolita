@@ -689,15 +689,21 @@
 
 /* Opciones de respuesta: rejilla de dos, o una sola columna si son
    pocas. Nunca desiguales, que es lo que se veía mal. */
+/* ══════════════════════════════════════════════════════════════
+   BOTONES DE OPCIÓN — SIEMPRE EN PAREJAS
+   Dos por fila, del mismo ancho, con su margen. Con tres o cinco, el
+   último ocupa la fila entera en vez de quedarse a medias.
+   ══════════════════════════════════════════════════════════════ */
 .np-chat__ops {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 7px;
+  gap: 8px;
   margin: 0;
 }
-.np-chat__ops:has(> :nth-child(3):last-child) { grid-template-columns: 1fr; }
+/* Número impar: el último ocupa toda la fila y no queda descolgado. */
+.np-chat__ops > :last-child:nth-child(odd) { grid-column: 1 / -1; }
 .np-chat__op {
-  padding: 10px 12px;
+  padding: 11px 10px;
   border-radius: 11px;
   border: 1px solid var(--glass-border-strong);
   background: var(--glass-fill);
@@ -709,9 +715,11 @@
   min-height: 42px;
   text-align: center;
   transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
-  /* Etiqueta larga: se recorta antes que romper la rejilla. */
+  /* La etiqueta se ajusta al botón: nunca desborda ni rompe la rejilla. */
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 .np-chat__op:hover { border-color: var(--gold-soft); color: var(--gold); }
 .np-chat__op:active { transform: translateY(1px); }
