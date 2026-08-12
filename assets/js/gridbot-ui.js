@@ -1250,7 +1250,7 @@ function headerHTML() {
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
   else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><button class="dir" id="c-dir" type="button" title="Cambiar de wallet">${iconoWallet()}${wallet.abreviar(cuenta)}<span class="dir-ch"></span></button><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
-    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/aurex-logo.png" alt="" width="30" height="30"><span class="c-brand-tx">Aurex</span></a>
+    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/aurex-logo.png" alt="" width="30" height="30"><span class="c-brand-tx">Cripto Cuba</span></a>
     <button class="c-ticker" id="c-ticker" type="button" aria-label="Prize Pool"><img class="c-ticker-img" src="assets/img/cinta-prize.webp" alt="Prize Pool" loading="lazy"></button>
     <div class="c-hdr-r">
 
@@ -1392,7 +1392,7 @@ function opcionesMovil() {
       <button class="cm-b oro" data-abrir="metamask">Abrir en MetaMask</button>
       <button class="cm-b" data-abrir="trust">Abrir en Trust Wallet</button>
       <button class="cm-b" data-abrir="safepal">Abrir en SafePal</button>
-      <div class="cm-n">Se abre Aurex dentro de tu wallet y conecta solo.</div>
+      <div class="cm-n">Se abre CriptoCuba dentro de tu wallet y conecta solo.</div>
 
       <div class="cm-eti">O sin salir de aquí</div>
       <button class="cm-b" data-wc="1">Conectar con WalletConnect</button>
@@ -1507,7 +1507,7 @@ function footerHTML() {
         <div class="faq-empty" id="faq-empty" style="display:none">No encontramos nada con esa palabra. Prueba con otra.</div>
       </div>
     </details>
-    <div class="c-foot-bottom">Aurex Finance · Opera bajo tu propio riesgo</div>
+    <div class="c-foot-bottom">Cripto Cuba Oficial · Opera bajo tu propio riesgo</div>
   </footer>`;
 }
 function wireFaq() {
@@ -1546,7 +1546,7 @@ function render() {
   if (!cuenta) {
     host.innerHTML = headerHTML() + `<div class="wrap">
       <div class="conectar-box">
-        <h2>Aurex</h2>
+        <h2>Cripto Cuba</h2>
         <p>Bots que compran barato y venden caro por ti, en tu propia wallet. Sin custodia y sin KYC.</p>
         <button class="btn btn-oro" id="c-conectar2">Conectar wallet</button>
         <div id="c-hero-msg" style="margin-top:12px"></div>
@@ -2426,7 +2426,7 @@ function avisoDeRiesgo() {
           <div class="rg-frase-t">Tu frase de recuperación</div>
           <p>Son las <b>12 palabras</b> que te dio tu wallet al crearla. Es la llave de todo tu dinero.</p>
           <p><b>Escríbelas en papel</b> y guárdalas en un sitio seguro. No en el móvil, no en una foto, no en el correo.</p>
-          <p class="rg-frase-x">Si las pierdes, <b>nadie puede recuperarlas</b>: ni nosotros, ni tu wallet, ni nadie. Y si alguien te las pide —quien sea, incluso diciendo que es de Aurex— <b>es una estafa</b>. Nosotros no te las pediremos jamás.</p>
+          <p class="rg-frase-x">Si las pierdes, <b>nadie puede recuperarlas</b>: ni nosotros, ni tu wallet, ni nadie. Y si alguien te las pide —quien sea, incluso diciendo que es de CriptoCuba— <b>es una estafa</b>. Nosotros no te las pediremos jamás.</p>
         </div>
 
         <label class="rg-ok"><input type="checkbox" id="rg-check"> <span>Lo he leído y lo entiendo</span></label>
@@ -3839,7 +3839,7 @@ function enganchar(cuenta) {
           } catch (e) { console.warn('[Aurex] historial:', e); }
           extras.descargarHistorial({
             par: `${sb}/${sq}`,
-            tipo: r.dataset.nombre || 'Bot Aurex',
+            tipo: r.dataset.nombre || 'Bot CriptoCuba',
             claseBot: r.dataset.tipo || '',
             moneda: sq || '',
             base: sb || '',

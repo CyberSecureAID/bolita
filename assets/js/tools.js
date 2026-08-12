@@ -1,4 +1,4 @@
-// tools.js — Herramientas de Aurex. Módulo independiente.
+// tools.js — Herramientas de CriptoCuba. Módulo independiente.
 //
 // Se carga solo cuando alguien abre el menú de herramientas, así que no
 // pesa nada para quien no las usa.
@@ -424,7 +424,7 @@ function pintarAlertas() {
       }).join('')}</div>` : ''}
 
     <div class="pv-nota">
-      Las alertas viven <b>en este navegador</b>, no en un servidor. Funcionan mientras tengas Aurex abierto o instalado como app.
+      Las alertas viven <b>en este navegador</b>, no en un servidor. Funcionan mientras tengas CriptoCuba abierto o instalado como app.
     </div>`;
 
   ponerLogos();
@@ -616,7 +616,7 @@ export function vigilar() {
 function avisar(texto) {
   try {
     if (Notification && Notification.permission === 'granted') {
-      new Notification('Aurex · alerta de precio', { body: texto, icon: 'assets/img/aurex-192.png' });
+      new Notification('CriptoCuba · alerta de precio', { body: texto, icon: 'assets/img/aurex-192.png' });
       return;
     }
   } catch (_) {}
