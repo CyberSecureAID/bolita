@@ -205,7 +205,18 @@ function inyectarEstilo() {
     #colmena-app .k-s{display:inline}
     #colmena-app .k-l{display:none}
     /* El botón de recargar gas se había estirado. Vuelve a su medida. */
-    #colmena-app #f-gasdep{min-height:44px;padding:11px 18px;line-height:1.2}
+    /* ══════════════════════════════════════════════════════════════
+       EL BOTÓN DE RECARGAR GAS — [CORREGIDO]
+       Este botón NO es un botón normal: está colocado con porcentajes
+       exactos (top 12.39%, height 25.99%) para encajar dentro del dibujo
+       de la tarjeta de gas.
+
+       Yo le había puesto min-height:44px pensando en la comodidad del
+       dedo, sin darme cuenta de que eso lo estiraba hacia abajo y le
+       hacía desbordar el marco del dibujo. La altura la manda el
+       porcentaje, no una medida fija.
+       ══════════════════════════════════════════════════════════════ */
+    #colmena-app #f-gasdep{min-height:0;height:25.99%;padding:0;line-height:1}
   }
   /* El nombre ocupaba demasiado y competía con la cinta. */
   #colmena-app .c-brand-tx{font-size:15px;letter-spacing:-.2px;white-space:nowrap}
@@ -250,8 +261,10 @@ function inyectarEstilo() {
     #colmena-app .c-swap,#colmena-app .c-prize,#colmena-app .c-market,
     #colmena-app .c-loteria,#colmena-app .c-perfil,#colmena-app .dir,
     #colmena-app .hdr-btn,#colmena-app .hdr-off{min-height:44px}
+    /* :not(#f-gasdep) — ese botón vive dentro de un dibujo y su altura
+       la manda un porcentaje. Estirarlo a 44px lo hacía desbordar. */
     #colmena-app .bot-tab,#colmena-app .bot-tipo,#colmena-app .seg button,
-    #colmena-app .sug,#colmena-app .btn{min-height:44px}
+    #colmena-app .sug,#colmena-app .btn:not(#f-gasdep){min-height:44px}
     /* ══════════════════════════════════════════════════════════════
        LAS FLECHITAS DE LOS CAMPOS — [POR FIN LA CAUSA REAL]
 
@@ -910,9 +923,11 @@ function inyectarEstilo() {
     #colmena-app .nota-larga{display:none}
     /* El cupo y el botón de cerrar: en móvil, lo mínimo. "3/8" dice lo
        mismo que "3 bots activos" y no empuja al título "Mis bots". */
+    /* El número ya viene como "1/8" desde el JS: solo se oculta el texto. */
     #colmena-app .c-cupo .cupo-tx{display:none}
+    #colmena-app .c-cupo span{display:none}
     #colmena-app .c-cupo{padding:0 10px;gap:3px}
-    #colmena-app .c-cupo:after{content:'/8';font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+    #colmena-app .c-cupo{padding:0 12px}
     #colmena-app .cerrar-largo{display:none !important}
     #colmena-app .cerrar-corto{display:inline !important}
     #colmena-app .btn-cerrar-todos{padding:0 13px}
@@ -2685,9 +2700,14 @@ async function pintarCupo(cuenta) {
   const c = await contarBots(cuenta);
   const lleno = c.total >= CUPO_TOTAL;
   el.className = 'c-cupo' + (lleno ? ' lleno' : '');
+  /* [CORREGIDO] Aquí se reescribía el contenido SIN la clase cupo-tx,
+     así que el CSS que oculta el texto en el móvil no lo encontraba. Se
+     veía "1/8 bots activos /8": el número, el texto que debía estar
+     oculto, y encima el /8 que añadía el CSS. Ahora la clase va puesta
+     y el CSS ya no necesita añadir nada. */
   el.innerHTML = lleno
-    ? `<b>${c.total}/${CUPO_TOTAL}</b><span>máximo alcanzado</span>`
-    : `<b>${c.total}/${CUPO_TOTAL}</b><span>bots activos</span>`;
+    ? `<b>${c.total}/${CUPO_TOTAL}</b><span class="cupo-tx">máximo alcanzado</span>`
+    : `<b>${c.total}/${CUPO_TOTAL}</b><span class="cupo-tx">bots activos</span>`;
   el.title = `Smart Grid ${c.grid}/${CUPO_POR_TIPO} · Accumulator ${c.acum}/${CUPO_POR_TIPO} · Cash Out ${c.cash}/${CUPO_POR_TIPO} · DCA ${c.dca}/${CUPO_POR_TIPO}`;
 }
 
