@@ -76,8 +76,19 @@ const V = {
   verMapa: true,
   arrastrando: false,
   x0: 0, y0: 0,
-  cruzX: -1, cruzY: -1     // dónde está el puntero, para la cruz
+  cruzX: -1, cruzY: -1,    // dónde está el puntero, para la cruz
+
+  /* ── DIBUJO ──
+     Las líneas se guardan en PRECIO y TIEMPO, no en píxeles. Así se
+     quedan pegadas al gráfico cuando se hace zoom o se arrastra, que
+     es lo que se espera de una herramienta de análisis. */
+  herramienta: null,       // null | 'linea' | 'horizontal' | 'fibo'
+  dibujos: [],
+  enCurso: null
 };
+
+/* Los niveles de Fibonacci de siempre. */
+const FIBO = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
 
 /* ══════════════════════════════════════════════════════════════
    EL MOTOR — MAPA DE LIQUIDACIONES
@@ -255,7 +266,26 @@ export async function abrirLiquidity() {
           <span>Intensidad</span>
           <input type="range" id="lq-int" min="50" max="300" value="100">
         </div>
+        <!-- Herramientas de dibujo -->
+        <div class="lq-grupo">
+          <button class="lq-b lq-ico" data-tool-lq="linea" title="Línea de tendencia">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19 20 5"/><circle cx="4" cy="19" r="2" fill="currentColor"/><circle cx="20" cy="5" r="2" fill="currentColor"/></svg>
+          </button>
+          <button class="lq-b lq-ico" data-tool-lq="horizontal" title="Línea horizontal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h18"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+          </button>
+          <button class="lq-b lq-ico" data-tool-lq="fibo" title="Fibonacci">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 5h18M3 10h18M3 14h18M3 19h18"/></svg>
+          </button>
+          <button class="lq-b lq-ico" id="lq-borrar" title="Borrar dibujos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+          </button>
+        </div>
+
         <div class="lq-der">
+          <button class="lq-ayuda" id="lq-foto" title="Guardar imagen">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          </button>
           <button class="lq-ayuda" id="lq-ver" title="Mostrar u ocultar el mapa">◉</button>
           <button class="lq-ayuda" id="lq-fit" title="Reencuadrar">⤢</button>
           <button class="lq-ayuda" id="lq-ayuda" title="Cómo funciona">?</button>
@@ -312,6 +342,21 @@ export async function abrirLiquidity() {
   };
 
   $('lq-fit').onclick = () => encuadrar();
+
+  // Herramientas de dibujo
+  d.querySelectorAll('[data-tool-lq]').forEach((b) => b.onclick = () => {
+    V.herramienta = (V.herramienta === b.dataset.toolLq) ? null : b.dataset.toolLq;
+    marcarHerramienta();
+  });
+  $('lq-borrar').onclick = () => {
+    if (!V.dibujos.length) return;
+    V.dibujos = [];
+    V.herramienta = null;
+    marcarHerramienta();
+    dibujar();
+  };
+
+  $('lq-foto').onclick = () => guardarImagen();
 
   pintar();
   // Al girar el móvil o cambiar de tamaño, se vuelve a dibujar.
@@ -602,6 +647,74 @@ function dibujar() {
   g.textAlign = 'left';
 
   /* ══════════════════════════════════════════════════════════════
+     LOS DIBUJOS DEL USUARIO
+
+     Se guardan en precio y tiempo, así que al hacer zoom o arrastrar
+     se mueven CON el gráfico. Es lo que distingue una herramienta de
+     análisis de un simple dibujo encima.
+     ══════════════════════════════════════════════════════════════ */
+  const Xt = (t) => {
+    const i = V.mapa.velas.findIndex((v) => v.t >= t);
+    const idx = i < 0 ? V.mapa.velas.length - 1 : i;
+    return (idx - desde) * paso + paso / 2;
+  };
+
+  const pintarDibujo = (d, enCurso) => {
+    const op = enCurso ? 0.65 : 1;
+    if (d.tipo === 'horizontal') {
+      const y = Y(d.p1);
+      if (y < -20 || y > y1 + 20) return;
+      g.strokeStyle = `rgba(77,159,255,${op})`;
+      g.lineWidth = 1.4;
+      g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
+      g.fillStyle = '#4d9fff';
+      g.fillRect(x1 + 1, y - 8, mDer - 3, 16);
+      g.fillStyle = '#04121f';
+      g.font = 'bold 10px ui-monospace,monospace';
+      g.textAlign = 'left';
+      g.fillText(fmt(d.p1), x1 + 6, y + 3.5);
+      return;
+    }
+
+    const xa = Xt(d.t1), xb = Xt(d.t2);
+    const ya = Y(d.p1), yb = Y(d.p2);
+
+    if (d.tipo === 'linea') {
+      g.strokeStyle = `rgba(77,159,255,${op})`;
+      g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(xa, ya); g.lineTo(xb, yb); g.stroke();
+      if (!enCurso) {
+        g.fillStyle = '#4d9fff';
+        [[xa, ya], [xb, yb]].forEach(([px, py]) => {
+          g.beginPath(); g.arc(px, py, 3.5, 0, Math.PI * 2); g.fill();
+        });
+      }
+      return;
+    }
+
+    if (d.tipo === 'fibo') {
+      const alto = d.p2 - d.p1;
+      const izq = Math.min(xa, xb), der = Math.max(xa, xb);
+      const cols = ['#787b86', '#f23645', '#ff9800', '#4caf50', '#089981', '#00bcd4', '#787b86'];
+      FIBO.forEach((niv, i) => {
+        const p = d.p1 + alto * niv;
+        const y = Y(p);
+        if (y < -20 || y > y1 + 20) return;
+        g.strokeStyle = cols[i] + (enCurso ? '99' : 'dd');
+        g.lineWidth = (niv === 0.618 || niv === 0.5) ? 1.6 : 1;
+        g.beginPath(); g.moveTo(izq, y); g.lineTo(Math.max(der, x1), y); g.stroke();
+        g.fillStyle = cols[i];
+        g.font = '9px ui-monospace,monospace';
+        g.textAlign = 'left';
+        g.fillText(`${(niv * 100).toFixed(1)}%  ${fmt(p)}`, izq + 5, y - 3);
+      });
+    }
+  };
+
+  V.dibujos.forEach((d) => pintarDibujo(d, false));
+  if (V.enCurso) pintarDibujo(V.enCurso, true);
+
+  /* ══════════════════════════════════════════════════════════════
      LA CRUZ — precio y hora bajo el puntero
      ══════════════════════════════════════════════════════════════ */
   if (V.cruzX >= 0 && V.cruzX < x1 && V.cruzY >= 0 && V.cruzY < y1) {
@@ -678,18 +791,67 @@ function engancharGestos(cv) {
     dibujar();
   };
 
+  /* Traduce un punto de la pantalla a precio y tiempo. Guardar así
+     los dibujos es lo que hace que se peguen al gráfico. */
+  const aDatos = (px, py) => {
+    const W = cv.clientWidth || 900, H = cv.clientHeight || 500;
+    const x1 = W - 62, y1 = H - 20;
+    const paso = (x1 * 0.70) / V.ancho;
+    const i = Math.max(0, Math.min(V.mapa.velas.length - 1,
+      Math.round(V.desde + px / Math.max(0.5, paso))));
+    return {
+      t: V.mapa.velas[i].t,
+      p: V.yMin + (V.yMax - V.yMin) * ((y1 - py) / y1)
+    };
+  };
+
   // ── Ratón ──
   cv.addEventListener('mousedown', (e) => {
+    const r = cv.getBoundingClientRect();
+    const px = e.clientX - r.left, py = e.clientY - r.top;
+
+    // Si hay una herramienta activa, se dibuja en vez de arrastrar.
+    if (V.herramienta) {
+      const d = aDatos(px, py);
+      if (V.herramienta === 'horizontal') {
+        V.dibujos.push({ tipo: 'horizontal', p1: d.p });
+        V.herramienta = null;
+        marcarHerramienta();
+        dibujar();
+        return;
+      }
+      V.enCurso = { tipo: V.herramienta, t1: d.t, p1: d.p, t2: d.t, p2: d.p };
+      return;
+    }
+
     V.arrastrando = true; V.x0 = e.clientX; V.y0 = e.clientY;
     cv.style.cursor = 'grabbing';
   });
   window.addEventListener('mousemove', (e) => {
+    if (V.enCurso) {
+      const r = cv.getBoundingClientRect();
+      const d = aDatos(e.clientX - r.left, e.clientY - r.top);
+      V.enCurso.t2 = d.t; V.enCurso.p2 = d.p;
+      dibujar();
+      return;
+    }
     if (!V.arrastrando) return;
     mover(e.clientX - V.x0, e.clientY - V.y0);
     V.x0 = e.clientX; V.y0 = e.clientY;
   });
   window.addEventListener('mouseup', () => {
-    V.arrastrando = false; cv.style.cursor = 'grab';
+    if (V.enCurso) {
+      // Un clic sin arrastrar no cuenta como línea
+      const movido = V.enCurso.t1 !== V.enCurso.t2 || V.enCurso.p1 !== V.enCurso.p2;
+      if (movido) V.dibujos.push(V.enCurso);
+      V.enCurso = null;
+      V.herramienta = null;
+      marcarHerramienta();
+      dibujar();
+      return;
+    }
+    V.arrastrando = false;
+    cv.style.cursor = V.herramienta ? 'crosshair' : 'grab';
   });
   // La cruz sigue al puntero. Se redibuja solo si de verdad se movió.
   cv.addEventListener('mousemove', (e) => {
@@ -743,6 +905,74 @@ function engancharGestos(cv) {
   // Doble toque o doble clic: volver al encuadre inicial
   cv.addEventListener('dblclick', () => encuadrar());
   cv.style.cursor = 'grab';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GUARDAR IMAGEN
+
+   Se copia el gráfico a un lienzo nuevo y se le añade NUESTRA marca:
+   el nombre y el par abajo. Así, cuando alguien comparte su análisis,
+   va firmado. Es publicidad que se reparte sola.
+   ══════════════════════════════════════════════════════════════ */
+function guardarImagen() {
+  const cv = document.querySelector('.lq-cv');
+  if (!cv) return;
+  try {
+    const out = document.createElement('canvas');
+    const barra = 46;
+    out.width = cv.width;
+    out.height = cv.height + barra * (cv.width / cv.clientWidth);
+    const g = out.getContext('2d');
+    const esc = cv.width / cv.clientWidth;
+
+    g.fillStyle = '#0a0d12';
+    g.fillRect(0, 0, out.width, out.height);
+    g.drawImage(cv, 0, 0);
+
+    // La franja de la marca
+    const yB = cv.height;
+    g.fillStyle = '#0b0e12';
+    g.fillRect(0, yB, out.width, barra * esc);
+    g.fillStyle = 'rgba(232,184,75,.25)';
+    g.fillRect(0, yB, out.width, 1.5 * esc);
+
+    g.fillStyle = '#E8B84B';
+    g.font = `800 ${17 * esc}px system-ui,sans-serif`;
+    g.textAlign = 'left';
+    g.fillText('CRIPTO CUBA OFICIAL', 16 * esc, yB + 21 * esc);
+
+    g.fillStyle = '#6b7681';
+    g.font = `${11 * esc}px ui-monospace,monospace`;
+    g.fillText('criptocubaoficial.com  ·  Mapa de Liquidaciones', 16 * esc, yB + 36 * esc);
+
+    g.textAlign = 'right';
+    g.fillStyle = '#8b96a3';
+    g.font = `700 ${13 * esc}px ui-monospace,monospace`;
+    const fecha = new Date().toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    g.fillText(`${_par} · ${_tf}`, out.width - 16 * esc, yB + 21 * esc);
+    g.font = `${10 * esc}px ui-monospace,monospace`;
+    g.fillStyle = '#6b7681';
+    g.fillText(fecha, out.width - 16 * esc, yB + 36 * esc);
+
+    out.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `criptocuba-${_par}-${_tf}-${Date.now()}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }, 'image/png');
+  } catch (_) {}
+}
+
+/** Refleja en los botones qué herramienta está activa. */
+function marcarHerramienta() {
+  document.querySelectorAll('[data-tool-lq]').forEach((b) => {
+    b.classList.toggle('on', b.dataset.toolLq === V.herramienta);
+  });
+  const cv = document.querySelector('.lq-cv');
+  if (cv) cv.style.cursor = V.herramienta ? 'crosshair' : 'grab';
 }
 
 /** Deja la vista en su posición natural: lo último, a la derecha. */
@@ -822,7 +1052,7 @@ function estilos() {
   /* La barra: los selectores se deslizan, pero cerrar y ayuda quedan
      SIEMPRE a la vista. Si se van con el scroll, no puedes salir. */
   #lq-overlay .lq-barra{display:flex;align-items:center;gap:8px;flex:0 0 auto;position:relative;
-    padding:8px 152px 8px 10px;background:#0b0e12;border-bottom:1px solid #1c2128;
+    padding:8px 190px 8px 10px;background:#0b0e12;border-bottom:1px solid #1c2128;
     overflow-x:auto;scrollbar-width:none}
   #lq-overlay .lq-barra::-webkit-scrollbar{display:none}
   #lq-overlay .lq-grupo{display:flex;gap:2px;flex:0 0 auto;padding:3px;background:#12161c;border-radius:9px}
@@ -833,6 +1063,10 @@ function estilos() {
   #lq-overlay .lq-der{position:absolute;right:8px;top:50%;transform:translateY(-50%);
     display:flex;gap:5px;z-index:6;background:#0b0e12;padding-left:8px}
   #lq-overlay .lq-ayuda.apagado{opacity:.4}
+  /* Botones de herramienta: solo el icono, cuadrados. */
+  #lq-overlay .lq-ico{width:32px;padding:0;display:grid;place-items:center}
+  #lq-overlay .lq-ico svg{width:15px;height:15px}
+  #lq-overlay .lq-ico.on{background:linear-gradient(180deg,#8fc4ff,#4d9fff 55%,#2b7fe0);color:#04121f}
   /* El deslizador de intensidad */
   #lq-overlay .lq-slider{align-items:center;gap:8px;padding:3px 10px 3px 8px}
   #lq-overlay .lq-slider span{font-family:var(--mono,monospace);font-size:9px;color:#6b7681;
@@ -893,7 +1127,7 @@ function estilos() {
   @media(max-width:760px){
     #lq-overlay .lq-barra{padding:7px 8px;gap:6px}
     #lq-overlay .lq-b{padding:0 10px;font-size:11px;min-height:34px}
-    #lq-overlay .lq-barra{padding-right:150px}
+    #lq-overlay .lq-barra{padding-right:186px}
     #lq-overlay .lq-marca{font-size:11px;bottom:24px}
     #lq-overlay .lq-escala{padding:6px 10px;gap:7px}
     #lq-overlay .lq-escala span{font-size:8px}
