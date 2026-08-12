@@ -179,17 +179,22 @@ function inyectarEstilo() {
     /* [CORREGIDO] Se centraba respecto a TODA la cabecera, que incluye
        la cinta del sorteo: el logo caía debajo, encima de la cinta. Se
        ancla arriba, a la altura de la fila de botones. */
-    /* El logo, GRANDE. Es la marca: si no se ve, no sirve de nada. */
+    /* ══════════════════════════════════════════════════════════════
+       El logo, al máximo que da la cabecera. Medido: hay 67px de alto
+       antes de la cinta y 299px de ancho entre los dos botones. Usaba
+       77x50 y sobraba sitio por todos lados, así que el nombre de abajo
+       quedaba ilegible. Ahora ocupa lo que le corresponde.
+       ══════════════════════════════════════════════════════════════ */
     #colmena-app .c-logo-mov{display:block;position:absolute;
-      left:50%;top:2px;transform:translateX(-50%);
-      height:58px;width:auto;max-width:60vw;object-fit:contain;
+      left:50%;top:1px;transform:translateX(-50%);
+      height:64px;width:auto;max-width:64vw;object-fit:contain;
       pointer-events:none;z-index:1}
     /* Y la cinta, con su propio recorrido para no enseñar el corte. */
     #colmena-app .c-ticker-img{animation-name:ctSlideM}
     #colmena-app .c-ticker{max-width:none;margin-left:0}
   }
   @media(max-width:400px){
-    #colmena-app .c-logo-mov{height:50px;max-width:58vw;top:3px}
+    #colmena-app .c-logo-mov{height:56px;max-width:62vw;top:2px}
   }
   @media(prefers-reduced-motion:reduce){#colmena-app .c-estado.on i{animation:none}}
   /* Etiquetas de las casillas: largas en la web, cortas en el móvil.
