@@ -67,6 +67,28 @@
   ::-webkit-scrollbar-thumb:hover { background: rgba(232, 184, 75, .5) !important; }
   ::-webkit-scrollbar-corner { background: transparent !important; }
   html { scrollbar-width: thin; scrollbar-color: rgba(232,184,75,.3) transparent; }
+
+  /* ══════════════════════════════════════════════════════════════
+     LAS FLECHITAS DE LOS CAMPOS NUMÉRICOS EN EL MÓVIL
+     Los campos ya se crean como texto, pero esto es la red de
+     seguridad: si algún módulo crea uno nuevo con type=number, aquí
+     se le quitan igual. Va en el <head> para que nada lo pise.
+     ══════════════════════════════════════════════════════════════ */
+  @media (max-width: 760px) {
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button,
+    input::-webkit-outer-spin-button {
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      margin: 0 !important;
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+      opacity: 0 !important;
+    }
+    input[type="number"] { -moz-appearance: textfield !important; }
+  }
   </style>
   <!-- App instalable: icono propio, pantalla completa y arranque sin conexión -->
   <link rel="manifest" href="manifest-aurex.webmanifest">
