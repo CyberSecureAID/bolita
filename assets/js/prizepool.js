@@ -197,18 +197,18 @@ function estilos() {
   #pp-overlay .pp-w .pz{color:var(--gold,#E8B84B);font-weight:800;flex:0 0 auto}
 
   /* Cómo funciona — una idea por pantalla */
-  #pp-overlay .pp-card{padding:26px 22px;border-radius:18px;text-align:center;margin-bottom:14px;
+  #pp-overlay .pp-guia-card{padding:26px 22px;border-radius:18px;text-align:center;margin-bottom:14px;
     background:linear-gradient(180deg,rgba(232,184,75,.07),rgba(232,184,75,.015));border:1px solid rgba(232,184,75,.28)}
-  #pp-overlay .pp-card-n{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+  #pp-overlay .pp-guia-n{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
     text-transform:uppercase;letter-spacing:1.6px;margin-bottom:12px}
-  #pp-overlay .pp-card-t{font-family:var(--display,sans-serif);font-weight:800;font-size:21px;color:#eaecef;line-height:1.2}
-  #pp-overlay .pp-card-d{font-family:var(--sans,sans-serif);font-size:14px;color:#8b96a3;line-height:1.7;
+  #pp-overlay .pp-guia-t{font-family:var(--display,sans-serif);font-weight:800;font-size:21px;color:#eaecef;line-height:1.2}
+  #pp-overlay .pp-guia-d{font-family:var(--sans,sans-serif);font-size:14px;color:#8b96a3;line-height:1.7;
     margin:12px auto 20px;max-width:44ch}
-  #pp-overlay .pp-card-d em{color:var(--gold,#E8B84B);font-style:normal}
+  #pp-overlay .pp-guia-d em{color:var(--gold,#E8B84B);font-style:normal}
   #pp-overlay .pp-puntos{display:flex;gap:6px;justify-content:center;margin-bottom:20px;flex-wrap:wrap}
   #pp-overlay .pp-puntos span{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.15)}
   #pp-overlay .pp-puntos span.on{background:var(--gold,#E8B84B);width:18px;border-radius:20px}
-  #pp-overlay .pp-card-acts{display:flex;gap:9px;justify-content:center}
+  #pp-overlay .pp-guia-acts{display:flex;gap:9px;justify-content:center}
   #pp-overlay .pp-cb{min-width:150px;min-height:48px;padding:13px 26px;border-radius:12px;border:1px solid #c79426;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
     font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 4px 0 #8f6a1a}
@@ -217,9 +217,9 @@ function estilos() {
   #pp-overlay .pp-cb:active{transform:translateY(2px)}
   #pp-overlay .pp-cb .tx-s{display:none}
   @media(max-width:560px){
-    #pp-overlay .pp-card{padding:22px 16px}
-    #pp-overlay .pp-card-t{font-size:18px}
-    #pp-overlay .pp-card-d{font-size:13px}
+    #pp-overlay .pp-guia-card{padding:22px 16px}
+    #pp-overlay .pp-guia-t{font-size:18px}
+    #pp-overlay .pp-guia-d{font-size:13px}
     #pp-overlay .pp-cb{min-width:0;flex:1;padding:13px 14px;font-size:13px}
     #pp-overlay .pp-cb .tx-l{display:none}
     #pp-overlay .pp-cb .tx-s{display:inline}
@@ -332,12 +332,12 @@ function ppTarjeta(i, pasos) {
   const p = pasos[i];
   const ultimo = i === pasos.length - 1;
   return `
-  <div class="pp-card">
-    <div class="pp-card-n">${i + 1} de ${pasos.length}</div>
-    <div class="pp-card-t">${p[0]}</div>
-    <div class="pp-card-d">${p[1]}</div>
+  <div class="pp-guia-card">
+    <div class="pp-guia-n">${i + 1} de ${pasos.length}</div>
+    <div class="pp-guia-t">${p[0]}</div>
+    <div class="pp-guia-d">${p[1]}</div>
     <div class="pp-puntos">${pasos.map((_, k) => `<span class="${k === i ? 'on' : ''}"></span>`).join('')}</div>
-    <div class="pp-card-acts">
+    <div class="pp-guia-acts">
       ${i > 0 ? `<button class="pp-cb gris" data-pp-atras>Atrás</button>` : ''}
       ${ultimo
         ? `<button class="pp-cb" id="pp-goto-ev">Quiero participar</button>`

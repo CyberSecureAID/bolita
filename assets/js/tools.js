@@ -27,6 +27,22 @@ const num = (v, d = 2) => Number(v).toLocaleString('es', { maximumFractionDigits
 
 /* ══════════════════ MENÚ DE HERRAMIENTAS ══════════════════ */
 
+/* ══════════════════════════════════════════════════════════════
+   MONEDAS PARA LOS WIDGETS
+   Las que de verdad mira la gente. Se pasan a TradingView con su par
+   en Binance, que es donde hay más volumen y menos huecos.
+   ══════════════════════════════════════════════════════════════ */
+const MON_WIDGET = [
+  { id: 'BTC',  sim: 'BINANCE:BTCUSDT',  n: 'Bitcoin' },
+  { id: 'ETH',  sim: 'BINANCE:ETHUSDT',  n: 'Ethereum' },
+  { id: 'BNB',  sim: 'BINANCE:BNBUSDT',  n: 'BNB' },
+  { id: 'SOL',  sim: 'BINANCE:SOLUSDT',  n: 'Solana' },
+  { id: 'XRP',  sim: 'BINANCE:XRPUSDT',  n: 'XRP' },
+  { id: 'DOGE', sim: 'BINANCE:DOGEUSDT', n: 'Dogecoin' },
+  { id: 'ADA',  sim: 'BINANCE:ADAUSDT',  n: 'Cardano' },
+  { id: 'LINK', sim: 'BINANCE:LINKUSDT', n: 'Chainlink' }
+];
+
 const HERRAMIENTAS = [
   {
     id: 'polvo',
@@ -40,6 +56,34 @@ const HERRAMIENTAS = [
     t: 'Alertas de precio',
     d: 'Te avisa cuando una moneda llega al precio que marques.',
     ico: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/>',
+    listo: true
+  },
+  {
+    id: 'termometro',
+    t: 'Miedo y codicia',
+    d: 'El humor del mercado en un número. Sirve para saber si la gente está comprando por euforia o vendiendo por pánico.',
+    ico: '<path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>',
+    listo: true
+  },
+  {
+    id: 'tecnico',
+    t: 'Análisis técnico',
+    d: 'Qué dicen los indicadores de una moneda ahora mismo: comprar, vender o esperar.',
+    ico: '<path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/>',
+    listo: true
+  },
+  {
+    id: 'mapa',
+    t: 'Mapa del mercado',
+    d: 'Todas las monedas de un vistazo, por tamaño y color. Verde sube, rojo baja.',
+    ico: '<rect x="3" y="3" width="8" height="10" rx="1"/><rect x="13" y="3" width="8" height="6" rx="1"/><rect x="3" y="15" width="8" height="6" rx="1"/><rect x="13" y="11" width="8" height="10" rx="1"/>',
+    listo: true
+  },
+  {
+    id: 'grafica',
+    t: 'Gráfica en directo',
+    d: 'El gráfico completo, con velas y herramientas de dibujo.',
+    ico: '<path d="M3 3v18h18"/><rect x="6" y="10" width="3" height="7"/><rect x="12" y="6" width="3" height="11"/><rect x="18" y="13" width="3" height="4"/>',
     listo: true
   }
 ];
@@ -76,8 +120,10 @@ export function abrirTools() {
   d.querySelector('.tl-x').onclick = cerrar;
 
   d.querySelectorAll('[data-tool]').forEach((b) => b.onclick = () => {
-    if (b.dataset.tool === 'polvo') abrirPolvo();
-    if (b.dataset.tool === 'alertas') abrirAlertas();
+    const t = b.dataset.tool;
+    if (t === 'polvo') abrirPolvo();
+    else if (t === 'alertas') abrirAlertas();
+    else abrirWidget(t);
   });
 }
 
@@ -339,6 +385,186 @@ async function juntar(elegidos, cuenta) {
   if (b) b.disabled = false;
   setTimeout(() => cargarSaldos(cuenta), 2500);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   WIDGETS DE MERCADO
+
+   Van dentro de NUESTRA interfaz: nuestro fondo, nuestra cabecera y
+   nuestra lista de monedas al lado. El widget solo ocupa el hueco del
+   medio, con el tema oscuro y los colores de la casa.
+
+   Se cargan solo al abrirlos, y si TradingView tarda o falla, se
+   explica en vez de dejar un hueco en blanco.
+   ══════════════════════════════════════════════════════════════ */
+let _wMoneda = 'BTC';
+
+const WIDGETS = {
+  termometro: {
+    t: 'Miedo y codicia',
+    s: 'Cuando todos compran por euforia, suele ser mal momento. Cuando todos venden por pánico, suele ser bueno.',
+    conMonedas: false,
+    alto: 460,
+    nota: 'Este índice mide el ánimo del mercado de 0 (pánico) a 100 (euforia). No es una señal de compra: es contexto.',
+    render: () => `<iframe src="https://alternative.me/crypto/fear-and-greed-index.png"
+      style="display:none"></iframe>
+      <div class="w-fg" id="w-fg"><div class="tl-cargando">Consultando el índice…</div></div>`
+  },
+  tecnico: {
+    t: 'Análisis técnico',
+    s: 'El resumen de los indicadores más usados, en un solo medidor.',
+    conMonedas: true,
+    alto: 470,
+    nota: 'Esto no es un consejo: es lo que dicen los indicadores ahora mismo. Úsalo como una opinión más, no como una orden.',
+    tv: (sim) => ({
+      script: 'embed-widget-technical-analysis.js',
+      cfg: { interval: '1h', width: '100%', isTransparent: true, height: 425,
+             symbol: sim, showIntervalTabs: true, displayMode: 'single',
+             locale: 'es', colorTheme: 'dark' }
+    })
+  },
+  mapa: {
+    t: 'Mapa del mercado',
+    s: 'Cada cuadro es una moneda. Tamaño = capitalización. Color = si sube o baja.',
+    conMonedas: false,
+    alto: 500,
+    nota: 'Sirve para ver de un vistazo si el mercado entero se mueve o solo una moneda.',
+    tv: () => ({
+      script: 'embed-widget-crypto-coins-heatmap.js',
+      cfg: { dataSource: 'Crypto', blockSize: 'market_cap_calc', blockColor: 'change',
+             locale: 'es', symbolUrl: '', colorTheme: 'dark', hasTopBar: false,
+             isDataSetEnabled: false, isZoomEnabled: true, hasSymbolTooltip: true,
+             isMonoSize: false, width: '100%', height: 460 }
+    })
+  },
+  grafica: {
+    t: 'Gráfica en directo',
+    s: 'El gráfico completo, con sus herramientas.',
+    conMonedas: true,
+    alto: 500,
+    nota: 'Puedes cambiar la temporalidad y dibujar sobre el gráfico.',
+    tv: (sim) => ({
+      script: 'embed-widget-advanced-chart.js',
+      cfg: { autosize: true, symbol: sim, interval: '60', timezone: 'Etc/UTC',
+             theme: 'dark', style: '1', locale: 'es', backgroundColor: 'rgba(11,14,18,1)',
+             gridColor: 'rgba(43,49,57,0.4)', hide_top_toolbar: false,
+             allow_symbol_change: false, save_image: false, calendar: false }
+    })
+  }
+};
+
+async function abrirWidget(id) {
+  const w = WIDGETS[id]; if (!w) return;
+  estilos();
+  const prev = $('w-overlay'); if (prev) prev.remove();
+
+  const d = document.createElement('div');
+  d.id = 'w-overlay';
+  d.innerHTML = `<div class="pv-bg"></div>
+    <div class="w-c">
+      <div class="tl-top">
+        <div class="tl-eyebrow">${esc(w.t)}</div>
+        <button class="pv-x" aria-label="Cerrar">✕</button>
+      </div>
+      <p class="tl-s">${esc(w.s)}</p>
+
+      ${w.conMonedas ? `<div class="w-mons" id="w-mons">
+        ${MON_WIDGET.map((m) => `<button class="w-mon ${m.id === _wMoneda ? 'on' : ''}" data-wm="${m.id}" title="${esc(m.n)}">${esc(m.id)}</button>`).join('')}
+      </div>` : ''}
+
+      <div class="w-caja" id="w-caja" style="min-height:${w.alto}px">
+        <div class="tl-cargando">Cargando…</div>
+      </div>
+
+      ${w.nota ? `<div class="w-nota">${w.nota}</div>` : ''}
+    </div>`;
+  document.body.appendChild(d);
+
+  const cerrar = () => { const e = $('w-overlay'); if (e) e.remove(); };
+  d.querySelector('.pv-bg').onclick = cerrar;
+  d.querySelector('.pv-x').onclick = cerrar;
+
+  const pintar = () => {
+    const m = MON_WIDGET.find((x) => x.id === _wMoneda) || MON_WIDGET[0];
+    if (id === 'termometro') { pintarMiedo(); return; }
+    montarTV(w.tv(m.sim), w.alto);
+  };
+
+  d.querySelectorAll('[data-wm]').forEach((b) => b.onclick = () => {
+    _wMoneda = b.dataset.wm;
+    d.querySelectorAll('.w-mon').forEach((x) => x.classList.toggle('on', x.dataset.wm === _wMoneda));
+    pintar();
+  });
+
+  pintar();
+}
+
+/** Mete un widget de TradingView dentro de nuestra caja. */
+function montarTV(def, alto) {
+  const caja = $('w-caja'); if (!caja) return;
+  caja.innerHTML = `<div class="tradingview-widget-container" style="height:${alto - 30}px;width:100%">
+    <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+  </div>`;
+  const cont = caja.querySelector('.tradingview-widget-container');
+  const sc = document.createElement('script');
+  sc.type = 'text/javascript';
+  sc.async = true;
+  sc.src = `https://s3.tradingview.com/external-embedding/${def.script}`;
+  sc.innerHTML = JSON.stringify(def.cfg);
+  sc.onerror = () => {
+    caja.innerHTML = `<div class="tl-vacio">No se pudo cargar el gráfico.<br>Revisa tu conexión y vuelve a abrirlo.</div>`;
+  };
+  cont.appendChild(sc);
+}
+
+/** El índice de miedo y codicia, dibujado por nosotros. */
+async function pintarMiedo() {
+  const caja = $('w-caja'); if (!caja) return;
+  caja.innerHTML = `<div class="tl-cargando">Consultando el índice…</div>`;
+  try {
+    const r = await fetch('https://api.alternative.me/fng/?limit=7');
+    const j = await r.json();
+    const d = j.data || [];
+    if (!d.length) throw new Error('sin datos');
+
+    const hoy = d[0];
+    const v = Number(hoy.value);
+    const col = v <= 25 ? '#f6465d' : v <= 45 ? '#e8834b' : v <= 55 ? '#e8b84b' : v <= 75 ? '#8fd14f' : '#2ee86a';
+    const eti = v <= 25 ? 'Miedo extremo' : v <= 45 ? 'Miedo' : v <= 55 ? 'Neutral' : v <= 75 ? 'Codicia' : 'Codicia extrema';
+    const ang = -90 + (v / 100) * 180;
+
+    caja.innerHTML = `
+      <div class="fg-wrap">
+        <svg viewBox="0 0 240 140" class="fg-svg">
+          <defs><linearGradient id="fgGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#f6465d"/><stop offset="30%" stop-color="#e8834b"/>
+            <stop offset="50%" stop-color="#e8b84b"/><stop offset="72%" stop-color="#8fd14f"/>
+            <stop offset="100%" stop-color="#2ee86a"/>
+          </linearGradient></defs>
+          <path d="M25 120 A 95 95 0 0 1 215 120" fill="none" stroke="url(#fgGrad)" stroke-width="17" stroke-linecap="round"/>
+          <g transform="translate(120,120) rotate(${ang})">
+            <line x1="0" y1="0" x2="0" y2="-72" stroke="#eaecef" stroke-width="3.5" stroke-linecap="round"/>
+          </g>
+          <circle cx="120" cy="120" r="8" fill="#0b0e12" stroke="#eaecef" stroke-width="2.5"/>
+        </svg>
+        <div class="fg-val" style="color:${col}">${v}</div>
+        <div class="fg-eti" style="color:${col}">${eti}</div>
+        <div class="fg-dias">
+          ${d.slice(1, 6).map((x) => {
+            const n = Number(x.value);
+            const c = n <= 25 ? '#f6465d' : n <= 45 ? '#e8834b' : n <= 55 ? '#e8b84b' : n <= 75 ? '#8fd14f' : '#2ee86a';
+            return `<div class="fg-dia"><b style="color:${c}">${n}</b><span>${diaDe(x.timestamp)}</span></div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  } catch (_) {
+    caja.innerHTML = `<div class="tl-vacio">No se pudo consultar el índice ahora mismo.<br>Inténtalo en un momento.</div>`;
+  }
+}
+
+const diaDe = (ts) => {
+  const f = new Date(Number(ts) * 1000);
+  return f.toLocaleDateString('es', { weekday: 'short' }).replace('.', '');
+};
 
 /* ══════════════════════════════════════════════════════════════
    ALERTAS DE PRECIO
@@ -826,7 +1052,52 @@ function estilos() {
     font-family:var(--sans,sans-serif);font-size:13px;color:#eaecef}
   .al-toast b{display:block;font-family:var(--display,sans-serif);color:var(--gold,#E8B84B);font-size:12px;margin-bottom:3px}
 
+  /* ══════════════ WIDGETS DE MERCADO ══════════════ */
+  #w-overlay{position:fixed;inset:0;z-index:9710;display:flex;align-items:center;justify-content:center;padding:16px}
+  /* Cabecera igual que en las demás ventanas: título centrado y la ✕
+     en su esquina, sin empujar el texto. */
+  #w-overlay .tl-top{position:relative;display:flex;align-items:center;justify-content:center;min-height:38px;margin-bottom:10px}
+  /* La ✕ heredaba un alto de 21px al posicionarse: hay que fijarlo.
+     44px es lo mínimo cómodo para el dedo. */
+  #w-overlay .pv-x{position:absolute;top:0;right:0;width:38px;height:38px;min-height:38px;flex:0 0 auto}
+  @media(max-width:560px){#w-overlay .pv-x{width:40px;height:40px;min-height:40px}}
+  #w-overlay .w-c{position:relative;width:100%;max-width:620px;max-height:calc(100vh - 32px);overflow-y:auto;
+    background:linear-gradient(180deg,#141922,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:20px;padding:22px 20px}
+  #w-overlay .w-mons{display:flex;gap:6px;overflow-x:auto;padding:4px;margin-bottom:14px;
+    background:#0b0e12;border:1px solid #2b3139;border-radius:12px;scrollbar-width:none}
+  #w-overlay .w-mons::-webkit-scrollbar{display:none}
+  #w-overlay .w-mon{flex:0 0 auto;min-height:38px;padding:0 15px;border-radius:9px;border:none;background:transparent;
+    color:#8b96a3;font-family:var(--mono,monospace);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+  #w-overlay .w-mon.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
+  #w-overlay .w-mon:not(.on):hover{background:rgba(255,255,255,.05);color:#b7bdc6}
+  /* La caja que encapsula el widget: nuestro fondo, nuestro borde. */
+  #w-overlay .w-caja{border-radius:14px;overflow:hidden;background:#0b0e12;border:1px solid #2b3139;
+    display:flex;align-items:center;justify-content:center}
+  #w-overlay .w-caja iframe{border:none!important;width:100%!important}
+  #w-overlay .w-caja .tradingview-widget-copyright{display:none!important}
+  #w-overlay .w-nota{margin-top:13px;padding:12px 14px;border-radius:11px;background:rgba(232,184,75,.06);
+    border-left:2px solid var(--gold-soft,#C9A84B);font-family:var(--sans,sans-serif);
+    font-size:12px;color:var(--ink-2,#b7bdc6);line-height:1.6}
+  /* Miedo y codicia, dibujado por nosotros */
+  #w-overlay .fg-wrap{width:100%;padding:22px 16px;text-align:center}
+  #w-overlay .fg-svg{width:100%;max-width:280px;height:auto;display:block;margin:0 auto}
+  #w-overlay .fg-val{font-family:var(--display,sans-serif);font-weight:800;font-size:44px;line-height:1;margin-top:-14px}
+  #w-overlay .fg-eti{font-family:var(--display,sans-serif);font-weight:700;font-size:16px;margin-top:6px}
+  #w-overlay .fg-dias{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:20px;
+    padding-top:16px;border-top:1px solid rgba(255,255,255,.07)}
+  #w-overlay .fg-dia{min-width:46px}
+  #w-overlay .fg-dia b{display:block;font-family:var(--display,sans-serif);font-size:16px}
+  #w-overlay .fg-dia span{display:block;font-family:var(--mono,monospace);font-size:9.5px;color:#6b7681;
+    text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+
   @media(max-width:560px){
+    #w-overlay{padding:8px}
+    #w-overlay .w-c{padding:18px 13px;border-radius:17px;max-height:calc(100vh - 16px)}
+    #w-overlay .w-mon{padding:0 13px;font-size:11.5px}
+    #w-overlay .fg-val{font-size:38px}
+    #w-overlay .fg-dias{gap:5px}
+    #w-overlay .fg-dia{min-width:40px}
+    #w-overlay .fg-dia b{font-size:14px}
     #tl-overlay,#pv-overlay,#al-overlay,#pv-conf{padding:9px}
     #tl-overlay .tl-c,#pv-overlay .pv-c,#al-overlay .pv-c{padding:18px 14px;border-radius:17px}
     #tl-overlay .tl-item{padding:14px;gap:12px}
