@@ -282,6 +282,39 @@ function estilos() {
   #mk-overlay .op-fechas span.dis{color:var(--rojo,#f6465d)}
   #mk-overlay .op-fechas i{display:block;font-style:normal;font-size:8.5px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
   /* ── Guía paso a paso ── */
+  /* ── Menú de la cabecera ── */
+  #mk-overlay .mk-menu-b{position:absolute;top:14px;right:56px;width:38px;height:38px;z-index:5;
+    border-radius:11px;display:grid;place-items:center;padding:0;cursor:pointer;
+    background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6}
+  #mk-overlay .mk-menu-b:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  #mk-overlay .mk-menu-b svg{width:17px;height:17px}
+  #mk-overlay .mk-pt{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;
+    background:var(--rojo,#f6465d);border:2px solid #0b0e12;display:none}
+  #mk-overlay .mk-pt.on{display:block;animation:mkLat 2s ease-in-out infinite}
+  @keyframes mkLat{0%,100%{box-shadow:0 0 0 0 rgba(246,70,93,.6)}50%{box-shadow:0 0 0 5px rgba(246,70,93,0)}}
+  #mk-overlay .mk-menu-d{position:absolute;top:60px;right:14px;z-index:20;min-width:212px;
+    background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid var(--gold-soft,#C9A84B);
+    border-radius:14px;padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.65);
+    display:none;transform-origin:top right;animation:mkAbre .14s ease-out}
+  #mk-overlay .mk-menu-d.open{display:block}
+  @keyframes mkAbre{from{opacity:0;transform:scale(.94) translateY(-6px)}to{opacity:1;transform:none}}
+  #mk-overlay .mk-mi{display:flex;align-items:center;gap:11px;width:100%;padding:12px 13px;border-radius:10px;
+    background:transparent;border:none;color:#b7bdc6;cursor:pointer;text-align:left;min-height:46px}
+  #mk-overlay .mk-mi:hover{background:rgba(255,255,255,.05);color:#eaecef}
+  #mk-overlay .mk-mi svg{width:17px;height:17px;flex:0 0 auto;opacity:.75}
+  #mk-overlay .mk-mi span{flex:1;font-family:var(--sans,sans-serif);font-size:13.5px}
+  #mk-overlay .mk-pt2{flex:0 0 auto;min-width:20px;height:20px;padding:0 6px;border-radius:20px;
+    display:none;place-items:center;background:var(--rojo,#f6465d);color:#fff;
+    font-family:var(--mono,monospace);font-size:11px;font-weight:700;font-style:normal}
+  #mk-overlay .mk-pt2.hay{display:grid}
+  #mk-overlay .mk-nuevo{flex:0 0 auto;padding:3px 8px;border-radius:20px;font-style:normal;
+    background:rgba(246,70,93,.15);border:1px solid rgba(246,70,93,.4);color:var(--rojo,#f6465d);
+    font-family:var(--mono,monospace);font-size:9px;text-transform:uppercase;letter-spacing:.6px}
+  @media(max-width:560px){
+    #mk-overlay .mk-menu-b{top:11px;right:50px;width:36px;height:36px}
+    #mk-overlay .mk-menu-d{top:52px;right:12px;left:12px;min-width:0}
+  }
+
   #mk-overlay .cf-card{padding:26px 22px;border-radius:18px;text-align:center;
     background:linear-gradient(180deg,rgba(232,184,75,.07),rgba(232,184,75,.015));border:1px solid rgba(232,184,75,.28)}
   #mk-overlay .cf-num{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
@@ -579,7 +612,6 @@ export async function abrirMarket() {
     <button class="mk-tab" id="mk-t2">Vender</button>
     <button class="mk-tab" id="mk-t5">Comprar</button>
     <button class="mk-tab" id="mk-t3"><span class="tx-l">Operaciones</span><span class="tx-s">Ops</span></button>
-    <button class="mk-tab" id="mk-t4"><span class="tx-l">Cómo funciona</span><span class="tx-s">Guía</span></button>
   </div>
   <div class="mk-pane on" id="mk-p1"><div class="mk-vacio">Cargando ofertas…</div></div>
   <div class="mk-pane" id="mk-p2"></div>
@@ -590,6 +622,14 @@ export async function abrirMarket() {
   <div class="mk-msg info" id="mk-msg"></div>
   `;
   $('mk-x').onclick = cerrar;
+
+  /* ══════════════════════════════════════════════════════════════
+     MENÚ DEL MARKETPLACE
+     Disputas y la guía no son sitios donde se trabaja a diario: son
+     consultas. Sacarlas de la fila de pestañas deja sitio para lo que
+     sí se usa, y el punto rojo avisa cuando hay una disputa esperando.
+     ══════════════════════════════════════════════════════════════ */
+  montarMenuMk();
 
   const tabs = [['mk-t1', 'mk-p1'], ['mk-t2', 'mk-p2'], ['mk-t5', 'mk-p5'], ['mk-t3', 'mk-p3'], ['mk-t4', 'mk-p4'], ['mk-t6', 'mk-p6']];
   // La guía arranca en su primera tarjeta cada vez que se entra.
@@ -626,6 +666,7 @@ export async function abrirMarket() {
       const b = document.createElement('button');
       b.className = 'mk-tab'; b.id = 'mk-t6';
       b.innerHTML = `Disputas <span class="mk-badge" id="mk-nd" style="display:none">0</span>`;
+      b.style.display = 'none';   // vive en el menú, no en la fila de pestañas
       /* Disputas va ANTES de "Cómo funciona", que siempre cierra la fila:
          es la guía, no una sección de trabajo. */
       const _guia = $('mk-t4');
@@ -649,12 +690,15 @@ async function buscarDisputas() {
   return ords.filter(o => o && Number(o.estado) === 4);
 }
 async function contarDisputas() {
-  const el = $('mk-nd'); if (!el) return;
-  el.style.display = 'none';                       // por defecto oculto
+  const el = $('mk-nd');
+  if (el) el.style.display = 'none';
   try {
     const d = await buscarDisputas();
-    if (d && d.length > 0) { el.textContent = String(d.length); el.style.display = 'inline-grid'; }
-  } catch (_) { el.style.display = 'none'; }
+    const n = (d && d.length) || 0;
+    if (el && n > 0) { el.textContent = String(n); el.style.display = 'inline-grid'; }
+    // El menú también lo señala: es donde vive ahora la sección.
+    avisarDisputas(n);
+  } catch (_) { if (el) el.style.display = 'none'; }
 }
 async function panelDisputas() {
   const box = $('mk-p6'); if (!box) return;
@@ -1906,6 +1950,90 @@ async function panelMisOps() {
       }
     }
   } catch (e) { box.innerHTML = `<div class="mk-vacio">No se pudo cargar. Revisa tu conexión.</div>`; }
+}
+
+/** Menú desplegable de la cabecera del Marketplace. */
+function montarMenuMk() {
+  const cab = document.querySelector('#mk-overlay .mk-cab') || document.querySelector('#mk-card');
+  if (!cab || $('mk-menu')) return;
+
+  const b = document.createElement('button');
+  b.className = 'mk-menu-b'; b.id = 'mk-menu';
+  b.setAttribute('aria-label', 'Menú');
+  b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="mk-pt" id="mk-menu-pt"></span>`;
+  cab.appendChild(b);
+
+  const d = document.createElement('div');
+  d.className = 'mk-menu-d'; d.id = 'mk-menu-d';
+  d.innerHTML = `
+    <button class="mk-mi" data-mk-go="disputas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <span>Disputas</span><em class="mk-pt2" id="mk-menu-pt2"></em>
+    </button>
+    <button class="mk-mi" data-mk-go="guia">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>
+      <span>Cómo funciona</span><em class="mk-nuevo" id="mk-menu-nuevo">nuevo</em>
+    </button>`;
+  cab.appendChild(d);
+
+  const cerrarM = () => d.classList.remove('open');
+  b.onclick = (e) => {
+    e.stopPropagation();
+    d.classList.toggle('open');
+    // Al abrirlo, se apaga el aviso rojo de "aún no has visto la guía".
+    marcarGuiaVista();
+  };
+  document.addEventListener('click', cerrarM);
+  d.addEventListener('click', (e) => e.stopPropagation());
+
+  d.querySelectorAll('[data-mk-go]').forEach((x) => x.onclick = () => {
+    cerrarM();
+    if (x.dataset.mkGo === 'guia') {
+      abrirPanel('mk-p4');
+      setTimeout(() => cfPintar(0), 30);
+      marcarGuiaVista(true);
+    } else {
+      const t6 = $('mk-t6');
+      if (t6) t6.click();
+      else { abrirPanel('mk-p6'); panelDisputas(); }
+    }
+  });
+
+  pintarAvisoGuia();
+}
+
+/** Deja un panel a la vista y apaga los demás. */
+function abrirPanel(id) {
+  document.querySelectorAll('#mk-overlay .mk-tab').forEach((x) => x.classList.remove('on'));
+  document.querySelectorAll('#mk-overlay .mk-pane').forEach((x) => x.classList.remove('on'));
+  const p = $(id); if (p) p.classList.add('on');
+  const c = $('mk-card'); if (c) c.scrollTop = 0;
+  msg('');
+}
+
+/* La primera vez que alguien entra, un punto rojo le enseña dónde está
+   la guía. Después no vuelve a molestar. */
+const CLAVE_GUIA_VISTA = 'mk-guia-vista';
+const guiaVista = () => { try { return localStorage.getItem(CLAVE_GUIA_VISTA) === '1'; } catch (_) { return true; } };
+function marcarGuiaVista(definitivo) {
+  if (!definitivo) return;
+  try { localStorage.setItem(CLAVE_GUIA_VISTA, '1'); } catch (_) {}
+  pintarAvisoGuia();
+}
+function pintarAvisoGuia() {
+  const nuevo = $('mk-menu-nuevo');
+  const punto = $('mk-menu-pt');
+  const ya = guiaVista();
+  if (nuevo) nuevo.style.display = ya ? 'none' : '';
+  if (punto) punto.classList.toggle('on', !ya);
+}
+
+/** Punto rojo en el menú cuando hay disputas esperando. */
+export function avisarDisputas(n) {
+  const p2 = $('mk-menu-pt2');
+  if (p2) { p2.textContent = n > 0 ? String(n) : ''; p2.classList.toggle('hay', n > 0); }
+  const p = $('mk-menu-pt');
+  if (p && n > 0) p.classList.add('on');
 }
 
 /* Fechas en cristiano. "Hace 3 días" se entiende mejor que una fecha
