@@ -21,25 +21,25 @@ window.NP_BOT_KB = {
 
   bot: {
     name:   'Jesús',
-    role:   'Asistente de CriptoCuba',
+    role:   'Asistente de Cripto Cuba Oficial',
     avatar: 'assets/img/jesus-avatar.webp',
 
     /* Cada saludo se presenta y termina llevando al usuario a un terreno
        donde sabemos responder. Los botones hacen el resto: en vez de
        dejarle escribiendo a ciegas, le damos por dónde tirar. */
     greeting: [
-      'Hola, soy **Jesús**, del equipo de CriptoCuba.\n\n¿En qué te ayudo?',
+      'Hola, soy **Jesús**, del equipo de Cripto Cuba Oficial.\n\n¿En qué te ayudo?',
       '¡Hola! Soy **Jesús**. Estoy aquí para resolver cualquier duda sobre CriptoCuba.\n\n¿Qué quieres saber?',
-      'Buenas. Soy **Jesús**, de CriptoCuba.\n\nPregúntame lo que quieras: los bots, el marketplace, las comisiones, lo que sea.',
+      'Buenas. Soy **Jesús**, de Cripto Cuba Oficial.\n\nPregúntame lo que quieras: los bots, el marketplace, las comisiones, lo que sea.',
       'Hola. Soy **Jesús**.\n\n¿Primera vez por aquí, o ya tienes algún bot funcionando?',
-      'Hola, ¿qué tal? Soy **Jesús**, de CriptoCuba.\n\nDime qué necesitas y te echo una mano.',
+      'Hola, ¿qué tal? Soy **Jesús**, de Cripto Cuba Oficial.\n\nDime qué necesitas y te echo una mano.',
       '¡Hola! **Jesús** al habla.\n\n¿Te explico cómo funciona esto, o tienes una duda concreta?',
-      'Buenas. **Jesús**, de CriptoCuba.\n\nSi te suena a chino todo esto, tranquilo: empezamos por el principio.',
-      'Hola. Soy **Jesús** y llevo la parte de atención de CriptoCuba.\n\nDime en qué andas y vemos.',
+      'Buenas. **Jesús**, de Cripto Cuba Oficial.\n\nSi te suena a chino todo esto, tranquilo: empezamos por el principio.',
+      'Hola. Soy **Jesús** y llevo la parte de atención de Cripto Cuba Oficial.\n\nDime en qué andas y vemos.',
       '¿Qué tal? Soy **Jesús**.\n\nPregunta sin miedo, que para eso estoy. Aunque sea la duda más básica.',
-      'Hola. **Jesús**, de CriptoCuba.\n\n¿Vienes a informarte, o ya andas operando?',
+      'Hola. **Jesús**, de Cripto Cuba Oficial.\n\n¿Vienes a informarte, o ya andas operando?',
       'Buenas, soy **Jesús**.\n\nTe puedo explicar los bots, el marketplace o lo que se te ocurra.',
-      'Hola. Soy **Jesús**, de CriptoCuba.\n\nCuéntame qué te trae por aquí.'
+      'Hola. Soy **Jesús**, de Cripto Cuba Oficial.\n\nCuéntame qué te trae por aquí.'
     ],
 
     /* ── CUANDO EL USUARIO DICE "SÍ" Y NO HAY MÁS QUE CONTAR ──────
@@ -102,7 +102,7 @@ window.NP_BOT_KB = {
 
     /* Atajos del menú: las preguntas que más se hacen, a un toque. */
     quick: [
-      { label: '¿Qué es CriptoCuba?',        q: 'que es aurex' },
+      { label: '¿Qué es Cripto Cuba Oficial?',        q: 'que es aurex' },
       { label: '¿Cómo empiezo?',        q: 'como empiezo' },
       { label: '¿Qué bots hay?',        q: 'que bots hay' },
       { label: '¿Es seguro?',           q: 'es seguro mi dinero' },
@@ -146,16 +146,16 @@ window.NP_BOT_KB = {
       any:      ['Eso se sale de lo mío: yo estoy aquí para CriptoCuba.\n\n¿Te ayudo con algo de la plataforma?'],
       nuevo:    ['De eso no sé, lo siento. Lo mío son los bots y la plataforma.\n\n¿Quieres que te cuente cómo funciona?'],
       experto:  ['Ahí no te puedo ayudar. Pregúntame de la plataforma y te respondo mejor.'],
-      problema: ['Eso no lo llevo yo. Si tienes algún problema con CriptoCuba, cuéntamelo y lo miramos.']
+      problema: ['Eso no lo llevo yo. Si tienes algún problema con Cripto Cuba Oficial, cuéntamelo y lo miramos.']
     },
     stillOffScope: [
-      'Sigue sin ser lo mío, y por muchas vueltas que le demos no va a cambiar.\n\nSi es algo de CriptoCuba, aquí estoy. Si no, mejor te lo resuelven en otro sitio.'
+      'Sigue sin ser lo mío, y por muchas vueltas que le demos no va a cambiar.\n\nSi es algo de Cripto Cuba Oficial, aquí estoy. Si no, mejor te lo resuelven en otro sitio.'
     ],
 
     /* Preguntas para saber por dónde ayudar. */
     triage: {
       any:      ['Para no adivinar: ¿es sobre **los bots**, sobre **el marketplace**, o sobre **algo que no te funciona**?'],
-      nuevo:    ['¿Te cuento primero **qué es CriptoCuba**, o prefieres ir directo a **cómo empezar**?'],
+      nuevo:    ['¿Te cuento primero **qué es Cripto Cuba Oficial**, o prefieres ir directo a **cómo empezar**?'],
       experto:  ['¿De qué bot me hablas, y qué configuración tienes puesta?'],
       problema: ['Cuéntame qué está pasando exactamente y desde cuándo.']
     },
@@ -223,7 +223,7 @@ window.NP_BOT_KB = {
       },
       place: {
         answer: [
-          'CriptoCuba funciona desde cualquier país, sin registro ni papeles. Solo necesitas una wallet.',
+          'Cripto Cuba Oficial funciona desde cualquier país, sin registro ni papeles. Solo necesitas una wallet.',
           'Da igual dónde estés: es una web, y todo pasa en la blockchain. No pedimos documentación a nadie.'
         ]
       },
@@ -260,14 +260,14 @@ window.NP_BOT_KB = {
       },
       experience: {
         answer: [
-          'CriptoCuba lleva funcionando con usuarios reales, y todo lo que hace queda registrado en la blockchain.\n\nLo que te puedo garantizar es que tu dinero es tuyo; lo que no te puedo garantizar son ganancias.',
+          'Cripto Cuba Oficial lleva funcionando con usuarios reales, y todo lo que hace queda registrado en la blockchain.\n\nLo que te puedo garantizar es que tu dinero es tuyo; lo que no te puedo garantizar son ganancias.',
           'La plataforma está en marcha y los contratos son públicos.\n\nY te lo digo claro: ningún bot garantiza ganar. Lo que sí garantizamos es que nadie toca tus fondos.'
         ]
       },
       intro: {
         answer: [
-          'Soy Jesús, el asistente de CriptoCuba. Estoy aquí para lo que necesites de la plataforma.',
-          'Jesús, asistente de CriptoCuba. Pregúntame lo que quieras sobre los bots o la web.'
+          'Soy Jesús, el asistente de Cripto Cuba Oficial. Estoy aquí para lo que necesites de la plataforma.',
+          'Jesús, asistente de Cripto Cuba Oficial. Pregúntame lo que quieras sobre los bots o la web.'
         ]
       },
       compare: {
@@ -292,7 +292,7 @@ window.NP_BOT_KB = {
          Mientras esté vacío, el botón sencillamente no aparece. */
       whatsapp:   'https://wa.me/5358648458',
       grupo:      'https://t.me/CriptoCubaOficial',
-      grupoTx:    'CriptoCuba Oficial'
+      grupoTx:    'Cripto Cuba Oficial'
     }
   },
 
@@ -529,7 +529,7 @@ window.NP_BOT_KB = {
       intro: 'Vamos a conectar tu wallet. Depende de si estás en el ordenador o en el móvil.',
       pasos: [
         '**Si estás en el ordenador:** pulsa **Conectar wallet** arriba a la derecha y acepta en la ventana de MetaMask.',
-        '**Si estás en el móvil:** al pulsar **Conectar wallet** sale una ventana con **Abrir en MetaMask**, Trust o SafePal. Toca la tuya.\n\nSe abrirá CriptoCuba dentro de tu wallet y conectará sola.',
+        '**Si estás en el móvil:** al pulsar **Conectar wallet** sale una ventana con **Abrir en MetaMask**, Trust o SafePal. Toca la tuya.\n\nSe abrirá Cripto Cuba Oficial dentro de tu wallet y conectará sola.',
         'Comprueba que arriba a la derecha aparece tu dirección (algo como 0x97e0…CA7d). Si la ves, ya estás dentro.'
       ],
       fin: 'Perfecto, wallet conectada.\n\nAhora ya puedes cargar gas y montar tu primer bot.',
@@ -697,7 +697,7 @@ window.NP_BOT_KB = {
 
     /* ══════════════ QUÉ ES AUREX ══════════════ */
     {
-      topic: 'qué es CriptoCuba',
+      topic: 'qué es Cripto Cuba Oficial',
       keys: [
         'que es criptocuba', 'que es cripto cuba', 'criptocuba', 'cripto cuba',
         'que es cripto cuba oficial', 'hablame de criptocuba', 'cuentame de criptocuba',
@@ -714,12 +714,12 @@ window.NP_BOT_KB = {
         'esto que es', 'y esto', 'nunca habia visto esto', 'primera vez aqui'
       ],
       answer: [
-        'CriptoCuba es un **ecosistema DeFi no custodial**: un conjunto de herramientas para que tu dinero trabaje en los mercados **sin salir nunca de tu wallet**.\n\nNo es una app de bots: es una plataforma completa con automatización, mercado entre personas, intercambio de monedas, eventos comunitarios y formación.\n\n¿Por dónde quieres que empiece?',
+        'Cripto Cuba Oficial es un **ecosistema DeFi no custodial**: un conjunto de herramientas para que tu dinero trabaje en los mercados **sin salir nunca de tu wallet**.\n\nNo es una app de bots: es una plataforma completa con automatización, mercado entre personas, intercambio de monedas, eventos comunitarios y formación.\n\n¿Por dónde quieres que empiece?',
         'Es un **ecosistema descentralizado** montado sobre BNB Smart Chain. Lo que lo distingue: **nunca custodiamos tu dinero**. Ni registro, ni KYC, ni depósitos.\n\nDentro hay automatización de operaciones, un mercado entre personas, swap, sorteos comunitarios y material para aprender.\n\n¿Qué parte te interesa?',
-        'CriptoCuba es una plataforma **DeFi no custodial**: automatiza tus operaciones en los mercados financieros mientras tu dinero **sigue siendo tuyo, en tu wallet**.\n\nNo somos un exchange donde depositas. Somos una capa de herramientas sobre la blockchain que tú controlas.\n\n¿Te cuento las partes?'
+        'Cripto Cuba Oficial es una plataforma **DeFi no custodial**: automatiza tus operaciones en los mercados financieros mientras tu dinero **sigue siendo tuyo, en tu wallet**.\n\nNo somos un exchange donde depositas. Somos una capa de herramientas sobre la blockchain que tú controlas.\n\n¿Te cuento las partes?'
       ],
       more: [
-        'Te lo desgloso. CriptoCuba tiene **cinco patas**:\n\n**1 · Automatización.** Cuatro estrategias distintas, cada una para un momento del mercado:\n· **Smart Grid** — compra abajo y vende arriba, en bucle\n· **Accumulator** — compra más cuanto más baja y vende todo al objetivo\n· **Cash Out** — vende cuando el precio llega a donde marcaste\n· **DCA** — compra una cantidad fija cada cierto tiempo\n\n**2 · Marketplace P2P.** Comprar y vender cripto entre personas de cualquier país, pagando como acordéis. Con fianza, cripto retenida y árbitros.\n\n**3 · Swap.** Intercambio directo entre monedas desde tu wallet.\n\n**4 · Prize Pool.** Sorteos comunitarios con aleatoriedad verificable en cadena. Nadie puede manipularlos, ni nosotros.\n\n**5 · Formación.** Cada herramienta explica su economía real: qué la hace rentable, qué puede salir mal y cuánto cuesta.'
+        'Te lo desgloso. Cripto Cuba Oficial tiene **cinco patas**:\n\n**1 · Automatización.** Cuatro estrategias distintas, cada una para un momento del mercado:\n· **Smart Grid** — compra abajo y vende arriba, en bucle\n· **Accumulator** — compra más cuanto más baja y vende todo al objetivo\n· **Cash Out** — vende cuando el precio llega a donde marcaste\n· **DCA** — compra una cantidad fija cada cierto tiempo\n\n**2 · Marketplace P2P.** Comprar y vender cripto entre personas de cualquier país, pagando como acordéis. Con fianza, cripto retenida y árbitros.\n\n**3 · Swap.** Intercambio directo entre monedas desde tu wallet.\n\n**4 · Prize Pool.** Sorteos comunitarios con aleatoriedad verificable en cadena. Nadie puede manipularlos, ni nosotros.\n\n**5 · Formación.** Cada herramienta explica su economía real: qué la hace rentable, qué puede salir mal y cuánto cuesta.'
       ],
       opciones: [
         { label: 'Los bots',        q: 'que bots hay' },
@@ -740,7 +740,7 @@ window.NP_BOT_KB = {
              'donde veo que es real', 'como se que es real', 'como compruebo'],
       answer: [
         '**Tu dinero nunca sale de tu wallet.** No lo depositas en ningún sitio: sigue siendo tuyo todo el tiempo.\n\nLo que haces es dar permiso al contrato para mover una cantidad concreta, y ese permiso lo puedes quitar cuando quieras desde tu perfil.',
-        'No custodiamos nada. Ni yo ni nadie de CriptoCuba puede tocar tus fondos.\n\nEl bot funciona con un permiso limitado que tú das y tú retiras. Está en tu perfil, sección **Permisos de gasto**.',
+        'No custodiamos nada. Ni yo ni nadie de Cripto Cuba Oficial puede tocar tus fondos.\n\nEl bot funciona con un permiso limitado que tú das y tú retiras. Está en tu perfil, sección **Permisos de gasto**.',
         'Aquí no hay depósitos. Tu dinero está en tu wallet, y solo se mueve cuando el contrato ejecuta una operación que tú configuraste.\n\nEs la diferencia principal con un exchange centralizado.'
       ],
       more: [
@@ -863,8 +863,8 @@ window.NP_BOT_KB = {
              'metamask', 'trust wallet', 'safepal', 'no puedo conectar',
              'como conecto', 'walletconnect'],
       answer: [
-        'En el ordenador: pulsa **Conectar wallet** y acepta en la extensión.\n\nEn el móvil: al pulsar sale una ventana con **"Abrir en MetaMask"**, "Trust" o "SafePal". Tócala y se abre CriptoCuba dentro de tu wallet, donde conecta solo.',
-        'Si estás en el móvil, lo más fiable es **abrir CriptoCuba desde el navegador de tu wallet**. En la ventana de conexión tienes el botón directo.\n\n¿Te sale algún mensaje de error concreto?',
+        'En el ordenador: pulsa **Conectar wallet** y acepta en la extensión.\n\nEn el móvil: al pulsar sale una ventana con **"Abrir en MetaMask"**, "Trust" o "SafePal". Tócala y se abre Cripto Cuba Oficial dentro de tu wallet, donde conecta solo.',
+        'Si estás en el móvil, lo más fiable es **abrir Cripto Cuba Oficial desde el navegador de tu wallet**. En la ventana de conexión tienes el botón directo.\n\n¿Te sale algún mensaje de error concreto?',
         'Toca "Conectar wallet". Si no funciona, prueba a abrir la página desde el navegador interno de MetaMask o Trust: ahí la conexión es automática.'
       ],
       more: [
@@ -986,7 +986,7 @@ window.NP_BOT_KB = {
       keys: ['instalar', 'app', 'aplicacion', 'descargar', 'tener en el movil',
              'instalar en el telefono', 'como la instalo'],
       answer: [
-        'CriptoCuba se puede instalar como aplicación. En el ordenador tienes el botón **Instalar** en el menú de arriba; en el móvil, desde el menú del navegador.\n\nSe abre con su icono, a pantalla completa, y funciona aunque la conexión vaya lenta.',
+        'Cripto Cuba Oficial se puede instalar como aplicación. En el ordenador tienes el botón **Instalar** en el menú de arriba; en el móvil, desde el menú del navegador.\n\nSe abre con su icono, a pantalla completa, y funciona aunque la conexión vaya lenta.',
         'Sí, se instala. Busca **Instalar** en el menú.\n\nUn aviso: si la instalas en el móvil, la wallet no se puede conectar dentro de la app. Para operar desde el teléfono es mejor entrar por el navegador de MetaMask o Trust.'
       ]
     },
@@ -1002,7 +1002,7 @@ window.NP_BOT_KB = {
              'quien eres tu', 'eres el dueño', 'eres una persona real',
              'como se llama el dueño', 'quien lo dirige', 'jefe', 'quien es el jefe'],
       answer: [
-        'El CEO de CriptoCuba es **Jesús**. Es quien dirige el proyecto y quien responde personalmente cuando hace falta.\n\nAquí tienes su contacto directo:',
+        'El CEO de Cripto Cuba Oficial es **Jesús**. Es quien dirige el proyecto y quien responde personalmente cuando hace falta.\n\nAquí tienes su contacto directo:',
         '**Jesús** lleva CriptoCuba. No hay una empresa grande detrás con departamentos: hay una persona con la que puedes hablar directamente.\n\nEste es su contacto:',
         'Se llama **Jesús** y es el fundador. Puedes escribirle tú mismo, sin intermediarios ni tickets de soporte:'
       ],
@@ -1014,7 +1014,7 @@ window.NP_BOT_KB = {
              'quien es el dueno', 'quien creo aurex', 'de quien es', 'hay un equipo',
              'es una empresa', 'sois una empresa'],
       answer: [
-        'Detrás de CriptoCuba hay un equipo pequeño, y el contacto directo soy yo. No somos una empresa grande ni queremos parecerlo.\n\nLo que sí puedes comprobar tú mismo: los contratos son públicos y están en la blockchain.',
+        'Detrás de Cripto Cuba Oficial hay un equipo pequeño, y el contacto directo soy yo. No somos una empresa grande ni queremos parecerlo.\n\nLo que sí puedes comprobar tú mismo: los contratos son públicos y están en la blockchain.',
         'Es un proyecto de un equipo reducido. Puedes hablar directamente con nosotros, sin pasar por diez filtros.\n\nY lo importante: aunque desapareciéramos mañana, **tu dinero sigue en tu wallet**. No lo tenemos nosotros.',
         'Un equipo pequeño, con contacto directo. Nada de call center.\n\nY la parte que de verdad importa: no custodiamos fondos, así que no dependes de que sigamos aquí.'
       ],
