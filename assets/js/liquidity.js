@@ -99,7 +99,7 @@ const V = {
   yMin: 0, yMax: 0,   // rango de precio visible
   autoY: true,        // ¿la escala vertical se ajusta sola?
   apal: 'todos',      // filtro de apalancamiento
-  intensidad: 1,      // realce del mapa
+  intensidad: 1.0,        // el deslizador arranca a media escala
   verMapa: true,
   arrastrando: false,
   x0: 0, y0: 0,
@@ -220,84 +220,34 @@ function construirMapa(velas) {
   APALANCAMIENTOS.forEach(({ x }) => {
     niveles[x] = Array.from({ length: velas.length }, () => new Float32Array(FILAS));
   });
-  // Los pools estructurales van aparte: no dependen del apalancamiento
-  const pools = Array.from({ length: velas.length }, () => new Float32Array(FILAS));
 
-  /* ── 1 y 2. MÁXIMOS Y MÍNIMOS, con su peso por repeticiones ── */
+  /* ══════════════════════════════════════════════════════════════
+     REFUERZO POR ESTRUCTURA
+
+     No se dibuja nada aparte. Lo que se hace es un MULTIPLICADOR por
+     altura: las filas que coinciden con máximos y mínimos donde el
+     precio rebotó valen más. Así, cuando una liquidación cae ahí, sube
+     a naranja o rojo, y el dibujo sigue saliendo de las velas.
+
+     Cuantas más veces se tocó un nivel, más pesa: un techo probado
+     tres veces acumula muchísimo más que uno tocado una vez.
+     ══════════════════════════════════════════════════════════════ */
+  const refuerzo = new Float32Array(FILAS).fill(1);
   const { altos, bajos } = pivotes(velas, 2);
-  const tolerancia = rango * 0.004;      // qué se considera "el mismo nivel"
+  const tol = (pAlto - pBajo) * 0.005;
 
-  const marcarPool = (piv, esAlto) => {
-    // ¿Cuántas veces se tocó este mismo nivel? Más toques, más muro.
-    const parecidos = (esAlto ? altos : bajos)
-      .filter((o) => Math.abs(o.p - piv.p) <= tolerancia).length;
-
-    // El volumen de la vela del pivote da idea del tamaño
-    const vol = velas[piv.i].v * piv.p;
-    // Peso: base por el volumen, multiplicado por los toques al cuadrado
-    const peso = vol * Math.pow(parecidos, 1.7) * 2.2;
-
-    // Los stops quedan JUSTO PASADO el nivel, no encima
-    const desplaz = rango * 0.0022;
-    const centro = esAlto ? piv.p + desplaz : piv.p - desplaz;
-    const f0 = filaDe(centro);
-
-    // Se reparte en unas pocas filas: los stops no están en un punto exacto
-    for (let d = -4; d <= 4; d++) {
+  [...altos, ...bajos].forEach((piv) => {
+    const lista = altos.includes(piv) ? altos : bajos;
+    const toques = lista.filter((o) => Math.abs(o.p - piv.p) <= tol).length;
+    const f0 = filaDe(piv.p);
+    // Se reparte en pocas filas, con caída suave
+    for (let d = -3; d <= 3; d++) {
       const f = f0 + d;
       if (f < 0 || f >= FILAS) continue;
-      const caida = Math.exp(-(d * d) / 6);
-      // Vive desde el pivote hasta que el precio lo barre
-      for (let c = piv.i; c < velas.length; c++) {
-        const w = velas[c];
-        const barrido = esAlto ? w.h > centro : w.l < centro;
-        if (barrido) break;
-        pools[c][f] += peso * caida;
-      }
+      const caida = Math.exp(-(d * d) / 4);
+      refuerzo[f] = Math.max(refuerzo[f], 1 + Math.min(1.5, toques * 0.4) * caida);
     }
-  };
-  altos.forEach((p) => marcarPool(p, true));
-  bajos.forEach((p) => marcarPool(p, false));
-
-  /* ── 3. LA BASE DE LOS IMPULSOS ── */
-  for (let i = 3; i < velas.length; i++) {
-    const v = velas[i];
-    const cuerpo = Math.abs(v.c - v.o);
-    if (cuerpo < rango * 0.012) continue;        // no es impulso
-    const sube = v.c > v.o;
-    // El origen del impulso: donde arrancó
-    const origen = sube ? v.o : v.o;
-    const f0 = filaDe(origen);
-    const peso = v.v * origen * (cuerpo / rango) * 1.6;
-    for (let d = -1; d <= 1; d++) {
-      const f = f0 + d;
-      if (f < 0 || f >= FILAS) continue;
-      for (let c = i; c < velas.length; c++) {
-        const w = velas[c];
-        if (origen <= w.h && origen >= w.l) break;   // el precio volvió
-        pools[c][f] += peso * (d === 0 ? 1 : 0.55);
-      }
-    }
-  }
-
-  /* ── 4. VACÍOS DE LIQUIDEZ ── */
-  for (let i = 1; i < velas.length - 1; i++) {
-    const a = velas[i - 1], b = velas[i + 1];
-    // Hueco alcista: el mínimo de después queda por encima del máximo de antes
-    const hueco = (b.l > a.h) ? [a.h, b.l] : (b.h < a.l) ? [b.h, a.l] : null;
-    if (!hueco) continue;
-    const [d1, d2] = hueco;
-    if (d2 - d1 < rango * 0.003) continue;
-    const peso = velas[i].v * velas[i].c * 0.9;
-    const fA = filaDe(d1), fB = filaDe(d2);
-    for (let f = Math.max(0, fA); f <= Math.min(FILAS - 1, fB); f++) {
-      for (let c = i; c < velas.length; c++) {
-        const p = yMin + f * alturaFila;
-        if (p <= velas[c].h && p >= velas[c].l) break;   // se rellenó
-        pools[c][f] += peso / Math.max(1, fB - fA + 1);
-      }
-    }
-  }
+  });
 
   /* ── 5. LIQUIDACIONES POR APALANCAMIENTO ── */
   velas.forEach((v, ci) => {
@@ -322,19 +272,7 @@ function construirMapa(velas) {
     });
   });
 
-  /* Máximos globales de cada capa, para poder normalizarlas aparte. */
-  let maxLiq = 0, maxPool = 0;
-  for (let c = 0; c < velas.length; c++) {
-    let sumaLiq = new Float32Array(FILAS);
-    APALANCAMIENTOS.forEach(({ x }) => {
-      const col = niveles[x][c];
-      for (let f = 0; f < FILAS; f++) sumaLiq[f] += col[f];
-    });
-    for (const v of sumaLiq) if (v > maxLiq) maxLiq = v;
-    for (const v of pools[c]) if (v > maxPool) maxPool = v;
-  }
-
-  return { niveles, pools, velas, yMin, yMax, alturaFila, maxLiq, maxPool };
+  return { niveles, velas, yMin, yMax, alturaFila, refuerzo };
 }
 
 /** Suma los niveles según el filtro de apalancamiento activo. */
@@ -351,32 +289,26 @@ function construirMapa(velas) {
      · los pools estructurales suben por encima y son los que llegan
        a rojo, porque es donde de verdad está la liquidez
    ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   [CORREGIDO] Los pools estructurales se pintaban como rectángulos
+   horizontales sueltos y eso rompía el aspecto. Las barras de liquidez
+   se forman DESDE CADA VELA hacia la derecha, no como bloques.
+
+   Vuelve el motor de liquidaciones, que daba el dibujo correcto. Lo
+   que aportan ahora los máximos y mínimos es solo PESO: si un nivel de
+   liquidación cae donde el precio rebotó varias veces, se refuerza y
+   sube a rojo. El rojo sale donde debe, sin romper el dibujo.
+   ══════════════════════════════════════════════════════════════ */
 function columnaDe(mapa, c) {
-  const liq = new Float32Array(FILAS);
+  const out = new Float32Array(FILAS);
   const lista = V.apal === 'todos'
     ? APALANCAMIENTOS.map((a) => a.x)
     : [Number(V.apal)];
   lista.forEach((x) => {
     const col = mapa.niveles[x] && mapa.niveles[x][c];
     if (!col) return;
-    for (let f = 0; f < FILAS; f++) liq[f] += col[f];
+    for (let f = 0; f < FILAS; f++) out[f] += col[f];
   });
-
-  const out = new Float32Array(FILAS);
-  const pool = mapa.pools && mapa.pools[c];
-
-  for (let f = 0; f < FILAS; f++) {
-    // Cada capa en su propia escala, con los máximos globales
-    const a = mapa.maxLiq > 0 ? liq[f] / mapa.maxLiq : 0;
-    const b = (pool && mapa.maxPool > 0) ? pool[f] / mapa.maxPool : 0;
-    /* Las liquidaciones ocupan de 0 a 0,62 (azules y verdes: el fondo
-       que llena el gráfico). Los pools llegan hasta 1 (amarillo y
-       rojo), porque son los muros de verdad. */
-    /* La capa de pools se realza con raíz: así los muros medianos ya
-       suben a naranja y los grandes llegan al rojo pleno, en vez de
-       quedarse todos en amarillo. */
-    out[f] = Math.min(1, a * 0.52 + Math.sqrt(b) * 0.86);
-  }
   return out;
 }
 
@@ -408,7 +340,7 @@ function arrancarVivo() {
       V.mapa = construirMapa(V.velas);
       dibujar();
     } catch (_) {}
-  }, 10000);
+  }, 4000);   // 4 s: en 5 minutos hay que ver el precio moverse
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -455,7 +387,7 @@ export async function abrirLiquidity() {
         </div>
         <div class="lq-grupo lq-slider">
           <span>Intensidad</span>
-          <input type="range" id="lq-int" min="50" max="300" value="100">
+          <input type="range" id="lq-int" min="30" max="220" value="100">
         </div>
         <div class="lq-der">
           <button class="lq-ayuda" id="lq-foto" title="Guardar imagen">
@@ -501,6 +433,7 @@ export async function abrirLiquidity() {
 
   // Intensidad: realza las zonas débiles o deja solo las fuertes.
   $('lq-int').oninput = (e) => { V.intensidad = Number(e.target.value) / 100; dibujar(); };
+  $('lq-int').value = Math.round(V.intensidad * 100);
 
   // Mostrar u ocultar el mapa, para ver las velas limpias.
   $('lq-ver').onclick = () => {
@@ -563,7 +496,7 @@ function calor(v) {
   /* Curva 0,52: con 0,62 el amarillo llegaba demasiado pronto y el
      rojo casi no aparecía. Ahora la mayoría se queda en azul y verde,
      y el rojo se reserva para los picos reales. */
-  const p = Math.pow(v, 0.78);
+  const p = Math.pow(v, 0.42);
   /* ══════════════════════════════════════════════════════════════
      PALETA — sacada píxel a píxel de la herramienta de referencia.
 
@@ -660,10 +593,16 @@ function dibujar() {
   if (V.verMapa) {
     /* Los valores ya vienen normalizados de 0 a 1 desde columnaDe(),
        con cada capa en su escala. No hay que volver a normalizar. */
+    /* El máximo de lo VISIBLE, no el global. Con el global, al hacer
+       zoom sobre una zona tranquila todo quedaba del mismo color. */
     const cols = [];
-    for (let c = desde; c < hasta; c++) cols.push(columnaDe(V.mapa, c));
-    const max = 1;
-    if (cols.length) {
+    let max = 0;
+    for (let c = desde; c < hasta; c++) {
+      const col = columnaDe(V.mapa, c);
+      cols.push(col);
+      for (const v of col) if (v > max) max = v;
+    }
+    if (max > 0) {
       const fMin = Math.max(0, Math.floor((yMin - V.mapa.yMin) / V.mapa.alturaFila));
       const fMax = Math.min(FILAS, Math.ceil((yMax - V.mapa.yMin) / V.mapa.alturaFila));
 
@@ -692,7 +631,11 @@ function dibujar() {
         for (let f = fMin; f < fMax; f++) {
           const v = col[f];
           if (v <= 0) continue;
-          const rel = Math.min(1, (v / max) * V.intensidad);
+          /* El refuerzo se aplica AQUÍ, sobre el valor ya normalizado.
+             Aplicarlo antes disparaba el máximo global y aplastaba la
+             escala: todo salía del mismo color. */
+          const ref = (V.mapa.refuerzo && V.mapa.refuerzo[f]) || 1;
+          const rel = Math.min(1, (v / max) * V.intensidad * ref);
           // Por debajo de este umbral no se pinta: deja respirar el
           // gráfico y hace que destaquen las zonas que importan.
           if (rel < 0.02) continue;
@@ -896,7 +839,12 @@ function engancharGestos(cv) {
     const W = cv.clientWidth || 900;
     const paso = (W * 0.70) / V.ancho;
     const velasMovidas = dx / Math.max(0.5, paso);
-    V.desde = Math.max(0, Math.min(total() - 20, V.desde - velasMovidas));
+    /* [CORREGIDO] El tope de "total - 20" cortaba el gráfico al llegar
+       a la derecha. Ahora se puede seguir hasta dejar las velas atrás,
+       que es lo normal en cualquier gráfico de trading: así se ve el
+       espacio de proyección hacia delante. */
+    const topeDer = total() - Math.round(V.ancho * 0.25);
+    V.desde = Math.max(-V.ancho * 0.15, Math.min(topeDer, V.desde - velasMovidas));
     if (dy !== 0) {
       // Mover en vertical desactiva el ajuste automático
       V.autoY = false;
@@ -913,7 +861,8 @@ function engancharGestos(cv) {
     const rel = Math.max(0, Math.min(1, centroX / (W * 0.70)));
     const anclaje = V.desde + V.ancho * rel;
     V.ancho = Math.max(25, Math.min(total(), Math.round(V.ancho * factor)));
-    V.desde = Math.max(0, Math.min(total() - 20, anclaje - V.ancho * rel));
+    const topeDer = total() - Math.round(V.ancho * 0.25);
+    V.desde = Math.max(-V.ancho * 0.15, Math.min(topeDer, anclaje - V.ancho * rel));
     V.autoY = true;
     dibujar();
   };
