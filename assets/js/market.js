@@ -283,7 +283,7 @@ function estilos() {
   #mk-overlay .op-fechas i{display:block;font-style:normal;font-size:8.5px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
   /* ── Guía paso a paso ── */
   /* ── Menú de la cabecera ── */
-  #mk-overlay .mk-menu-b{position:absolute;top:14px;right:56px;width:38px;height:38px;z-index:5;
+  #mk-overlay .mk-menu-b{position:absolute;top:13px;right:58px;width:38px;height:38px;z-index:15;
     border-radius:11px;display:grid;place-items:center;padding:0;cursor:pointer;
     background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6}
   #mk-overlay .mk-menu-b:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
@@ -311,8 +311,13 @@ function estilos() {
     background:rgba(246,70,93,.15);border:1px solid rgba(246,70,93,.4);color:var(--rojo,#f6465d);
     font-family:var(--mono,monospace);font-size:9px;text-transform:uppercase;letter-spacing:.6px}
   @media(max-width:560px){
-    #mk-overlay .mk-menu-b{top:11px;right:50px;width:36px;height:36px}
-    #mk-overlay .mk-menu-d{top:52px;right:12px;left:12px;min-width:0}
+    /* [CORREGIDO] En el móvil el botón caía sobre el título. Ahora va a
+       la misma altura que la ✕ y con su propia separación. */
+    #mk-overlay .mk-menu-b{top:12px;right:54px;width:34px;height:34px}
+    #mk-overlay .mk-menu-b svg{width:16px;height:16px}
+    #mk-overlay .mk-menu-d{top:54px;right:12px;left:12px;min-width:0}
+    /* El título deja sitio a los dos botones para no solaparse. */
+    #mk-overlay .mk-cab h2,#mk-overlay .mk-tit{padding-right:96px}
   }
 
   #mk-overlay .cf-card{padding:26px 22px;border-radius:18px;text-align:center;

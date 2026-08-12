@@ -136,8 +136,37 @@ function inyectarEstilo() {
      nombre entero, la cinta del sorteo se quedaba sin sitio y no salía. */
   /* La marca: en la web "Cripto Cuba", en el móvil "CCuba". El nombre
      completo dejaba sin sitio a la cinta del sorteo. */
-  #colmena-app .marca-corta{display:none}
   #colmena-app .marca-larga{display:inline}
+  /* ══════════════════════════════════════════════════════════════
+     EN EL MÓVIL: el logo va centrado arriba (lo pone el HTML), así que
+     la esquina izquierda queda libre. Ahí va el estado de la wallet:
+     un punto verde si está conectada, gris si no. Antes ese hueco
+     quedaba vacío y no decía nada.
+     ══════════════════════════════════════════════════════════════ */
+  #colmena-app .c-estado{display:none;align-items:center;gap:6px;padding:5px 10px;border-radius:20px;
+    background:rgba(255,255,255,.04);border:1px solid var(--line)}
+  #colmena-app .c-estado i{width:7px;height:7px;border-radius:50%;background:#6b7681;flex:0 0 auto}
+  #colmena-app .c-estado b{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);
+    text-transform:uppercase;letter-spacing:.7px;font-weight:600}
+  #colmena-app .c-estado.on i{background:var(--neon-lit);box-shadow:0 0 0 0 rgba(46,232,106,.5);animation:ccLat 2.4s ease-in-out infinite}
+  #colmena-app .c-estado.on b{color:var(--neon-lit)}
+  @keyframes ccLat{0%,100%{box-shadow:0 0 0 0 rgba(46,232,106,.5)}50%{box-shadow:0 0 0 5px rgba(46,232,106,0)}}
+  @media(max-width:760px){
+    /* El nombre desaparece: lo dice el logo centrado de arriba. */
+    #colmena-app .c-brand-tx{display:none}
+    #colmena-app .c-estado{display:inline-flex}
+  }
+  @media(prefers-reduced-motion:reduce){#colmena-app .c-estado.on i{animation:none}}
+  /* Etiquetas de las casillas: largas en la web, cortas en el móvil.
+     "Precio de entrada" no cabe en 390px y se montaba con el valor. */
+  #colmena-app .k-s{display:none}
+  #colmena-app .k-l{display:inline}
+  @media(max-width:760px){
+    #colmena-app .k-s{display:inline}
+    #colmena-app .k-l{display:none}
+    /* El botón de recargar gas se había estirado. Vuelve a su medida. */
+    #colmena-app #f-gasdep{min-height:44px;padding:11px 18px;line-height:1.2}
+  }
   #colmena-app .c-brand-tx b{font-weight:800;color:var(--gold)}
   /* La wallet: su logo y los 4 últimos caracteres, que es como la
      reconoce todo el mundo. La dirección entera no la lee nadie. */
@@ -1263,9 +1292,10 @@ function headerHTML() {
   let right;
   if (!cuenta) right = `<button class="btn btn-oro hdr-btn" id="c-conectar">Conectar wallet</button>`;
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
-  else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><button class="dir" id="c-dir" type="button" title="Cambiar de wallet">${iconoWallet()}<span class="dir-tx">${String(cuenta).slice(-4).toUpperCase()}</span><span class="dir-ch"></span></button><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
+  else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><button class="dir" id="c-dir" type="button" title="Cambiar de wallet">${iconoWallet()}<span class="dir-tx">${String(cuenta).slice(-4)}</span><span class="dir-ch"></span></button><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
-    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/aurex-logo.png" alt="" width="30" height="30"><span class="c-brand-tx"><span class="marca-larga">C Cuba <b>Oficial</b></span><span class="marca-corta">CCO</span></span></a>
+    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/aurex-logo.png" alt="" width="30" height="30"><span class="c-brand-tx"><span class="marca-larga">C Cuba <b>Oficial</b></span></span></a>
+    <span class="c-estado" id="c-estado" title="Estado de tu wallet"><i></i><b>Sin conectar</b></span>
     <button class="c-ticker" id="c-ticker" type="button" aria-label="Prize Pool"><img class="c-ticker-img" src="assets/img/cinta-prize.webp" alt="Prize Pool" loading="lazy"></button>
     <div class="c-hdr-r">
 
@@ -1451,6 +1481,17 @@ function wireHeader() {
       t.vigilar();                    // arranca la vigilancia de alertas
     } catch (e) { console.warn('[Aurex] tools:', e); }
   };
+
+  /* El punto verde: conectado o no, de un vistazo. */
+  const pintarEstado = () => {
+    const e = $('c-estado'); if (!e) return;
+    const hay = !!(wallet.cuentaActual && wallet.cuentaActual());
+    e.classList.toggle('on', hay);
+    const t = e.querySelector('b');
+    if (t) t.textContent = hay ? 'Activo' : 'Sin conectar';
+  };
+  pintarEstado();
+  try { wallet.alCambiar(pintarEstado); } catch (_) {}
 
   if ($('c-academy')) $('c-academy').onclick = async () => {
     try {
@@ -3366,7 +3407,10 @@ async function refrescarPnls() {
           if (v2) {
             v2.classList.remove('pos', 'neg');
             v2.classList.add(cls(mkt));
-            v2.textContent = 'ahora ' + precioFmt(precio) + ' · ' + sg(mkt) + num(Math.abs(mkt), 2) + '%';
+            /* Solo el precio. El porcentaje ya sale en "Ganancia" y en
+               "Flotante": repetirlo tres veces no aporta y alarga la
+               casilla hasta romperla en el móvil. */
+            v2.textContent = 'ahora ' + precioFmt(precio);
           }
         } else {
           // Sin precio de entrada, la casilla enseña el de mercado. Igual
@@ -3592,10 +3636,10 @@ async function tarjeta(cuenta, clave, par, R) {
   })();
 
   const _boxEntrada = _entValida
-    ? `<div class="pio-box" data-box="entrada"><div class="k">Precio de entrada</div><div class="v" style="font-size:15px">${precioFmt(entrada)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}" style="${mkt == null ? 'color:var(--ink-3)' : ''}">${mkt == null ? 'al crear el bot' : 'ahora ' + precioFmt(precio) + ' · ' + sg(mkt) + num(Math.abs(mkt), 2) + '%'}</div></div>`
+    ? `<div class="pio-box" data-box="entrada"><div class="k"><span class="k-l">Precio de entrada</span><span class="k-s">Entrada</span></div><div class="v" style="font-size:15px">${precioFmt(entrada)}</div><div class="v2 ${mkt == null ? '' : cls(mkt)}" style="${mkt == null ? 'color:var(--ink-3)' : ''}">${mkt == null ? 'al crear el bot' : 'ahora ' + precioFmt(precio)}</div></div>`
     : _esperaEn
-      ? `<div class="pio-box" data-box="entrada"><div class="k">Compra al llegar a</div><div class="v" style="font-size:15px">${precioFmt(_esperaEn)}</div><div class="v2" style="color:var(--ink-3)">ahora ${precioFmt(precio)}${precio > 0 ? ' · falta ' + num(Math.abs((precio - _esperaEn) / precio * 100), 2) + '%' : ''}</div></div>`
-      : `<div class="pio-box" data-box="entrada"><div class="k">Precio del mercado</div><div class="v" style="font-size:15px">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">${sinPos ? 'aún no ha comprado' : 'ahora mismo'}</div></div>`;
+      ? `<div class="pio-box" data-box="entrada"><div class="k"><span class="k-l">Compra al llegar a</span><span class="k-s">Compra a</span></div><div class="v" style="font-size:15px">${precioFmt(_esperaEn)}</div><div class="v2" style="color:var(--ink-3)">ahora ${precioFmt(precio)}${precio > 0 ? ' · falta ' + num(Math.abs((precio - _esperaEn) / precio * 100), 2) + '%' : ''}</div></div>`
+      : `<div class="pio-box" data-box="entrada"><div class="k"><span class="k-l">Precio del mercado</span><span class="k-s">Mercado</span></div><div class="v" style="font-size:15px">${precioFmt(precio)}</div><div class="v2" style="color:var(--ink-3)">${sinPos ? 'aún no ha comprado' : 'ahora mismo'}</div></div>`;
   const _boxFlotante = `<div class="pio-box" data-box="flotante"><div class="k">Flotante ${iBtn('ganancia')}</div><div class="v ${cls(noRealizado)} numgo" data-to="${Math.abs(noRealizado)}" data-dec="4" data-pre="${sg(noRealizado)}">${sg(noRealizado)}${num(Math.abs(noRealizado), 4)}</div><div class="v2 ${cls(noRealizado)}">${sg(pct(noRealizado))}${num(Math.abs(pct(noRealizado)), 2)}%</div></div>`;
   const _boxGas = `<div class="pio-box" data-box="gas"><div class="k">Gas (BNB)</div><div class="v ${gasLow ? 'neg' : ''}">${gas}</div><div class="v2" style="color:var(--ink-3)">para operar</div></div>`;
   const _boxGrid = `<div class="pio-box" data-box="realizado"><div class="k">Grid profit ${iBtn('porcuad')}</div><div class="v ${cls(realizado)} numgo" data-to="${Math.abs(realizado)}" data-dec="4" data-pre="${sg(realizado)}">${sg(realizado)}${num(Math.abs(realizado), 4)}</div><div class="v2 ${cls(realizado)}">${sg(pct(realizado))}${num(Math.abs(pct(realizado)), 2)}%</div></div>`;
