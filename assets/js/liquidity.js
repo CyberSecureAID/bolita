@@ -292,23 +292,47 @@ function construirMapa(velas) {
      Se mide en PORCENTAJE sobre el precio, no en valor absoluto: así
      funciona igual en BTC a 90.000 que en DOGE a 0,15.
      ══════════════════════════════════════════════════════════════ */
-  const UMBRAL_MECHA = 0.008;          // 0,8%
+  /* El umbral es relativo al propio gráfico: la mecha tiene que ser
+     grande COMPARADA CON LAS DEMÁS, no solo pasar de un porcentaje.
+     En un mercado tranquilo el 0,8% es enorme; en uno volátil, normal. */
+  const todasMechas = [];
+  velas.forEach((v) => {
+    const cA = Math.max(v.o, v.c), cB = Math.min(v.o, v.c);
+    todasMechas.push((v.h - cA) / v.h, (cB - v.l) / Math.max(1e-9, v.l));
+  });
+  todasMechas.sort((a, b) => a - b);
+  // El 6% más grande: son las que de verdad destacan
+  const UMBRAL_MECHA = Math.max(0.008, todasMechas[Math.floor(todasMechas.length * 0.975)] || 0.008);
 
-  velas.forEach((v, i) => {
+  /* [CORREGIDO] Las mechas se marcaban en un solo punto y luego el
+     filtro de "9 niveles" las descartaba. Dos fallos:
+
+     1. Una mecha del 743 al 717 es un RANGO entero de rechazo, no una
+        línea. Se pinta toda la extensión de la mecha.
+     2. Van directas al refuerzo, sin pasar por el filtro de niveles.
+        Una mecha grande siempre es zona de liquidez: está comprobado
+        que cuando el precio vuelve, reacciona. */
+  velas.forEach((v) => {
     const cuerpoAlto = Math.max(v.o, v.c), cuerpoBajo = Math.min(v.o, v.c);
-    const mechaArriba = (v.h - cuerpoAlto) / v.h;
-    const mechaAbajo = (cuerpoBajo - v.l) / Math.max(1e-9, v.l);
 
-    [[mechaArriba, v.h, true], [mechaAbajo, v.l, false]].forEach(([rel, precio, esAlto]) => {
+    [[(v.h - cuerpoAlto) / v.h, cuerpoAlto, v.h],
+     [(cuerpoBajo - v.l) / Math.max(1e-9, v.l), v.l, cuerpoBajo]
+    ].forEach(([rel, pA, pB]) => {
       if (rel < UMBRAL_MECHA) return;
-      // Cuanto mayor la mecha, más puntos. Al 2% ya es máximo.
-      const fuerza = Math.min(1, rel / 0.02);
-      candidatos.push({
-        p: precio,
-        pts: 4.2 + fuerza * 4.0,
-        f: filaDe(precio),
-        mecha: true
-      });
+
+      // Fuerza según el tamaño: al 2,5% ya es máxima
+      const fuerza = 0.5 + Math.min(1, rel / (UMBRAL_MECHA * 2.4)) * 1.9;
+      const fA = filaDe(Math.min(pA, pB));
+      const fB = filaDe(Math.max(pA, pB));
+
+      // TODA la mecha se marca, no solo su extremo
+      for (let f = fA - 1; f <= fB + 1; f++) {
+        if (f < 0 || f >= FILAS) continue;
+        // El extremo de la mecha es lo más fuerte; la base, algo menos
+        const pos = (f - fA) / Math.max(1, fB - fA);
+        const peso = 0.62 + pos * 0.38;
+        refuerzo[f] = Math.max(refuerzo[f], 1 + fuerza * peso);
+      }
     });
   });
 
@@ -446,7 +470,7 @@ function arrancarVivo() {
       V.mapa = construirMapa(V.velas);
       dibujar();
     } catch (_) {}
-  }, 4000);   // 4 s: en 5 minutos hay que ver el precio moverse
+  }, 3000);   // 3 s: el precio tiene que verse moverse
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -576,6 +600,22 @@ async function pintar() {
     const par = PARES.find((p) => p.id === _par) || PARES[0];
     const velas = await traerVelas(par.s, _tf, 500);
     if (velas.length < 30) throw new Error('vacío');
+
+    /* [CORREGIDO] El precio salía desfasado porque la última vela trae
+       su cierre, que solo cambia cuando termina el periodo. El precio
+       de verdad se pide aparte, y ahora YA AL ABRIR, no a los 4
+       segundos. Es lo mismo que se ve en la tarjeta de los bots. */
+    try {
+      const rp = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${par.s}`);
+      const jp = await rp.json();
+      const px = Number(jp.price);
+      if (px > 0) {
+        const u = velas[velas.length - 1];
+        u.c = px;
+        if (px > u.h) u.h = px;
+        if (px < u.l) u.l = px;
+      }
+    } catch (_) {}
 
     V.velas = velas;
     V.tfLargo = (_tf === '1d' || _tf === '4h');
