@@ -179,17 +179,17 @@ function inyectarEstilo() {
     /* [CORREGIDO] Se centraba respecto a TODA la cabecera, que incluye
        la cinta del sorteo: el logo caía debajo, encima de la cinta. Se
        ancla arriba, a la altura de la fila de botones. */
-    /* El logo, bastante más grande: a 30px no se leía el nombre. */
+    /* El logo, GRANDE. Es la marca: si no se ve, no sirve de nada. */
     #colmena-app .c-logo-mov{display:block;position:absolute;
-      left:50%;top:4px;transform:translateX(-50%);
-      height:46px;width:auto;max-width:52vw;object-fit:contain;
+      left:50%;top:2px;transform:translateX(-50%);
+      height:58px;width:auto;max-width:60vw;object-fit:contain;
       pointer-events:none;z-index:1}
     /* Y la cinta, con su propio recorrido para no enseñar el corte. */
     #colmena-app .c-ticker-img{animation-name:ctSlideM}
     #colmena-app .c-ticker{max-width:none;margin-left:0}
   }
   @media(max-width:400px){
-    #colmena-app .c-logo-mov{height:40px;max-width:50vw;top:6px}
+    #colmena-app .c-logo-mov{height:50px;max-width:58vw;top:3px}
   }
   @media(prefers-reduced-motion:reduce){#colmena-app .c-estado.on i{animation:none}}
   /* Etiquetas de las casillas: largas en la web, cortas en el móvil.
@@ -1728,7 +1728,7 @@ function render() {
           <div class="lab"><span class="v-l">Gan. cuadrícula %</span><span class="v-s">Ganancia %</span> ${iBtn('margen')} <span style="color:var(--ink-3);font-size:11px;font-family:var(--mono)">opcional</span></div>
           ${campoNum('f-margen',{placeholder:'auto',min:0,max:20,step:0.5})}
           <div id="f-margen-nota"></div>
-          <div class="paso-box"><span><span class="v-l">Separación</span><span class="v-s">Separación</span> ${iBtn('separacion')}</span><b id="pv-paso">—</b></div>
+          <div class="paso-box"><span>Separación ${iBtn('separacion')}</span><b id="pv-paso">—</b></div>
         </div>
         <div id="f-acum" style="${F.tipo==='acum'?'':'display:none'}">
           <button type="button" class="btn-conf" data-conf-bot="acum"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg><span class="v-l">Configuraciones rentables</span><span class="v-s">Configuración</span><span class="bc-sel" id="conf-sel-acum">elegir</span></button>

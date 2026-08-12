@@ -1,3 +1,8 @@
+/* En el móvil, los campos numéricos pintan unas flechitas que
+   algunos navegadores no dejan quitar por CSS. Con type=text más
+   inputmode=decimal sale el mismo teclado y ninguna flecha. */
+const _tipoNumCC = () => (window.matchMedia('(max-width: 760px)').matches ? 'text' : 'number');
+
 // tools.js — Herramientas de CriptoCuba. Módulo independiente.
 //
 // Se carga solo cuando alguien abre el menú de herramientas, así que no
@@ -789,11 +794,11 @@ function estilos() {
      En su lugar hay dos botones propios, que sí encajan. */
   #al-overlay .al-in::-webkit-inner-spin-button,
   #al-overlay .al-in::-webkit-outer-spin-button,
-  #al-overlay input[type="number"]::-webkit-inner-spin-button,
-  #al-overlay input[type="number"]::-webkit-outer-spin-button{
+  #al-overlay input[type="${_tipoNumCC()}"]::-webkit-inner-spin-button,
+  #al-overlay input[type="${_tipoNumCC()}"]::-webkit-outer-spin-button{
     -webkit-appearance:none !important;appearance:none !important;
     margin:0 !important;display:none !important;width:0 !important}
-  #al-overlay .al-in,#al-overlay input[type="number"]{-moz-appearance:textfield !important}
+  #al-overlay .al-in,#al-overlay input[type="${_tipoNumCC()}"]{-moz-appearance:textfield !important}
   /* Los nuestros: discretos y con el estilo de la casa. */
   #al-overlay .al-pasos{display:flex;flex-direction:column;border-left:1px solid #2b3139;flex:0 0 auto}
   #al-overlay .al-paso-b{width:38px;flex:1;display:grid;place-items:center;padding:0;cursor:pointer;

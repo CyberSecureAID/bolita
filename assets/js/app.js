@@ -1,3 +1,8 @@
+/* En el móvil, los campos numéricos pintan unas flechitas que
+   algunos navegadores no dejan quitar por CSS. Con type=text más
+   inputmode=decimal sale el mismo teclado y ninguna flecha. */
+const _tipoNumCC = () => (window.matchMedia('(max-width: 760px)').matches ? 'text' : 'number');
+
 /**
  * LA BOLITA — interfaz
  *
@@ -725,7 +730,7 @@ function fijarImporte(s) {
     <div class="modal-box importe-box">
       <h3>Importe para ${s.clave}</h3>
       <p class="sub">en ${unidad} · déjalo vacío para volver al reparto automático</p>
-      <input type="number" inputmode="decimal" step="any" min="0" class="importe-input" id="importe-input" placeholder="0.00" value="${actual}">
+      <input type="${_tipoNumCC()}" inputmode="decimal" step="any" min="0" class="importe-input" id="importe-input" placeholder="0.00" value="${actual}">
       <div class="importe-btns">
         <button class="modal-close" type="button">Cancelar</button>
         <button class="importe-ok" id="importe-ok" type="button">Aplicar</button>

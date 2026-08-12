@@ -1,3 +1,8 @@
+/* En el móvil, los campos numéricos pintan unas flechitas que
+   algunos navegadores no dejan quitar por CSS. Con type=text más
+   inputmode=decimal sale el mismo teclado y ninguna flecha. */
+const _tipoNumCC = () => (window.matchMedia('(max-width: 760px)').matches ? 'text' : 'number');
+
 // market.js — Marketplace P2P (caja fuerte + tramos + reputación). Módulo independiente.
 // La librería vive en ESTE repositorio. Carga directa: sin CDN, sin esperas,
 // sin nada externo que pueda quedarse colgado y dejar la app en 'Cargando…'.
@@ -283,8 +288,11 @@ function estilos() {
   #mk-overlay .op-fechas i{display:block;font-style:normal;font-size:8.5px;color:#6b7681;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
   /* ── Guía paso a paso ── */
   /* ── Menú de la cabecera ── */
-  #mk-overlay .mk-menu-b{position:absolute;top:13px;right:58px;width:38px;height:38px;z-index:15;
-    border-radius:11px;display:grid;place-items:center;padding:0;cursor:pointer;
+  /* [CORREGIDO] Tenía otra altura y otro tamaño que la ✕, y se veía
+     desalineado. Ahora son idénticos: mismo top, mismo tamaño, mismo
+     borde, y separados por su hueco. */
+  #mk-overlay .mk-menu-b{position:absolute;top:15px;right:59px;width:36px;height:36px;z-index:15;
+    border-radius:10px;display:grid;place-items:center;padding:0;cursor:pointer;
     background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6}
   #mk-overlay .mk-menu-b:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
   #mk-overlay .mk-menu-b svg{width:17px;height:17px}
@@ -292,7 +300,7 @@ function estilos() {
     background:var(--rojo,#f6465d);border:2px solid #0b0e12;display:none}
   #mk-overlay .mk-pt.on{display:block;animation:mkLat 2s ease-in-out infinite}
   @keyframes mkLat{0%,100%{box-shadow:0 0 0 0 rgba(246,70,93,.6)}50%{box-shadow:0 0 0 5px rgba(246,70,93,0)}}
-  #mk-overlay .mk-menu-d{position:absolute;top:60px;right:14px;z-index:20;min-width:212px;
+  #mk-overlay .mk-menu-d{position:absolute;top:58px;right:15px;z-index:20;min-width:212px;
     background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid var(--gold-soft,#C9A84B);
     border-radius:14px;padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.65);
     display:none;transform-origin:top right;animation:mkAbre .14s ease-out}
@@ -313,7 +321,7 @@ function estilos() {
   @media(max-width:560px){
     /* [CORREGIDO] En el móvil el botón caía sobre el título. Ahora va a
        la misma altura que la ✕ y con su propia separación. */
-    #mk-overlay .mk-menu-b{top:12px;right:54px;width:34px;height:34px}
+    #mk-overlay .mk-menu-b{top:15px;right:59px;width:36px;height:36px}
     #mk-overlay .mk-menu-b svg{width:16px;height:16px}
     #mk-overlay .mk-menu-d{top:54px;right:12px;left:12px;min-width:0}
     /* El título deja sitio a los dos botones para no solaparse. */
@@ -1135,7 +1143,7 @@ async function panelVender() {
     <div style="font-family:var(--mono,monospace);font-size:11.5px;color:#8b96a3;line-height:1.6;margin-bottom:10px">
       La fianza es <b style="color:#E8B84B">tuya</b> y la retiras cuando quieras. Solo respalda a tu comprador si un árbitro determina que hubo estafa.
     </div>
-    <input id="mk-fianza" type="number" step="1" placeholder="${num(f18(fmin), 0)}">
+    <input id="mk-fianza" type="${_tipoNumCC()}" step="1" placeholder="${num(f18(fmin), 0)}">
     <button class="mk-b" id="mk-dep" style="margin-top:10px">Depositar fianza</button>
   </div>` : ''}
 
