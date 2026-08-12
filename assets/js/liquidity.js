@@ -158,42 +158,161 @@ const FILAS = 260;      // resolución vertical del mapa
 /* El mapa se calcula UNA vez sobre todos los datos, guardando cada
    nivel por separado. Así, al mover o hacer zoom, no hay que volver a
    calcular nada: solo se vuelve a pintar lo que entra en pantalla. */
+/* ══════════════════════════════════════════════════════════════
+   DÓNDE ESTÁ LA LIQUIDEZ DE VERDAD
+
+   La liquidez no está repartida por igual: se concentra en sitios
+   concretos, y son estos:
+
+   1. MÁXIMOS Y MÍNIMOS (swing highs/lows)
+      Encima de un máximo visible están los stops de los cortos y las
+      órdenes de quien espera la ruptura. Debajo de un mínimo, igual
+      con los largos. Cuanto más obvio el nivel, mayor el montón.
+
+   2. NIVELES TOCADOS VARIAS VECES
+      Un techo probado tres veces acumula el triple de órdenes que uno
+      tocado una sola vez. Ahí es donde se forman los muros.
+
+   3. LA BASE DE LOS IMPULSOS
+      Cuando arranca un movimiento fuerte, en su origen quedan órdenes
+      sin ejecutar. El precio suele volver a buscarlas.
+
+   4. VACÍOS DE LIQUIDEZ (velas de cuerpo grande)
+      Una vela enorme deja un hueco que el mercado no negoció bien.
+      Esos huecos actúan como imán: el precio vuelve a rellenarlos.
+
+   5. LIQUIDACIONES POR APALANCAMIENTO
+      Y encima de todo eso, los niveles donde saltan las posiciones
+      apalancadas.
+   ══════════════════════════════════════════════════════════════ */
+
+
+
+/** Encuentra los máximos y mínimos relevantes del gráfico. */
+function pivotes(velas, radio) {
+  const altos = [], bajos = [];
+  for (let i = radio; i < velas.length - radio; i++) {
+    let esAlto = true, esBajo = true;
+    for (let j = i - radio; j <= i + radio; j++) {
+      if (j === i) continue;
+      if (velas[j].h >= velas[i].h) esAlto = false;
+      if (velas[j].l <= velas[i].l) esBajo = false;
+      if (!esAlto && !esBajo) break;
+    }
+    if (esAlto) altos.push({ i, p: velas[i].h, t: velas[i].t });
+    if (esBajo) bajos.push({ i, p: velas[i].l, t: velas[i].t });
+  }
+  return { altos, bajos };
+}
+
 function construirMapa(velas) {
-  if (velas.length < 30) return null;
+  if (velas.length < 40) return null;
 
   const his = velas.map((v) => v.h), los = velas.map((v) => v.l);
   const pAlto = Math.max(...his), pBajo = Math.min(...los);
-  const margen = (pAlto - pBajo) * 0.30;
+  const margen = (pAlto - pBajo) * 0.22;
   const yMax = pAlto + margen, yMin = Math.max(0, pBajo - margen);
   const alturaFila = (yMax - yMin) / FILAS;
   const filaDe = (p) => Math.floor((p - yMin) / alturaFila);
+  const rango = pAlto - pBajo;
 
-  /* niveles[apalancamiento] = array de columnas, cada una con FILAS.
-     Guardar por apalancamiento permite el filtro x10 / x25 / x50 / x100
-     sin recalcular nada. */
   const niveles = {};
   APALANCAMIENTOS.forEach(({ x }) => {
     niveles[x] = Array.from({ length: velas.length }, () => new Float32Array(FILAS));
   });
+  // Los pools estructurales van aparte: no dependen del apalancamiento
+  const pools = Array.from({ length: velas.length }, () => new Float32Array(FILAS));
 
+  /* ── 1 y 2. MÁXIMOS Y MÍNIMOS, con su peso por repeticiones ── */
+  const { altos, bajos } = pivotes(velas, 2);
+  const tolerancia = rango * 0.004;      // qué se considera "el mismo nivel"
+
+  const marcarPool = (piv, esAlto) => {
+    // ¿Cuántas veces se tocó este mismo nivel? Más toques, más muro.
+    const parecidos = (esAlto ? altos : bajos)
+      .filter((o) => Math.abs(o.p - piv.p) <= tolerancia).length;
+
+    // El volumen de la vela del pivote da idea del tamaño
+    const vol = velas[piv.i].v * piv.p;
+    // Peso: base por el volumen, multiplicado por los toques al cuadrado
+    const peso = vol * Math.pow(parecidos, 1.7) * 2.2;
+
+    // Los stops quedan JUSTO PASADO el nivel, no encima
+    const desplaz = rango * 0.0022;
+    const centro = esAlto ? piv.p + desplaz : piv.p - desplaz;
+    const f0 = filaDe(centro);
+
+    // Se reparte en unas pocas filas: los stops no están en un punto exacto
+    for (let d = -4; d <= 4; d++) {
+      const f = f0 + d;
+      if (f < 0 || f >= FILAS) continue;
+      const caida = Math.exp(-(d * d) / 6);
+      // Vive desde el pivote hasta que el precio lo barre
+      for (let c = piv.i; c < velas.length; c++) {
+        const w = velas[c];
+        const barrido = esAlto ? w.h > centro : w.l < centro;
+        if (barrido) break;
+        pools[c][f] += peso * caida;
+      }
+    }
+  };
+  altos.forEach((p) => marcarPool(p, true));
+  bajos.forEach((p) => marcarPool(p, false));
+
+  /* ── 3. LA BASE DE LOS IMPULSOS ── */
+  for (let i = 3; i < velas.length; i++) {
+    const v = velas[i];
+    const cuerpo = Math.abs(v.c - v.o);
+    if (cuerpo < rango * 0.012) continue;        // no es impulso
+    const sube = v.c > v.o;
+    // El origen del impulso: donde arrancó
+    const origen = sube ? v.o : v.o;
+    const f0 = filaDe(origen);
+    const peso = v.v * origen * (cuerpo / rango) * 1.6;
+    for (let d = -1; d <= 1; d++) {
+      const f = f0 + d;
+      if (f < 0 || f >= FILAS) continue;
+      for (let c = i; c < velas.length; c++) {
+        const w = velas[c];
+        if (origen <= w.h && origen >= w.l) break;   // el precio volvió
+        pools[c][f] += peso * (d === 0 ? 1 : 0.55);
+      }
+    }
+  }
+
+  /* ── 4. VACÍOS DE LIQUIDEZ ── */
+  for (let i = 1; i < velas.length - 1; i++) {
+    const a = velas[i - 1], b = velas[i + 1];
+    // Hueco alcista: el mínimo de después queda por encima del máximo de antes
+    const hueco = (b.l > a.h) ? [a.h, b.l] : (b.h < a.l) ? [b.h, a.l] : null;
+    if (!hueco) continue;
+    const [d1, d2] = hueco;
+    if (d2 - d1 < rango * 0.003) continue;
+    const peso = velas[i].v * velas[i].c * 0.9;
+    const fA = filaDe(d1), fB = filaDe(d2);
+    for (let f = Math.max(0, fA); f <= Math.min(FILAS - 1, fB); f++) {
+      for (let c = i; c < velas.length; c++) {
+        const p = yMin + f * alturaFila;
+        if (p <= velas[c].h && p >= velas[c].l) break;   // se rellenó
+        pools[c][f] += peso / Math.max(1, fB - fA + 1);
+      }
+    }
+  }
+
+  /* ── 5. LIQUIDACIONES POR APALANCAMIENTO ── */
   velas.forEach((v, ci) => {
     const medio = (v.h + v.l + v.c) / 3;
     const dinero = v.v * medio;
     if (!(dinero > 0)) return;
-
-    const sube = v.c >= v.o;
-    const partLargo = sube ? 0.58 : 0.42;
+    const partLargo = v.c >= v.o ? 0.58 : 0.42;
 
     APALANCAMIENTOS.forEach(({ x, peso }) => {
       const base = dinero * peso;
       const rej = niveles[x];
-
       [[medio * (1 - 1 / x), base * partLargo],
        [medio * (1 + 1 / x), base * (1 - partLargo)]].forEach(([precio, monto]) => {
         const f = filaDe(precio);
         if (f < 0 || f >= FILAS) return;
-
-        // Vive hasta que el precio toca su nivel: ahí se liquida.
         for (let cj = ci; cj < velas.length; cj++) {
           const w = velas[cj];
           if (precio <= w.h && precio >= w.l) break;
@@ -203,7 +322,7 @@ function construirMapa(velas) {
     });
   });
 
-  return { niveles, velas, yMin, yMax, alturaFila };
+  return { niveles, pools, velas, yMin, yMax, alturaFila };
 }
 
 /** Suma los niveles según el filtro de apalancamiento activo. */
@@ -217,6 +336,12 @@ function columnaDe(mapa, c) {
     if (!col) return;
     for (let f = 0; f < FILAS; f++) out[f] += col[f];
   });
+  /* Los pools estructurales —máximos, mínimos, impulsos, vacíos— se
+     suman SIEMPRE, sin importar el filtro de apalancamiento: no son
+     posiciones apalancadas, son órdenes en espera. Y pesan más, porque
+     son los que de verdad mueven el precio. */
+  const p = mapa.pools && mapa.pools[c];
+  if (p) for (let f = 0; f < FILAS; f++) out[f] += p[f] * 1.5;
   return out;
 }
 
@@ -297,22 +422,6 @@ export async function abrirLiquidity() {
           <span>Intensidad</span>
           <input type="range" id="lq-int" min="50" max="300" value="100">
         </div>
-        <!-- Herramientas de dibujo -->
-        <div class="lq-grupo">
-          <button class="lq-b lq-ico" data-tool-lq="linea" title="Línea de tendencia">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19 20 5"/><circle cx="4" cy="19" r="2" fill="currentColor"/><circle cx="20" cy="5" r="2" fill="currentColor"/></svg>
-          </button>
-          <button class="lq-b lq-ico" data-tool-lq="horizontal" title="Línea horizontal">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h18"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
-          </button>
-          <button class="lq-b lq-ico" data-tool-lq="fibo" title="Fibonacci">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 5h18M3 10h18M3 14h18M3 19h18"/></svg>
-          </button>
-          <button class="lq-b lq-ico" id="lq-borrar" title="Borrar dibujos">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
-          </button>
-        </div>
-
         <div class="lq-der">
           <button class="lq-ayuda" id="lq-foto" title="Guardar imagen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
@@ -367,19 +476,6 @@ export async function abrirLiquidity() {
 
   $('lq-fit').onclick = () => encuadrar();
 
-  // Herramientas de dibujo
-  d.querySelectorAll('[data-tool-lq]').forEach((b) => b.onclick = () => {
-    V.herramienta = (V.herramienta === b.dataset.toolLq) ? null : b.dataset.toolLq;
-    marcarHerramienta();
-  });
-  $('lq-borrar').onclick = () => {
-    if (!V.dibujos.length) return;
-    V.dibujos = [];
-    V.herramienta = null;
-    marcarHerramienta();
-    dibujar();
-  };
-
   $('lq-foto').onclick = () => guardarImagen();
 
   pintar();
@@ -429,7 +525,10 @@ function calor(v) {
      amarillo y no había jerarquía. Ahora la base se queda en azul y
      solo lo que de verdad acumula llega a rojo. Es lo que hace legible
      el mapa: el ojo va directo a los muros. */
-  const p = Math.pow(v, 0.62);
+  /* Curva 0,52: con 0,62 el amarillo llegaba demasiado pronto y el
+     rojo casi no aparecía. Ahora la mayoría se queda en azul y verde,
+     y el rojo se reserva para los picos reales. */
+  const p = Math.pow(v, 0.52);
   /* ══════════════════════════════════════════════════════════════
      PALETA — sacada píxel a píxel de la herramienta de referencia.
 
@@ -447,8 +546,8 @@ function calor(v) {
     [0.56, [8, 190, 12]],     // VERDE puro — el tono dominante
     [0.74, [140, 210, 8]],    // verde lima
     [0.86, [228, 229, 5]],    // AMARILLO puro — zona alta
-    [0.94, [250, 150, 20]],   // ámbar, transición corta
-    [1.00, [252, 54, 71]]     // ROJO intenso — los muros
+    [0.92, [255, 120, 10]],   // naranja, transición corta
+    [1.00, [255, 0, 0]]       // #FF0000 — ROJO ABSOLUTO: los muros
   ];
   for (let i = 1; i < paradas.length; i++) {
     if (p <= paradas[i][0]) {
@@ -564,7 +663,7 @@ function dibujar() {
           const rel = Math.min(1, (v / max) * V.intensidad);
           // Por debajo de este umbral no se pinta: deja respirar el
           // gráfico y hace que destaquen las zonas que importan.
-          if (rel < 0.045) continue;
+          if (rel < 0.02) continue;
           const rgb = calor(rel);
           if (!rgb) continue;
           const pF = V.mapa.yMin + f * V.mapa.alturaFila;
