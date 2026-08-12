@@ -41,16 +41,43 @@ const rgba = (c) => {
 
 /* Monedas disponibles, con su par en Binance. */
 const PARES = [
-  { id: 'BTC',  s: 'BTCUSDT',  n: 'Bitcoin' },
-  { id: 'ETH',  s: 'ETHUSDT',  n: 'Ethereum' },
-  { id: 'BNB',  s: 'BNBUSDT',  n: 'BNB' },
-  { id: 'SOL',  s: 'SOLUSDT',  n: 'Solana' },
-  { id: 'XRP',  s: 'XRPUSDT',  n: 'XRP' },
-  { id: 'DOGE', s: 'DOGEUSDT', n: 'Dogecoin' }
+  { id: 'BTC',   s: 'BTCUSDT',   n: 'Bitcoin' },
+  { id: 'ETH',   s: 'ETHUSDT',   n: 'Ethereum' },
+  { id: 'BNB',   s: 'BNBUSDT',   n: 'BNB' },
+  { id: 'SOL',   s: 'SOLUSDT',   n: 'Solana' },
+  { id: 'XRP',   s: 'XRPUSDT',   n: 'XRP' },
+  { id: 'DOGE',  s: 'DOGEUSDT',  n: 'Dogecoin' },
+  { id: 'ADA',   s: 'ADAUSDT',   n: 'Cardano' },
+  { id: 'AVAX',  s: 'AVAXUSDT',  n: 'Avalanche' },
+  { id: 'LINK',  s: 'LINKUSDT',  n: 'Chainlink' },
+  { id: 'DOT',   s: 'DOTUSDT',   n: 'Polkadot' },
+  { id: 'MATIC', s: 'MATICUSDT', n: 'Polygon' },
+  { id: 'LTC',   s: 'LTCUSDT',   n: 'Litecoin' },
+  { id: 'TRX',   s: 'TRXUSDT',   n: 'TRON' },
+  { id: 'SHIB',  s: 'SHIBUSDT',  n: 'Shiba Inu' },
+  { id: 'PEPE',  s: 'PEPEUSDT',  n: 'Pepe' },
+  { id: 'NEAR',  s: 'NEARUSDT',  n: 'NEAR' },
+  { id: 'APT',   s: 'APTUSDT',   n: 'Aptos' },
+  { id: 'ARB',   s: 'ARBUSDT',   n: 'Arbitrum' },
+  { id: 'OP',    s: 'OPUSDT',    n: 'Optimism' },
+  { id: 'INJ',   s: 'INJUSDT',   n: 'Injective' },
+  { id: 'SUI',   s: 'SUIUSDT',   n: 'Sui' },
+  { id: 'ATOM',  s: 'ATOMUSDT',  n: 'Cosmos' },
+  { id: 'FIL',   s: 'FILUSDT',   n: 'Filecoin' },
+  { id: 'UNI',   s: 'UNIUSDT',   n: 'Uniswap' },
+  { id: 'WIF',   s: 'WIFUSDT',   n: 'dogwifhat' },
+  { id: 'TIA',   s: 'TIAUSDT',   n: 'Celestia' }
 ];
 const TFS = [
-  { id: '15m', n: '15m' }, { id: '1h', n: '1H' },
-  { id: '4h',  n: '4H'  }, { id: '1d', n: '1D' }
+  { id: '5m',  n: '5 minutos' },
+  { id: '15m', n: '15 minutos' },
+  { id: '30m', n: '30 minutos' },
+  { id: '1h',  n: '1 hora' },
+  { id: '2h',  n: '2 horas' },
+  { id: '4h',  n: '4 horas' },
+  { id: '12h', n: '12 horas' },
+  { id: '1d',  n: '1 día' },
+  { id: '1w',  n: '1 semana' }
 ];
 
 let _par = 'BNB';
@@ -252,12 +279,16 @@ export async function abrirLiquidity() {
     <div class="lq-c">
       <!-- Todo en una sola barra, como TradingView: el gráfico manda. -->
       <div class="lq-barra">
-        <div class="lq-grupo">
-          ${PARES.map((p) => `<button class="lq-b ${p.id === _par ? 'on' : ''}" data-par="${p.id}">${p.id}</button>`).join('')}
-        </div>
-        <div class="lq-grupo">
-          ${TFS.map((t) => `<button class="lq-b ${t.id === _tf ? 'on' : ''}" data-tf="${t.id}">${t.n}</button>`).join('')}
-        </div>
+        <!-- Moneda y temporalidad como desplegables: con 26 monedas
+             una fila de botones no cabe en ningún sitio. -->
+        <button class="lq-sel" id="lq-sel-par">
+          <b>${_par}</b>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <button class="lq-sel" id="lq-sel-tf">
+          <b>${(TFS.find((t) => t.id === _tf) || TFS[3]).n}</b>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
         <div class="lq-grupo" title="Filtrar por apalancamiento">
           ${['todos', '10', '25', '50', '100'].map((a) =>
             `<button class="lq-b ${a === V.apal ? 'on' : ''}" data-apal="${a}">${a === 'todos' ? 'Todo' : 'x' + a}</button>`).join('')}
@@ -306,22 +337,15 @@ export async function abrirLiquidity() {
   document.body.appendChild(d);
 
   const cerrar = () => {
+    cerrarMenus();
     clearInterval(_vivo);
     const e = $('lq-overlay'); if (e) e.remove();
   };
   d.querySelector('.lq-bg').onclick = cerrar;
   d.querySelector('.lq-x').onclick = cerrar;
 
-  d.querySelectorAll('[data-par]').forEach((b) => b.onclick = () => {
-    _par = b.dataset.par;
-    d.querySelectorAll('[data-par]').forEach((x) => x.classList.toggle('on', x.dataset.par === _par));
-    pintar();
-  });
-  d.querySelectorAll('[data-tf]').forEach((b) => b.onclick = () => {
-    _tf = b.dataset.tf;
-    d.querySelectorAll('[data-tf]').forEach((x) => x.classList.toggle('on', x.dataset.tf === _tf));
-    pintar();
-  });
+  $('lq-sel-par').onclick = (e) => { e.stopPropagation(); menuPares(); };
+  $('lq-sel-tf').onclick  = (e) => { e.stopPropagation(); menuTfs(); };
   $('lq-ayuda').onclick = () => ayuda();
 
   // Filtro por apalancamiento: no recalcula nada, solo cambia qué suma.
@@ -405,17 +429,26 @@ function calor(v) {
      amarillo y no había jerarquía. Ahora la base se queda en azul y
      solo lo que de verdad acumula llega a rojo. Es lo que hace legible
      el mapa: el ojo va directo a los muros. */
-  const p = Math.pow(v, 0.72);
+  const p = Math.pow(v, 0.62);
+  /* ══════════════════════════════════════════════════════════════
+     PALETA — sacada píxel a píxel de la herramienta de referencia.
+
+     Seis tonos PUROS y saturados, sin blanco ni morado ni naranja.
+     El blanco no informaba de nada y encima ensuciaba el rojo, que es
+     el color que de verdad tiene que gritar "aquí está el muro".
+
+     El verde ocupa el tramo medio (es el dominante en su gráfico), el
+     amarillo marca lo alto, y el rojo se reserva para lo máximo.
+     ══════════════════════════════════════════════════════════════ */
   const paradas = [
-    [0.00, [26, 12, 58]],    // morado muy oscuro
-    [0.18, [40, 30, 130]],   // azul profundo
-    [0.34, [20, 90, 190]],   // azul
-    [0.50, [20, 165, 150]],  // verde azulado
-    [0.64, [90, 200, 70]],   // verde
-    [0.76, [225, 200, 40]],  // amarillo
-    [0.86, [240, 140, 30]],  // naranja
-    [0.94, [235, 55, 45]],   // rojo
-    [1.00, [255, 235, 220]]  // blanco: el muro
+    [0.00, [6, 30, 96]],      // azul profundo — poca liquidez
+    [0.20, [34, 70, 167]],    // azul — base
+    [0.38, [8, 150, 150]],    // turquesa
+    [0.56, [8, 190, 12]],     // VERDE puro — el tono dominante
+    [0.74, [140, 210, 8]],    // verde lima
+    [0.86, [228, 229, 5]],    // AMARILLO puro — zona alta
+    [0.94, [250, 150, 20]],   // ámbar, transición corta
+    [1.00, [252, 54, 71]]     // ROJO intenso — los muros
   ];
   for (let i = 1; i < paradas.length; i++) {
     if (p <= paradas[i][0]) {
@@ -468,7 +501,10 @@ function dibujar() {
 
   const mDer = 62, mAba = 20;
   const x1 = W - mDer;                 // donde empieza la escala
-  const xVelas = x1 * 0.70;            // las velas ocupan el 70%
+  /* Las velas al 78%: el perfil de la derecha se ha quitado (estaba
+     invertido y no aportaba), así que el gráfico recupera ese sitio.
+     Queda un margen para ver hacia dónde apuntan los muros. */
+  const xVelas = x1 * 0.78;
   const y1 = H - mAba;
 
   ajustarY();
@@ -562,46 +598,6 @@ function dibujar() {
     g.setLineDash([5, 4]); g.lineWidth = 1;
     g.beginPath(); g.moveTo(0, yU); g.lineTo(x1, yU); g.stroke();
     g.setLineDash([]);
-  }
-
-  /* ══════════════════════════════════════════════════════════════
-     PERFIL DE LIQUIDEZ — en el margen derecho
-
-     Suma toda la liquidez que hay a cada precio, sin importar cuándo
-     se acumuló. Dice de un vistazo dónde están los muros grandes.
-     ══════════════════════════════════════════════════════════════ */
-  if (V.verMapa && V.mapa) {
-    const perfil = new Float64Array(FILAS);
-    for (let c = desde; c < hasta; c++) {
-      const col = columnaDe(V.mapa, c);
-      for (let f = 0; f < FILAS; f++) perfil[f] += col[f];
-    }
-    let pMax = 0;
-    for (const v of perfil) if (v > pMax) pMax = v;
-
-    if (pMax > 0) {
-      const xP = xVelas + 10;
-      const anchoP = (x1 - xP) * 0.88;
-      const fMin2 = Math.max(0, Math.floor((yMin - V.mapa.yMin) / V.mapa.alturaFila));
-      const fMax2 = Math.min(FILAS, Math.ceil((yMax - V.mapa.yMin) / V.mapa.alturaFila));
-
-      for (let f = fMin2; f < fMax2; f++) {
-        const v = perfil[f];
-        if (v <= 0) continue;
-        const rel = v / pMax;
-        if (rel < 0.02) continue;
-        const rgb = calor(rel);
-        if (!rgb) continue;
-        const pF = V.mapa.yMin + f * V.mapa.alturaFila;
-        const y = Y(pF + V.mapa.alturaFila);
-        const h = Math.max(1, Y(pF) - y - 0.6);
-        g.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},.82)`;
-        g.fillRect(xP, y, Math.max(1, anchoP * rel), h);
-      }
-      // Separador entre el gráfico y el perfil
-      g.strokeStyle = 'rgba(255,255,255,.07)';
-      g.beginPath(); g.moveTo(xVelas + 2.5, 0); g.lineTo(xVelas + 2.5, y1); g.stroke();
-    }
   }
 
   /* ── LA ESCALA DE PRECIOS ── */
@@ -908,6 +904,85 @@ function engancharGestos(cv) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   DESPLEGABLES
+   Con 26 monedas y 9 temporalidades, las filas de botones no caben.
+   Un desplegable con buscador es más rápido y ocupa nada.
+   ══════════════════════════════════════════════════════════════ */
+function cerrarMenus() {
+  document.querySelectorAll('.lq-menu').forEach((x) => x.remove());
+}
+
+function abrirMenu(anclaje, html, alSeleccionar, conBuscador) {
+  cerrarMenus();
+  const r = anclaje.getBoundingClientRect();
+  const m = document.createElement('div');
+  m.className = 'lq-menu';
+  m.innerHTML = (conBuscador
+    ? `<input class="lq-buscar" id="lq-buscar" placeholder="Buscar…" autocomplete="off">`
+    : '') + `<div class="lq-menu-lista">${html}</div>`;
+  document.body.appendChild(m);
+
+  // Se coloca bajo el botón, pero sin salirse de la pantalla
+  const ancho = m.offsetWidth || 220;
+  m.style.left = Math.max(8, Math.min(window.innerWidth - ancho - 8, r.left)) + 'px';
+  m.style.top = (r.bottom + 6) + 'px';
+  const alto = m.offsetHeight;
+  if (r.bottom + 6 + alto > window.innerHeight - 8) {
+    m.style.maxHeight = (window.innerHeight - r.bottom - 18) + 'px';
+  }
+
+  m.addEventListener('click', (e) => e.stopPropagation());
+  m.querySelectorAll('[data-val]').forEach((b) => b.onclick = () => {
+    alSeleccionar(b.dataset.val);
+    cerrarMenus();
+  });
+
+  const bus = m.querySelector('#lq-buscar');
+  if (bus) {
+    bus.oninput = () => {
+      const q = bus.value.toLowerCase().trim();
+      m.querySelectorAll('[data-val]').forEach((x) => {
+        x.style.display = !q || x.dataset.busca.includes(q) ? '' : 'none';
+      });
+    };
+    setTimeout(() => { try { bus.focus(); } catch (_) {} }, 60);
+  }
+  setTimeout(() => document.addEventListener('click', cerrarMenus, { once: true }), 10);
+}
+
+function menuPares() {
+  const html = PARES.map((p) => `
+    <button data-val="${p.id}" data-busca="${(p.id + ' ' + p.n).toLowerCase()}"
+            class="lq-op ${p.id === _par ? 'on' : ''}">
+      <b>${p.id}</b><span>${esc(p.n)}</span>
+      ${p.id === _par ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg>' : ''}
+    </button>`).join('');
+  abrirMenu($('lq-sel-par'), html, (v) => {
+    _par = v;
+    const b = $('lq-sel-par').querySelector('b');
+    if (b) b.textContent = v;
+    V.dibujos = [];          // los dibujos son de la moneda anterior
+    pintar();
+  }, true);
+}
+
+function menuTfs() {
+  const html = TFS.map((t) => `
+    <button data-val="${t.id}" data-busca="${t.n.toLowerCase()}"
+            class="lq-op ${t.id === _tf ? 'on' : ''}">
+      <b>${t.id}</b><span>${esc(t.n)}</span>
+      ${t.id === _tf ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg>' : ''}
+    </button>`).join('');
+  abrirMenu($('lq-sel-tf'), html, (v) => {
+    _tf = v;
+    const b = $('lq-sel-tf').querySelector('b');
+    if (b) b.textContent = (TFS.find((t) => t.id === v) || {}).n || v;
+    V.dibujos = [];
+    pintar();
+  }, false);
+}
+
+/* ══════════════════════════════════════════════════════════════
    GUARDAR IMAGEN
 
    Se copia el gráfico a un lienzo nuevo y se le añade NUESTRA marca:
@@ -1011,11 +1086,11 @@ function ayuda() {
 
       <div class="lqa-p">
         <b>Los colores</b>
-        <span class="lqa-col"><i style="background:rgb(40,30,130)"></i>Azul oscuro — poca cosa</span>
-        <span class="lqa-col"><i style="background:rgb(90,200,70)"></i>Verde — acumulación media</span>
-        <span class="lqa-col"><i style="background:rgb(225,200,40)"></i>Amarillo — zona interesante</span>
-        <span class="lqa-col"><i style="background:rgb(235,55,45)"></i>Rojo — mucha liquidez</span>
-        <span class="lqa-col"><i style="background:rgb(255,235,220)"></i>Blanco — muro de liquidación</span>
+        <span class="lqa-col"><i style="background:rgb(34,70,167)"></i>Azul — poca liquidez</span>
+        <span class="lqa-col"><i style="background:rgb(8,190,12)"></i>Verde — acumulación media</span>
+        <span class="lqa-col"><i style="background:rgb(228,229,5)"></i>Amarillo — zona importante</span>
+        <span class="lqa-col"><i style="background:rgb(252,54,71)"></i>Rojo — <b>muro de liquidación</b></span>
+        
       </div>
 
       <div class="lqa-p">
@@ -1063,6 +1138,31 @@ function estilos() {
   #lq-overlay .lq-der{position:absolute;right:8px;top:50%;transform:translateY(-50%);
     display:flex;gap:5px;z-index:6;background:#0b0e12;padding-left:8px}
   #lq-overlay .lq-ayuda.apagado{opacity:.4}
+  /* Selectores desplegables */
+  #lq-overlay .lq-sel{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;
+    min-height:34px;padding:0 11px;border-radius:9px;background:#12161c;border:1px solid #2b3139;
+    color:#eaecef;cursor:pointer;font-family:var(--mono,monospace);font-size:12px;white-space:nowrap}
+  #lq-overlay .lq-sel:hover{border-color:var(--gold-soft,#C9A84B)}
+  #lq-overlay .lq-sel b{font-weight:700}
+  #lq-overlay .lq-sel svg{width:13px;height:13px;opacity:.6}
+  .lq-menu{position:fixed;z-index:9780;min-width:212px;max-height:340px;overflow:hidden;
+    display:flex;flex-direction:column;
+    background:linear-gradient(180deg,#1b2027,#0d1117);border:1px solid var(--gold-soft,#C9A84B);
+    border-radius:13px;padding:6px;box-shadow:0 16px 44px rgba(0,0,0,.7)}
+  .lq-menu-lista{overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+  .lq-buscar{width:100%;box-sizing:border-box;padding:9px 11px;margin-bottom:6px;border-radius:9px;
+    border:1px solid #2b3139;background:#0b0e12;color:#eaecef;
+    font-family:var(--sans,sans-serif);font-size:13px;min-height:38px}
+  .lq-buscar:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
+  .lq-op{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;border-radius:9px;
+    background:transparent;border:none;color:#b7bdc6;cursor:pointer;text-align:left;min-height:40px}
+  .lq-op:hover{background:rgba(255,255,255,.05)}
+  .lq-op.on{background:rgba(232,184,75,.1);color:var(--gold,#E8B84B)}
+  .lq-op b{font-family:var(--mono,monospace);font-size:12px;font-weight:700;min-width:44px}
+  .lq-op span{flex:1;font-family:var(--sans,sans-serif);font-size:12px;color:#7d8794;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lq-op.on span{color:#b7bdc6}
+  .lq-op svg{width:14px;height:14px;flex:0 0 auto;color:var(--gold,#E8B84B)}
   /* Botones de herramienta: solo el icono, cuadrados. */
   #lq-overlay .lq-ico{width:32px;padding:0;display:grid;place-items:center}
   #lq-overlay .lq-ico svg{width:15px;height:15px}
@@ -1100,8 +1200,9 @@ function estilos() {
     padding:7px 12px;background:#0b0e12;border-top:1px solid #1c2128}
   #lq-overlay .lq-escala span{font-family:var(--mono,monospace);font-size:9px;color:#6b7681;
     text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
+  /* La escala refleja la paleta real del mapa. */
   #lq-overlay .lq-gr{flex:1;height:8px;border-radius:20px;
-    background:linear-gradient(90deg,rgb(26,12,58),rgb(40,30,130),rgb(20,90,190),rgb(20,165,150),rgb(90,200,70),rgb(225,200,40),rgb(240,140,30),rgb(235,55,45),rgb(255,235,220))}
+    background:linear-gradient(90deg,rgb(6,30,96),rgb(34,70,167),rgb(8,150,150),rgb(8,190,12),rgb(140,210,8),rgb(228,229,5),rgb(250,150,20),rgb(252,54,71))}
 
   /* Ayuda */
   #lq-ayuda-box{position:fixed;inset:0;z-index:9760;display:flex;align-items:center;justify-content:center;padding:16px}
