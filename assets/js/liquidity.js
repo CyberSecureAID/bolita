@@ -11,6 +11,37 @@
 //   #0037ff  bloque bajista      (azul)
 
 import * as ethers from './vendor/ethers-6.13.4.min.js?v=126';
+import * as wallet from './wallet.js?v=126';
+
+/* ══════════════════════════════════════════════════════════════
+   SUSCRIPCIÓN A LAS HERRAMIENTAS PRO
+
+   El acceso va ligado a la WALLET: quien paga entra al momento, sin
+   que nadie tenga que aprobar nada a mano. Se comprueba contra el
+   contrato cada vez que se abre la herramienta.
+
+   [PENDIENTE] Poner aquí la dirección cuando se despliegue el
+   contrato CriptoCubaPro.sol. Mientras esté vacío, el acceso queda
+   abierto para todos: así se puede seguir probando la herramienta.
+   ══════════════════════════════════════════════════════════════ */
+const PRO = '';   // ← dirección del contrato
+
+const ABI_PRO = [
+  'function planes(uint8) view returns (uint32 dias, uint32 precioUsd, bool activo)',
+  'function costeEnBnb(uint8) view returns (uint256)',
+  'function costeEnUsdt(uint8) view returns (uint256)',
+  'function comprarConBnb(uint8 plan) payable',
+  'function comprarConUsdt(uint8 plan)',
+  'function tieneAcceso(address) view returns (bool)',
+  'function estadoDe(address) view returns (uint64 hasta, uint256 quedan)',
+  'function pausado() view returns (bool)'
+];
+
+const PLANES_PRO = [
+  { id: 0, nombre: 'Un mes',     etiqueta: 'para probarlo',     destacado: false },
+  { id: 1, nombre: 'Tres meses', etiqueta: 'el más elegido',    destacado: true  },
+  { id: 2, nombre: 'Un año',     etiqueta: 'el que sale a cuenta', destacado: false }
+];
 
 const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -491,8 +522,29 @@ async function traerVelas(simbolo, tf, n = 300) {
 /* ══════════════════════════════════════════════════════════════
    ABRIR
    ══════════════════════════════════════════════════════════════ */
+/** ¿Tiene esta wallet la suscripción al día? */
+async function tieneAccesoPro() {
+  // Sin contrato desplegado, todo el mundo entra: fase de pruebas.
+  if (!PRO) return { ok: true, prueba: true };
+  try {
+    const cuenta = wallet.cuentaActual && wallet.cuentaActual();
+    if (!cuenta) return { ok: false, sinWallet: true };
+    const prov = await wallet.proveedor();
+    const c = new ethers.Contract(PRO, ABI_PRO, prov);
+    const [hasta, quedan] = await c.estadoDe(cuenta);
+    return { ok: Number(quedan) > 0, hasta: Number(hasta), quedan: Number(quedan) };
+  } catch (_) {
+    /* Si la blockchain no responde NO se cierra la puerta: sería
+       injusto dejar fuera a quien ya pagó por un fallo de red. */
+    return { ok: true, sinComprobar: true };
+  }
+}
+
 export async function abrirLiquidity() {
   estilos();
+
+  const acc = await tieneAccesoPro();
+  if (!acc.ok) { pantallaPlanes(acc); return; }
   const prev = $('lq-overlay'); if (prev) prev.remove();
 
   const d = document.createElement('div');
@@ -519,7 +571,12 @@ export async function abrirLiquidity() {
           <span>Filtro</span>
           <input type="range" id="lq-int" min="55" max="260" value="55">
         </div>
+        <!-- En el móvil, todo esto se recoge en un menú: en la barra
+             solo quedan moneda, temporalidad, foto, ayuda y cerrar. -->
         <div class="lq-der">
+          <button class="lq-ayuda solo-movil" id="lq-mas" title="Más opciones">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
           <button class="lq-ayuda" id="lq-foto" title="Guardar imagen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
           </button>
@@ -576,6 +633,71 @@ export async function abrirLiquidity() {
   };
 
   $('lq-fit').onclick = () => encuadrar();
+  /* El menú del móvil: recoge apalancamiento, filtro, perfil, mapa y
+     reencuadrar. En la barra solo se quedan los controles del día a
+     día, que es lo que cabe en un teléfono. */
+  const bMas = $('lq-mas');
+  if (bMas) bMas.onclick = (e) => {
+    e.stopPropagation();
+    const prev = document.getElementById('lq-mas-menu');
+    if (prev) { prev.remove(); return; }
+
+    const m = document.createElement('div');
+    m.id = 'lq-mas-menu';
+    m.className = 'lq-menu lq-mas-menu';
+    m.innerHTML = `
+      <div class="lqm-tit">Apalancamiento</div>
+      <div class="lqm-fila">
+        ${['todos', '10', '25', '50', '100'].map((a) =>
+          `<button class="lqm-chip ${a === V.apal ? 'on' : ''}" data-mapal="${a}">${a === 'todos' ? 'Todo' : 'x' + a}</button>`).join('')}
+      </div>
+
+      <div class="lqm-tit">Filtro de ruido</div>
+      <input type="range" class="lqm-range" id="lqm-int" min="55" max="260" value="${Math.round(V.intensidad * 100)}">
+
+      <div class="lqm-tit">Mostrar</div>
+      <button class="lqm-op" data-mtog="perfil">
+        <span>Perfil de volumen</span><i class="${V.verPerfil ? 'on' : ''}"></i>
+      </button>
+      <button class="lqm-op" data-mtog="mapa">
+        <span>Mapa de liquidez</span><i class="${V.verMapa ? 'on' : ''}"></i>
+      </button>
+      <button class="lqm-op" data-mtog="fit">
+        <span>Reencuadrar</span>
+      </button>`;
+    document.body.appendChild(m);
+
+    const r = bMas.getBoundingClientRect();
+    m.style.top = (r.bottom + 6) + 'px';
+    m.style.right = '10px';
+    m.style.left = 'auto';
+
+    m.addEventListener('click', (ev) => ev.stopPropagation());
+    m.querySelectorAll('[data-mapal]').forEach((b) => b.onclick = () => {
+      V.apal = b.dataset.mapal;
+      m.querySelectorAll('[data-mapal]').forEach((x) => x.classList.toggle('on', x.dataset.mapal === V.apal));
+      document.querySelectorAll('[data-apal]').forEach((x) => x.classList.toggle('on', x.dataset.apal === V.apal));
+      dibujar();
+    });
+    m.querySelector('#lqm-int').oninput = (ev) => {
+      V.intensidad = Number(ev.target.value) / 100;
+      const otro = $('lq-int'); if (otro) otro.value = ev.target.value;
+      dibujar();
+    };
+    m.querySelectorAll('[data-mtog]').forEach((b) => b.onclick = () => {
+      const q = b.dataset.mtog;
+      if (q === 'fit') { encuadrar(); m.remove(); return; }
+      if (q === 'perfil') { V.verPerfil = !V.verPerfil; $('lq-perfil')?.classList.toggle('apagado', !V.verPerfil); }
+      if (q === 'mapa') { V.verMapa = !V.verMapa; $('lq-ver')?.classList.toggle('apagado', !V.verMapa); }
+      const i = b.querySelector('i');
+      if (i) i.classList.toggle('on', q === 'perfil' ? V.verPerfil : V.verMapa);
+      dibujar();
+    });
+    setTimeout(() => document.addEventListener('click', () => {
+      const x = document.getElementById('lq-mas-menu'); if (x) x.remove();
+    }, { once: true }), 10);
+  };
+
   $('lq-perfil').onclick = () => {
     V.verPerfil = !V.verPerfil;
     $('lq-perfil').classList.toggle('apagado', !V.verPerfil);
@@ -986,6 +1108,12 @@ function dibujar() {
     g.fillStyle = '#3a2800';
     g.font = 'bold 11px ui-monospace,monospace';
     g.fillText(fmt(ult.c), x1 + 6, yU + 4);
+    /* El par, junto al precio. Si alguien cambió de moneda y no se dio
+       cuenta, aquí lo ve: evita pensar que el precio está mal cuando
+       lo que pasa es que se está mirando otra cripto. */
+    g.font = '8px ui-monospace,monospace';
+    g.fillStyle = 'rgba(58,40,0,.75)';
+    g.fillText(_par, x1 + 6, yU + 13);
   }
 
   /* ── LAS FECHAS, abajo ── */
@@ -1275,6 +1403,121 @@ function engancharGestos(cv) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   PANTALLA DE PLANES
+   Misma dinámica que la Academia, pero el acceso va por wallet: no
+   hace falta usuario de Telegram ni que nadie apruebe nada.
+   ══════════════════════════════════════════════════════════════ */
+async function pantallaPlanes(estado) {
+  const prev = $('pro-overlay'); if (prev) prev.remove();
+
+  const d = document.createElement('div');
+  d.id = 'pro-overlay';
+  d.innerHTML = `<div class="lq-bg"></div>
+    <div class="pro-c">
+      <button class="lq-x" id="pro-x" aria-label="Cerrar">✕</button>
+      <div class="pro-eyebrow">Herramientas Pro</div>
+      <h2 class="pro-t">Tres herramientas, un solo pago</h2>
+      <p class="pro-s">Análisis profesional dentro de Cripto Cuba Oficial</p>
+
+      <div class="pro-lista">
+        <div class="pro-item">
+          <b>Liquidity Pools</b>
+          <span>El mapa de liquidaciones: dónde están las posiciones esperando a ser barridas.</span>
+        </div>
+        <div class="pro-item">
+          <b>Volumen Delta</b>
+          <span>Cuánto se compró y cuánto se vendió en cada vela, y quién manda.</span>
+        </div>
+        <div class="pro-item">
+          <b>Libro de Órdenes</b>
+          <span>Las paredes de compra y venta que hay ahora mismo, en directo.</span>
+        </div>
+      </div>
+
+      <div class="pro-planes" id="pro-planes">
+        <div class="lq-cargando">Consultando los precios…</div>
+      </div>
+
+      ${estado.sinWallet
+        ? `<div class="pro-aviso">Conecta tu wallet para poder suscribirte.</div>`
+        : `<div class="pro-aviso">El acceso queda ligado a tu wallet. Si renuevas antes de que caduque, los días que te quedan se suman.</div>`}
+    </div>`;
+  document.body.appendChild(d);
+
+  const cerrar = () => { const e = $('pro-overlay'); if (e) e.remove(); };
+  d.querySelector('.lq-bg').onclick = cerrar;
+  $('pro-x').onclick = cerrar;
+
+  pintarPlanes();
+}
+
+async function pintarPlanes() {
+  const caja = $('pro-planes'); if (!caja) return;
+  try {
+    const prov = await wallet.proveedor();
+    const c = new ethers.Contract(PRO, ABI_PRO, prov);
+
+    /* Uno detrás de otro con reintento: si van los tres a la vez y
+       falla uno, se cae todo. Y si el contrato no responde, se usan
+       los precios acordados: mejor eso que un mensaje de error. */
+    const datos = [];
+    for (const p of PLANES_PRO) {
+      let info = null;
+      for (let i = 0; i < 3 && !info; i++) {
+        try { info = await c.planes(p.id); }
+        catch (_) { await new Promise((r) => setTimeout(r, 400)); }
+      }
+      const respaldo = [{ dias: 30, usd: 10 }, { dias: 90, usd: 25 }, { dias: 365, usd: 80 }][p.id];
+      let bnb = 0n;
+      try { bnb = await c.costeEnBnb(p.id); } catch (_) {}
+      datos.push(info
+        ? { ...p, dias: Number(info.dias), usd: Number(info.precioUsd) / 100, bnb }
+        : { ...p, dias: respaldo.dias, usd: respaldo.usd, bnb });
+    }
+
+    // Lo que se ahorra frente a pagar mes a mes
+    const mensual = datos[0].usd;
+    caja.innerHTML = datos.map((p) => {
+      const meses = p.dias / 30;
+      const ahorro = Math.max(0, Math.round((mensual * meses - p.usd) / (mensual * meses) * 100));
+      return `
+      <div class="pro-plan ${p.destacado ? 'top' : ''}">
+        ${p.destacado ? '<div class="pro-badge">' + p.etiqueta + '</div>' : ''}
+        <div class="pro-nom">${p.nombre}</div>
+        <div class="pro-precio"><b>${p.usd}</b><span>USD</span></div>
+        ${ahorro > 4 ? `<div class="pro-ahorro">ahorras un ${ahorro}%</div>` : `<div class="pro-ahorro-x">${p.etiqueta}</div>`}
+        <button class="pro-b" data-plan="${p.id}" data-bnb="${p.bnb}">Suscribirme</button>
+        <div class="pro-dias">${p.dias} días de acceso</div>
+      </div>`;
+    }).join('');
+
+    caja.querySelectorAll('[data-plan]').forEach((b) => b.onclick = () => comprarPro(Number(b.dataset.plan)));
+  } catch (_) {
+    caja.innerHTML = `<div class="lq-vacio">No se pudieron consultar los precios.<br>Revisa tu conexión.</div>`;
+  }
+}
+
+async function comprarPro(plan) {
+  const caja = $('pro-planes'); if (!caja) return;
+  try {
+    const firm = await wallet.firmante();
+    const c = new ethers.Contract(PRO, ABI_PRO, firm);
+    const coste = await c.costeEnBnb(plan);
+    caja.insertAdjacentHTML('afterbegin', '<div class="pro-msg">Confirma en tu wallet…</div>');
+    const tx = await c.comprarConBnb(plan, { value: coste });
+    await tx.wait();
+    // Ya tiene acceso: se cierra y se abre la herramienta
+    const e = $('pro-overlay'); if (e) e.remove();
+    abrirLiquidity();
+  } catch (err) {
+    const m = String(err?.shortMessage || err?.message || err);
+    const msg = /reject|denied/i.test(m) ? 'Cancelaste la firma.' : 'No se pudo completar el pago.';
+    const p = caja.querySelector('.pro-msg');
+    if (p) p.textContent = msg; else caja.insertAdjacentHTML('afterbegin', `<div class="pro-msg">${msg}</div>`);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
    DESPLEGABLES
    Con 26 monedas y 9 temporalidades, las filas de botones no caben.
    Un desplegable con buscador es más rápido y ocupa nada.
@@ -1471,47 +1714,139 @@ const fmt = (p) => {
 };
 
 /** Qué significa cada cosa. */
+/* ══════════════════════════════════════════════════════════════
+   LA GUÍA — dos partes
+
+   1. CÓMO OPERAR CON ESTO. Lo primero que ve el usuario: qué hacer
+      con la información, no qué significan los colores.
+   2. CÓMO SE LEE EL MAPA. La referencia técnica, para consultar.
+
+   El orden importa: quien paga por una herramienta quiere saber cómo
+   sacarle partido, no un glosario.
+   ══════════════════════════════════════════════════════════════ */
 function ayuda() {
   const d = document.createElement('div');
   d.id = 'lq-ayuda-box';
   d.innerHTML = `<div class="lq-bg"></div>
     <div class="lqa-c">
-      <div class="lqa-t">Cómo se lee este mapa</div>
+      <button class="lqa-x" id="lqa-x" aria-label="Cerrar">✕</button>
 
-      <div class="lqa-p">
-        <b>Qué estás viendo</b>
-        Los precios donde hay <b>posiciones apalancadas esperando a ser liquidadas</b>. Cuanto más brillante la zona, más dinero se cerraría a la fuerza si el precio llega ahí.
+      <div class="lqa-tabs">
+        <button class="lqa-tab on" data-gtab="operar">Cómo operar con esto</button>
+        <button class="lqa-tab" data-gtab="leer">Cómo se lee el mapa</button>
       </div>
 
-      <div class="lqa-p">
-        <b>Por qué importa</b>
-        Esas zonas actúan como <b>imanes</b>. Cuando el precio se acerca, las liquidaciones se disparan en cadena y lo empujan aún más rápido en esa dirección.
+      <div class="lqa-pane on" id="gp-operar">
+        <div class="lqa-intro">
+          Lo que tienes delante es <b>el mapa de dónde está el dinero atrapado</b>.
+          Esos niveles no son opiniones ni predicciones: son posiciones reales
+          esperando a ser cerradas. Y el precio tiende a ir a buscarlas.
+        </div>
+
+        <div class="lqa-p">
+          <b>1 · Los muros rojos son imanes</b>
+          Donde el mapa se pone rojo hay una concentración de posiciones que se
+          liquidarían a ese precio. Cuando el mercado se acerca, esas
+          liquidaciones se disparan en cadena y <b>aceleran el movimiento</b>
+          en esa dirección.
+          <i>Qué hacer: si estás dentro y ves un muro rojo cerca en tu contra, ese es un buen sitio para tener cuidado. Si estás fuera, es donde el precio suele ir antes de girar.</i>
+        </div>
+
+        <div class="lqa-p">
+          <b>2 · El precio va a por la liquidez, no a por tu análisis</b>
+          Un techo con muchas órdenes acumuladas encima raramente se respeta
+          para siempre. El mercado suele <b>barrer esa zona</b>, recoger las
+          liquidaciones, y solo entonces decidir hacia dónde va.
+          <i>Qué hacer: desconfía de las rupturas justo antes de un muro. Muchas veces es el barrido, no el movimiento de verdad.</i>
+        </div>
+
+        <div class="lqa-p">
+          <b>3 · Las zonas vacías se cruzan rápido</b>
+          Donde el mapa está oscuro no hay nada que frene al precio. Son
+          tramos que el mercado <b>atraviesa en minutos</b>.
+          <i>Qué hacer: si tu objetivo está al otro lado de una zona vacía, es alcanzable. Si está detrás de un muro rojo, cuesta mucho más.</i>
+        </div>
+
+        <div class="lqa-p">
+          <b>4 · Cambia el apalancamiento para ver quién sostiene</b>
+          El filtro x10 muestra dónde están las posiciones más conservadoras;
+          x100, las más agresivas. <b>Las de x100 saltan primero</b> y son las
+          que provocan los movimientos bruscos.
+          <i>Qué hacer: si el x100 muestra un muro cerca del precio, espera volatilidad pronto.</i>
+        </div>
+
+        <div class="lqa-p">
+          <b>5 · Súbelo de temporalidad para ver el cuadro grande</b>
+          En 15 minutos ves lo que va a pasar hoy. En diario, dónde está el
+          dinero de verdad. <b>Los niveles del diario mandan sobre los del
+          intradía.</b>
+          <i>Qué hacer: mira primero en 4h o diario para saber hacia dónde sopla el viento, y luego baja a buscar tu entrada.</i>
+        </div>
+
+        <div class="lqa-aviso">
+          Esto es <b>información, no una señal</b>. No te decimos cuándo comprar
+          ni cuándo vender: te enseñamos dónde está la liquidez para que decidas
+          tú con más contexto del que tenías antes.
+        </div>
       </div>
 
-      <div class="lqa-p">
-        <b>Los colores</b>
-        <span class="lqa-col"><i style="background:rgb(34,70,167)"></i>Azul — poca liquidez</span>
-        <span class="lqa-col"><i style="background:rgb(8,190,12)"></i>Verde — acumulación media</span>
-        <span class="lqa-col"><i style="background:rgb(228,229,5)"></i>Amarillo — zona importante</span>
-        <span class="lqa-col"><i style="background:rgb(252,54,71)"></i>Rojo — <b>muro de liquidación</b></span>
-        
-      </div>
+      <div class="lqa-pane" id="gp-leer">
+        <div class="lqa-p">
+          <b>De dónde salen estos datos</b>
+          Por cada vela se estima qué posiciones se abrieron y con cuánto
+          apalancamiento. Con eso se calcula a qué precio saltaría cada una, y
+          todo se acumula en el mapa. Cuando el precio toca un nivel, esas
+          posiciones <b>ya se liquidaron</b> y desaparecen: por eso el mapa se
+          va consumiendo por donde pasa el precio.
+        </div>
 
-      <div class="lqa-p">
-        <b>Por qué desaparecen zonas</b>
-        Cuando el precio toca un nivel, esas posiciones <b>ya se liquidaron</b>: dejan de existir. Por eso el mapa se va "consumiendo" por donde pasa el precio.
-      </div>
+        <div class="lqa-p">
+          <b>Los colores</b>
+          <span class="lqa-col"><i style="background:rgb(34,70,167)"></i>Azul — liquidez de fondo</span>
+          <span class="lqa-col"><i style="background:rgb(8,190,12)"></i>Verde — acumulación media</span>
+          <span class="lqa-col"><i style="background:rgb(228,229,5)"></i>Amarillo — zona importante</span>
+          <span class="lqa-col"><i style="background:rgb(255,0,0)"></i>Rojo — <b>muro de liquidación</b></span>
+        </div>
 
-      <div class="lqa-aviso">
-        Son <b>estimaciones</b> a partir de precio y volumen, no datos internos de ningún exchange. Nadie publica eso. Úsalo como contexto, no como certeza.
+        <div class="lqa-p">
+          <b>El perfil de volumen</b>
+          A la derecha, cuánto se negoció a cada precio.
+          <span class="lqa-col"><i style="background:rgb(38,166,154)"></i>Verde — volumen comprador</span>
+          <span class="lqa-col"><i style="background:rgb(239,83,80)"></i>Rojo — volumen vendedor</span>
+          <span class="lqa-col"><i style="background:rgb(232,184,75)"></i>Dorado (POC) — donde más se negoció</span>
+          <b>VAH</b> y <b>VAL</b> marcan el área de valor: donde ocurrió el 70%
+          del negocio. Dentro, el precio se atasca; fuera, corre.
+        </div>
+
+        <div class="lqa-p">
+          <b>El filtro de ruido</b>
+          Súbelo para quedarte solo con las zonas fuertes. Bájalo para ver el
+          mapa completo. No cambia los datos: cambia cuánto se muestra.
+        </div>
+
+        <div class="lqa-aviso">
+          Son <b>estimaciones</b> a partir de precio y volumen público. Ningún
+          exchange publica su motor de liquidación: ninguna herramienta del
+          mercado, ni la más cara, tiene ese dato.
+        </div>
       </div>
 
       <button class="lqa-b" id="lqa-cerrar">Entendido</button>
     </div>`;
   document.body.appendChild(d);
+
   const q = () => d.remove();
   d.querySelector('.lq-bg').onclick = q;
+  $('lqa-x').onclick = q;
   $('lqa-cerrar').onclick = q;
+
+  d.querySelectorAll('[data-gtab]').forEach((b) => b.onclick = () => {
+    d.querySelectorAll('.lqa-tab').forEach((x) => x.classList.toggle('on', x === b));
+    d.querySelectorAll('.lqa-pane').forEach((p) => p.classList.remove('on'));
+    const p = $('gp-' + b.dataset.gtab);
+    if (p) p.classList.add('on');
+    d.querySelector('.lqa-c').scrollTop = 0;
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1611,11 +1946,77 @@ function estilos() {
   #lq-overlay .lq-gr{flex:1;height:8px;border-radius:20px;
     background:linear-gradient(90deg,rgb(6,30,96),rgb(34,70,167),rgb(8,150,150),rgb(8,190,12),rgb(140,210,8),rgb(228,229,5),rgb(250,150,20),rgb(252,54,71))}
 
+  /* ── Planes Pro ── */
+  #pro-overlay{position:fixed;inset:0;z-index:9750;display:flex;align-items:center;justify-content:center;padding:16px}
+  #pro-overlay .lq-bg{position:absolute;inset:0;background:rgba(3,5,8,.93);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  #pro-overlay .pro-c{position:relative;width:100%;max-width:640px;max-height:calc(100vh - 32px);overflow-y:auto;
+    background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);
+    border-radius:20px;padding:28px 22px;text-align:center}
+  #pro-overlay .lq-x{position:absolute;top:14px;right:14px}
+  #pro-overlay .pro-eyebrow{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:2px;margin-bottom:8px}
+  #pro-overlay .pro-t{font-family:var(--display,sans-serif);font-weight:800;font-size:24px;color:#eaecef;margin:0 0 6px}
+  #pro-overlay .pro-s{font-family:var(--sans,sans-serif);font-size:13px;color:#7d8794;margin:0 0 20px}
+  #pro-overlay .pro-lista{display:flex;flex-direction:column;gap:9px;margin-bottom:22px;text-align:left}
+  #pro-overlay .pro-item{padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid #2b3139}
+  #pro-overlay .pro-item b{display:block;font-family:var(--display,sans-serif);font-size:14px;color:var(--gold,#E8B84B);margin-bottom:3px}
+  #pro-overlay .pro-item span{font-family:var(--sans,sans-serif);font-size:12.5px;color:#8b96a3;line-height:1.5}
+  #pro-overlay .pro-planes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+  #pro-overlay .pro-plan{position:relative;padding:20px 12px 16px;border-radius:14px;
+    background:rgba(255,255,255,.025);border:1px solid #2b3139;display:flex;flex-direction:column;gap:7px}
+  #pro-overlay .pro-plan.top{border-color:var(--gold,#E8B84B);background:rgba(232,184,75,.07)}
+  #pro-overlay .pro-badge{position:absolute;top:-9px;left:50%;transform:translateX(-50%);white-space:nowrap;
+    padding:3px 10px;border-radius:20px;background:var(--gold,#E8B84B);color:#3a2800;
+    font-family:var(--mono,monospace);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  #pro-overlay .pro-nom{font-family:var(--display,sans-serif);font-weight:700;font-size:14px;color:#eaecef}
+  #pro-overlay .pro-precio b{font-family:var(--display,sans-serif);font-weight:800;font-size:30px;color:var(--gold,#E8B84B)}
+  #pro-overlay .pro-precio span{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;margin-left:3px}
+  #pro-overlay .pro-ahorro{font-family:var(--mono,monospace);font-size:10px;color:var(--neon-lit,#2ee86a)}
+  #pro-overlay .pro-ahorro-x{font-family:var(--mono,monospace);font-size:10px;color:#6b7681}
+  #pro-overlay .pro-b{min-height:44px;border-radius:11px;border:1px solid #c79426;margin-top:4px;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 3px 0 #8f6a1a}
+  #pro-overlay .pro-b:active{transform:translateY(2px)}
+  #pro-overlay .pro-dias{font-family:var(--mono,monospace);font-size:9.5px;color:#6b7681}
+  #pro-overlay .pro-aviso{padding:12px 14px;border-radius:11px;background:rgba(232,184,75,.06);
+    border-left:2px solid var(--gold-soft,#C9A84B);font-family:var(--sans,sans-serif);
+    font-size:12px;color:#b7bdc6;line-height:1.6;text-align:left}
+  #pro-overlay .pro-msg{grid-column:1/-1;padding:10px;border-radius:10px;background:rgba(232,184,75,.1);
+    font-family:var(--mono,monospace);font-size:11.5px;color:var(--gold,#E8B84B)}
+  @media(max-width:620px){
+    #pro-overlay .pro-c{padding:22px 15px}
+    #pro-overlay .pro-t{font-size:20px}
+    #pro-overlay .pro-planes{grid-template-columns:1fr;gap:12px}
+    #pro-overlay .pro-plan{flex-direction:row;align-items:center;flex-wrap:wrap;text-align:left;padding:16px 14px}
+    #pro-overlay .pro-nom{flex:1;min-width:80px}
+    #pro-overlay .pro-b{width:100%;order:9}
+    #pro-overlay .pro-dias{width:100%;order:10}
+  }
+
   /* Ayuda */
   #lq-ayuda-box{position:fixed;inset:0;z-index:9760;display:flex;align-items:center;justify-content:center;padding:16px}
   #lq-ayuda-box .lq-bg{position:absolute;inset:0;background:rgba(3,5,8,.93)}
-  #lq-ayuda-box .lqa-c{position:relative;width:100%;max-width:440px;max-height:calc(100vh - 32px);overflow-y:auto;
+  #lq-ayuda-box .lqa-c{position:relative;width:100%;max-width:540px;max-height:calc(100vh - 32px);overflow-y:auto;
     background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:20px;padding:24px 20px}
+  #lq-ayuda-box .lqa-x{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:10px;
+    display:grid;place-items:center;padding:0;cursor:pointer;font-size:15px;z-index:5;
+    background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6}
+  #lq-ayuda-box .lqa-x:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  #lq-ayuda-box .lqa-tabs{display:flex;gap:4px;padding:4px;margin:0 42px 18px 0;
+    background:#0b0e12;border:1px solid #2b3139;border-radius:12px}
+  #lq-ayuda-box .lqa-tab{flex:1;min-height:40px;padding:0 10px;border-radius:9px;border:none;background:transparent;
+    color:#7d8794;font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;cursor:pointer;line-height:1.25}
+  #lq-ayuda-box .lqa-tab.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
+  #lq-ayuda-box .lqa-pane{display:none}
+  #lq-ayuda-box .lqa-pane.on{display:block}
+  #lq-ayuda-box .lqa-intro{padding:14px 16px;border-radius:13px;margin-bottom:18px;
+    background:linear-gradient(180deg,rgba(232,184,75,.09),rgba(232,184,75,.02));
+    border:1px solid rgba(232,184,75,.3);
+    font-family:var(--sans,sans-serif);font-size:13.5px;color:#b7bdc6;line-height:1.65}
+  #lq-ayuda-box .lqa-intro b{color:var(--gold,#E8B84B)}
+  #lq-ayuda-box .lqa-p i{display:block;margin-top:8px;padding:9px 12px;border-radius:9px;font-style:normal;
+    background:rgba(255,255,255,.03);border-left:2px solid var(--gold-soft,#C9A84B);
+    font-size:12.5px;color:#8b96a3;line-height:1.55}
   #lq-ayuda-box .lqa-t{font-family:var(--display,sans-serif);font-weight:800;font-size:20px;color:var(--gold,#E8B84B);
     text-align:center;margin-bottom:18px}
   #lq-ayuda-box .lqa-p{margin-bottom:15px;font-family:var(--sans,sans-serif);font-size:13px;color:#8b96a3;line-height:1.65}
@@ -1632,14 +2033,54 @@ function estilos() {
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
     font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 4px 0 #8f6a1a}
 
+  /* El botón de "más" solo existe en el móvil. */
+  #lq-overlay .solo-movil{display:none}
+
+  /* ── Menú de opciones del móvil ── */
+  .lq-mas-menu{min-width:252px;max-width:calc(100vw - 20px);padding:12px}
+  .lq-mas-menu .lqm-tit{font-family:var(--mono,monospace);font-size:9px;color:#6b7681;
+    text-transform:uppercase;letter-spacing:1px;margin:12px 0 7px}
+  .lq-mas-menu .lqm-tit:first-child{margin-top:0}
+  .lq-mas-menu .lqm-fila{display:flex;gap:5px;flex-wrap:wrap}
+  .lq-mas-menu .lqm-chip{flex:1;min-width:46px;min-height:36px;padding:0 8px;border-radius:9px;border:1px solid #2b3139;
+    background:#12161c;color:#8b96a3;font-family:var(--mono,monospace);font-size:11px;font-weight:700;cursor:pointer}
+  .lq-mas-menu .lqm-chip.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);
+    color:#3a2800;border-color:#c79426}
+  .lq-mas-menu .lqm-range{-webkit-appearance:none;appearance:none;width:100%;height:5px;
+    border-radius:20px;background:#2b3139;outline:none;margin:2px 0}
+  .lq-mas-menu .lqm-range::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;
+    border-radius:50%;background:var(--gold,#E8B84B);cursor:pointer;border:none}
+  .lq-mas-menu .lqm-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;
+    background:var(--gold,#E8B84B);cursor:pointer;border:none}
+  .lq-mas-menu .lqm-op{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+    padding:11px 12px;border-radius:10px;background:transparent;border:none;color:#b7bdc6;cursor:pointer;
+    min-height:44px;font-family:var(--sans,sans-serif);font-size:13px;text-align:left}
+  .lq-mas-menu .lqm-op:hover{background:rgba(255,255,255,.05)}
+  .lq-mas-menu .lqm-op i{width:34px;height:19px;border-radius:20px;background:#2b3139;
+    flex:0 0 auto;position:relative;transition:background .18s}
+  .lq-mas-menu .lqm-op i:after{content:'';position:absolute;top:2.5px;left:2.5px;width:14px;height:14px;
+    border-radius:50%;background:#6b7681;transition:transform .18s,background .18s}
+  .lq-mas-menu .lqm-op i.on{background:rgba(232,184,75,.3)}
+  .lq-mas-menu .lqm-op i.on:after{transform:translateX(15px);background:var(--gold,#E8B84B)}
+
   @media(max-width:760px){
-    #lq-overlay .lq-barra{padding:7px 8px;gap:6px}
+    /* En el móvil la barra deja SOLO lo del día a día: moneda,
+       temporalidad, foto, ayuda y cerrar. El resto vive en el menú. */
+    #lq-overlay .solo-movil{display:grid}
+    #lq-overlay .lq-barra > .lq-grupo,
+    #lq-overlay .lq-slider,
+    #lq-overlay #lq-perfil,
+    #lq-overlay #lq-ver,
+    #lq-overlay #lq-fit{display:none}
+    #lq-overlay .lq-barra{padding:7px 8px;gap:6px;padding-right:132px}
     #lq-overlay .lq-b{padding:0 10px;font-size:11px;min-height:34px}
-    #lq-overlay .lq-barra{padding-right:186px}
     #lq-overlay .lq-marca{font-size:11px;bottom:24px}
     #lq-overlay .lq-escala{padding:6px 10px;gap:7px}
     #lq-overlay .lq-escala span{font-size:8px}
-    #lq-ayuda-box .lqa-c{padding:20px 15px}
+    #lq-ayuda-box .lqa-c{padding:20px 14px}
+    #lq-ayuda-box .lqa-tabs{margin-right:44px;flex-direction:column}
+    #lq-ayuda-box .lqa-tab{font-size:12px;min-height:38px}
+    #lq-ayuda-box .lqa-intro{font-size:12.5px;padding:12px 13px}
   }`;
   document.head.appendChild(s);
 }
