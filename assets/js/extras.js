@@ -65,7 +65,7 @@ export function panelInstalar(ancla) {
   d.innerHTML = `<div class="ip-bg"></div>
     <div class="ip-c">
       <div class="ip-top">
-        <img class="ip-ico" src="assets/img/aurex-192.png" alt="">
+        <img class="ip-ico" src="assets/img/cco-192.png" alt="">
         <div><b>Cripto Cuba</b><span>Bots de trading en tu wallet</span></div>
       </div>
       <button class="ip-b" id="ip-si">Instalar</button>
@@ -114,7 +114,7 @@ export function ventanaPreInstalar() {
   d.id = 'inst-pre';
   d.innerHTML = `<div class="pi-bg"></div>
     <div class="pi-c">
-      <img class="pi-ico" src="assets/img/aurex-512.png" alt="">
+      <img class="pi-ico" src="assets/img/cco-512.png" alt="">
       <div class="pi-t">Instalar CriptoCuba</div>
       <div class="pi-s">Se abrirá en su propia ventana, con su icono, sin barras del navegador y arranca al instante.</div>
       <div class="pi-vent">

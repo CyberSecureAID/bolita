@@ -151,10 +151,34 @@ function inyectarEstilo() {
   #colmena-app .c-estado.on i{background:var(--neon-lit);box-shadow:0 0 0 0 rgba(46,232,106,.5);animation:ccLat 2.4s ease-in-out infinite}
   #colmena-app .c-estado.on b{color:var(--neon-lit)}
   @keyframes ccLat{0%,100%{box-shadow:0 0 0 0 rgba(46,232,106,.5)}50%{box-shadow:0 0 0 5px rgba(46,232,106,0)}}
+  /* El logo horizontal con el nombre: solo en el móvil, centrado arriba. */
+  #colmena-app .c-logo-mov{display:none}
   @media(max-width:760px){
-    /* El nombre desaparece: lo dice el logo centrado de arriba. */
+    /* ══════════════════════════════════════════════════════════
+       CABECERA MÓVIL
+       El logo va centrado DENTRO de la barra, no flotando encima.
+       Se centra respecto a la propia barra, con la marca a un lado
+       y los botones al otro, para que nada se solape.
+       ══════════════════════════════════════════════════════════ */
+    #colmena-app .c-hdr{position:relative}
     #colmena-app .c-brand-tx{display:none}
-    #colmena-app .c-estado{display:inline-flex}
+    #colmena-app .c-brand .c-logo{display:none}
+    #colmena-app .c-brand{min-width:0}
+    /* El indicador, pegado a la izquierda y compacto: solo el punto.
+       Con texto se metía debajo del logo centrado. */
+    #colmena-app .c-estado{display:inline-flex;position:absolute;left:12px;top:50%;
+      transform:translateY(-50%);z-index:3;padding:7px;gap:0}
+    #colmena-app .c-estado b{display:none}
+    /* [CORREGIDO] Se centraba respecto a TODA la cabecera, que incluye
+       la cinta del sorteo: el logo caía debajo, encima de la cinta. Se
+       ancla arriba, a la altura de la fila de botones. */
+    #colmena-app .c-logo-mov{display:block;position:absolute;
+      left:50%;top:9px;transform:translateX(-50%);
+      height:30px;width:auto;max-width:40vw;object-fit:contain;
+      pointer-events:none;z-index:1}
+  }
+  @media(max-width:400px){
+    #colmena-app .c-logo-mov{height:26px;max-width:38vw;top:10px}
   }
   @media(prefers-reduced-motion:reduce){#colmena-app .c-estado.on i{animation:none}}
   /* Etiquetas de las casillas: largas en la web, cortas en el móvil.
@@ -1294,8 +1318,9 @@ function headerHTML() {
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
   else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><button class="dir" id="c-dir" type="button" title="Cambiar de wallet">${iconoWallet()}<span class="dir-tx">${String(cuenta).slice(-4)}</span><span class="dir-ch"></span></button><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
-    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/aurex-logo.png" alt="" width="30" height="30"><span class="c-brand-tx"><span class="marca-larga">C Cuba <b>Oficial</b></span></span></a>
+    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/cco-logo.png" alt="" width="30" height="30"><span class="c-brand-tx"><span class="marca-larga">C Cuba <b>Oficial</b></span></span></a>
     <span class="c-estado" id="c-estado" title="Estado de tu wallet"><i></i><b>Sin conectar</b></span>
+    <img class="c-logo-mov" src="assets/img/cco-movil.webp" alt="CriptoCuba Oficial" width="140" height="91" loading="eager" decoding="async">
     <button class="c-ticker" id="c-ticker" type="button" aria-label="Prize Pool"><img class="c-ticker-img" src="assets/img/cinta-prize.webp" alt="Prize Pool" loading="lazy"></button>
     <div class="c-hdr-r">
 

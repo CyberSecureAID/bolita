@@ -616,7 +616,7 @@ export function vigilar() {
 function avisar(texto) {
   try {
     if (Notification && Notification.permission === 'granted') {
-      new Notification('CriptoCuba · alerta de precio', { body: texto, icon: 'assets/img/aurex-192.png' });
+      new Notification('CriptoCuba · alerta de precio', { body: texto, icon: 'assets/img/cco-192.png' });
       return;
     }
   } catch (_) {}
