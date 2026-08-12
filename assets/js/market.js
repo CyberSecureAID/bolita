@@ -301,6 +301,14 @@ function estilos() {
     box-shadow:0 3px 0 rgba(0,0,0,.4);min-width:100px}
   #mk-overlay .cf-b:active{transform:translateY(2px)}
   #mk-overlay .cf-b .tx-s{display:none}
+  #mk-overlay .op-atado{margin-top:11px;padding:13px 15px;border-radius:12px;
+    background:rgba(232,184,75,.07);border:1px solid rgba(232,184,75,.28);
+    font-family:var(--sans,sans-serif);font-size:12.5px;color:var(--ink-2,#b7bdc6);line-height:1.6;text-align:left}
+  #mk-overlay .op-atado > b:first-child{display:block;color:var(--gold,#E8B84B);
+    font-family:var(--display,sans-serif);font-size:13.5px;margin-bottom:5px}
+  #mk-overlay .op-atado b{color:var(--ink,#eaecef)}
+  #mk-overlay .op-atado i{display:block;font-style:normal;margin-top:8px;padding-top:8px;
+    border-top:1px solid rgba(232,184,75,.2);font-size:12px;color:var(--ink-3,#7d8794)}
   #mk-overlay .op-limpiar{width:100%;min-height:44px;padding:11px;border-radius:11px;margin-top:8px;
     background:transparent;border:1px dashed #3a424c;color:var(--ink-3,#7d8794);
     font-family:var(--mono,monospace);font-size:11.5px;cursor:pointer}
@@ -1846,6 +1854,30 @@ async function panelMisOps() {
         panelMisOps(); listarOfertas();
       } catch (e) { msg(traducir(e), 'err'); }
     });
+
+    /* ══════════════════════════════════════════════════════════════
+       POR QUÉ QUEDA DINERO DESPUÉS DE "RETIRAR TODO"
+
+       retirarTodo() NO puede sacar lo que está dentro de una operación
+       viva: eso sería robarle al comprador. Si queda saldo después de
+       retirar, es que hay una orden abierta reteniéndolo.
+
+       Antes esto no se explicaba: el usuario pulsaba "retirar todo",
+       firmaba, y seguía viendo dinero ahí. Diez veces. Sin entender
+       nada. Ahora se le dice qué lo retiene y cómo sacarlo.
+       ══════════════════════════════════════════════════════════════ */
+    if (hayRet.length && (urg.length || curso.length || abiertas.length)) {
+      const zona = document.querySelector('#mk-overlay .op-caja');
+      if (zona) {
+        const _atadas = urg.length + curso.length + abiertas.length;
+        zona.insertAdjacentHTML('beforeend', `
+          <div class="op-atado">
+            <b>¿Retiraste y sigue apareciendo saldo?</b>
+            Es porque tienes <b>${_atadas} operación${_atadas > 1 ? 'es' : ''} sin terminar</b>. Ese dinero está reservado para ellas: el contrato no puede devolvértelo mientras sigan abiertas, porque sería quitárselo a la otra parte.
+            <i>Para recuperarlo: cancela o termina esas operaciones ahí abajo. En cuanto se cierren, el dinero vuelve solo a tu wallet.</i>
+          </div>`);
+      }
+    }
   } catch (e) { box.innerHTML = `<div class="mk-vacio">No se pudo cargar. Revisa tu conexión.</div>`; }
 }
 
