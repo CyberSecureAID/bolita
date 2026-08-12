@@ -31,6 +31,43 @@
   <link rel="apple-touch-icon" href="assets/img/aurex-apple.png">
   <link rel="stylesheet" href="assets/css/styles.css">
   <link rel="stylesheet" href="assets/css/asistente.css?v=125">
+  <style>
+  /* ══════════════════════════════════════════════════════════════
+     LAS FLECHITAS DE LA BARRA DE DESPLAZAMIENTO
+     Van AQUÍ, en el HTML, y no en un archivo CSS, por un motivo: cada
+     módulo (market, academy, perfil…) inyecta sus propios estilos al
+     cargarse, y esos se ponen DESPUÉS del archivo, así que lo pisan.
+     Un estilo en el <head> del documento con !important gana siempre.
+     ══════════════════════════════════════════════════════════════ */
+  ::-webkit-scrollbar-button,
+  ::-webkit-scrollbar-button:start,
+  ::-webkit-scrollbar-button:end,
+  ::-webkit-scrollbar-button:start:decrement,
+  ::-webkit-scrollbar-button:end:increment,
+  ::-webkit-scrollbar-button:vertical:start:decrement,
+  ::-webkit-scrollbar-button:vertical:end:increment,
+  ::-webkit-scrollbar-button:vertical:start:increment,
+  ::-webkit-scrollbar-button:vertical:end:decrement,
+  ::-webkit-scrollbar-button:horizontal:start:decrement,
+  ::-webkit-scrollbar-button:horizontal:end:increment,
+  *::-webkit-scrollbar-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: none !important;
+    background-image: none !important;
+  }
+  ::-webkit-scrollbar { width: 7px !important; height: 7px !important; }
+  ::-webkit-scrollbar-track { background: transparent !important; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(232, 184, 75, .3) !important;
+    border-radius: 20px !important;
+    border: none !important;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(232, 184, 75, .5) !important; }
+  ::-webkit-scrollbar-corner { background: transparent !important; }
+  html { scrollbar-width: thin; scrollbar-color: rgba(232,184,75,.3) transparent; }
+  </style>
   <!-- App instalable: icono propio, pantalla completa y arranque sin conexión -->
   <link rel="manifest" href="manifest-aurex.webmanifest">
   <meta name="theme-color" content="#0b0e11">
