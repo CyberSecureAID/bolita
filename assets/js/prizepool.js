@@ -196,6 +196,35 @@ function estilos() {
   #pp-overlay .pp-w .tg{color:#7fb0ff;font-size:11px}
   #pp-overlay .pp-w .pz{color:var(--gold,#E8B84B);font-weight:800;flex:0 0 auto}
 
+  /* Cómo funciona — una idea por pantalla */
+  #pp-overlay .pp-card{padding:26px 22px;border-radius:18px;text-align:center;margin-bottom:14px;
+    background:linear-gradient(180deg,rgba(232,184,75,.07),rgba(232,184,75,.015));border:1px solid rgba(232,184,75,.28)}
+  #pp-overlay .pp-card-n{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:1.6px;margin-bottom:12px}
+  #pp-overlay .pp-card-t{font-family:var(--display,sans-serif);font-weight:800;font-size:21px;color:#eaecef;line-height:1.2}
+  #pp-overlay .pp-card-d{font-family:var(--sans,sans-serif);font-size:14px;color:#8b96a3;line-height:1.7;
+    margin:12px auto 20px;max-width:44ch}
+  #pp-overlay .pp-card-d em{color:var(--gold,#E8B84B);font-style:normal}
+  #pp-overlay .pp-puntos{display:flex;gap:6px;justify-content:center;margin-bottom:20px;flex-wrap:wrap}
+  #pp-overlay .pp-puntos span{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.15)}
+  #pp-overlay .pp-puntos span.on{background:var(--gold,#E8B84B);width:18px;border-radius:20px}
+  #pp-overlay .pp-card-acts{display:flex;gap:9px;justify-content:center}
+  #pp-overlay .pp-cb{min-width:150px;min-height:48px;padding:13px 26px;border-radius:12px;border:1px solid #c79426;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 4px 0 #8f6a1a}
+  #pp-overlay .pp-cb.gris{background:linear-gradient(180deg,#1b2027,#0d1117);border-color:#3a424c;color:#b7bdc6;
+    box-shadow:0 3px 0 rgba(0,0,0,.4);min-width:100px}
+  #pp-overlay .pp-cb:active{transform:translateY(2px)}
+  #pp-overlay .pp-cb .tx-s{display:none}
+  @media(max-width:560px){
+    #pp-overlay .pp-card{padding:22px 16px}
+    #pp-overlay .pp-card-t{font-size:18px}
+    #pp-overlay .pp-card-d{font-size:13px}
+    #pp-overlay .pp-cb{min-width:0;flex:1;padding:13px 14px;font-size:13px}
+    #pp-overlay .pp-cb .tx-l{display:none}
+    #pp-overlay .pp-cb .tx-s{display:inline}
+  }
+
   /* Cómo funciona */
   #pp-overlay .pp-intro{font-family:var(--sans,sans-serif);font-size:14px;color:#b7bdc6;line-height:1.6;text-align:center;margin-bottom:18px}
   #pp-overlay .pp-intro b{color:var(--gold,#E8B84B)}
@@ -261,6 +290,8 @@ function tabHTML() {
   </div>`;
 }
 
+let _ppPasos = [];
+
 function comoFunciona(entrada) {
   const pasos = [
     ['¿Qué es esto?', 'Muchas personas ponen un granito, se junta un <em>premio grande</em> y se reparte entre <em>muchos ganadores</em>. No es apostar a lo loco: es una <em>oportunidad con reglas claras</em>, pensada para que gane la mayor cantidad de gente.'],
@@ -272,7 +303,13 @@ function comoFunciona(entrada) {
     ['Reclamas tu premio', 'Si ganas, el premio llega <em>directo a tu wallet</em>. Y si no se junta suficiente gente, se te <em>devuelve tu aporte</em>. Reglas claras desde el minuto uno.'],
     ['¿Y si me arrepiento?', 'Puedes <em>salirte y recuperar tu aporte</em> cuando quieras… hasta <em>24 horas antes del cierre</em>. En ese último día la salida se bloquea para todos, y es a propósito: así nadie engorda el premio y se marcha justo antes del sorteo. El pozo que ves en la recta final es <em>real y se reparte</em>.']
   ];
+  /* ══════════════════════════════════════════════════════════════
+     Una idea por pantalla, igual que en el Marketplace. Ocho párrafos
+     seguidos no los lee nadie; de uno en uno, sí.
+     ══════════════════════════════════════════════════════════════ */
+  _ppPasos = pasos;   // se guarda ANTES de pintar, o la tarjeta sale vacía
   let html = `
+  <div id="pp-guia" data-i="0">${ppTarjeta(0, pasos)}</div>
   <button class="pp-eco-btn" id="pp-eco-btn">Funcionamiento económico <span class="ar">▼</span></button>
   <div class="pp-eco" id="pp-eco">
     <p>Pones <b>${entrada} USDT</b>. Si ganas, <b>recuperas eso y varias veces más</b>. Y no gana solo uno: <b>gana 1 de cada 5 participantes</b>. Mientras más gente entra, <b>más ganadores hay</b> — ese es el objetivo.</p>
@@ -287,11 +324,43 @@ function comoFunciona(entrada) {
     </table>
     <p class="pp-eco-pie">Si no ganas, lo único que arriesgaste fue <b>${entrada} USDT</b> — menos que un refresco. Y si la ronda no reúne el mínimo de gente, <b>se te devuelve tu aporte</b>.</p>
   </div>`;
-  pasos.forEach((p, i) => {
-    html += `<div class="pp-step"><div class="n">${i}</div><div class="tx"><b>${p[0]}</b><span>${p[1]}</span></div></div>`;
-  });
-  html += `<div class="pp-cta"><button class="pp-btn" id="pp-goto-ev">Quiero participar</button></div>`;
   return html;
+}
+
+/** Una tarjeta de la guía. */
+function ppTarjeta(i, pasos) {
+  const p = pasos[i];
+  const ultimo = i === pasos.length - 1;
+  return `
+  <div class="pp-card">
+    <div class="pp-card-n">${i + 1} de ${pasos.length}</div>
+    <div class="pp-card-t">${p[0]}</div>
+    <div class="pp-card-d">${p[1]}</div>
+    <div class="pp-puntos">${pasos.map((_, k) => `<span class="${k === i ? 'on' : ''}"></span>`).join('')}</div>
+    <div class="pp-card-acts">
+      ${i > 0 ? `<button class="pp-cb gris" data-pp-atras>Atrás</button>` : ''}
+      ${ultimo
+        ? `<button class="pp-cb" id="pp-goto-ev">Quiero participar</button>`
+        : `<button class="pp-cb" data-pp-mas><span class="tx-l">Saber más</span><span class="tx-s">Más</span></button>`}
+    </div>
+  </div>`;
+}
+
+/** Cambia de tarjeta. Se llama desde los botones. */
+function ppIr(i) {
+  const pasos = _ppPasos || [];
+  if (!pasos.length) return;
+  const z = document.getElementById('pp-guia');
+  if (!z) return;
+  const k = Math.max(0, Math.min(pasos.length - 1, i));
+  z.dataset.i = k;
+  z.innerHTML = ppTarjeta(k, pasos);
+  const m = z.querySelector('[data-pp-mas]');
+  if (m) m.onclick = () => ppIr(k + 1);
+  const a = z.querySelector('[data-pp-atras]');
+  if (a) a.onclick = () => ppIr(k - 1);
+  const g = z.querySelector('#pp-goto-ev');
+  if (g) g.onclick = () => { const t = document.getElementById('pp-tab-ev'); if (t) t.click(); };
 }
 
 /* ───────── Abrir + cargar datos reales ───────── */
@@ -382,8 +451,10 @@ function wireTabs() {
     $('pp-card').scrollTop = 0;
   };
   if (ev) ev.onclick = () => go('ev');
-  if (hw) hw.onclick = () => go('hw');
+  if (hw) hw.onclick = () => { go('hw'); setTimeout(() => ppIr(0), 30); };
   const goev = $('pp-goto-ev'); if (goev) goev.onclick = () => go('ev');
+  // La guía arranca ya montada, con sus botones conectados.
+  setTimeout(() => { if (document.getElementById('pp-guia')) ppIr(0); }, 60);
   const eco = $('pp-eco-btn'); if (eco) eco.onclick = () => { eco.classList.toggle('open'); const p = $('pp-eco'); if (p) p.classList.toggle('open'); };
 }
 

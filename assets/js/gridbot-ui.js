@@ -134,8 +134,15 @@ function inyectarEstilo() {
   #colmena-app .c-loteria:active,#colmena-app .c-perfil:active{opacity:.8}
   /* La marca: completa en el escritorio, iniciales en el móvil. Con el
      nombre entero, la cinta del sorteo se quedaba sin sitio y no salía. */
+  /* La marca: en la web "Cripto Cuba", en el móvil "CCuba". El nombre
+     completo dejaba sin sitio a la cinta del sorteo. */
   #colmena-app .marca-corta{display:none}
   #colmena-app .marca-larga{display:inline}
+  #colmena-app .c-brand-tx b{font-weight:800;color:var(--gold)}
+  /* La wallet: su logo y los 4 últimos caracteres, que es como la
+     reconoce todo el mundo. La dirección entera no la lee nadie. */
+  #colmena-app .dir-logo{width:15px;height:15px;flex:0 0 auto;border-radius:4px}
+  #colmena-app .dir-tx{font-family:var(--mono);font-size:12px;letter-spacing:.5px;font-weight:700}
   @media(max-width:760px){
     #colmena-app .marca-corta{display:inline}
     #colmena-app .marca-larga{display:none}
@@ -1256,9 +1263,9 @@ function headerHTML() {
   let right;
   if (!cuenta) right = `<button class="btn btn-oro hdr-btn" id="c-conectar">Conectar wallet</button>`;
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
-  else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><button class="dir" id="c-dir" type="button" title="Cambiar de wallet">${iconoWallet()}${wallet.abreviar(cuenta)}<span class="dir-ch"></span></button><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
+  else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><button class="dir" id="c-dir" type="button" title="Cambiar de wallet">${iconoWallet()}<span class="dir-tx">${String(cuenta).slice(-4).toUpperCase()}</span><span class="dir-ch"></span></button><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
-    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/aurex-logo.png" alt="" width="30" height="30"><span class="c-brand-tx"><span class="marca-larga">Cripto Cuba Oficial</span><span class="marca-corta">CCO</span></span></a>
+    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/aurex-logo.png" alt="" width="30" height="30"><span class="c-brand-tx"><span class="marca-larga">Cripto <b>Cuba</b></span><span class="marca-corta">C<b>Cuba</b></span></span></a>
     <button class="c-ticker" id="c-ticker" type="button" aria-label="Prize Pool"><img class="c-ticker-img" src="assets/img/cinta-prize.webp" alt="Prize Pool" loading="lazy"></button>
     <div class="c-hdr-r">
 
@@ -1282,12 +1289,30 @@ const tipoNum = () => (_movil() ? 'text' : 'number');
 const escT = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /* Logo de la wallet conectada (lo envía la propia wallet, sin servidores externos) */
+/* ══════════════════════════════════════════════════════════════
+   EL LOGO DE LA WALLET
+
+   Antes salía un rectangulito gris: la wallet informa de su marca
+   (metamask, trust…) pero no siempre trae su icono, y el código solo
+   miraba el icono. Ahora, si no lo trae, se dibuja el logo a mano.
+   Se reconocen al vuelo y quedan mucho mejor que un cuadrado.
+   ══════════════════════════════════════════════════════════════ */
+const LOGOS_WALLET = {
+  metamask: `<svg class="dir-logo" viewBox="0 0 32 32" width="15" height="15"><path fill="#E17726" d="M28.6 3.4 17.8 11.4l2-4.7z"/><path fill="#E27625" d="m3.4 3.4 10.7 8.1-1.9-4.8zM24.4 21.7l-2.9 4.4 6.2 1.7 1.8-6z"/><path fill="#E27625" d="m2.6 21.8 1.7 6 6.2-1.7-2.9-4.4z"/><path fill="#E27625" d="m10.1 14.5-1.7 2.6 6.1.3-.2-6.6zM21.9 14.5l-4.3-3.8-.1 6.7 6.1-.3zM10.5 26.1l3.7-1.8-3.2-2.5zM17.8 24.3l3.7 1.8-.5-4.3z"/><path fill="#D5BFB2" d="m21.5 26.1-3.7-1.8.3 2.4v1zM10.5 26.1l3.4.6v-1l.3-2.4z"/><path fill="#233447" d="m14 20.3-3.1-.9 2.2-1zM18 20.3l.9-1.9 2.2 1z"/><path fill="#CC6228" d="m10.5 26.1.5-4.4-3.4.1zM21 21.7l.5 4.4 2.9-4.3zM23.6 17.1l-6.1.3.6 3.1.9-1.9 2.2 1zM10.9 19.6l2.2-1 .9 1.9.6-3.1-6.2-.3z"/><path fill="#E27525" d="m8.4 17.1 2.6 5-.1-2.5zM21.2 19.6l-.1 2.5 2.6-5zM14.6 17.4l-.6 3.1.8 4 .2-5.3zM17.5 17.4l-.4 1.8.1 5.3.8-4z"/><path fill="#F5841F" d="m18 20.3-.8 4 .6.4 3.2-2.5.1-2.5zM10.9 19.6l.1 2.5 3.2 2.5.6-.4-.8-4z"/><path fill="#C0AC9D" d="m18.1 27.5v-1l-.3-.2h-3.6l-.3.2v1l-3.4-.6 1.2 1 2.4 1.7h3.7l2.5-1.7 1.2-1z"/><path fill="#161616" d="m17.8 24.3-.6-.4h-2.4l-.6.4-.3 2.4.3-.2h3.6l.3.2z"/><path fill="#763E1A" d="m29.1 11.9.9-4.4-1.4-4.1-11 8.1 4.3 3.6 6 1.8 1.3-1.5-.6-.4 1-.9-.7-.6 1-.7zM2 7.5l.9 4.4-.6.4 1 .7-.7.6.9.9-.6.4 1.3 1.5 6-1.8 4.3-3.6-11-8.1z"/><path fill="#F5841F" d="m28 15.1-6-1.8 1.8 2.7-2.6 5 3.5-.1h5.1zM10.1 13.3l-6 1.8-1.8 5.8h5.1l3.5.1-2.6-5zM17.5 17.4l.4-6.6 1.7-4.6h-7.3l1.7 4.6.4 6.6.2 2.1v5.2h2.4l.1-5.2z"/></svg>`,
+  trust:    `<svg class="dir-logo" viewBox="0 0 32 32" width="15" height="15"><path fill="#3375BB" d="M16 2 5 6.3v8.4c0 6.9 4.6 13.3 11 15.3 6.4-2 11-8.4 11-15.3V6.3z"/><path fill="#fff" d="M16 6.6v18.9c4.6-1.6 8-6.5 8-11.6V8.6z"/></svg>`,
+  binance:  `<svg class="dir-logo" viewBox="0 0 32 32" width="15" height="15"><path fill="#F0B90B" d="m16 4 3 3-6 6-3-3zM22 10l3 3-9 9-3-3zM10 10l3 3-3 3-3-3zM16 19l3 3-3 3-3-3z"/></svg>`,
+  coinbase: `<svg class="dir-logo" viewBox="0 0 32 32" width="15" height="15"><circle cx="16" cy="16" r="14" fill="#0052FF"/><rect x="11" y="11" width="10" height="10" rx="2" fill="#fff"/></svg>`,
+  phantom:  `<svg class="dir-logo" viewBox="0 0 32 32" width="15" height="15"><circle cx="16" cy="16" r="14" fill="#AB9FF2"/><ellipse cx="12" cy="15" rx="2" ry="3" fill="#fff"/><ellipse cx="20" cy="15" rx="2" ry="3" fill="#fff"/></svg>`,
+  rabby:    `<svg class="dir-logo" viewBox="0 0 32 32" width="15" height="15"><circle cx="16" cy="16" r="14" fill="#7084F5"/><path fill="#fff" d="M9 18c3-5 11-7 14-4-2 4-9 7-14 4z"/></svg>`
+};
+
 function iconoWallet() {
   try {
     const info = wallet.walletInfo ? wallet.walletInfo() : null;
     if (info?.icon) return `<img class="dir-logo" src="${info.icon}" alt="">`;
+    if (info?.clave && LOGOS_WALLET[info.clave]) return LOGOS_WALLET[info.clave];
   } catch (_) {}
-  return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="6" width="20" height="13" rx="3"/><path d="M16 12h.01"/></svg>`;
+  return `<svg class="dir-logo" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="6" width="20" height="13" rx="3"/><path d="M16 12h.01"/></svg>`;
 }
 
 /* Desplegable para cambiar de wallet */

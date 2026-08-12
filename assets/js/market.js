@@ -1844,6 +1844,29 @@ async function panelMisOps() {
       sec('Terminadas', fin_, 'Historial de lo que ya se cerró.', true) +
       (fin_.length ? `<button class="op-limpiar" id="op-limpiar">Ocultar las ${fin_.length} terminadas</button>` : '')
     wireOps();
+
+    /* [CORREGIDO] Este botón estaba dentro de wireOps(), pero la lista
+       de terminadas (fin_) se calcula AQUÍ, en panelMisOps. Desde allí
+       no la veía, así que ocultaba una lista vacía: el mensaje verde
+       aparecía y no se ocultaba nada. */
+    const _limp = $('op-limpiar');
+    if (_limp) _limp.onclick = () => confirmar({
+      titulo: `Ocultar ${fin_.length} terminada${fin_.length > 1 ? 's' : ''}`,
+      texto: 'Desaparecen de esta lista para que veas solo lo que está en marcha.<br><br>' +
+             '<b>No se borra nada</b>: tu historial y tus estrellas siguen en la blockchain.',
+      ok: 'Ocultar'
+    }, async () => {
+      try {
+        const v = JSON.parse(localStorage.getItem('mk-ocultas') || '{}');
+        const k = String(cuenta).toLowerCase();
+        v[k] = v[k] || {};
+        fin_.forEach((d) => { v[k][String(d.o.id)] = 1; });
+        localStorage.setItem('mk-ocultas', JSON.stringify(v));
+      } catch (_) {}
+      msg(`${fin_.length} ocultada${fin_.length > 1 ? 's' : ''}.`, 'ok');
+      panelMisOps();
+    });
+
     const rt = $('op-retirar');
     if (rt) rt.onclick = () => confirmar({
       titulo: '¿Retirar todo lo que tienes en la caja fuerte?',
@@ -2086,28 +2109,6 @@ function wireOps() {
      Y si ninguna funciona todavía, se explica cuánto falta y se ofrece
      la disputa, que SIEMPRE tiene salida por arbitraje.
      ══════════════════════════════════════════════════════════════ */
-  /* Ocultar las terminadas. Solo se ocultan EN ESTE NAVEGADOR: en la
-     blockchain quedan para siempre, que es lo que da la reputación. Se
-     dice claramente para que nadie crea que se borra su historial. */
-  const _limp = $('op-limpiar');
-  if (_limp) _limp.onclick = () => confirmar({
-    titulo: 'Ocultar las terminadas',
-    texto: 'Desaparecen de esta lista para que veas solo lo que está en marcha.<br><br>' +
-           '<b>No se borra nada</b>: tu historial y tus estrellas siguen en la blockchain, y puedes volver a verlas cuando quieras.',
-    ok: 'Ocultar'
-  }, async () => {
-    try {
-      const v = JSON.parse(localStorage.getItem('mk-ocultas') || '{}');
-      const k = String(cuenta).toLowerCase();
-      v[k] = v[k] || {};
-      // Se apunta el ID de cada terminada que hay ahora en pantalla.
-      fin_.forEach((d) => { v[k][String(d.o.id)] = 1; });
-      localStorage.setItem('mk-ocultas', JSON.stringify(v));
-    } catch (_) {}
-    msg(`${fin_.length} operación${fin_.length > 1 ? 'es' : ''} ocultada${fin_.length > 1 ? 's' : ''}.`, 'ok');
-    panelMisOps();
-  });
-
   document.querySelectorAll('[data-canmut]').forEach(b => b.onclick = () => confirmar({
     titulo: 'Cancelar este pedido',
     texto: 'Se intentará cerrar la operación y <b>devolverte la cripto que quede</b>.<br><br>' +
