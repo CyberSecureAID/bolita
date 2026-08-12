@@ -244,30 +244,64 @@ function construirMapa(velas) {
        · el volumen de esa vela
      Los extremos absolutos del gráfico —el máximo y el mínimo de todo
      el rango— reciben un extra: son los niveles que todo el mundo mira. */
-  const marcar = (piv, lista) => {
+  /* ══════════════════════════════════════════════════════════════
+     SOLO LOS NIVELES QUE IMPORTAN
+
+     Antes se marcaba CADA pivote, y en 500 velas hay decenas. Salían
+     bandas rojas por todas partes y el gráfico dejaba de informar: si
+     todo es importante, nada lo es.
+
+     Ahora se puntúa cada nivel y se quedan SOLO LOS 6 MEJORES. Un
+     trader puede leer seis niveles; sesenta, no.
+     ══════════════════════════════════════════════════════════════ */
+  const candidatos = [];
+
+  const puntuar = (piv, lista) => {
     const toques = lista.filter((o) => Math.abs(o.p - piv.p) <= tol).length;
     const v = velas[piv.i];
     const esAlto = lista === altos;
-    // La mecha: cuanto más larga, más órdenes se barrieron ahí
     const mecha = esAlto ? (v.h - Math.max(v.o, v.c)) : (Math.min(v.o, v.c) - v.l);
-    const relMecha = Math.min(1, mecha / ((pAlto - pBajo) * 0.02));
-    // ¿Es el extremo absoluto del gráfico?
-    const extremo = (esAlto && Math.abs(piv.p - pAlto) < tol) ||
-                    (!esAlto && Math.abs(piv.p - pBajo) < tol);
+    const relMecha = Math.min(1, mecha / ((pAlto - pBajo) * 0.022));
 
-    let fuerza = 1.6 + toques * 1.1 + relMecha * 2.4;
-    if (extremo) fuerza += 3.2;
+    // Volumen de esa vela comparado con el normal
+    const volMedio = velas.reduce((a, x) => a + x.v, 0) / velas.length;
+    const relVol = Math.min(2.2, v.v / Math.max(1e-9, volMedio));
 
-    const f0 = filaDe(piv.p);
-    for (let d = -4; d <= 4; d++) {
-      const f = f0 + d;
+    const extremo = (esAlto && Math.abs(piv.p - pAlto) < tol * 3) ||
+                    (!esAlto && Math.abs(piv.p - pBajo) < tol * 3);
+
+    /* La puntuación combina lo que de verdad hace un nivel importante:
+       cuántas veces se tocó, qué mecha dejó, cuánto volumen movió y si
+       es un extremo del rango. */
+    let pts = toques * 2.4 + relMecha * 2.0 + relVol * 1.3;
+    if (extremo) pts += 2.6;
+
+    candidatos.push({ p: piv.p, pts, f: filaDe(piv.p) });
+  };
+  altos.forEach((p) => puntuar(p, altos));
+  bajos.forEach((p) => puntuar(p, bajos));
+
+  // Los mejores, sin repetir niveles que estén pegados
+  candidatos.sort((a, b) => b.pts - a.pts);
+  const elegidos = [];
+  for (const c of candidatos) {
+    if (elegidos.length >= 6) break;
+    if (elegidos.some((e) => Math.abs(e.f - c.f) < 12)) continue;
+    elegidos.push(c);
+  }
+
+  // Y se marcan, con fuerza proporcional a su puntuación
+  const ptsMax = elegidos.length ? elegidos[0].pts : 1;
+  elegidos.forEach((c) => {
+    const rel = c.pts / ptsMax;                 // 0 a 1
+    const fuerza = 1.5 + rel * 4.5;             // el mejor llega al rojo
+    for (let d = -3; d <= 3; d++) {
+      const f = c.f + d;
       if (f < 0 || f >= FILAS) continue;
-      const caida = Math.exp(-(d * d) / 5.5);
+      const caida = Math.exp(-(d * d) / 3.2);
       refuerzo[f] = Math.max(refuerzo[f], 1 + fuerza * caida);
     }
-  };
-  altos.forEach((p) => marcar(p, altos));
-  bajos.forEach((p) => marcar(p, bajos));
+  });
 
   /* ── 5. LIQUIDACIONES POR APALANCAMIENTO ── */
   velas.forEach((v, ci) => {
@@ -353,6 +387,22 @@ function arrancarVivo() {
       const nuevas = await traerVelas(par.s, _tf, 3);
       if (!nuevas.length) return;
 
+      /* [CORREGIDO] El precio salía desfasado unos céntimos porque se
+         usaba el cierre de la vela en curso, que solo cambia cuando
+         llega una vela nueva. El precio de VERDAD es el último operado,
+         y ese lo da otro punto de la API. */
+      try {
+        const rp = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${par.s}`);
+        const jp = await rp.json();
+        const px = Number(jp.price);
+        if (px > 0) {
+          const u = nuevas[nuevas.length - 1];
+          u.c = px;
+          if (px > u.h) u.h = px;
+          if (px < u.l) u.l = px;
+        }
+      } catch (_) {}
+
       let cambio = false;
       nuevas.forEach((nv) => {
         const i = V.velas.findIndex((x) => x.t === nv.t);
@@ -411,7 +461,7 @@ export async function abrirLiquidity() {
             `<button class="lq-b ${a === V.apal ? 'on' : ''}" data-apal="${a}">${a === 'todos' ? 'Todo' : 'x' + a}</button>`).join('')}
         </div>
         <div class="lq-grupo lq-slider">
-          <span>Intensidad</span>
+          <span>Filtro</span>
           <input type="range" id="lq-int" min="55" max="260" value="55">
         </div>
         <div class="lq-der">
@@ -529,7 +579,7 @@ function calor(v) {
   /* Curva 0,52: con 0,62 el amarillo llegaba demasiado pronto y el
      rojo casi no aparecía. Ahora la mayoría se queda en azul y verde,
      y el rojo se reserva para los picos reales. */
-  const p = Math.pow(v, 0.45);
+  const p = Math.pow(v, 0.85);
   /* ══════════════════════════════════════════════════════════════
      PALETA — sacada píxel a píxel de la herramienta de referencia.
 
@@ -675,10 +725,17 @@ function dibujar() {
         for (let f = fMin; f < fMax; f++) {
           const v = col[f];
           if (v <= 0) continue;
-          const rel = Math.min(1, (v / max) * V.intensidad);
-          // Por debajo de este umbral no se pinta: deja respirar el
-          // gráfico y hace que destaquen las zonas que importan.
-          if (rel < 0.02) continue;
+          /* ══════════════════════════════════════════════════════
+             LA INTENSIDAD FILTRA, NO SATURA
+
+             Antes multiplicaba el valor y al subirla todo se iba al
+             rojo. Ahora lo que hace es subir el UMBRAL: cuanto más
+             alta, menos zonas se pintan y solo quedan las fuertes.
+             Es lo que espera un trader: quitar ruido, no añadir color.
+             ══════════════════════════════════════════════════════ */
+          const rel = Math.min(1, v / max);
+          const umbral = 0.03 + (V.intensidad - 0.55) * 0.30;
+          if (rel < umbral) continue;
           const rgb = calor(rel);
           if (!rgb) continue;
           const pF = V.mapa.yMin + f * V.mapa.alturaFila;
