@@ -132,6 +132,14 @@ function inyectarEstilo() {
   #colmena-app .c-loteria,#colmena-app .c-perfil,#colmena-app .c-prize,#colmena-app .c-market{display:inline-flex;align-items:center;gap:7px;height:36px;box-sizing:border-box;padding:0 11px;border-radius:8px;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-2);text-decoration:none;background:transparent;border:none;box-shadow:none;text-shadow:none;cursor:pointer;transition:color .14s,background .14s}
   #colmena-app .c-swap:active,#colmena-app .c-loteria:active,#colmena-app .c-perfil:active,#colmena-app .c-prize:active,#colmena-app .c-market:active{opacity:.8}
   #colmena-app .c-loteria:active,#colmena-app .c-perfil:active{opacity:.8}
+  /* La marca: completa en el escritorio, iniciales en el móvil. Con el
+     nombre entero, la cinta del sorteo se quedaba sin sitio y no salía. */
+  #colmena-app .marca-corta{display:none}
+  #colmena-app .marca-larga{display:inline}
+  @media(max-width:760px){
+    #colmena-app .marca-corta{display:inline}
+    #colmena-app .marca-larga{display:none}
+  }
   #colmena-app .c-tools{border-color:rgba(77,159,255,.42);color:var(--ac-m,#4d9fff)}
   #colmena-app .c-tools:hover{border-color:var(--ac-m,#4d9fff);background:rgba(77,159,255,.1)}
   #colmena-app .c-academy{border-color:rgba(46,232,106,.42);color:var(--neon-lit)}
@@ -1250,7 +1258,7 @@ function headerHTML() {
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
   else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><button class="dir" id="c-dir" type="button" title="Cambiar de wallet">${iconoWallet()}${wallet.abreviar(cuenta)}<span class="dir-ch"></span></button><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
-    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/aurex-logo.png" alt="" width="30" height="30"><span class="c-brand-tx">Cripto Cuba</span></a>
+    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/aurex-logo.png" alt="" width="30" height="30"><span class="c-brand-tx"><span class="marca-larga">Cripto Cuba Oficial</span><span class="marca-corta">CCO</span></span></a>
     <button class="c-ticker" id="c-ticker" type="button" aria-label="Prize Pool"><img class="c-ticker-img" src="assets/img/cinta-prize.webp" alt="Prize Pool" loading="lazy"></button>
     <div class="c-hdr-r">
 
@@ -1546,7 +1554,7 @@ function render() {
   if (!cuenta) {
     host.innerHTML = headerHTML() + `<div class="wrap">
       <div class="conectar-box">
-        <h2>Cripto Cuba</h2>
+        <h2>Cripto Cuba Oficial</h2>
         <p>Bots que compran barato y venden caro por ti, en tu propia wallet. Sin custodia y sin KYC.</p>
         <button class="btn btn-oro" id="c-conectar2">Conectar wallet</button>
         <div id="c-hero-msg" style="margin-top:12px"></div>

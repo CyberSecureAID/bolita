@@ -626,7 +626,10 @@ export async function abrirMarket() {
       const b = document.createElement('button');
       b.className = 'mk-tab'; b.id = 'mk-t6';
       b.innerHTML = `Disputas <span class="mk-badge" id="mk-nd" style="display:none">0</span>`;
-      cont.appendChild(b);
+      /* Disputas va ANTES de "Cómo funciona", que siempre cierra la fila:
+         es la guía, no una sección de trabajo. */
+      const _guia = $('mk-t4');
+      if (_guia) cont.insertBefore(b, _guia); else cont.appendChild(b);
       b.onclick = () => {
         document.querySelectorAll('#mk-overlay .mk-tab').forEach(x => x.classList.remove('on'));
         document.querySelectorAll('#mk-overlay .mk-pane').forEach(x => x.classList.remove('on'));
@@ -1775,10 +1778,10 @@ async function panelMisOps() {
     /* Marca de "ocultar terminadas": todo lo cerrado ANTES de este
        momento no se lista. Solo afecta a este navegador; en la cadena
        queda todo, que es lo que sostiene la reputación. */
-    let _ocultarAntes = 0;
+    let _ocultas = {};
     try {
       const v = JSON.parse(localStorage.getItem('mk-ocultas') || '{}');
-      _ocultarAntes = Number(v[String(cuenta).toLowerCase()] || 0);
+      _ocultas = v[String(cuenta).toLowerCase()] || {};
     } catch (_) {}
 
     const urg = [], curso = [], abiertas = [], fin_ = [];
@@ -1792,9 +1795,10 @@ async function panelMisOps() {
       else if (est === 1) curso.push(d);
       else if (est === 0) abiertas.push(d);
       else {
-        // Ocultas por el usuario en este navegador: no se muestran.
-        const _cerradaEn = Number(d.o.ultimoMovEn || 0);
-        if (!(_ocultarAntes > 0 && _cerradaEn > 0 && _cerradaEn <= _ocultarAntes)) fin_.push(d);
+        /* [CORREGIDO] Antes se comparaba con la FECHA de cierre, pero
+           muchas órdenes tienen ultimoMovEn a cero y nunca se ocultaban.
+           Ahora se guardan los IDs concretos: si está en la lista, fuera. */
+        if (!_ocultas[String(d.o.id)]) fin_.push(d);
       }
     }
     const sec = (tit, arr, nota, plegable) => {
@@ -2014,13 +2018,32 @@ function opCard({ o, perfOtro }, cuenta, esOwner) {
 }
 
 function wireOps() {
+  /* [FALLO GRAVE CORREGIDO] Esta función se tragaba los errores: si el
+     contrato rechazaba la transacción, mostraba el aviso rojo pero
+     devolvía "todo bien" a quien la llamó. Por eso el botón de cancelar
+     decía que había funcionado cuando en realidad no hizo nada.
+     Ahora devuelve true/false y quien la use puede reaccionar. */
   const tx = async (fn, id, okMsg, args) => {
     try {
       msg('Confirma en tu wallet…', 'info');
       const c = new ethers.Contract(MARKET, ABI, await firmante());
       await (await c[fn](...(args !== undefined ? [id, args] : [id]))).wait();
       msg(okMsg, 'ok'); panelMisOps();
-    } catch (e) { msg(traducir(e), 'err'); }
+      return true;
+    } catch (e) { msg(traducir(e), 'err'); return false; }
+  };
+
+  /* Igual que tx(), pero SIN mensajes: para probar una vía y, si falla,
+     seguir con la siguiente sin marear al usuario con avisos rojos. */
+  const txCallado = async (fn, id) => {
+    try {
+      const c = new ethers.Contract(MARKET, ABI, await firmante());
+      await (await c[fn](id)).wait();
+      return { ok: true };
+    } catch (e) {
+      const m = String(e?.shortMessage || e?.reason || e?.message || e);
+      return { ok: false, rechazado: /reject|denied|user cancel/i.test(m), motivo: m };
+    }
   };
   document.querySelectorAll('[data-pag]').forEach(b => b.onclick = () => confirmar({
     titulo: '¿Ya le pagaste?',
@@ -2075,10 +2098,13 @@ function wireOps() {
   }, async () => {
     try {
       const v = JSON.parse(localStorage.getItem('mk-ocultas') || '{}');
-      v[String(cuenta).toLowerCase()] = Math.floor(Date.now() / 1000);
+      const k = String(cuenta).toLowerCase();
+      v[k] = v[k] || {};
+      // Se apunta el ID de cada terminada que hay ahora en pantalla.
+      fin_.forEach((d) => { v[k][String(d.o.id)] = 1; });
       localStorage.setItem('mk-ocultas', JSON.stringify(v));
     } catch (_) {}
-    msg('Terminadas ocultas.', 'ok');
+    msg(`${fin_.length} operación${fin_.length > 1 ? 'es' : ''} ocultada${fin_.length > 1 ? 's' : ''}.`, 'ok');
     panelMisOps();
   });
 
@@ -2090,19 +2116,38 @@ function wireOps() {
     ok: 'Sí, cancelar'
   }, async () => {
     const id = b.getAttribute('data-canmut');
-    // 1) Vía normal: registrar la petición.
-    try {
-      await tx('pedirCancelar', id, 'Petición registrada.');
-    } catch (_) {}
-    // 2) Vía sin cooperación: si ya se puede, se cierra ahora mismo.
-    try {
-      await tx('cancelarPorTiempo', id, 'Pedido cancelado. Tu cripto vuelve a tu wallet.');
-      return;
-    } catch (e) {
-      const m = String(e?.shortMessage || e?.reason || e?.message || e);
-      if (/reject|denied|cancel/i.test(m)) return;   // lo canceló el usuario
-      msg('Petición registrada. Si la otra persona también cancela, se cierra al momento. Si no responde, vuelve pasado el plazo y podrás cerrarlo tú solo.', 'info');
+    msg('Confirma en tu wallet…', 'info');
+
+    /* Se prueban TRES vías en orden. Antes solo se intentaba la primera
+       y, si el contrato la rechazaba, el usuario firmaba para nada y no
+       se enteraba de por qué. */
+    const vias = [
+      ['cancelarPorTiempo', 'Pedido cancelado. Tu cripto vuelve a tu wallet.'],
+      ['cancelarOrden',     'Pedido cancelado. Tu cripto vuelve a tu wallet.'],
+      ['pedirCancelar',     'Petición registrada. Falta que la otra persona la confirme.']
+    ];
+
+    let ultimo = '';
+    for (const [fn, okMsg] of vias) {
+      const r = await txCallado(fn, id);
+      if (r.ok) { msg(okMsg, 'ok'); panelMisOps(); return; }
+      if (r.rechazado) { msg('Cancelaste la firma.', ''); return; }
+      ultimo = r.motivo;
     }
+
+    /* Ninguna funcionó. Se explica QUÉ pasa y qué puede hacer, en vez de
+       dejarle firmando una y otra vez sin resultado. */
+    msg('', '');
+    confirmar({
+      titulo: 'Este pedido no se puede cancelar todavía',
+      texto: 'El contrato no lo permite ahora mismo. Suele ser por una de estas dos:<br><br>' +
+             '<b>1.</b> Hay un pago declarado por la otra parte. Mientras eso esté ahí, ' +
+             'el contrato no deja cancelar: sería quitarle su dinero.<br>' +
+             '<b>2.</b> Todavía no ha pasado el plazo de espera.<br><br>' +
+             '<b>La salida segura es la disputa.</b> Un árbitro revisa el caso y libera el dinero ' +
+             'a quien corresponda. Es la vía que existe justo para esto.',
+      ok: 'Abrir disputa'
+    }, () => pedirMotivo(id));
   }));
 
   document.querySelectorAll('[data-anu]').forEach(b => b.onclick = () => confirmar({
