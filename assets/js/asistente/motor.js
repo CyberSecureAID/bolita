@@ -1455,6 +1455,8 @@
        Absurdo, y justo al final, que es donde más duele.
        A la cortesía no se le empuja. Y a una conversación cerrada, tampoco. */
     if (closed) return text;
+    /* Algunas respuestas YA terminan preguntando algo. Añadirles otro
+       "¿te aclaro algo más?" suena a máquina y confunde. */
     if (entry && entry.noNudge) return text;
 
     /* [FALLO CORREGIDO — estaba en producción] Con una toma de datos en
@@ -2526,7 +2528,7 @@
       savePending();
       var _kid = detectTopics(text).filter(function (h) { return h.entry.minor; });
       var _kidAns = _kid.length ? _kid[0].entry.answer
-        : ['Gracias por decírmelo. Como eres menor de edad, no voy a pedirte ningún dato.\n\nCriptoCuba es una plataforma donde se opera con **dinero real**, y eso es solo para mayores de 18 años. No es sitio para ti todavía.\n\nSi te interesa aprender cómo funcionan las criptomonedas, hay muchísimo material gratis para empezar sin arriesgar nada.'];
+        : ['Gracias por decírmelo. Como eres menor de edad, no voy a pedirte ningún dato.\n\nCripto Cuba Oficial es una plataforma donde se opera con **dinero real**, y eso es solo para mayores de 18 años. No es sitio para ti todavía.\n\nSi te interesa aprender cómo funcionan las criptomonedas, hay muchísimo material gratis para empezar sin arriesgar nada.'];
       speak(pickVariant(_kidAns, 'a child#a'), null, release);
       return;
     }
@@ -3085,7 +3087,9 @@
       busy = true;
       setTimeout(function () {
         _esSaludo = true;
-        speak(pickVariant(BOT.greeting, 'greeting'), null, function () {
+        /* Sin remate. "¿Te aclaro algo más?" después de presentarse no
+           tiene sentido: todavía no ha aclarado nada. */
+        speak(pickVariant(BOT.greeting, 'greeting'), { noNudge: true }, function () {
           _esSaludo = false;
           busy = false;
         });

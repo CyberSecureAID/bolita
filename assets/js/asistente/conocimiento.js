@@ -33,11 +33,11 @@ window.NP_BOT_KB = {
       'Buenas. Soy **Jesús**, de Cripto Cuba Oficial.\n\nPregúntame lo que quieras: los bots, el marketplace, las comisiones, lo que sea.',
       'Hola. Soy **Jesús**.\n\n¿Primera vez por aquí, o ya tienes algún bot funcionando?',
       'Hola, ¿qué tal? Soy **Jesús**, de Cripto Cuba Oficial.\n\nDime qué necesitas y te echo una mano.',
-      '¡Hola! **Jesús** al habla.\n\n¿Te explico cómo funciona esto, o tienes una duda concreta?',
-      'Buenas. **Jesús**, de Cripto Cuba Oficial.\n\nSi te suena a chino todo esto, tranquilo: empezamos por el principio.',
+      '¡Hola! Le atiende **Jesús**, de Cripto Cuba Oficial.\n\n¿Te explico cómo funciona esto, o tienes una duda concreta?',
+      'Buenas, mi nombre es **Jesús** y soy de Cripto Cuba Oficial.\n\nSi te suena a chino todo esto, tranquilo: empezamos por el principio.',
       'Hola. Soy **Jesús** y llevo la parte de atención de Cripto Cuba Oficial.\n\nDime en qué andas y vemos.',
       '¿Qué tal? Soy **Jesús**.\n\nPregunta sin miedo, que para eso estoy. Aunque sea la duda más básica.',
-      'Hola. **Jesús**, de Cripto Cuba Oficial.\n\n¿Vienes a informarte, o ya andas operando?',
+      'Hola, soy **Jesús**, del equipo de Cripto Cuba Oficial.\n\n¿Vienes a informarte, o ya andas operando?',
       'Buenas, soy **Jesús**.\n\nTe puedo explicar los bots, el marketplace o lo que se te ocurra.',
       'Hola. Soy **Jesús**, de Cripto Cuba Oficial.\n\nCuéntame qué te trae por aquí.'
     ],
@@ -102,7 +102,7 @@ window.NP_BOT_KB = {
 
     /* Atajos del menú: las preguntas que más se hacen, a un toque. */
     quick: [
-      { label: '¿Qué es Cripto Cuba Oficial?',        q: 'que es aurex' },
+      { label: '¿Qué es esto?',        q: 'que es aurex' },
       { label: '¿Cómo empiezo?',        q: 'como empiezo' },
       { label: '¿Qué bots hay?',        q: 'que bots hay' },
       { label: '¿Es seguro?',           q: 'es seguro mi dinero' },
@@ -353,7 +353,7 @@ window.NP_BOT_KB = {
       fin: 'Ya está. Tu Accumulator empieza comprando su primera parte y seguirá comprando cada vez que el precio baje.\n\nCuando todo lo comprado valga un 10% más de lo que te costó, venderá de golpe y verás el resultado.',
       despues: [
         { label: 'El precio medio', q: 'precio medio del acumulador' },
-        { label: '¿Y si sigue bajando?',       q: 'que pasa si el precio baja' },
+        { label: '¿Y si baja más?',       q: 'que pasa si el precio baja' },
         { label: 'Montar otro bot',            q: 'que bots hay' }
       ]
     },
@@ -534,13 +534,133 @@ window.NP_BOT_KB = {
       ],
       fin: 'Perfecto, wallet conectada.\n\nAhora ya puedes cargar gas y montar tu primer bot.',
       despues: [
-        { label: 'Montar mi primer bot', q: 'guiame a montar el smart grid' },
+        { label: 'Montar un bot', q: 'guiame a montar el smart grid' },
         { label: '¿Qué es el gas?',      q: 'que es el gas' }
       ]
     }
   },
 
+  /* ══════════════════════════════════════════════════════════════
+     PREGUNTAS SIN CONTEXTO
+     "¿Con cuánto puedo empezar?" no tiene una sola respuesta: depende
+     de si habla de bots, del marketplace o de la academia. Antes se
+     adivinaba y salía cualquier cosa. Ahora se repregunta y se lleva al
+     usuario a elegir, que es donde el bot sí sabe responder bien.
+     Van PRIMERO para que ganen a los temas generales.
+     ══════════════════════════════════════════════════════════════ */
   kb: [
+    {
+      topic: 'cuánto necesito para ganar X al mes',
+      keys: [
+             'cuanto necesito para ganar 50 al mes', 'cuanto necesito para ganar 100 al mes',
+             'cuanto invertir para ganar 50 al mes', 'para ganar 50 dolares al mes',
+             'para ganar 100 dolares al mes', 'cuanto pongo para ganar',
+             'cuanto tengo que invertir para ganar','cuanto necesito para ganar', 'cuanto invierto para ganar', 'para ganar 50 al mes',
+             'para ganar 100 al mes', 'cuanto debo invertir para ganar', 'quiero ganar al mes',
+             'cuanto para ganar 50', 'cuanto para ganar 100', 'cuanto para ganar 200',
+             'quiero ganar 50 dolares', 'quiero ganar 100 dolares', 'cuanto invertir para ganar'],
+      answer: [
+        'Te voy a ser honesto, porque prefiero eso a venderte humo:\n\n**No podemos garantizarte un rendimiento fijo.** Nadie puede, y quien lo haga te está mintiendo. Esto depende del mercado, y el mercado unos meses se mueve mucho y otros se queda plano.\n\nLo que sí puedo decirte: **el bot gana cuando el precio se mueve**. Así que si buscas más actividad, opera con monedas volátiles —DOGE, SHIB, SOL— antes que con las tranquilas.\n\nY empieza con lo que puedas dejar quieto. La prisa en esto sale cara.',
+        'Ojalá pudiera darte una cifra, pero sería inventada.\n\n**Nosotros no ofrecemos rendimiento fijo**: el bot gana según cuánto se mueva el precio, y eso no lo controla nadie. En 30 días puedes tener muchas vueltas o casi ninguna.\n\nLo que sí está en tu mano: **elegir monedas que se muevan**. Una moneda volátil da más vueltas que una estable, y cada vuelta es ganancia.\n\n¿Te explico cómo se calcula lo que deja cada vuelta?'
+      ],
+      more: [
+        'Lo único que puedo darte son las matemáticas, que sí son ciertas:\n\n**Cada vuelta completa deja entre 2% y 4%** de lo que mueve esa cuadrícula, ya sin comisiones.\n\nCon **1.000 USDT** en Equilibrado, cada vuelta son ~1,40 limpios. Si el mercado da 3 vueltas al día, unos 4,20 diarios. Si está plano, cero.\n\n**Lo que nadie puede decirte es cuántas vueltas habrá.** Por eso no hay porcentaje mensual: hay una mecánica que funciona, y un mercado que decide cuánto trabaja.'
+      ],
+      opciones: [
+        { label: 'Monedas volátiles', q: 'que monedas son mas volatiles' },
+        { label: 'Ver los números',   q: 'cuanto puedo ganar' }
+      ]
+    },
+    {
+      topic: 'cómo estás',
+      keys: ['como estas', 'como estas tu', 'que tal estas', 'como te va', 'como andas',
+             'que tal tu dia', 'como te ha ido', 'como va tu dia', 'que tal el dia',
+             'como amaneciste', 'todo bien', 'que tal todo', 'como va todo',
+             'que mas', 'que hay de nuevo', 'como te sientes'],
+      answer: [
+        'Muy bien, gracias por preguntar. ¿Y tú qué tal?\n\nCuéntame en qué andas y vemos si te puedo echar una mano.',
+        'Aquí andamos, bien. ¿Tú cómo vas?\n\nSi tienes alguna duda de la plataforma, para eso estoy.',
+        'Todo en orden por aquí. ¿Y tú?\n\nDime qué te trae y lo miramos.'
+      ],
+      opciones: [
+        { label: 'Todo bien',      q: 'estoy bien' },
+        { label: 'Tengo una duda', q: 'tengo una duda' }
+      ]
+    },
+    {
+      topic: 'estoy bien',
+      keys: ['estoy bien', 'todo bien gracias', 'bien gracias', 'muy bien', 'aqui andamos',
+             'vamos bien', 'de maravilla', 'todo tranquilo', 'ahi vamos', 'mas o menos'],
+      answer: [
+        'Me alegro. ¿En qué te puedo ayudar?',
+        'Perfecto. Dime qué necesitas y vamos con ello.',
+        'Bien entonces. ¿Qué te gustaría saber?'
+      ],
+      opciones: [
+        { label: 'Los bots',      q: 'que bots hay' },
+        { label: 'Cómo empiezo',  q: 'como empiezo' },
+        { label: 'Tengo un problema', q: 'tengo un problema' },
+        { label: 'Qué es esto',   q: 'que es esto' }
+      ]
+    },
+    {
+      topic: 'monedas volátiles',
+      keys: ['que monedas son mas volatiles', 'monedas volatiles', 'que moneda me recomiendas',
+             'con que moneda opero', 'cual moneda es mejor', 'que moneda uso',
+             'mejor moneda para el bot', 'con que cripto opero'],
+      answer: [
+        'Depende de lo que busques:\n\n**Si quieres más movimiento** (más vueltas, más riesgo): DOGE, SHIB, SOL. Se mueven mucho y el bot trabaja más.\n\n**Si quieres tranquilidad** (menos vueltas, más estable): BNB, BTCB, ETH. Suben y bajan menos, pero son las de siempre.\n\nUn consejo: **si es tu primera vez, empieza con BNB.** Es la moneda de la red, la vas a necesitar igual para el gas, y se mueve lo justo.'
+      ],
+      opciones: [
+        { label: 'Montar un bot',   q: 'guiame a montar mi bot' },
+        { label: '¿Y si baja?',     q: 'que pasa si el precio baja' }
+      ]
+    },
+    {
+      topic: 'con cuánto empiezo (sin contexto)',
+      keys: ['con cuanto puedo empezar', 'con cuanto empiezo', 'cuanto necesito para empezar',
+             'con cuanto se empieza', 'cuanto hace falta para empezar', 'con cuanto arranco',
+             'cuanto se necesita para empezar', 'con cuanto puedo arrancar', 'con cuanto',
+             'cuanto para empezar', 'cual es el minimo para empezar', 'minimo para empezar'],
+      answer: [
+        'Depende de qué quieras hacer, porque aquí hay varias cosas y cada una tiene su mínimo.\n\n¿A qué te refieres?',
+        'Buena pregunta, pero necesito saber para qué. El mínimo no es el mismo en cada servicio.\n\n¿Cuál te interesa?',
+        'Te respondo en cuanto me digas de qué hablamos. Cada servicio tiene su cantidad recomendada.'
+      ],
+      opciones: [
+        { label: 'Los bots',      q: 'cuanto necesito para los bots' },
+        { label: 'El Marketplace', q: 'cuanto necesito para el marketplace' },
+        { label: 'La Academia',   q: 'cuanto cuesta la academia' },
+        { label: 'El sorteo',     q: 'cuanto cuesta participar en el sorteo' }
+      ]
+    },
+    {
+      topic: 'cuánto para los bots',
+      keys: ['cuanto necesito para los bots', 'cuanto para los bots', 'minimo para un bot',
+             'con cuanto abro un bot', 'cuanto para abrir un bot', 'capital minimo bot'],
+      answer: [
+        'Con los bots hay una relación directa que conviene entender:\n\n**Con poco capital arriesgas poco, pero también ganas poco.** Con 50 USDT el bot funciona, pero cada vuelta te deja céntimos y el gas se lleva buena parte.\n\n**Con más capital, cada operación pesa más** y el gas deja de importar. A partir de **200 USDT** la cosa empieza a tener sentido.\n\nMi recomendación honesta: empieza con lo que puedas dejar quieto tres meses. Para la mayoría son 100-300.',
+        'Te lo digo con números:\n\n· **50 USDT** — funciona, pero cada vuelta deja ~0,05. Sirve para aprender, no para ganar.\n· **200 USDT** — cada vuelta ~0,26 limpios. Aquí ya se nota.\n· **1.000 USDT** — cada vuelta ~1,40.\n\nEl gas cuesta lo mismo muevas 2 o 20, así que con poco capital se lo come todo. **Que cada cuadrícula mueva al menos 10 USDT.**'
+      ],
+      opciones: [
+        { label: 'Ver los bots',  q: 'que bots hay' },
+        { label: '¿Cuánto gano?', q: 'cuanto puedo ganar' }
+      ]
+    },
+    {
+      topic: 'cuánto para el marketplace',
+      keys: ['cuanto necesito para el marketplace', 'cuanto para el marketplace',
+             'minimo para vender', 'minimo para comprar', 'cuanto para el market'],
+      answer: [
+        'En el Marketplace no hay mínimo: **compras o vendes lo que quieras**.\n\nLo único a tener en cuenta si vas a **vender**: hace falta dejar una fianza, que es tuya y la recuperas cuando dejes de vender. Sirve para responderle al comprador si un árbitro determina que hubo estafa.\n\nSi solo vas a **comprar**, no necesitas nada más que el dinero de la compra.'
+      ],
+      opciones: [
+        { label: 'Quiero comprar', q: 'guiame para comprar' },
+        { label: 'Quiero vender',  q: 'guiame para vender' }
+      ]
+    },
+
+
     {
       topic: 'el acumulador con números',
       keys: ['explicame el acumulador con numeros', 'acumulador con numeros',
@@ -558,7 +678,7 @@ window.NP_BOT_KB = {
       opciones: [
         { label: 'Montar uno',      q: 'guiame a montar mi acumulador' },
         { label: 'Ver otros bots',  q: 'que bots hay' },
-        { label: '¿Y si sigue bajando?', q: 'que pasa si el precio baja' }
+        { label: '¿Y si baja más?', q: 'que pasa si el precio baja' }
       ]
     },
     {
@@ -1227,19 +1347,85 @@ window.NP_BOT_KB = {
     {
       topic: 'tengo un problema',
       keys: ['tengo un problema', 'necesito ayuda', 'ayuda', 'ayudame', 'algo va mal',
-             'me pasa algo', 'no me funciona nada', 'estoy preocupado', 'estoy perdido',
-             'no entiendo nada', 'estoy agobiado', 'no se que hacer'],
+             'me pasa algo', 'no me funciona', 'no me funciona nada', 'estoy preocupado',
+             'estoy perdido', 'no entiendo nada', 'estoy agobiado', 'no se que hacer',
+             'tengo un lio', 'tengo una duda', 'me puedes ayudar', 'necesito una mano',
+             'estoy trabado', 'no me sale', 'no puedo', 'hay un error', 'me da error',
+             'algo no va', 'tengo dificultad', 'estoy atascado'],
       answer: [
-        'Cuéntame qué pasa y lo miramos. Sin prisa.',
-        'Dime qué te ocurre. Cuanto más concreto, mejor te puedo ayudar.',
-        'A ver, cuéntame. ¿Qué está pasando exactamente?'
+        'Claro, para eso estoy. Dime en qué parte tienes el problema y lo miramos juntos:',
+        'Vamos a resolverlo. ¿En cuál de estos tienes la dificultad?',
+        'Cuéntame. Para ayudarte mejor, dime de qué parte se trata:',
+        'Sin problema. Elige dónde está el lío y te guío paso a paso:'
+      ],
+      noNudge: true,
+      opciones: [
+        { label: 'Los bots',      q: 'problema con los bots' },
+        { label: 'Mi wallet',     q: 'problema con la wallet' },
+        { label: 'El Marketplace', q: 'problema con el marketplace' },
+        { label: 'El gas',        q: 'problema con el gas' },
+        { label: 'La Academia',   q: 'problema con la academia' },
+        { label: 'Otra cosa',     q: 'contacto' }
+      ]
+    },
+    {
+      topic: 'problema con los bots',
+      keys: ['problema con los bots', 'mi bot no funciona', 'el bot no hace nada',
+             'mi bot no opera', 'el bot esta parado', 'no me opera el bot'],
+      answer: [
+        'Vamos por orden. Casi siempre es una de estas tres:\n\n**1 · ¿Tiene gas?** Sin BNB en la tarjeta de gas el bot no puede operar. Es la causa del 80% de los casos.\n**2 · ¿El precio llegó a una cuadrícula?** Si el mercado no se ha movido lo suficiente, el bot espera. Es normal.\n**3 · ¿Está dentro del rango?** Si el precio se salió por arriba o por abajo, el bot deja de operar hasta que vuelva.\n\n¿Cuál te encaja?'
       ],
       opciones: [
-        { label: 'Mi bot no opera',   q: 'mi bot no vende nada' },
-        { label: 'No conecta wallet', q: 'no me conecta la wallet' },
-        { label: 'Perdí dinero',      q: 'perdi dinero' },
-        { label: 'Otra cosa',         q: 'contacto' }
+        { label: 'No tiene gas',   q: 'como recargo el gas' },
+        { label: 'Fuera de rango', q: 'que pasa si el precio baja' },
+        { label: 'No aparece',     q: 'no veo mis bots' },
+        { label: 'Quiero cerrarlo', q: 'como cancelo un bot' }
       ]
+    },
+    {
+      topic: 'problema con la wallet',
+      keys: ['problema con la wallet', 'no conecta la wallet', 'no me conecta',
+             'no puedo conectar', 'la wallet no conecta', 'error al conectar'],
+      answer: [
+        'Lo vemos. Suele ser una de estas:\n\n**En el móvil:** hay que abrir la web **desde el navegador de tu wallet**, no desde Chrome. Pulsa Conectar y elige tu wallet: se abre sola.\n**En el ordenador:** revisa que MetaMask esté desbloqueada y en **BNB Smart Chain**.\n**Si conecta pero no ves nada:** puede que estés en otra red. La web te lo dirá y te ofrece cambiarla.\n\n¿Te guío paso a paso?'
+      ],
+      opciones: [
+        { label: 'Guíame',        q: 'guiame para conectar la wallet' },
+        { label: 'No tengo wallet', q: 'que wallet necesito' }
+      ]
+    },
+    {
+      topic: 'problema con el marketplace',
+      keys: ['problema con el marketplace', 'problema en el market', 'no puedo vender',
+             'no puedo comprar', 'problema con una operacion', 'operacion trabada'],
+      answer: [
+        'Dime cuál es el caso y te digo qué hacer:\n\n**Si pagaste y no te liberan:** abre una disputa con tu comprobante. Un árbitro lo revisa y el vendedor tiene fianza para responder.\n**Si vendiste y no te pagaron:** no liberes nada y abre disputa.\n**Si la operación quedó trabada:** pulsa Cancelar pedido. Si el contrato no deja todavía, te dirá por qué y podrás abrir disputa.\n**Si te sobra saldo en la caja fuerte:** es porque tienes una operación abierta reteniéndolo. Ciérrala y vuelve solo.'
+      ],
+      opciones: [
+        { label: 'Guíame a vender',  q: 'guiame para vender' },
+        { label: 'Guíame a comprar', q: 'guiame para comprar' }
+      ]
+    },
+    {
+      topic: 'problema con el gas',
+      keys: ['problema con el gas', 'no tengo gas', 'me quede sin gas', 'gas insuficiente',
+             'no puedo recargar gas', 'error de gas'],
+      answer: [
+        'El gas es el BNB que paga cada operación del bot. Sin él, el bot no puede comprar ni vender.\n\n**Para recargarlo:** en la tarjeta de Gas, escribe la cantidad y pulsa Recargar. Con **0,01 BNB** tienes para muchas operaciones.\n\n**Y algo que conviene saber:** ese BNB **sigue siendo tuyo**. Puedes retirarlo cuando quieras desde la misma tarjeta.'
+      ],
+      opciones: [
+        { label: '¿Cuánto cargo?', q: 'cuanto gas necesito' },
+        { label: '¿Dónde compro BNB?', q: 'como consigo bnb' }
+      ]
+    },
+    {
+      topic: 'problema con la academia',
+      keys: ['problema con la academia', 'no puedo entrar a la academia',
+             'problema con el curso', 'no me deja entrar al grupo'],
+      answer: [
+        'Casi siempre es el usuario de Telegram. Comprueba tres cosas:\n\n**1 ·** Que tu cuenta **tenga nombre de usuario** (Ajustes → Nombre de usuario).\n**2 ·** Que sea **exactamente el mismo** que pusiste al pagar.\n**3 ·** Que tengas permitido que te añadan a grupos (Ajustes → Privacidad → Grupos → Todos).\n\nSi está todo bien y sigue sin funcionar, **escríbeme directo y te meto a mano**. Has pagado, así que es cosa mía.'
+      ],
+      contactCard: true
     },
 
     /* ══════════════ CONTACTO ══════════════ */
