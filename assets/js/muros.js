@@ -1085,8 +1085,10 @@ function estilos() {
   #mu-overlay .mu-cv{display:block}
   /* El logo, corrido a la derecha: en la izquierda tapaba la columna
      de precios. */
-  #mu-overlay .mu-marca{position:absolute;left:190px;bottom:14px;height:28px;width:auto;
-    opacity:.45;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.9))}
+  /* El logo: a la derecha de la columna de precios, sin taparla, pero
+     sin irse al centro de la pantalla. */
+  #mu-overlay .mu-marca{position:absolute;left:118px;bottom:12px;height:26px;width:auto;
+    opacity:.42;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.9))}
 
   /* Pantalla de espera */
   #mu-overlay .mu-esperando{position:absolute;inset:0;display:flex;flex-direction:column;
