@@ -548,6 +548,96 @@ window.NP_BOT_KB = {
      ══════════════════════════════════════════════════════════════ */
   kb: [
     {
+      topic: 'liquidity pools',
+      keys: ['liquidity pools', 'liquidity pool', 'que es liquidity pools',
+             'que es el liquidity pool', 'pool de liquidez', 'pools de liquidez',
+             'mapa de liquidaciones', 'mapa de liquidez', 'para que sirve liquidity pools',
+             'que hace liquidity pools', 'la herramienta de liquidez', 'liquidity'],
+      answer: [
+        '**Liquidity Pools** te enseña dónde está el dinero atrapado en el mercado.\n\nEn una gráfica normal ves el precio. Aquí ves además **los niveles donde hay posiciones esperando a ser liquidadas** — y el precio tiende a ir a buscarlas.\n\nEs una herramienta que en otras plataformas cuesta más de 50 dólares al mes. Aquí entra en el paquete completo.',
+        '**Liquidity Pools** es un mapa de calor sobre la gráfica.\n\nCada color te dice cuánta liquidez hay a ese precio: azul es poca, verde media, **rojo es un muro**. Esos muros funcionan como imanes, porque cuando el precio llega, se disparan liquidaciones en cadena.\n\nEs información que el gráfico normal no enseña.'
+      ],
+      opciones: [
+        { label: 'Cómo se usa',   q: 'como uso liquidity pools' },
+        { label: 'Qué significa', q: 'que significan los colores' },
+        { label: 'Cuánto cuesta', q: 'cuanto cuesta liquidity pools' }
+      ]
+    },
+    {
+      topic: 'cómo usar liquidity pools',
+      keys: ['como uso liquidity pools', 'como se usa liquidity pools',
+             'no se usar liquidity pools', 'no se como usar la liquidity pool',
+             'la compre pero no se usarla', 'compre liquidity pools y no se usarla',
+             'ensename a usar liquidity pools', 'guiame con liquidity pools',
+             'como leer el mapa de liquidez', 'como interpretar liquidity pools',
+             'tengo dificultad con liquidity pools'],
+      answer: [
+        'Tranquilo, te lo explico en tres pasos.\n\n**1 · Busca el rojo.** Las zonas rojas son donde hay más liquidez acumulada. El precio tiende a moverse hacia ellas: funcionan como imanes.\n\n**2 · Mira dónde está el precio ahora.** Si hay un muro rojo arriba y nada abajo, el camino más probable es hacia arriba, porque ahí está el dinero.\n\n**3 · Desconfía de las zonas vacías.** Donde el mapa está oscuro no hay nada que frene al precio: las cruza rápido.\n\n¿Quieres que profundice en alguna?',
+        'Te enseño lo esencial.\n\n**El precio va a buscar la liquidez**, esa es la idea de fondo. Y el mapa te dice dónde está.\n\n· **Rojo** — mucha liquidez. Zona de reacción fuerte.\n· **Amarillo** — acumulación importante.\n· **Verde y azul** — poca cosa, el precio pasa sin frenar.\n\nLo que hace la mayoría: mirar el muro rojo más cercano y entender que el precio probablemente vaya ahí antes de girar.'
+      ],
+      more: [
+        'Un par de cosas más que marcan la diferencia:\n\n**El filtro de ruido.** Súbelo y el mapa deja solo las zonas fuertes. Es la forma más rápida de ver lo que importa cuando hay mucho color.\n\n**El apalancamiento.** Cambia entre x10 y x100. Las de x100 saltan primero y son las que provocan los movimientos bruscos: si ves un muro de x100 cerca del precio, espera volatilidad.\n\n**La temporalidad manda.** Los niveles del diario pesan más que los de 15 minutos. Mira primero en 4h para saber hacia dónde sopla el viento.'
+      ],
+      opciones: [
+        { label: 'Los colores',    q: 'que significan los colores' },
+        { label: 'Consejos',       q: 'consejos para liquidity pools' },
+        { label: 'Abrir la herramienta', q: 'donde esta liquidity pools' }
+      ]
+    },
+    {
+      topic: 'colores de liquidity pools',
+      keys: ['que significan los colores', 'colores del mapa de liquidez',
+             'que significa el rojo en liquidity', 'que significa el azul',
+             'para que sirven los colores', 'colores liquidity pools'],
+      answer: [
+        'Cada color te dice cuánta liquidez hay a ese precio:\n\n· **Azul** — poca. El precio pasa sin frenar.\n· **Verde** — acumulación media.\n· **Amarillo** — zona importante, empieza a haber peso.\n· **Naranja y rojo** — **muro de liquidación**. Aquí hay mucho dinero esperando.\n\n**Lo que hay que mirar es el rojo.** Ahí es donde el precio reacciona: rebota, acelera o gira. Los azules son solo contexto.'
+      ],
+      opciones: [
+        { label: 'Cómo lo uso',  q: 'como uso liquidity pools' },
+        { label: 'Consejos',     q: 'consejos para liquidity pools' }
+      ]
+    },
+    {
+      topic: 'consejos liquidity pools',
+      keys: ['consejos para liquidity pools', 'trucos liquidity pools',
+             'como sacar provecho a liquidity pools', 'consejos de liquidez',
+             'como aprovechar liquidity pools'],
+      answer: [
+        'Lo que hace la gente que le saca partido:\n\n**1 · No entrar justo antes de un muro.** Si vas largo y hay rojo arriba muy cerca, el precio va a llegar ahí y muchas veces gira. Mejor esperar a ver qué hace cuando lo toque.\n\n**2 · Los barridos.** El mercado suele romper un nivel, recoger las liquidaciones y volver. Si ves una ruptura justo en un muro rojo, desconfía: puede ser el barrido, no el movimiento de verdad.\n\n**3 · Zona vacía = objetivo alcanzable.** Si tu objetivo está al otro lado de una zona oscura, es realista. Si está detrás de un muro rojo, cuesta mucho más.',
+        'Tres cosas que marcan la diferencia:\n\n**Mira siempre la temporalidad alta primero.** En diario ves dónde está el dinero de verdad; en 15 minutos, solo lo de hoy.\n\n**El muro más cercano es el más probable.** El precio suele ir a por el que tiene más cerca antes que a por el grande de lejos.\n\n**Y lo más importante: esto es información, no una señal.** No te dice cuándo comprar. Te dice dónde está la liquidez para que decidas tú con más contexto.'
+      ],
+      opciones: [
+        { label: 'Los colores', q: 'que significan los colores' },
+        { label: 'Abrirla',     q: 'donde esta liquidity pools' }
+      ]
+    },
+    {
+      topic: 'dónde está liquidity pools',
+      keys: ['donde esta liquidity pools', 'como abro liquidity pools',
+             'como entro a liquidity pools', 'donde encuentro liquidity pools'],
+      answer: [
+        'En el menú de arriba, botón **Liquidity**.\n\nAl entrar verás las herramientas disponibles y los planes de acceso. Pulsas **Liquidity Pools** y ya estás dentro.\n\nUna vez ahí: eliges moneda arriba a la izquierda, la temporalidad al lado, y el mapa se dibuja solo.'
+      ],
+      opciones: [
+        { label: 'Cómo se usa',   q: 'como uso liquidity pools' },
+        { label: 'Cuánto cuesta', q: 'cuanto cuesta liquidity pools' }
+      ]
+    },
+    {
+      topic: 'precio de liquidity pools',
+      keys: ['cuanto cuesta liquidity pools', 'precio de liquidity pools',
+             'cuanto vale liquidity pools', 'planes de liquidity',
+             'suscripcion liquidity pools'],
+      answer: [
+        'Hay tres planes, y dan acceso a **todas** las herramientas:\n\n· **3 USD** — una semana\n· **10 USD** — un mes\n· **20 USD** — tres meses *(el recomendado)*\n\nSe paga en **BNB o USDT** desde tu wallet. Y si renuevas antes de que caduque, los días que te quedan se suman.\n\nPara comparar: herramientas parecidas cuestan 50 dólares al mes o más.'
+      ],
+      opciones: [
+        { label: 'Qué incluye', q: 'liquidity pools' },
+        { label: 'Cómo se usa', q: 'como uso liquidity pools' }
+      ]
+    },
+
+    {
       topic: 'cuánto necesito para ganar X al mes',
       keys: [
              'cuanto necesito para ganar 50 al mes', 'cuanto necesito para ganar 100 al mes',
@@ -1366,6 +1456,7 @@ window.NP_BOT_KB = {
         { label: 'El Marketplace', q: 'problema con el marketplace' },
         { label: 'El gas',        q: 'problema con el gas' },
         { label: 'La Academia',   q: 'problema con la academia' },
+        { label: 'Liquidity',     q: 'problema con liquidity pools' },
         { label: 'Otra cosa',     q: 'contacto' }
       ]
     },
@@ -1417,6 +1508,18 @@ window.NP_BOT_KB = {
       opciones: [
         { label: '¿Cuánto cargo?', q: 'cuanto gas necesito' },
         { label: '¿Dónde compro BNB?', q: 'como consigo bnb' }
+      ]
+    },
+    {
+      topic: 'problema con liquidity pools',
+      keys: ['problema con liquidity pools', 'no me carga liquidity', 'liquidity no funciona',
+             'no veo el mapa de liquidez', 'el mapa no carga', 'problema con el mapa'],
+      answer: [
+        'Vamos a resolverlo. Suele ser una de estas:\n\n**No se ve el mapa, solo la gráfica.** Cambia de temporalidad y vuelve: se recarga solo. Si sigue igual, pulsa **Reintentar** en el mensaje que aparece.\n\n**Se ve todo del mismo color.** Sube el **filtro de ruido** de la barra: deja solo las zonas fuertes y se lee mucho mejor.\n\n**No puedo entrar.** Necesitas un plan activo. Entra en Liquidity y elige uno abajo.\n\n**No sé interpretarlo.** Eso te lo explico yo encantado.'
+      ],
+      opciones: [
+        { label: 'Enséñame a usarlo', q: 'como uso liquidity pools' },
+        { label: 'Los planes',        q: 'cuanto cuesta liquidity pools' }
       ]
     },
     {
