@@ -1415,7 +1415,6 @@ function headerHTML() {
       <button class="c-swap c-liq" id="c-liq" type="button" aria-label="Liquidity Pools"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h4V10H3zM10 20h4V4h-4zM17 20h4v-7h-4z"/></svg><span class="c-swap-tx">Liquidity</span></button>
       <button class="c-prize" id="c-prize" type="button" aria-label="Prize Pool"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg><span class="c-prize-tx">Prize Pool</span></button>
       <button class="c-market" id="c-market" type="button" aria-label="Marketplace"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18l-1.5 10.5a2 2 0 0 1-2 1.5H6.5a2 2 0 0 1-2-1.5L3 9z"/><path d="M8 9V6a4 4 0 0 1 8 0v3"/></svg><span class="c-market-tx">Market</span></button>
-      <button class="c-loteria c-idioma" id="c-idioma" type="button" aria-label="Cambiar idioma" title="Idioma"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg><span class="c-idioma-tx" id="c-idioma-tx">ES</span></button>
       <button class="c-loteria" id="c-instalar" type="button" aria-label="Instalar la app"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="c-lot-tx"><span class="lbl-pc">Install</span><span class="lbl-mov">Compartir</span></span></button>
       ${right}
     </div>
@@ -1699,47 +1698,6 @@ function wireHeader() {
   if ($('c-ticker')) $('c-ticker').onclick = () => prizepool.abrirPrizePool();
   tutorial.wireFila(document);
   if ($('c-market')) $('c-market').onclick = () => { avisos.limpiarPunto(); market.abrirMarket(); };
-  /* ══════════════════════════════════════════════════════════════
-     CAMBIO DE IDIOMA
-     Se carga solo al pulsarlo, y si algo falla no pasa nada: la web
-     sigue en español exactamente igual que siempre.
-     ══════════════════════════════════════════════════════════════ */
-  if ($('c-idioma')) $('c-idioma').onclick = async (e) => {
-    e.stopPropagation();
-    try {
-      const idi = await import('./idioma.js?v=126');
-      const prev = document.getElementById('idi-menu');
-      if (prev) { prev.remove(); return; }
-
-      const m = document.createElement('div');
-      m.id = 'idi-menu';
-      m.innerHTML = idi.IDIOMAS.map((x) => `
-        <button class="idi-op ${x.id === idi.idiomaActual() ? 'on' : ''}" data-idi="${x.id}">
-          <i>${x.bandera}</i><b>${x.nombre}</b>
-          ${x.id === idi.idiomaActual() ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg>' : ''}
-        </button>`).join('');
-      document.body.appendChild(m);
-
-      const r = $('c-idioma').getBoundingClientRect();
-      const ancho = m.offsetWidth || 180;
-      m.style.left = Math.max(8, Math.min(window.innerWidth - ancho - 8, r.left - 40)) + 'px';
-      m.style.top = (r.bottom + 8) + 'px';
-
-      m.addEventListener('click', (ev) => ev.stopPropagation());
-      m.querySelectorAll('[data-idi]').forEach((b) => b.onclick = () => {
-        m.remove();
-        idi.cambiarIdioma(b.dataset.idi);
-        const tx = $('c-idioma-tx');
-        if (tx) tx.textContent = b.dataset.idi.toUpperCase();
-      });
-      setTimeout(() => document.addEventListener('click', () => {
-        const x = document.getElementById('idi-menu'); if (x) x.remove();
-      }, { once: true }), 10);
-    } catch (er) {
-      console.warn('[CCO] idioma:', er);
-    }
-  };
-
   /* Si el usuario ya eligió idioma en otra visita, se aplica. Va en
      try por si el módulo no carga: sin él, todo sigue en español. */
   (async () => {

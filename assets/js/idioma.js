@@ -16,9 +16,9 @@
 const CLAVE = 'cco-idioma';
 
 export const IDIOMAS = [
-  { id: 'es', nombre: 'Español',  bandera: '🇪🇸' },
+  { id: 'es', nombre: 'Español',   bandera: '🇲🇽' },
   { id: 'en', nombre: 'English',  bandera: '🇺🇸' },
-  { id: 'pt', nombre: 'Português', bandera: '🇧🇷' }
+  { id: 'pt', nombre: 'Português', bandera: '🇵🇹' }
 ];
 
 /* ══════════════════════════════════════════════════════════════
@@ -135,56 +135,118 @@ const DIC = {
     'Cancelar': 'Cancel',
     'Aceptar': 'Accept',
     'Volver': 'Back',
-    'Siguiente': 'Next'
+    'Siguiente': 'Next',
+    'Cambiar idioma': 'Change language',
+    'Idioma': 'Language'
   },
 
   pt: {
+    /* ── Menu principal ── */
+    'Bots': 'Bots',
+    'Market': 'Market',
     'Academia': 'Academia',
+    'Tools': 'Ferramentas',
+    'Prize Pool': 'Prize Pool',
+    'Liquidity': 'Liquidity',
     'Perfil': 'Perfil',
+    'Install': 'Instalar',
+    'Compartir': 'Partilhar',
+
+    /* ── Portada de Liquidity ── */
     'Herramientas Pro': 'Ferramentas Pro',
     'Análisis profesional': 'Análise profissional',
     'Tres herramientas para ver lo que el gráfico esconde': 'Três ferramentas para ver o que o gráfico esconde',
+    'Liquidity Pools': 'Liquidity Pools',
     'Dónde está el dinero atrapado': 'Onde está o dinheiro preso',
+    'El mapa de liquidaciones: los precios donde hay posiciones esperando a ser barridas. El precio va a buscarlas.':
+      'O mapa de liquidações: os preços onde há posições à espera de serem varridas. O preço vai procurá-las.',
     'Radar Institucional': 'Radar Institucional',
     'Vea lo que hacen los grandes': 'Veja o que fazem os grandes',
+    'El libro de órdenes miente: la mayoría de las órdenes grandes son falsas. Vigilamos cada una y le decimos cuáles tienen dinero real detrás.':
+      'O livro de ordens mente: a maioria das ordens grandes são falsas. Vigiamos cada uma e dizemos-lhe quais têm dinheiro real por trás.',
     'Próximamente': 'Em breve',
     'En desarrollo': 'Em desenvolvimento',
+    'La tercera herramienta del paquete. Muy pronto.': 'A terceira ferramenta do pacote. Muito em breve.',
     'Abrir →': 'Abrir →',
     'Acceso a las tres': 'Acesso às três',
     'Una semana': 'Uma semana',
     'Un mes': 'Um mês',
     'Tres meses': 'Três meses',
     'Recomendado': 'Recomendado',
-    'Suscribirme': 'Assinar',
+    'Suscribirme': 'Subscrever',
+    'para probarlo': 'para experimentar',
+    'sale a cuenta': 'boa relação',
     'días': 'dias',
-    'Precio ahora': 'Preço agora',
-    'En directo': 'Ao vivo',
-    'Órdenes detectadas': 'Ordens detectadas',
-    'Soporte': 'Suporte',
-    'Resistencia': 'Resistência',
-    'Fuertes': 'Fortes',
-    'Falsas': 'Falsas',
-    'EN VENTA': 'VENDENDO',
-    'EN COMPRA': 'COMPRANDO',
-    'Cómo funciona': 'Como funciona',
-    'Cerrar': 'Fechar',
-    'Entendido': 'Entendido',
-    'Saber más': 'Saber mais',
-    'Atrás': 'Voltar',
-    'Buscar…': 'Buscar…',
-    'Cargando…': 'Carregando…',
-    'Filtro': 'Filtro',
-    'Todo': 'Tudo',
     'ahorras un 22%': 'poupa 22%',
     'ahorras un 48%': 'poupa 48%',
     '7 días': '7 dias',
     '30 días': '30 dias',
     '90 días': '90 dias',
-    'para probarlo': 'para experimentar',
-    'sale a cuenta': 'boa relação',
     'Se paga en': 'Pago em',
+    'desde tu wallet. Si renuevas antes de que caduque, los días que te quedan se suman.':
+      'a partir da sua carteira. Se renovar antes de expirar, os dias restantes acumulam.',
     'Tu acceso está activo': 'O seu acesso está ativo',
-    'Cargando…': 'Carregando…'
+    'Elige un plan para entrar a las herramientas.': 'Escolha um plano para aceder às ferramentas.',
+    'Conecta tu wallet para poder suscribirte.': 'Ligue a sua carteira para subscrever.',
+    'El acceso queda ligado a tu wallet. Si renuevas antes de que caduque, los días que te quedan se suman.':
+      'O acesso fica ligado à sua carteira. Se renovar antes de expirar, os dias restantes acumulam.',
+    '¿Con qué quieres pagar?': 'Como quer pagar?',
+    'Confirma en tu wallet…': 'Confirme na sua carteira…',
+    '¡Listo! Ya tienes acceso.': 'Pronto! Já tem acesso.',
+    'Cancelaste la firma.': 'Cancelou a assinatura.',
+
+    /* ── Liquidity Pools ── */
+    'Filtro': 'Filtro',
+    'Todo': 'Tudo',
+    'Menos liquidez': 'Menos liquidez',
+    'Muros de liquidación': 'Muros de liquidação',
+    'Cómo funciona': 'Como funciona',
+    'Cerrar': 'Fechar',
+    'Reintentar': 'Tentar de novo',
+    'Calculando zonas de liquidez…': 'A calcular zonas de liquidez…',
+    'Cómo operar con esto': 'Como operar com isto',
+    'Cómo se lee el mapa': 'Como ler o mapa',
+    'Entendido': 'Entendido',
+    'Saber más': 'Saber mais',
+    'Atrás': 'Voltar',
+
+    /* ── Radar Institucional ── */
+    'Precio ahora': 'Preço agora',
+    'En directo': 'Ao vivo',
+    'Órdenes detectadas': 'Ordens detetadas',
+    'Soporte': 'Suporte',
+    'Resistencia': 'Resistência',
+    'Fuertes': 'Fortes',
+    'Falsas': 'Falsas',
+    'EN VENTA': 'À VENDA',
+    'EN COMPRA': 'EM COMPRA',
+    'Orden blindada': 'Ordem blindada',
+    'Nivel probado': 'Nível testado',
+    'Orden firme': 'Ordem firme',
+    'Orden falsa': 'Ordem falsa',
+    'En observación': 'Em observação',
+    'Ha desaparecido': 'Desapareceu',
+    'Libro tranquilo': 'Livro tranquilo',
+    'Analizando el libro de órdenes': 'A analisar o livro de ordens',
+    'firme': 'firme',
+    'repuesta': 'reposta',
+    'ejecutado': 'executado',
+    'fuerza': 'força',
+    'arriba': 'acima',
+    'abajo': 'abaixo',
+
+    /* ── Comuns ── */
+    'Buscar…': 'Procurar…',
+    'Cargando…': 'A carregar…',
+    'Conectar wallet': 'Ligar carteira',
+    'Guardar imagen': 'Guardar imagem',
+    'Aplicar': 'Aplicar',
+    'Cancelar': 'Cancelar',
+    'Aceptar': 'Aceitar',
+    'Volver': 'Voltar',
+    'Siguiente': 'Seguinte',
+    'Cambiar idioma': 'Mudar idioma',
+    'Idioma': 'Idioma'
   }
 };
 

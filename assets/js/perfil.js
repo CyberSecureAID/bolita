@@ -102,7 +102,25 @@ function estilos() {
     #perfil-overlay .tx-l{display:none}
     #perfil-overlay .tx-s{display:inline}
     #perfil-overlay .pf-sect{text-align:center;margin-top:22px;margin-bottom:10px}
-    #perfil-overlay .pf-note{font-size:11px;line-height:1.5;text-align:center;padding:0 4px}
+    /* ── Idioma ── */
+  #perfil-overlay .pf-idioma{margin-top:14px;padding:14px;border-radius:14px;
+    background:rgba(255,255,255,.028);border:1px solid var(--line,#2b3139)}
+  #perfil-overlay .pf-idi-t{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:1.6px;margin-bottom:10px}
+  #perfil-overlay .pf-idi-ops{display:flex;flex-direction:column;gap:5px}
+  #perfil-overlay .pf-idi{display:flex;align-items:center;gap:11px;width:100%;
+    padding:11px 12px;border-radius:10px;min-height:46px;cursor:pointer;text-align:left;
+    background:transparent;border:1px solid transparent;color:var(--ink-2,#b7bdc6)}
+  #perfil-overlay .pf-idi:hover{background:rgba(255,255,255,.045)}
+  #perfil-overlay .pf-idi.on{background:rgba(232,184,75,.1);
+    border-color:rgba(232,184,75,.35);color:var(--gold,#E8B84B)}
+  #perfil-overlay .pf-idi i{font-style:normal;font-size:20px;line-height:1}
+  #perfil-overlay .pf-idi b{flex:1;font-family:var(--sans,sans-serif);font-weight:600;font-size:13.5px}
+  #perfil-overlay .pf-idi svg{width:15px;height:15px;flex:0 0 auto;color:var(--gold,#E8B84B)}
+
+  #perfil-overlay .pf-note{font-size:11px;line-height:1.5;text-align:center;padding:0 4px}
+    #perfil-overlay .pf-idi{padding:10px 11px}
+    #perfil-overlay .pf-idi b{font-size:13px}
     #perfil-overlay .pf-setname{font-size:12.5px}
   }
   #perfil-overlay .pf-box{background:rgba(255,255,255,.02);border:1px solid #2b3139;border-radius:13px;padding:4px 14px}
@@ -282,7 +300,48 @@ export async function abrirPerfil() {
     </div>
     <div class="d">Vendrá activada: tu suscripción se renovará sola y no tendrás que acordarte cada mes. Podrás desactivarla cuando quieras (se firmará en la blockchain).</div>
   </div>
+  <!-- ══════════════════════════════════════════════════════════
+       IDIOMA
+       Aquí y no en la cabecera: arriba ya hay demasiado ocupado.
+       ══════════════════════════════════════════════════════════ -->
+  <div class="pf-idioma" id="pf-idioma">
+    <div class="pf-idi-t">Idioma</div>
+    <div class="pf-idi-ops" id="pf-idi-ops"></div>
+  </div>
+
   <div class="pf-note"><span class="tx-l">Los datos se leen directamente de la blockchain. Tu nombre se guarda solo en este dispositivo.</span><span class="tx-s">Datos leídos de la blockchain. Tu nombre solo se guarda en este dispositivo.</span></div>`;
+
+  /* ══════════════════════════════════════════════════════════════
+     IDIOMA
+     El módulo se carga solo al abrir el perfil. Si fallara, la
+     sección simplemente no aparece y todo lo demás sigue igual.
+     ══════════════════════════════════════════════════════════════ */
+  (async () => {
+    try {
+      const idi = await import('./idioma.js?v=126');
+      const caja = $('pf-idi-ops');
+      if (!caja) return;
+      const hoy = idi.idiomaActual();
+
+      caja.innerHTML = idi.IDIOMAS.map((x) => `
+        <button class="pf-idi ${x.id === hoy ? 'on' : ''}" data-idi="${x.id}">
+          <i>${x.bandera}</i>
+          <b>${x.nombre}</b>
+          ${x.id === hoy ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg>' : ''}
+        </button>`).join('');
+
+      caja.querySelectorAll('[data-idi]').forEach((b) => b.onclick = () => {
+        const id = b.dataset.idi;
+        if (id === idi.idiomaActual()) return;
+        idi.cambiarIdioma(id);
+        // Se marca el elegido al momento, sin esperar
+        caja.querySelectorAll('.pf-idi').forEach((x) => x.classList.toggle('on', x.dataset.idi === id));
+      });
+    } catch (_) {
+      const z = document.getElementById('pf-idioma');
+      if (z) z.style.display = 'none';
+    }
+  })();
 
   $('pf-x').onclick = cerrar;
   pintarNombre(cuenta);
