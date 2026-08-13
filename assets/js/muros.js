@@ -225,31 +225,31 @@ function juzgar() {
     if (nv.recargas >= 2) {
       tipo = 'recargable';
       titulo = 'Muro con recarga';
-      nota = 'Se ha consumido y ha vuelto a aparecer varias veces. Alguien grande está reponiendo su orden para no mover el precio. Es el nivel más fiable que hay en el libro.';
+      nota = 'Alguien está reponiendo su orden cada vez que se la comen. Es un jugador grande defendiendo este precio sin querer llamar la atención.';
       prioridad = 100;
 
     } else if (nv.huyo && nv.desapariciones >= 2) {
       tipo = 'falso';
       titulo = 'Muro falso';
-      nota = 'Se retira cuando el precio se acerca y vuelve cuando se aleja. No lo persigas: probablemente desaparezca antes de que el precio lo toque.';
+      nota = 'Esta orden se retira cuando el precio se acerca y vuelve cuando se aleja. Está puesta para asustar, no para ejecutarse.';
       prioridad = 70;
 
     } else if (nv.aguanto && consumidoPct > 0.2) {
       tipo = 'probado';
       titulo = 'Nivel probado';
-      nota = 'El precio ya lo visitó y el muro aguantó, comiéndose parte del flujo. Ese nivel tiene defensa real detrás.';
+      nota = 'El precio llegó hasta aquí y esta orden lo frenó, comiéndose lo que venía. Hay defensa real en este nivel.';
       prioridad = 90;
 
     } else if (vivo && segundos > 90 && nv.desapariciones === 0) {
       tipo = 'real';
       titulo = 'Muro firme';
-      nota = 'Lleva ahí sin moverse desde que empezamos a mirar. Aún no ha sido puesto a prueba, pero la constancia es buena señal.';
+      nota = 'Esta orden lleva ahí sin moverse desde que empezamos a vigilar. Todavía no ha llegado el precio a probarla.';
       prioridad = 80;
 
     } else if (vivo && segundos > 6) {
       tipo = 'vigilando';
       titulo = 'En observación';
-      nota = 'Apareció hace poco. Todavía no hay historia suficiente para saber si aguantará.';
+      nota = 'Orden nueva. Aún no sabemos si aguantará: hay que ver qué hace cuando el precio se acerque.';
       prioridad = 40;
 
     } else {
@@ -444,6 +444,24 @@ function arrancar() {
 
    Encima, los muros detectados con su etiqueta.
    ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   EL DIBUJO — una escalera de precios, no un mapa de rayas
+
+   [REPLANTEADO] El mapa de calor mostraba el PROCESO (cómo cambia el
+   libro con el tiempo) y eso solo lo entiende quien ya sabe qué está
+   mirando. Un trader no necesita ver el proceso: necesita ver el
+   RESULTADO.
+
+   Ahora es una escalera vertical, igual que el libro de cualquier
+   exchange, que todo el mundo sabe leer de un vistazo:
+
+     · Cada fila es un precio
+     · La barra dice cuánto dinero hay puesto ahí
+     · Verde = compras (soportes) · Rojo = ventas (resistencias)
+     · Los muros vigilados llevan su sello de veredicto
+
+   Y en el centro, el precio actual con la distancia a cada muro.
+   ══════════════════════════════════════════════════════════════ */
 function dibujar() {
   const cv = $('mu-cv'); const zona = $('mu-graf');
   if (!cv || !zona || !M.fotos.length) return;
@@ -451,16 +469,15 @@ function dibujar() {
   const W = zona.clientWidth, H = zona.clientHeight;
   if (W < 50 || H < 50) return;
 
+  if (!cv.dataset.listo) { engancharGestos(cv); cv.dataset.listo = '1'; }
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   if (cv.width !== Math.round(W * dpr)) {
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     cv.style.width = W + 'px'; cv.style.height = H + 'px';
   }
-  if (!cv.dataset.listo) { engancharGestos(cv); cv.dataset.listo = '1'; }
   const g = cv.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  g.fillStyle = '#080b10';
+  g.fillStyle = '#0a0d12';
   g.fillRect(0, 0, W, H);
 
   const esp = $('mu-esperando');
@@ -474,190 +491,131 @@ function dibujar() {
   }
   if (esp) esp.style.display = 'none';
 
-  const mDer = 76, mAba = 22;
-  const x1 = W - mDer, y1 = H - mAba;
+  const foto = M.fotos[M.fotos.length - 1];
+  if (!foto) return;
 
-  /* [CORREGIDO] El rango era ±1,6% fijo, pero el libro de Binance solo
-     cubre unas décimas alrededor del precio. Resultado: una banda
-     finita en medio de una pantalla vacía.
-     Ahora el rango sale de lo que de verdad hay en el libro. */
-  const ult = M.fotos[M.fotos.length - 1];
-  let lo = M.precio, hi = M.precio;
-  ult.compras.forEach((x) => { if (x.p < lo) lo = x.p; });
-  ult.ventas.forEach((x) => { if (x.p > hi) hi = x.p; });
-  const medio = Math.max(M.precio - lo, hi - M.precio) * (M.zoom || 1);
-  const pMax = M.precio + medio * 1.06, pMin = M.precio - medio * 1.06;
-  const Y = (p) => y1 - y1 * ((p - pMin) / (pMax - pMin));
-
-  const fotos = M.fotos.slice(-140);
-  const paso = x1 / Math.max(1, fotos.length);
-  const FILAS = 150;
-  const altoFila = (pMax - pMin) / FILAS;
-
-  /* ══════════════════════════════════════════════════════════
-     [REPLANTEADO] Antes se pintaban TODOS los niveles del libro, y
-     un libro tiene cientos de órdenes pequeñas repartidas por todas
-     partes. Resultado: la pantalla entera rayada de colores, que es
-     ruido, no información.
-
-     Ahora solo se pinta lo que DESTACA sobre lo normal de ese libro.
-     El resto queda negro. Así el ojo va directo a donde hay algo.
-     ══════════════════════════════════════════════════════════ */
-  const cols = fotos.map((f) => {
-    const col = new Float64Array(FILAS);
-    [...f.compras, ...f.ventas].forEach(({ p, q }) => {
-      if (p < pMin || p > pMax) return;
-      const fi = Math.floor((p - pMin) / altoFila);
-      if (fi >= 0 && fi < FILAS) col[fi] += p * q;
+  /* ── Agrupar el libro en escalones de precio ── */
+  const paso = M.paso || M.precio * 0.0005;
+  const acum = (lista) => {
+    const mapa = new Map();
+    lista.forEach(({ p, q }) => {
+      const k = Math.round(p / paso);
+      mapa.set(k, (mapa.get(k) || 0) + p * q);
     });
-    return col;
-  });
+    return mapa;
+  };
+  const compras = acum(foto.compras);
+  const ventas = acum(foto.ventas);
 
-  /* [CORREGIDO] El color se normalizaba contra el MÁXIMO absoluto. Un
-     solo muro enorme dejaba todo lo demás en azul oscuro y el mapa no
-     decía nada. Ahora el techo es el percentil 92: lo que hay por
-     encima satura, y el resto reparte todo el rango de color. */
-  /* Dos referencias del propio libro:
-       · base  — lo que hay en un nivel corriente (mediana)
-       · techo — lo que hay en los niveles gordos (percentil 98)
-     Solo se pinta lo que supera varias veces la base. */
-  const muestras = [];
-  cols.forEach((c) => { for (const v of c) if (v > 0) muestras.push(v); });
-  muestras.sort((a, b) => a - b);
-  const base = muestras.length ? muestras[Math.floor(muestras.length * 0.55)] : 0;
-  const techo = muestras.length ? muestras[Math.floor(muestras.length * 0.98)] : 0;
-  const corte = base * 1.5;
-  const vMax = techo;
+  // Cuántos escalones caben, según el alto disponible
+  const altoFila = 22;
+  const cabenLado = Math.max(3, Math.floor((H - 70) / 2 / altoFila));
 
-  if (vMax > 0) {
-    cols.forEach((col, i) => {
-      const x = i * paso;
-      for (let fi = 0; fi < FILAS; fi++) {
-        const v = col[fi];
-        // Lo corriente no se pinta: solo lo que sobresale
-        if (v < corte) continue;
-        const rel = Math.min(1, (v - corte) / Math.max(1e-9, vMax - corte));
-        const c = calor(rel);
-        g.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
-        const y = Y(pMin + (fi + 1) * altoFila);
-        g.fillRect(x, y, paso + 0.6, (y1 / FILAS) + 0.6);
-      }
-    });
+  const kPrecio = Math.round(M.precio / paso);
+  const filasV = [];   // ventas: por encima
+  const filasC = [];   // compras: por debajo
+  for (let i = 1; i <= cabenLado; i++) {
+    const kv = kPrecio + i;
+    filasV.push({ k: kv, p: kv * paso, v: ventas.get(kv) || 0, lado: 'venta' });
+    const kc = kPrecio - i;
+    filasC.push({ k: kc, p: kc * paso, v: compras.get(kc) || 0, lado: 'compra' });
   }
+  filasV.reverse();     // el más alto arriba
 
-  /* ── EL RECORRIDO DEL PRECIO ──
-     Una línea con el precio de cada foto: así se ve cómo se ha movido
-     mientras vigilábamos, y si se acercó a algún muro. Sin esto el
-     mapa no tiene referencia y no se puede leer. */
-  g.beginPath();
-  fotos.forEach((f, i) => {
-    const p = ((f.compras[0]?.p || 0) + (f.ventas[0]?.p || 0)) / 2;
-    if (!p) return;
-    const x = i * paso + paso / 2, y = Y(p);
-    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+  const maxV = Math.max(1, ...filasV.map((x) => x.v), ...filasC.map((x) => x.v));
+
+  /* ── La franja del precio, en el centro ── */
+  const yCentro = H / 2;
+  const anchoBarra = W * 0.62;
+  const xTexto = 14;
+
+  const pintarFila = (fila, y) => {
+    const esVenta = fila.lado === 'venta';
+    const rel = fila.v / maxV;
+    const w = Math.max(0, anchoBarra * rel);
+
+    // ¿Hay un muro vigilado en este escalón?
+    const muro = M.muros.find((m) => Math.abs(m.p - fila.p) < paso * 0.75);
+    const col = muro ? COLORES[muro.tipo] : null;
+
+    // La barra
+    const base = esVenta ? 'rgba(239,83,80,' : 'rgba(38,166,154,';
+    g.fillStyle = muro ? col.linea + '55' : base + (0.30 + rel * 0.45) + ')';
+    g.fillRect(W - 96 - w, y - altoFila / 2 + 2, w, altoFila - 4);
+
+    // Borde si es un muro reconocido
+    if (muro) {
+      g.strokeStyle = col.linea;
+      g.lineWidth = 1.4;
+      g.strokeRect(W - 96 - w, y - altoFila / 2 + 2, w, altoFila - 4);
+    }
+
+    // El precio
+    g.font = (muro ? 'bold ' : '') + '11px ui-monospace,monospace';
+    g.fillStyle = muro ? col.linea : (esVenta ? 'rgba(239,83,80,.75)' : 'rgba(38,166,154,.75)');
+    g.textAlign = 'left';
+    g.fillText(fmt(fila.p), xTexto, y + 4);
+
+    // El sello del veredicto
+    if (muro) {
+      g.beginPath();
+      g.arc(xTexto + 88, y, 8, 0, Math.PI * 2);
+      g.fillStyle = col.linea; g.fill();
+      g.fillStyle = col.texto;
+      g.font = 'bold 10px system-ui,sans-serif';
+      g.textAlign = 'center';
+      g.fillText(col.icono, xTexto + 88, y + 3.5);
+      g.textAlign = 'left';
+    }
+
+    // El dinero, a la derecha
+    if (fila.v > 0) {
+      g.font = '10px ui-monospace,monospace';
+      g.fillStyle = fila.v / maxV > 0.5 ? '#b7bdc6' : '#5c6672';
+      g.textAlign = 'right';
+      g.fillText(dinero(fila.v), W - 12, y + 4);
+      g.textAlign = 'left';
+    }
+  };
+
+  // Ventas hacia arriba
+  filasV.forEach((f, i) => {
+    const y = yCentro - 26 - (filasV.length - 1 - i) * altoFila;
+    if (y > 6) pintarFila(f, y);
   });
-  g.strokeStyle = '#eaecef';
-  g.lineWidth = 1.8;
+  // Compras hacia abajo
+  filasC.forEach((f, i) => {
+    const y = yCentro + 26 + i * altoFila;
+    if (y < H - 6) pintarFila(f, y);
+  });
+
+  /* ── El precio actual, destacado en el centro ── */
+  g.fillStyle = '#12161c';
+  g.fillRect(0, yCentro - 20, W, 40);
+  g.strokeStyle = 'rgba(232,184,75,.35)';
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(0, yCentro - 20); g.lineTo(W, yCentro - 20);
+  g.moveTo(0, yCentro + 20); g.lineTo(W, yCentro + 20);
   g.stroke();
 
-  // El punto de ahora, latiendo
-  const yP = Y(M.precio);
-  g.beginPath();
-  g.arc(x1 - paso / 2, yP, 4, 0, Math.PI * 2);
-  g.fillStyle = '#eaecef'; g.fill();
-  g.strokeStyle = 'rgba(234,236,239,.3)';
-  g.setLineDash([4, 4]); g.lineWidth = 1;
-  g.beginPath(); g.moveTo(0, yP); g.lineTo(x1, yP); g.stroke();
-  g.setLineDash([]);
+  g.font = 'bold 19px ui-monospace,monospace';
+  g.fillStyle = '#E8B84B';
+  g.textAlign = 'left';
+  g.fillText(fmt(M.precio), xTexto, yCentro + 7);
 
-  /* ── LOS MUROS, marcados sobre la gráfica ── */
-  M.muros.forEach((m) => {
-    if (m.p < pMin || m.p > pMax) return;
-    const y = Y(m.p);
-    const col = COLORES[m.tipo];
-    const sel = M.seleccionado === m.p;
-
-    // La línea del nivel
-    g.strokeStyle = col.linea;
-    g.lineWidth = sel ? 2.4 : 1.6;
-    if (m.tipo === 'falso' || m.tipo === 'vigilando') g.setLineDash([6, 4]);
-    g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
-    g.setLineDash([]);
-
-    // La etiqueta en la escala
-    g.fillStyle = col.linea;
-    g.fillRect(x1 + 1, y - 9, mDer - 3, 18);
-    g.fillStyle = col.texto;
-    g.font = `bold ${sel ? 11 : 10}px ui-monospace,monospace`;
-    g.textAlign = 'left';
-    g.fillText(fmt(m.p), x1 + 6, y + 3.5);
-
-    // El icono del veredicto, a la izquierda
-    g.beginPath();
-    g.arc(14, y, sel ? 8 : 6.5, 0, Math.PI * 2);
-    g.fillStyle = col.linea; g.fill();
-    g.fillStyle = col.texto;
-    g.font = `bold ${sel ? 10 : 9}px system-ui,sans-serif`;
-    g.textAlign = 'center';
-    g.fillText(col.icono, 14, y + 3.2);
-    g.textAlign = 'left';
-  });
-
-  /* ── La escala de precios ── */
-  g.fillStyle = '#0b0e12';
-  g.fillRect(x1, 0, mDer, H);
-  g.strokeStyle = 'rgba(255,255,255,.07)';
-  g.beginPath(); g.moveTo(x1 + .5, 0); g.lineTo(x1 + .5, H); g.stroke();
   g.font = '10px ui-monospace,monospace';
-  g.fillStyle = '#5c6672';
-  g.textAlign = 'left';
-  for (let i = 0; i <= 6; i++) {
-    const p = pMin + (pMax - pMin) * (i / 6);
-    const y = Y(p);
-    if (M.muros.some((m) => Math.abs(Y(m.p) - y) < 12)) continue;
-    g.strokeStyle = 'rgba(255,255,255,.04)';
-    g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
-    g.fillStyle = '#5c6672';
-    g.fillText(fmt(p), x1 + 6, y + 3.5);
-  }
-
-  // El precio de ahora, destacado
-  g.fillStyle = '#eaecef';
-  g.fillRect(x1 + 1, yP - 9, mDer - 3, 18);
-  g.fillStyle = '#0b0e12';
-  g.font = 'bold 11px ui-monospace,monospace';
-  g.fillText(fmt(M.precio), x1 + 6, yP + 3.5);
-
-  /* ── La cruz, para leer precios ── */
-  if (M.cruzY >= 0 && M.cruzY < y1) {
-    g.strokeStyle = 'rgba(255,255,255,.22)';
-    g.setLineDash([3, 3]); g.lineWidth = 1;
-    g.beginPath(); g.moveTo(0, M.cruzY); g.lineTo(x1, M.cruzY); g.stroke();
-    g.setLineDash([]);
-    const pC = pMin + (pMax - pMin) * ((y1 - M.cruzY) / y1);
-    g.fillStyle = '#2b3139';
-    g.fillRect(x1 + 1, M.cruzY - 9, mDer - 3, 18);
-    g.fillStyle = '#eaecef';
-    g.font = 'bold 10px ui-monospace,monospace';
-    g.textAlign = 'left';
-    g.fillText(fmt(pC), x1 + 6, M.cruzY + 3.5);
-  }
-
-  /* ── Abajo: el tiempo ── */
-  g.fillStyle = '#0b0e12';
-  g.fillRect(0, y1, W, mAba);
-  g.font = '9px ui-monospace,monospace';
-  g.fillStyle = '#5c6672';
-  g.textAlign = 'left';
-  g.fillText('hace ' + tiempo(fotos.length * CADA / 1000), 8, y1 + 14);
+  g.fillStyle = '#7d8794';
   g.textAlign = 'right';
-  g.fillText('ahora', x1 - 8, y1 + 14);
-  if (M.zoom < 0.98) {
-    g.textAlign = 'center';
-    g.fillStyle = 'rgba(232,184,75,.7)';
-    g.fillText('acercado ×' + (1 / M.zoom).toFixed(1) + ' · doble clic para ver todo', x1 / 2, y1 + 14);
-  }
+  g.fillText('PRECIO AHORA · ' + esc(_par), W - 12, yCentro + 4);
   g.textAlign = 'left';
+
+  /* ── Etiquetas de los lados ── */
+  g.font = '9px ui-monospace,monospace';
+  g.fillStyle = 'rgba(239,83,80,.6)';
+  g.fillText('VENTAS · resistencia', xTexto, 16);
+  g.fillStyle = 'rgba(38,166,154,.6)';
+  g.fillText('COMPRAS · soporte', xTexto, H - 8);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -714,7 +672,7 @@ const COLORES = {
   real:       { linea: '#4d9fff', texto: '#04121f', icono: '●', clase: 'azul' },
   falso:      { linea: '#f6465d', texto: '#2a0509', icono: '✕', clase: 'rojo' },
   vigilando:  { linea: '#8b96a3', texto: '#0b0e12', icono: '?', clase: 'gris' },
-  ido:        { linea: '#4a525c', texto: '#0b0e12', icono: '·', clase: 'ido' }
+  ido:        { linea: '#6b7681', texto: '#0b0e12', icono: '·', clase: 'ido' }
 };
 
 /* La paleta va de tenue a intenso: lo poco destacable apenas se ve, y
@@ -788,6 +746,14 @@ function pintarPanel() {
     const c = COLORES[m.tipo];
     const pct = (Math.abs(m.dist) * 100).toFixed(2);
     const dir = m.p > M.precio ? 'arriba' : 'abajo';
+    /* La cabecera dice en una línea QUÉ es esto. Sin esa frase, el
+       usuario ve un precio y una cifra y no sabe qué mira. */
+    const esVenta = m.p > M.precio;
+    const queEs = esVenta
+      ? `Órdenes de <b>venta</b> esperando a ${fmt(m.p)}`
+      : `Órdenes de <b>compra</b> esperando a ${fmt(m.p)}`;
+    const rol = esVenta ? 'Frena las subidas' : 'Frena las bajadas';
+
     return `
     <button class="mu-card ${c.clase} ${M.seleccionado === m.p ? 'sel' : ''}" data-mp="${m.p}">
       <div class="mu-card-top">
@@ -795,11 +761,12 @@ function pintarPanel() {
         <span class="mu-dist">${pct}% ${dir}</span>
       </div>
       <div class="mu-precio">${fmt(m.p)}</div>
+      <div class="mu-quees">${queEs}<em>${rol}</em></div>
       <div class="mu-datos">
-        <span><b>${dinero(m.v)}</b>en el libro</span>
-        <span><b>${tiempo(m.segundos)}</b>vigilado</span>
-        ${m.recargas > 0 ? `<span><b>${m.recargas}</b>recargas</span>` : ''}
-        ${m.consumidoPct > 0.15 ? `<span><b>${Math.round(m.consumidoPct * 100)}%</b>consumido</span>` : ''}
+        <span><b>${dinero(m.v)}</b>puestos aquí</span>
+        <span><b>${tiempo(m.segundos)}</b>vigilando</span>
+        ${m.recargas > 0 ? `<span><b>${m.recargas}</b>veces repuesta</span>` : ''}
+        ${m.consumidoPct > 0.15 ? `<span><b>${Math.round(Math.min(100, m.consumidoPct * 100))}%</b>ya ejecutado</span>` : ''}
       </div>
       <div class="mu-nota">${esc(m.nota)}</div>
       <div class="mu-hacer">${consejo(m)}</div>
@@ -1131,6 +1098,17 @@ function estilos() {
   #mu-overlay .mu-card.azul{border-left-color:#4d9fff}
   #mu-overlay .mu-card.rojo{border-left-color:#f6465d}
   #mu-overlay .mu-card.gris{border-left-color:#5c6672}
+  #mu-overlay .mu-card.ido{border-left-color:#6b7681;opacity:.62}
+  #mu-overlay .ido .mu-chip{background:rgba(139,150,163,.14);color:#8b96a3}
+  #mu-overlay .ido .mu-hacer{border-left-color:rgba(139,150,163,.35)}
+  /* La línea que explica QUÉ es cada muro: sin ella el usuario ve un
+     precio y una cifra y no sabe qué está mirando. */
+  #mu-overlay .mu-quees{font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;
+    line-height:1.5;margin-bottom:9px}
+  #mu-overlay .mu-quees b{color:#eaecef;font-weight:700}
+  #mu-overlay .mu-quees em{display:block;font-style:normal;margin-top:3px;
+    font-family:var(--mono,monospace);font-size:9.5px;color:#5c6672;
+    text-transform:uppercase;letter-spacing:.7px}
   #mu-overlay .mu-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
   #mu-overlay .mu-chip{font-family:var(--mono,monospace);font-size:9.5px;font-weight:700;
     text-transform:uppercase;letter-spacing:.7px;padding:3px 8px;border-radius:20px}
