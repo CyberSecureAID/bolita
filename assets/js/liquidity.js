@@ -558,11 +558,11 @@ const SERVICIOS = [
   },
   {
     id: 'libro',
-    nombre: 'Libro de Órdenes',
-    lema: 'Las paredes, en directo',
-    desc: 'Las órdenes de compra y venta que hay AHORA MISMO en el mercado, actualizándose en tiempo real.',
+    nombre: 'Muros Reales',
+    lema: 'Cuáles aguantan y cuáles mienten',
+    desc: 'El libro de órdenes miente: la mayoría de los muros grandes son falsos. Esta herramienta los vigila y te dice cuáles tienen dinero real detrás.',
     img: 'assets/img/serv-libro.webp',
-    listo: false
+    listo: true
   },
   {
     id: 'tercero',
@@ -662,7 +662,13 @@ async function portada() {
     const a = await tieneAccesoPro();
     if (!a.ok) { avisoSinAcceso(); return; }
     cerrar();
-    if (sv.id === 'pools') abrirPools();
+    if (sv.id === 'pools') { abrirPools(); return; }
+    if (sv.id === 'libro') {
+      try {
+        const mu = await import('./muros.js?v=126');
+        mu.abrirMuros();
+      } catch (er) { console.warn('[CCO] muros:', er); }
+    }
   });
 
   d.querySelectorAll('[data-plan]').forEach((b) => b.onclick = () => comprarPro(Number(b.dataset.plan)));

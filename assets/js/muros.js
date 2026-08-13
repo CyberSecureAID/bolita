@@ -1,0 +1,1065 @@
+// muros.js — Detector de Muros Reales
+//
+// EL PROBLEMA QUE RESUELVE
+//
+// El libro de órdenes miente. La mayoría de los muros grandes que ve
+// todo el mundo son falsos: órdenes puestas para asustar que se retiran
+// justo cuando el precio llega. Un trader que persigue esos muros
+// pierde dinero de forma sistemática.
+//
+// Esta herramienta no muestra el libro. Muestra CUÁLES DE ESOS MUROS
+// SON DE VERDAD, y para eso hace lo único que los delata: vigilarlos
+// en el tiempo.
+//
+//   · Un muro REAL aguanta. Sigue ahí minuto tras minuto y, cuando el
+//     precio se acerca, se va consumiendo: alguien ejecuta de verdad.
+//
+//   · Un muro FALSO aparece de golpe y se desvanece antes de que el
+//     precio lo toque. Nunca se ejecuta nada.
+//
+//   · Un muro RECARGABLE se consume y vuelve a aparecer al mismo
+//     precio. Es alguien grande partiendo su orden para no mover el
+//     mercado. Es la señal más fuerte que existe en el libro.
+
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=126';
+
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const PARES = [
+  { id: 'BTC',   s: 'BTCUSDT',   n: 'Bitcoin',    cg: 'bitcoin' },
+  { id: 'ETH',   s: 'ETHUSDT',   n: 'Ethereum',   cg: 'ethereum' },
+  { id: 'BNB',   s: 'BNBUSDT',   n: 'BNB',        cg: 'binancecoin' },
+  { id: 'SOL',   s: 'SOLUSDT',   n: 'Solana',     cg: 'solana' },
+  { id: 'XRP',   s: 'XRPUSDT',   n: 'XRP',        cg: 'ripple' },
+  { id: 'DOGE',  s: 'DOGEUSDT',  n: 'Dogecoin',   cg: 'dogecoin' },
+  { id: 'ADA',   s: 'ADAUSDT',   n: 'Cardano',    cg: 'cardano' },
+  { id: 'AVAX',  s: 'AVAXUSDT',  n: 'Avalanche',  cg: 'avalanche-2' },
+  { id: 'LINK',  s: 'LINKUSDT',  n: 'Chainlink',  cg: 'chainlink' },
+  { id: 'DOT',   s: 'DOTUSDT',   n: 'Polkadot',   cg: 'polkadot' },
+  { id: 'MATIC', s: 'MATICUSDT', n: 'Polygon',    cg: 'matic-network' },
+  { id: 'LTC',   s: 'LTCUSDT',   n: 'Litecoin',   cg: 'litecoin' },
+  { id: 'TRX',   s: 'TRXUSDT',   n: 'TRON',       cg: 'tron' },
+  { id: 'SHIB',  s: 'SHIBUSDT',  n: 'Shiba Inu',  cg: 'shiba-inu' },
+  { id: 'PEPE',  s: 'PEPEUSDT',  n: 'Pepe',       cg: 'pepe' },
+  { id: 'NEAR',  s: 'NEARUSDT',  n: 'NEAR',       cg: 'near' },
+  { id: 'SUI',   s: 'SUIUSDT',   n: 'Sui',        cg: 'sui' },
+  { id: 'ARB',   s: 'ARBUSDT',   n: 'Arbitrum',   cg: 'arbitrum' },
+  { id: 'OP',    s: 'OPUSDT',    n: 'Optimism',   cg: 'optimism' },
+  { id: 'ATOM',  s: 'ATOMUSDT',  n: 'Cosmos',     cg: 'cosmos' },
+  { id: 'UNI',   s: 'UNIUSDT',   n: 'Uniswap',    cg: 'uniswap' },
+  { id: 'INJ',   s: 'INJUSDT',   n: 'Injective',  cg: 'injective-protocol' }
+];
+
+let _par = 'BNB';
+
+/* ══════════════════════════════════════════════════════════════
+   ESTADO
+   ══════════════════════════════════════════════════════════════ */
+const M = {
+  fotos: [],          // historial del libro: hasta 220 tomas
+  precio: 0,
+  niveles: new Map(), // precio → seguimiento de ese nivel
+  muros: [],          // los detectados, ya juzgados
+  seleccionado: null,
+  cargando: true,
+  error: null
+};
+
+const CADA = 1500;          // una foto cada 1,5 segundos
+const MAX_FOTOS = 220;      // ~5,5 minutos de historia
+const MIN_TOMAS = 6;        // antes de juzgar, hay que mirar un rato
+
+/* ══════════════════════════════════════════════════════════════
+   LOS DATOS — profundidad del libro, API pública sin clave
+   ══════════════════════════════════════════════════════════════ */
+async function traerLibro(simbolo) {
+  const r = await fetch(`https://api.binance.com/api/v3/depth?symbol=${simbolo}&limit=500`);
+  if (!r.ok) throw new Error('sin datos');
+  const j = await r.json();
+  return {
+    t: Date.now(),
+    compras: j.bids.map((x) => ({ p: Number(x[0]), q: Number(x[1]) })),
+    ventas: j.asks.map((x) => ({ p: Number(x[0]), q: Number(x[1]) }))
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EL SEGUIMIENTO — aquí está todo el valor
+
+   De cada nivel destacado se guarda su vida: cuándo apareció, cuánto
+   ha aguantado, cuántas veces se fue y volvió, y qué le pasó cuando
+   el precio se le acercó.
+   ══════════════════════════════════════════════════════════════ */
+function procesar(foto) {
+  M.fotos.push(foto);
+  if (M.fotos.length > MAX_FOTOS) M.fotos.shift();
+
+  const mejorC = foto.compras[0]?.p || 0;
+  const mejorV = foto.ventas[0]?.p || 0;
+  M.precio = (mejorC + mejorV) / 2;
+  if (!M.precio) return;
+
+  // Los niveles se agrupan: el libro tiene demasiado detalle
+  const paso = M.precio * 0.0006;        // 0,06% del precio
+  const agrupar = (lista, lado) => {
+    const mapa = new Map();
+    lista.forEach(({ p, q }) => {
+      const k = Math.round(p / paso) * paso;
+      const dinero = p * q;
+      mapa.set(k, (mapa.get(k) || 0) + dinero);
+    });
+    return [...mapa].map(([p, v]) => ({ p, v, lado }));
+  };
+
+  const todos = [...agrupar(foto.compras, 'compra'), ...agrupar(foto.ventas, 'venta')];
+  if (!todos.length) return;
+
+  // ¿Qué es "grande" AQUÍ? Se compara con el propio libro, no con un
+  // número fijo: así funciona igual en BTC que en PEPE.
+  /* El umbral se calcula sobre el percentil 90, no la mediana. Con la
+     mediana, en libros muy poblados el corte quedaba tan alto que ni
+     los muros grandes lo pasaban. */
+  const vals = todos.map((x) => x.v).sort((a, b) => a - b);
+  const p90 = vals[Math.floor(vals.length * 0.90)] || 1;
+  const umbral = Math.max(p90 * 1.6, (vals[Math.floor(vals.length / 2)] || 1) * 3);
+
+  const ahora = foto.t;
+  const clave = (x) => x.lado + ':' + x.p.toFixed(8);
+
+  // Marcar los que se ven en esta foto
+  const vistos = new Set();
+  todos.forEach((x) => {
+    if (x.v < umbral) return;
+    const k = clave(x);
+    vistos.add(k);
+
+    let nv = M.niveles.get(k);
+    if (!nv) {
+      nv = {
+        p: x.p, lado: x.lado,
+        nacio: ahora, visto: ahora,
+        vMax: x.v, vAhora: x.v, vInicial: x.v,
+        tomas: 1,
+        desapariciones: 0,     // veces que se fue del libro
+        recargas: 0,           // veces que volvió tras consumirse
+        consumido: 0,          // cuánto se ha comido en total
+        huyo: false,           // ¿se fue al acercarse el precio?
+        aguanto: false,        // ¿aguantó una visita del precio?
+        ausente: 0
+      };
+      M.niveles.set(k, nv);
+    } else {
+      /* Si volvió tras haber desaparecido y el precio había llegado
+         cerca, eso es una RECARGA: alguien repone su orden. Es la
+         señal más valiosa del libro. */
+      if (nv.ausente > 0) {
+        const cerca = Math.abs(M.precio - nv.p) / M.precio < 0.0015;
+        if (cerca || nv.consumido > nv.vInicial * 0.3) nv.recargas++;
+        nv.ausente = 0;
+      }
+      // Lo que ha menguado desde su máximo es lo que se han comido
+      if (x.v < nv.vAhora) nv.consumido += (nv.vAhora - x.v);
+      nv.vAhora = x.v;
+      if (x.v > nv.vMax) nv.vMax = x.v;
+      nv.visto = ahora;
+      nv.tomas++;
+    }
+
+    /* ¿El precio le pasó por encima y aguantó? Eso lo convierte en un
+       nivel probado, que es lo que un trader quiere saber. */
+    const dist = Math.abs(M.precio - nv.p) / M.precio;
+    if (dist < 0.0008) nv.aguanto = true;
+  });
+
+  // Los que no se ven: ¿se fueron o los consumieron?
+  M.niveles.forEach((nv, k) => {
+    if (vistos.has(k)) return;
+    nv.ausente++;
+    if (nv.ausente === 1) {
+      nv.desapariciones++;
+      /* Se fue mientras el precio se acercaba y sin apenas ejecutarse:
+         es la firma de un muro falso. */
+      const dist = Math.abs(M.precio - nv.p) / M.precio;
+      if (dist < 0.004 && nv.consumido < nv.vInicial * 0.25) nv.huyo = true;
+    }
+    // Olvidar los que llevan mucho sin aparecer
+    if (nv.ausente > 40) M.niveles.delete(k);
+  });
+
+  juzgar();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EL VEREDICTO
+   ══════════════════════════════════════════════════════════════ */
+function juzgar() {
+  const ahora = Date.now();
+  const fuera = [];
+
+  M.niveles.forEach((nv) => {
+    if (nv.tomas < 4) return;
+    const vivo = nv.ausente === 0;
+    const segundos = (nv.visto - nv.nacio) / 1000;
+    const consumidoPct = nv.vInicial > 0 ? nv.consumido / nv.vInicial : 0;
+
+    let tipo, titulo, nota, prioridad;
+
+    if (nv.recargas >= 2) {
+      tipo = 'recargable';
+      titulo = 'Muro con recarga';
+      nota = 'Se ha consumido y ha vuelto a aparecer varias veces. Alguien grande está reponiendo su orden para no mover el precio. Es el nivel más fiable que hay en el libro.';
+      prioridad = 100;
+
+    } else if (nv.huyo && nv.desapariciones >= 2) {
+      tipo = 'falso';
+      titulo = 'Muro falso';
+      nota = 'Se retira cuando el precio se acerca y vuelve cuando se aleja. No lo persigas: probablemente desaparezca antes de que el precio lo toque.';
+      prioridad = 70;
+
+    } else if (nv.aguanto && consumidoPct > 0.2) {
+      tipo = 'probado';
+      titulo = 'Nivel probado';
+      nota = 'El precio ya lo visitó y el muro aguantó, comiéndose parte del flujo. Ese nivel tiene defensa real detrás.';
+      prioridad = 90;
+
+    } else if (vivo && segundos > 90 && nv.desapariciones === 0) {
+      tipo = 'real';
+      titulo = 'Muro firme';
+      nota = 'Lleva ahí sin moverse desde que empezamos a mirar. Aún no ha sido puesto a prueba, pero la constancia es buena señal.';
+      prioridad = 80;
+
+    } else if (vivo && segundos > 25) {
+      tipo = 'vigilando';
+      titulo = 'En observación';
+      nota = 'Apareció hace poco. Todavía no hay historia suficiente para saber si aguantará.';
+      prioridad = 40;
+
+    } else {
+      return;
+    }
+
+    fuera.push({
+      p: nv.p, lado: nv.lado, v: nv.vAhora, vMax: nv.vMax,
+      tipo, titulo, nota, prioridad,
+      segundos, recargas: nv.recargas, desapariciones: nv.desapariciones,
+      consumidoPct, vivo,
+      dist: M.precio > 0 ? (nv.p - M.precio) / M.precio : 0
+    });
+  });
+
+  /* Se ordenan por importancia y cercanía: un muro enorme a un 8% del
+     precio importa menos que uno mediano a un 0,3%. */
+  fuera.sort((a, b) => {
+    const pa = a.prioridad - Math.abs(a.dist) * 900;
+    const pb = b.prioridad - Math.abs(b.dist) * 900;
+    return pb - pa;
+  });
+
+  M.muros = fuera.slice(0, 10);
+}
+
+/* Utilidades de formato */
+const dinero = (v) => {
+  const a = Math.abs(v);
+  if (a >= 1e9) return '$' + (v / 1e9).toFixed(2) + 'B';
+  if (a >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
+  if (a >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K';
+  return '$' + v.toFixed(0);
+};
+
+const fmt = (p) => {
+  if (p >= 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 1 });
+  if (p >= 1) return p.toFixed(3);
+  if (p >= 0.01) return p.toFixed(5);
+  return p.toFixed(8);
+};
+
+const tiempo = (s) => {
+  if (s < 60) return Math.round(s) + 's';
+  const m = Math.floor(s / 60);
+  return m + ' min' + (m > 1 ? '' : '');
+};
+
+
+
+/* ══════════════════════════════════════════════════════════════
+   ABRIR
+   ══════════════════════════════════════════════════════════════ */
+export async function abrirMuros() {
+  estilos();
+  const prev = $('mu-overlay'); if (prev) prev.remove();
+
+  // Estado limpio: cada apertura empieza de cero
+  M.fotos = []; M.niveles = new Map(); M.muros = [];
+  M.cargando = true; M.error = null; M.seleccionado = null;
+
+  const d = document.createElement('div');
+  d.id = 'mu-overlay';
+  d.innerHTML = `<div class="mu-bg"></div>
+    <div class="mu-c">
+      <div class="mu-barra">
+        <button class="mu-sel" id="mu-sel">
+          <i class="mu-logo" data-cg="${esc((PARES.find((p) => p.id === _par) || {}).cg || '')}"></i>
+          <b>${esc(_par)}</b>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+
+        <div class="mu-vivo"><i></i><span id="mu-estado">Observando el libro…</span></div>
+
+        <div class="mu-der">
+          <button class="mu-ico" id="mu-ayuda" title="Cómo funciona">?</button>
+          <button class="mu-ico" id="mu-x" aria-label="Cerrar">✕</button>
+        </div>
+      </div>
+
+      <div class="mu-cuerpo">
+        <div class="mu-graf" id="mu-graf">
+          <canvas class="mu-cv" id="mu-cv"></canvas>
+          <div class="mu-esperando" id="mu-esperando">
+            <div class="mu-spin"></div>
+            <b>Analizando el libro de órdenes</b>
+            <span>Necesitamos unos segundos de observación para distinguir los muros reales de los falsos.</span>
+            <div class="mu-progreso"><i id="mu-prog"></i></div>
+          </div>
+          <img class="mu-marca" src="assets/img/cco-marca.webp" alt="">
+        </div>
+
+        <aside class="mu-panel" id="mu-panel">
+          <div class="mu-panel-t">Veredictos</div>
+          <div class="mu-lista" id="mu-lista"></div>
+        </aside>
+      </div>
+    </div>`;
+  document.body.appendChild(d);
+
+  const cerrar = () => {
+    clearInterval(_reloj);
+    document.querySelectorAll('#mu-picker').forEach((x) => x.remove());
+    const e = $('mu-overlay'); if (e) e.remove();
+  };
+  d.querySelector('.mu-bg').onclick = cerrar;
+  $('mu-x').onclick = cerrar;
+  $('mu-ayuda').onclick = () => ayuda();
+  $('mu-sel').onclick = (e) => { e.stopPropagation(); menuPares(); };
+
+  ponerLogos();
+  arrancar();
+
+  let _t = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(_t);
+    _t = setTimeout(() => { if ($('mu-cv')) dibujar(); }, 250);
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EL RELOJ — una foto cada 1,5 s
+   ══════════════════════════════════════════════════════════════ */
+let _reloj = null;
+let _fallos = 0;
+
+function arrancar() {
+  clearInterval(_reloj);
+  _fallos = 0;
+  const tomar = async () => {
+    if (!$('mu-cv')) { clearInterval(_reloj); return; }
+    try {
+      const par = PARES.find((p) => p.id === _par) || PARES[0];
+      const foto = await traerLibro(par.s);
+      procesar(foto);
+      _fallos = 0;
+      M.cargando = M.fotos.length < MIN_TOMAS;
+      M.error = null;
+      dibujar();
+      pintarPanel();
+    } catch (_) {
+      /* Un fallo suelto no rompe nada: se sigue con lo que hay. Solo
+         tras varios seguidos se avisa, porque entonces sí pasa algo. */
+      _fallos++;
+      if (_fallos >= 4) {
+        M.error = 'Sin conexión con el mercado. Reintentando…';
+        pintarPanel();
+      }
+    }
+  };
+  tomar();
+  _reloj = setInterval(tomar, CADA);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EL DIBUJO — mapa de profundidad en el tiempo
+
+   Eje horizontal: el tiempo (izquierda pasado, derecha ahora).
+   Eje vertical: el precio.
+   El color: cuánto dinero hay en el libro a ese precio.
+
+   Encima, los muros detectados con su etiqueta.
+   ══════════════════════════════════════════════════════════════ */
+function dibujar() {
+  const cv = $('mu-cv'); const zona = $('mu-graf');
+  if (!cv || !zona || !M.fotos.length) return;
+
+  const W = zona.clientWidth, H = zona.clientHeight;
+  if (W < 50 || H < 50) return;
+
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (cv.width !== Math.round(W * dpr)) {
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  }
+  const g = cv.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  g.fillStyle = '#080b10';
+  g.fillRect(0, 0, W, H);
+
+  const esp = $('mu-esperando');
+  if (M.cargando) {
+    if (esp) {
+      esp.style.display = '';
+      const pr = $('mu-prog');
+      if (pr) pr.style.width = Math.min(100, (M.fotos.length / MIN_TOMAS) * 100) + '%';
+    }
+    return;
+  }
+  if (esp) esp.style.display = 'none';
+
+  const mDer = 76, mAba = 22;
+  const x1 = W - mDer, y1 = H - mAba;
+
+  // Rango de precio: lo que abarcan los muros, con margen
+  const rango = M.precio * 0.016;
+  const pMax = M.precio + rango, pMin = M.precio - rango;
+  const Y = (p) => y1 - y1 * ((p - pMin) / (pMax - pMin));
+
+  const fotos = M.fotos.slice(-140);
+  const paso = x1 / Math.max(1, fotos.length);
+  const FILAS = 150;
+  const altoFila = (pMax - pMin) / FILAS;
+
+  /* ── El mapa de profundidad ── */
+  let vMax = 0;
+  const cols = fotos.map((f) => {
+    const col = new Float64Array(FILAS);
+    [...f.compras, ...f.ventas].forEach(({ p, q }) => {
+      if (p < pMin || p > pMax) return;
+      const fi = Math.floor((p - pMin) / altoFila);
+      if (fi >= 0 && fi < FILAS) col[fi] += p * q;
+    });
+    for (const v of col) if (v > vMax) vMax = v;
+    return col;
+  });
+
+  if (vMax > 0) {
+    cols.forEach((col, i) => {
+      const x = i * paso;
+      for (let fi = 0; fi < FILAS; fi++) {
+        const v = col[fi];
+        if (v <= 0) continue;
+        const rel = Math.min(1, Math.pow(v / vMax, 0.5));
+        if (rel < 0.06) continue;
+        const c = calor(rel);
+        g.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        const y = Y(pMin + (fi + 1) * altoFila);
+        g.fillRect(x, y, paso + 0.6, (y1 / FILAS) + 0.6);
+      }
+    });
+  }
+
+  /* ── La línea del precio ── */
+  const yP = Y(M.precio);
+  g.strokeStyle = 'rgba(255,255,255,.5)';
+  g.setLineDash([4, 4]); g.lineWidth = 1;
+  g.beginPath(); g.moveTo(0, yP); g.lineTo(x1, yP); g.stroke();
+  g.setLineDash([]);
+
+  /* ── LOS MUROS, marcados sobre la gráfica ── */
+  M.muros.forEach((m) => {
+    if (m.p < pMin || m.p > pMax) return;
+    const y = Y(m.p);
+    const col = COLORES[m.tipo];
+    const sel = M.seleccionado === m.p;
+
+    // La línea del nivel
+    g.strokeStyle = col.linea;
+    g.lineWidth = sel ? 2.4 : 1.6;
+    if (m.tipo === 'falso' || m.tipo === 'vigilando') g.setLineDash([6, 4]);
+    g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
+    g.setLineDash([]);
+
+    // La etiqueta en la escala
+    g.fillStyle = col.linea;
+    g.fillRect(x1 + 1, y - 9, mDer - 3, 18);
+    g.fillStyle = col.texto;
+    g.font = `bold ${sel ? 11 : 10}px ui-monospace,monospace`;
+    g.textAlign = 'left';
+    g.fillText(fmt(m.p), x1 + 6, y + 3.5);
+
+    // El icono del veredicto, a la izquierda
+    g.beginPath();
+    g.arc(14, y, sel ? 8 : 6.5, 0, Math.PI * 2);
+    g.fillStyle = col.linea; g.fill();
+    g.fillStyle = col.texto;
+    g.font = `bold ${sel ? 10 : 9}px system-ui,sans-serif`;
+    g.textAlign = 'center';
+    g.fillText(col.icono, 14, y + 3.2);
+    g.textAlign = 'left';
+  });
+
+  /* ── La escala de precios ── */
+  g.fillStyle = '#0b0e12';
+  g.fillRect(x1, 0, mDer, H);
+  g.strokeStyle = 'rgba(255,255,255,.07)';
+  g.beginPath(); g.moveTo(x1 + .5, 0); g.lineTo(x1 + .5, H); g.stroke();
+  g.font = '10px ui-monospace,monospace';
+  g.fillStyle = '#5c6672';
+  g.textAlign = 'left';
+  for (let i = 0; i <= 6; i++) {
+    const p = pMin + (pMax - pMin) * (i / 6);
+    const y = Y(p);
+    if (M.muros.some((m) => Math.abs(Y(m.p) - y) < 12)) continue;
+    g.strokeStyle = 'rgba(255,255,255,.04)';
+    g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
+    g.fillStyle = '#5c6672';
+    g.fillText(fmt(p), x1 + 6, y + 3.5);
+  }
+
+  // El precio de ahora, destacado
+  g.fillStyle = '#eaecef';
+  g.fillRect(x1 + 1, yP - 9, mDer - 3, 18);
+  g.fillStyle = '#0b0e12';
+  g.font = 'bold 11px ui-monospace,monospace';
+  g.fillText(fmt(M.precio), x1 + 6, yP + 3.5);
+
+  /* ── Abajo: el tiempo ── */
+  g.fillStyle = '#0b0e12';
+  g.fillRect(0, y1, W, mAba);
+  g.font = '9px ui-monospace,monospace';
+  g.fillStyle = '#5c6672';
+  g.textAlign = 'left';
+  g.fillText('hace ' + tiempo(fotos.length * CADA / 1000), 8, y1 + 14);
+  g.textAlign = 'right';
+  g.fillText('ahora', x1 - 8, y1 + 14);
+  g.textAlign = 'left';
+}
+
+const COLORES = {
+  recargable: { linea: '#E8B84B', texto: '#3a2800', icono: '★', clase: 'oro' },
+  probado:    { linea: '#2ee86a', texto: '#04210f', icono: '✓', clase: 'verde' },
+  real:       { linea: '#4d9fff', texto: '#04121f', icono: '●', clase: 'azul' },
+  falso:      { linea: '#f6465d', texto: '#2a0509', icono: '✕', clase: 'rojo' },
+  vigilando:  { linea: '#8b96a3', texto: '#0b0e12', icono: '?', clase: 'gris' }
+};
+
+function calor(v) {
+  const paradas = [
+    [0.00, [12, 24, 52]],
+    [0.28, [26, 60, 130]],
+    [0.52, [30, 120, 200]],
+    [0.72, [40, 180, 170]],
+    [0.88, [120, 210, 80]],
+    [1.00, [235, 200, 60]]
+  ];
+  for (let i = 1; i < paradas.length; i++) {
+    if (v <= paradas[i][0]) {
+      const [a, ca] = paradas[i - 1], [b, cb] = paradas[i];
+      const t = (v - a) / Math.max(1e-9, b - a);
+      return [
+        Math.round(ca[0] + (cb[0] - ca[0]) * t),
+        Math.round(ca[1] + (cb[1] - ca[1]) * t),
+        Math.round(ca[2] + (cb[2] - ca[2]) * t)
+      ];
+    }
+  }
+  return paradas[paradas.length - 1][1];
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EL PANEL — los veredictos, en lenguaje claro
+
+   Aquí está la diferencia entre una herramienta que se usa y una que
+   se abre una vez. No son números: es qué significa cada muro y qué
+   hacer con él.
+   ══════════════════════════════════════════════════════════════ */
+function pintarPanel() {
+  const lista = $('mu-lista'); if (!lista) return;
+  const estado = $('mu-estado');
+
+  if (M.error) {
+    if (estado) estado.textContent = M.error;
+    return;
+  }
+  if (M.cargando) {
+    if (estado) estado.textContent = `Observando… ${M.fotos.length} de ${MIN_TOMAS}`;
+    lista.innerHTML = `<div class="mu-esperar">
+      Analizando el comportamiento de cada nivel.<br>
+      En unos segundos sabrás cuáles son de verdad.
+    </div>`;
+    return;
+  }
+
+  if (estado) {
+    const mins = Math.round(M.fotos.length * CADA / 1000 / 60);
+    estado.textContent = `En directo · ${mins >= 1 ? mins + ' min observando' : 'observando'}`;
+  }
+
+  if (!M.muros.length) {
+    lista.innerHTML = `<div class="mu-esperar">
+      <b>Libro tranquilo</b>
+      Ahora mismo no hay muros destacables en ${esc(_par)}. Nadie está
+      defendiendo ningún nivel con fuerza.
+    </div>`;
+    return;
+  }
+
+  // Se separan por encima y por debajo del precio: así se lee mejor
+  const arriba = M.muros.filter((m) => m.p > M.precio);
+  const abajo = M.muros.filter((m) => m.p <= M.precio);
+
+  const tarjeta = (m) => {
+    const c = COLORES[m.tipo];
+    const pct = (Math.abs(m.dist) * 100).toFixed(2);
+    const dir = m.p > M.precio ? 'arriba' : 'abajo';
+    return `
+    <button class="mu-card ${c.clase} ${M.seleccionado === m.p ? 'sel' : ''}" data-mp="${m.p}">
+      <div class="mu-card-top">
+        <span class="mu-chip">${c.icono} ${esc(m.titulo)}</span>
+        <span class="mu-dist">${pct}% ${dir}</span>
+      </div>
+      <div class="mu-precio">${fmt(m.p)}</div>
+      <div class="mu-datos">
+        <span><b>${dinero(m.v)}</b>en el libro</span>
+        <span><b>${tiempo(m.segundos)}</b>vigilado</span>
+        ${m.recargas > 0 ? `<span><b>${m.recargas}</b>recargas</span>` : ''}
+        ${m.consumidoPct > 0.15 ? `<span><b>${Math.round(m.consumidoPct * 100)}%</b>consumido</span>` : ''}
+      </div>
+      <div class="mu-nota">${esc(m.nota)}</div>
+      <div class="mu-hacer">${consejo(m)}</div>
+    </button>`;
+  };
+
+  /* La línea de "qué hacer": lo que convierte el dato en decisión. */
+  function consejo(m) {
+    const arriba = m.p > M.precio;
+    if (m.tipo === 'recargable') {
+      return arriba
+        ? 'Es un techo con dinero real detrás. Si vas largo, plantéate recoger antes de llegar.'
+        : 'Es un suelo con dinero real detrás. Un stop justo debajo tiene sentido aquí.';
+    }
+    if (m.tipo === 'probado') {
+      return arriba
+        ? 'Ya rechazó al precio una vez. Espera confirmación antes de apostar a que lo rompa.'
+        : 'Ya aguantó al precio una vez. Es una zona donde el rebote es más probable.';
+    }
+    if (m.tipo === 'real') {
+      return 'Lleva firme un buen rato, pero aún no ha sido puesto a prueba. Vigílalo cuando el precio se acerque.';
+    }
+    if (m.tipo === 'falso') {
+      return 'No lo uses como referencia. Es muy probable que desaparezca justo cuando el precio llegue.';
+    }
+    return 'Todavía no hay historia suficiente. Dale unos minutos más.';
+  }
+
+  lista.innerHTML =
+    (arriba.length ? `<div class="mu-grupo">Por encima del precio</div>` + arriba.map(tarjeta).join('') : '') +
+    (abajo.length ? `<div class="mu-grupo">Por debajo del precio</div>` + abajo.map(tarjeta).join('') : '');
+
+  lista.querySelectorAll('[data-mp]').forEach((b) => b.onclick = () => {
+    const p = Number(b.dataset.mp);
+    M.seleccionado = M.seleccionado === p ? null : p;
+    pintarPanel();
+    dibujar();
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SELECTOR DE MONEDA
+   ══════════════════════════════════════════════════════════════ */
+function menuPares() {
+  const prev = document.getElementById('mu-picker');
+  if (prev) { prev.remove(); return; }
+
+  const anc = $('mu-sel');
+  const m = document.createElement('div');
+  m.id = 'mu-picker';
+  m.innerHTML = `
+    <input class="mu-buscar" id="mu-buscar" placeholder="Buscar…" autocomplete="off">
+    <div class="mu-lista-mon">
+      ${PARES.map((p) => `
+        <button class="mu-op ${p.id === _par ? 'on' : ''}" data-mv="${p.id}"
+                data-busca="${esc((p.id + ' ' + p.n).toLowerCase())}">
+          <i class="mu-logo" data-cg="${esc(p.cg)}"></i>
+          <b>${esc(p.id)}</b><span>${esc(p.n)}</span>
+          ${p.id === _par ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg>' : ''}
+        </button>`).join('')}
+    </div>`;
+  document.body.appendChild(m);
+
+  const r = anc.getBoundingClientRect();
+  const ancho = m.offsetWidth || 232;
+  m.style.left = Math.max(8, Math.min(window.innerWidth - ancho - 8, r.left)) + 'px';
+  m.style.top = (r.bottom + 6) + 'px';
+  setTimeout(ponerLogos, 30);
+
+  m.addEventListener('click', (e) => e.stopPropagation());
+  $('mu-buscar').oninput = (e) => {
+    const q = e.target.value.toLowerCase().trim();
+    m.querySelectorAll('[data-mv]').forEach((x) => {
+      x.style.display = !q || x.dataset.busca.includes(q) ? '' : 'none';
+    });
+  };
+  setTimeout(() => { try { $('mu-buscar').focus(); } catch (_) {} }, 60);
+
+  m.querySelectorAll('[data-mv]').forEach((b) => b.onclick = () => {
+    _par = b.dataset.mv;
+    const bb = anc.querySelector('b'); if (bb) bb.textContent = _par;
+    const lg = anc.querySelector('.mu-logo');
+    if (lg) {
+      lg.dataset.cg = (PARES.find((x) => x.id === _par) || {}).cg || '';
+      lg.classList.remove('con'); lg.style.backgroundImage = '';
+    }
+    m.remove();
+    // Cambiar de moneda es empezar de cero: el historial no vale
+    M.fotos = []; M.niveles = new Map(); M.muros = [];
+    M.cargando = true; M.seleccionado = null;
+    ponerLogos();
+    pintarPanel();
+    arrancar();
+  });
+  setTimeout(() => document.addEventListener('click', () => {
+    const x = document.getElementById('mu-picker'); if (x) x.remove();
+  }, { once: true }), 10);
+}
+
+const CLAVE_LOGOS = 'aurex-logos';
+let _logos = null;
+async function ponerLogos() {
+  if (!_logos) {
+    try {
+      const g = JSON.parse(localStorage.getItem(CLAVE_LOGOS) || 'null');
+      if (g && Date.now() - g.cuando < 86400000) _logos = g.datos;
+    } catch (_) {}
+  }
+  if (!_logos) {
+    try {
+      const ids = PARES.map((p) => p.cg).join(',');
+      const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&per_page=250`);
+      const j = await r.json();
+      _logos = {};
+      j.forEach((x) => { _logos[x.id] = x.image; });
+      try { localStorage.setItem(CLAVE_LOGOS, JSON.stringify({ cuando: Date.now(), datos: _logos })); } catch (_) {}
+    } catch (_) { _logos = {}; }
+  }
+  document.querySelectorAll('.mu-logo[data-cg]').forEach((el) => {
+    const url = _logos && _logos[el.dataset.cg];
+    if (url) { el.style.backgroundImage = `url(${url})`; el.classList.add('con'); }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LA GUÍA
+   ══════════════════════════════════════════════════════════════ */
+function ayuda() {
+  const d = document.createElement('div');
+  d.id = 'mu-ayuda-box';
+  d.innerHTML = `<div class="mu-bg"></div>
+    <div class="mua-c">
+      <button class="mua-x" id="mua-x" aria-label="Cerrar">✕</button>
+
+      <div class="mua-tabs">
+        <button class="mua-tab on" data-mtab="usar">Cómo operar con esto</button>
+        <button class="mua-tab" data-mtab="leer">Qué significa cada muro</button>
+      </div>
+
+      <div class="mua-pane on" id="mup-usar">
+        <div class="mua-intro">
+          El libro de órdenes <b>miente</b>. La mayoría de los muros grandes que
+          ves en cualquier exchange son falsos: órdenes puestas para asustar
+          que se retiran justo cuando el precio llega.
+          <br><br>
+          Esta herramienta hace lo único que los delata: <b>vigilarlos en el
+          tiempo</b> y decirte cuáles son de verdad.
+        </div>
+
+        <div class="mua-p">
+          <b>1 · Fíate solo de lo que ha aguantado</b>
+          Un muro que lleva minutos firme y que ya se ha comido parte del flujo
+          tiene dinero real detrás. Uno que apareció hace 20 segundos, no.
+          <i>Qué hacer: usa los niveles ★ y ✓ para colocar stops y objetivos. Los ? déjalos madurar.</i>
+        </div>
+
+        <div class="mua-p">
+          <b>2 · La recarga es la señal más fuerte del mercado</b>
+          Cuando un muro se consume y <b>vuelve a aparecer al mismo precio</b>,
+          eso es alguien grande reponiendo su orden para no mover el mercado.
+          Casi nadie ve esto, y es justo donde el precio suele girar.
+          <i>Qué hacer: un nivel con recargas es el mejor sitio para poner tu stop justo detrás.</i>
+        </div>
+
+        <div class="mua-p">
+          <b>3 · No persigas los muros rojos</b>
+          Si marcamos un muro como falso es porque lo hemos visto huir cuando el
+          precio se acercaba. Operar contra él es perder dinero:
+          <b>va a desaparecer</b>.
+          <i>Qué hacer: si tu plan dependía de ese nivel, cámbialo. Ese soporte no existe.</i>
+        </div>
+
+        <div class="mua-p">
+          <b>4 · Mira el desequilibrio</b>
+          Si hay tres muros reales debajo y ninguno arriba, el camino de menor
+          resistencia es hacia arriba: no hay nada que frene al precio en esa
+          dirección.
+          <i>Qué hacer: opera a favor del lado vacío, no contra el lado defendido.</i>
+        </div>
+
+        <div class="mua-p">
+          <b>5 · Combínalo con Liquidity Pools</b>
+          El mapa de liquidaciones dice <b>hacia dónde</b> quiere ir el precio.
+          Esta herramienta dice <b>qué lo está frenando ahora mismo</b>. Un muro
+          falso justo delante de un imán de liquidez es de las señales más
+          claras que vas a encontrar.
+        </div>
+
+        <div class="mua-aviso">
+          Esto es <b>información, no una señal</b>. Te decimos qué es real y qué
+          no lo es. La decisión de entrar o salir sigue siendo tuya.
+        </div>
+      </div>
+
+      <div class="mua-pane" id="mup-leer">
+        <div class="mua-p">
+          <b>Los cinco veredictos</b>
+          <span class="mua-col"><i style="background:#E8B84B;color:#3a2800">★</i><b>Muro con recarga</b> — se consume y vuelve. Alguien grande repone. El más fiable.</span>
+          <span class="mua-col"><i style="background:#2ee86a;color:#04210f">✓</i><b>Nivel probado</b> — el precio ya lo visitó y aguantó.</span>
+          <span class="mua-col"><i style="background:#4d9fff;color:#04121f">●</i><b>Muro firme</b> — lleva mucho sin moverse, pero sin probar.</span>
+          <span class="mua-col"><i style="background:#f6465d;color:#2a0509">✕</i><b>Muro falso</b> — huye cuando el precio se acerca.</span>
+          <span class="mua-col"><i style="background:#8b96a3;color:#0b0e12">?</i><b>En observación</b> — muy reciente, sin historia.</span>
+        </div>
+
+        <div class="mua-p">
+          <b>Cómo lo sabemos</b>
+          Tomamos una foto del libro <b>cada segundo y medio</b> y seguimos la
+          vida de cada nivel: cuánto lleva ahí, cuántas veces ha desaparecido,
+          si se ha consumido, y qué hizo cuando el precio se le acercó.
+          Ningún gráfico normal guarda esa historia.
+        </div>
+
+        <div class="mua-p">
+          <b>El mapa de fondo</b>
+          Cada columna es una foto del libro; a la derecha, ahora. El color
+          indica cuánto dinero hay a cada precio: azul poco, verde bastante,
+          amarillo mucho. Así se ve cómo se mueven las órdenes con el tiempo.
+        </div>
+
+        <div class="mua-aviso">
+          Los datos vienen del <b>libro real de Binance</b>. No hay estimaciones
+          aquí: lo que ves es lo que hay puesto en el mercado.
+        </div>
+      </div>
+
+      <button class="mua-b" id="mua-cerrar">Entendido</button>
+    </div>`;
+  document.body.appendChild(d);
+
+  const q = () => d.remove();
+  d.querySelector('.mu-bg').onclick = q;
+  $('mua-x').onclick = q;
+  $('mua-cerrar').onclick = q;
+  d.querySelectorAll('[data-mtab]').forEach((b) => b.onclick = () => {
+    d.querySelectorAll('.mua-tab').forEach((x) => x.classList.toggle('on', x === b));
+    d.querySelectorAll('.mua-pane').forEach((p) => p.classList.remove('on'));
+    const p = $('mup-' + b.dataset.mtab);
+    if (p) p.classList.add('on');
+    d.querySelector('.mua-c').scrollTop = 0;
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ESTILOS
+   ══════════════════════════════════════════════════════════════ */
+function estilos() {
+  if ($('mu-css')) return;
+  const s = document.createElement('style'); s.id = 'mu-css';
+  s.textContent = `
+  #mu-overlay{position:fixed;inset:0;z-index:9740;display:flex;align-items:center;justify-content:center}
+  #mu-overlay .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.94)}
+  #mu-overlay .mu-c{position:relative;width:100%;height:100vh;height:100dvh;
+    display:flex;flex-direction:column;background:#080b10}
+
+  /* ── Barra ── */
+  #mu-overlay .mu-barra{display:flex;align-items:center;gap:12px;flex:0 0 auto;position:relative;
+    padding:9px 96px 9px 12px;background:#0b0e12;border-bottom:1px solid #1c2128}
+  #mu-overlay .mu-sel{display:inline-flex;align-items:center;gap:9px;flex:0 0 auto;min-height:36px;
+    padding:0 12px;border-radius:10px;background:#12161c;border:1px solid #2b3139;color:#eaecef;
+    cursor:pointer;font-family:var(--mono,monospace);font-size:12.5px}
+  #mu-overlay .mu-sel:hover{border-color:var(--gold-soft,#C9A84B)}
+  #mu-overlay .mu-sel b{font-weight:700}
+  #mu-overlay .mu-sel svg{width:13px;height:13px;opacity:.6}
+  .mu-logo{width:20px;height:20px;border-radius:50%;flex:0 0 auto;display:block;
+    background:rgba(255,255,255,.06) center/cover no-repeat;border:1px solid #2b3139}
+  .mu-logo.con{background-color:transparent;border-color:transparent}
+  #mu-overlay .mu-vivo{display:flex;align-items:center;gap:7px;min-width:0;
+    font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;
+    text-transform:uppercase;letter-spacing:.7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #mu-overlay .mu-vivo i{width:7px;height:7px;border-radius:50%;background:#2ee86a;flex:0 0 auto;
+    animation:muLat 1.8s ease-in-out infinite}
+  @keyframes muLat{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(46,232,106,.5)}50%{opacity:.55;box-shadow:0 0 0 5px rgba(46,232,106,0)}}
+  #mu-overlay .mu-der{position:absolute;right:10px;top:50%;transform:translateY(-50%);
+    display:flex;gap:6px;background:#0b0e12;padding-left:8px}
+  #mu-overlay .mu-ico{width:36px;height:36px;min-height:36px;flex:0 0 auto;border-radius:10px;
+    display:grid;place-items:center;padding:0;cursor:pointer;
+    background:rgba(255,255,255,.05);border:1px solid #2b3139;color:#8b96a3;
+    font-family:var(--mono,monospace);font-size:14px;font-weight:700}
+  #mu-overlay .mu-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+
+  /* ── Cuerpo: gráfico + panel ── */
+  #mu-overlay .mu-cuerpo{flex:1;min-height:0;display:flex}
+  #mu-overlay .mu-graf{flex:1;min-width:0;position:relative;background:#080b10}
+  #mu-overlay .mu-cv{display:block}
+  #mu-overlay .mu-marca{position:absolute;left:12px;bottom:30px;height:32px;width:auto;
+    opacity:.55;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.9))}
+
+  /* Pantalla de espera */
+  #mu-overlay .mu-esperando{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:12px;text-align:center;padding:30px;
+    background:rgba(8,11,16,.96)}
+  #mu-overlay .mu-spin{width:38px;height:38px;border-radius:50%;
+    border:2.5px solid rgba(232,184,75,.16);border-top-color:var(--gold,#E8B84B);
+    animation:muGira .85s linear infinite}
+  @keyframes muGira{to{transform:rotate(360deg)}}
+  #mu-overlay .mu-esperando b{font-family:var(--display,sans-serif);font-weight:800;
+    font-size:17px;color:#eaecef}
+  #mu-overlay .mu-esperando span{font-family:var(--sans,sans-serif);font-size:13px;
+    color:#7d8794;max-width:36ch;line-height:1.6}
+  #mu-overlay .mu-progreso{width:190px;height:4px;border-radius:20px;background:#1c2128;overflow:hidden}
+  #mu-overlay .mu-progreso i{display:block;height:100%;width:0;border-radius:20px;
+    background:var(--gold,#E8B84B);transition:width .4s ease}
+
+  /* ── Panel de veredictos ── */
+  #mu-overlay .mu-panel{width:352px;flex:0 0 auto;display:flex;flex-direction:column;
+    background:#0b0e12;border-left:1px solid #1c2128}
+  #mu-overlay .mu-panel-t{flex:0 0 auto;padding:12px 16px;font-family:var(--mono,monospace);
+    font-size:10px;color:var(--gold,#E8B84B);text-transform:uppercase;letter-spacing:1.6px;
+    border-bottom:1px solid #1c2128}
+  #mu-overlay .mu-lista{flex:1;overflow-y:auto;padding:10px}
+  #mu-overlay .mu-grupo{font-family:var(--mono,monospace);font-size:9.5px;color:#5c6672;
+    text-transform:uppercase;letter-spacing:1.2px;margin:12px 4px 8px}
+  #mu-overlay .mu-grupo:first-child{margin-top:2px}
+  #mu-overlay .mu-esperar{padding:22px 16px;text-align:center;font-family:var(--sans,sans-serif);
+    font-size:12.5px;color:#7d8794;line-height:1.7}
+  #mu-overlay .mu-esperar b{display:block;font-family:var(--display,sans-serif);
+    font-size:14px;color:#b7bdc6;margin-bottom:5px}
+
+  #mu-overlay .mu-card{display:block;width:100%;text-align:left;margin-bottom:9px;padding:13px 14px;
+    border-radius:13px;cursor:pointer;background:rgba(255,255,255,.022);
+    border:1px solid #232a33;border-left-width:3px;transition:background .15s,border-color .15s}
+  #mu-overlay .mu-card:hover{background:rgba(255,255,255,.045)}
+  #mu-overlay .mu-card.sel{background:rgba(255,255,255,.06)}
+  #mu-overlay .mu-card.oro{border-left-color:#E8B84B}
+  #mu-overlay .mu-card.verde{border-left-color:#2ee86a}
+  #mu-overlay .mu-card.azul{border-left-color:#4d9fff}
+  #mu-overlay .mu-card.rojo{border-left-color:#f6465d}
+  #mu-overlay .mu-card.gris{border-left-color:#5c6672}
+  #mu-overlay .mu-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+  #mu-overlay .mu-chip{font-family:var(--mono,monospace);font-size:9.5px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.7px;padding:3px 8px;border-radius:20px}
+  #mu-overlay .oro .mu-chip{background:rgba(232,184,75,.16);color:#E8B84B}
+  #mu-overlay .verde .mu-chip{background:rgba(46,232,106,.14);color:#2ee86a}
+  #mu-overlay .azul .mu-chip{background:rgba(77,159,255,.14);color:#4d9fff}
+  #mu-overlay .rojo .mu-chip{background:rgba(246,70,93,.14);color:#f6465d}
+  #mu-overlay .gris .mu-chip{background:rgba(139,150,163,.12);color:#8b96a3}
+  #mu-overlay .mu-dist{font-family:var(--mono,monospace);font-size:10px;color:#5c6672;white-space:nowrap}
+  #mu-overlay .mu-precio{font-family:var(--display,sans-serif);font-weight:800;
+    font-size:21px;color:#eaecef;line-height:1.1;margin-bottom:7px}
+  #mu-overlay .mu-datos{display:flex;flex-wrap:wrap;gap:4px 14px;margin-bottom:8px}
+  #mu-overlay .mu-datos span{font-family:var(--mono,monospace);font-size:10px;color:#5c6672}
+  #mu-overlay .mu-datos b{color:#b7bdc6;font-weight:700;margin-right:4px}
+  #mu-overlay .mu-nota{font-family:var(--sans,sans-serif);font-size:12px;color:#8b96a3;
+    line-height:1.55;margin-bottom:8px}
+  #mu-overlay .mu-hacer{font-family:var(--sans,sans-serif);font-size:11.5px;color:#b7bdc6;
+    line-height:1.5;padding:8px 11px;border-radius:9px;background:rgba(255,255,255,.03);
+    border-left:2px solid currentColor}
+  #mu-overlay .oro .mu-hacer{border-left-color:rgba(232,184,75,.55)}
+  #mu-overlay .verde .mu-hacer{border-left-color:rgba(46,232,106,.5)}
+  #mu-overlay .azul .mu-hacer{border-left-color:rgba(77,159,255,.5)}
+  #mu-overlay .rojo .mu-hacer{border-left-color:rgba(246,70,93,.5)}
+  #mu-overlay .gris .mu-hacer{border-left-color:rgba(139,150,163,.4)}
+
+  /* ── Selector ── */
+  #mu-picker{position:fixed;z-index:9790;min-width:236px;max-height:340px;overflow:hidden;
+    display:flex;flex-direction:column;background:linear-gradient(180deg,#1b2027,#0d1117);
+    border:1px solid var(--gold-soft,#C9A84B);border-radius:13px;padding:6px;
+    box-shadow:0 16px 44px rgba(0,0,0,.72)}
+  #mu-picker .mu-buscar{width:100%;box-sizing:border-box;padding:9px 11px;margin-bottom:6px;
+    border-radius:9px;border:1px solid #2b3139;background:#0b0e12;color:#eaecef;
+    font-family:var(--sans,sans-serif);font-size:13px;min-height:38px}
+  #mu-picker .mu-buscar:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
+  #mu-picker .mu-lista-mon{overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+  #mu-picker .mu-op{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;
+    border-radius:9px;background:transparent;border:none;color:#b7bdc6;cursor:pointer;
+    text-align:left;min-height:42px}
+  #mu-picker .mu-op:hover{background:rgba(255,255,255,.05)}
+  #mu-picker .mu-op.on{background:rgba(232,184,75,.1);color:var(--gold,#E8B84B)}
+  #mu-picker .mu-op b{font-family:var(--mono,monospace);font-size:12px;font-weight:700;min-width:46px}
+  #mu-picker .mu-op span{flex:1;font-family:var(--sans,sans-serif);font-size:12px;color:#7d8794;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #mu-picker .mu-op svg{width:14px;height:14px;flex:0 0 auto;color:var(--gold,#E8B84B)}
+
+  /* ── Ayuda ── */
+  #mu-ayuda-box{position:fixed;inset:0;z-index:9770;display:flex;align-items:center;justify-content:center;padding:16px}
+  #mu-ayuda-box .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.93)}
+  #mu-ayuda-box .mua-c{position:relative;width:100%;max-width:560px;max-height:calc(100vh - 32px);
+    overflow-y:auto;background:linear-gradient(180deg,#161b22,#0b0e12);
+    border:1px solid var(--gold-soft,#C9A84B);border-radius:20px;padding:24px 20px}
+  #mu-ayuda-box .mua-x{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:10px;
+    display:grid;place-items:center;padding:0;cursor:pointer;font-size:15px;z-index:5;
+    background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6}
+  #mu-ayuda-box .mua-tabs{display:flex;gap:4px;padding:4px;margin:0 44px 18px 0;
+    background:#0b0e12;border:1px solid #2b3139;border-radius:12px}
+  #mu-ayuda-box .mua-tab{flex:1;min-height:40px;padding:0 10px;border-radius:9px;border:none;
+    background:transparent;color:#7d8794;font-family:var(--display,sans-serif);
+    font-weight:700;font-size:12.5px;cursor:pointer;line-height:1.25}
+  #mu-ayuda-box .mua-tab.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
+  #mu-ayuda-box .mua-pane{display:none}
+  #mu-ayuda-box .mua-pane.on{display:block}
+  #mu-ayuda-box .mua-intro{padding:15px 17px;border-radius:13px;margin-bottom:18px;
+    background:linear-gradient(180deg,rgba(232,184,75,.09),rgba(232,184,75,.02));
+    border:1px solid rgba(232,184,75,.3);font-family:var(--sans,sans-serif);
+    font-size:13.5px;color:#b7bdc6;line-height:1.65}
+  #mu-ayuda-box .mua-intro b{color:var(--gold,#E8B84B)}
+  #mu-ayuda-box .mua-p{margin-bottom:15px;font-family:var(--sans,sans-serif);
+    font-size:13px;color:#8b96a3;line-height:1.65}
+  #mu-ayuda-box .mua-p > b:first-child{display:block;font-family:var(--display,sans-serif);
+    font-size:14px;color:#eaecef;margin-bottom:5px}
+  #mu-ayuda-box .mua-p b{color:#eaecef}
+  #mu-ayuda-box .mua-p i{display:block;margin-top:8px;padding:9px 12px;border-radius:9px;
+    font-style:normal;background:rgba(255,255,255,.03);
+    border-left:2px solid var(--gold-soft,#C9A84B);font-size:12.5px;color:#8b96a3;line-height:1.55}
+  #mu-ayuda-box .mua-col{display:flex;align-items:center;gap:10px;margin-top:9px;font-size:12.5px}
+  #mu-ayuda-box .mua-col i{width:22px;height:22px;border-radius:6px;flex:0 0 auto;
+    display:grid;place-items:center;font-style:normal;font-weight:800;font-size:11px;
+    font-family:system-ui,sans-serif}
+  #mu-ayuda-box .mua-aviso{padding:12px 14px;border-radius:11px;background:rgba(232,184,75,.07);
+    border-left:2px solid var(--gold-soft,#C9A84B);font-family:var(--sans,sans-serif);
+    font-size:12px;color:#b7bdc6;line-height:1.6;margin-bottom:18px}
+  #mu-ayuda-box .mua-aviso b{color:var(--gold,#E8B84B)}
+  #mu-ayuda-box .mua-b{width:100%;min-height:48px;border-radius:12px;border:1px solid #c79426;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;
+    box-shadow:0 4px 0 #8f6a1a}
+
+  /* ── Móvil: el panel pasa abajo ── */
+  @media(max-width:860px){
+    #mu-overlay .mu-cuerpo{flex-direction:column}
+    #mu-overlay .mu-graf{flex:0 0 auto;height:46vh;min-height:230px}
+    #mu-overlay .mu-panel{width:100%;flex:1;min-height:0;border-left:none;border-top:1px solid #1c2128}
+    #mu-overlay .mu-barra{padding:8px 92px 8px 10px;gap:9px}
+    #mu-overlay .mu-vivo span{display:none}
+    #mu-overlay .mu-marca{height:24px;left:10px;bottom:26px}
+    #mu-overlay .mu-precio{font-size:19px}
+    #mu-ayuda-box .mua-c{padding:20px 14px}
+    #mu-ayuda-box .mua-tabs{margin-right:46px;flex-direction:column}
+  }`;
+  document.head.appendChild(s);
+}
