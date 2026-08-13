@@ -1322,6 +1322,22 @@ const DIC = {
       '20 audiobooks chosen one by one by someone with over 10 years in trading and crypto. I did not write them: I picked them for what they did for me.',
     '20 audiolibros seleccionados': '20 selected audiobooks',
     'es la forma más segura de dejarlo todo cerrado': 'is the safest way to leave everything closed',
+
+    /* Fragmentos exactos que quedan sueltos entre etiquetas.
+       Se guardan con su puntuación tal cual aparece en pantalla,
+       porque el motor compara el nodo de texto completo. */
+    ', con software para aplicarlo': ', with software to apply it',
+    'que te lo explica. Luego repites.': 'explaining it. Then you retake it.',
+    'en la materia que acabas de estudiar.': 'on the material you have just studied.',
+    '. Van en orden por una razón: cada una se apoya en la anterior.':
+      '. They are in order for a reason: each builds on the one before.',
+    ': es la forma más eficaz de proteger tu dinero.': ': it is the most effective way to protect your money.',
+    '. No pasa nada: sirve para ver dónde flojeas. Al terminar tienes la lista de lo que fallaste y un botón':
+      '. No problem: it shows where you are weak. When you finish you get the list of what you got wrong and a button',
+    'para pasar de una clase a otra. Si te quedas en el grupo bajando de una a otra, pierdes el hilo y no queda constancia de tu avance.':
+      'to move from one class to another. If you stay in the group scrolling between them, you lose the thread and no record of your progress is kept.',
+    'Puedes saltarte un examen o copiar las respuestas, y nadie se enterará. Pero el día que operes con tu dinero, el mercado no acepta certificados: acepta lo que de verdad sabes.':
+      'You can skip an exam or copy the answers, and nobody will know. But the day you trade with your own money, the market does not accept certificates: it accepts what you actually know.',
     'Cambiar idioma': 'Change language',
     'Idioma': 'Language'
   },
@@ -2027,6 +2043,11 @@ const DIC = {
       'Avisa-o quando uma moeda chega ao preço que definir.',
     'El gráfico completo, con velas y herramientas de dibujo.':
       'O gráfico completo, com velas e ferramentas de desenho.',
+
+    ', con software para aplicarlo': ', com software para o aplicar',
+    'que te lo explica. Luego repites.': 'que lho explica. Depois repete.',
+    'en la materia que acabas de estudiar.': 'sobre a matéria que acabou de estudar.',
+    ': es la forma más eficaz de proteger tu dinero.': ': é a forma mais eficaz de proteger o seu dinheiro.',
     'Cambiar idioma': 'Mudar idioma',
     'Idioma': 'Idioma'
   }
