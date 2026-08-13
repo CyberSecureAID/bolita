@@ -104,7 +104,8 @@ const M = {
   tf: '5m',           // temporalidad
   ancho: 70,          // cuántas velas se ven
   filtro: 'todos',
-  maxMuro: 1
+  maxMuro: 1,
+  desplaz: 0          // cuántas velas se ha movido la vista
 };
 
 const CADA = 1500;          // una foto cada 1,5 segundos
@@ -427,11 +428,18 @@ export async function abrirMuros() {
         <aside class="mu-panel" id="mu-panel">
           <div class="mu-panel-t">Órdenes detectadas</div>
           <div class="mu-chips">
-            <button class="mu-fchip on" data-filtro="todos">Todas</button>
-            <button class="mu-fchip" data-filtro="fuertes">★ Fuertes</button>
-            <button class="mu-fchip" data-filtro="compra">Soportes</button>
-            <button class="mu-fchip" data-filtro="venta">Resistencias</button>
-            <button class="mu-fchip" data-filtro="falsos">✕ Falsas</button>
+            <button class="mu-fbtn verde" data-filtro="compra">
+              <b>Soporte</b><i class="mu-cuenta" id="mu-n-compra">0</i>
+            </button>
+            <button class="mu-fbtn rojo" data-filtro="venta">
+              <b>Resistencia</b><i class="mu-cuenta" id="mu-n-venta">0</i>
+            </button>
+            <button class="mu-fbtn oro" data-filtro="fuertes">
+              <b>★ Fuertes</b><i class="mu-cuenta" id="mu-n-fuertes">0</i>
+            </button>
+            <button class="mu-fbtn gris" data-filtro="falsos">
+              <b>✕ Falsas</b><i class="mu-cuenta" id="mu-n-falsos">0</i>
+            </button>
           </div>
           <div class="mu-lista" id="mu-lista"></div>
         </aside>
@@ -456,8 +464,10 @@ export async function abrirMuros() {
     d.querySelectorAll('[data-tf]').forEach((x) => x.classList.toggle('on', x.dataset.tf === M.tf));
     cargarVelas();
   });
+  /* Los filtros se apagan al volver a pulsarlos: sin ninguno activo
+     se ven todas las órdenes, que es lo natural. */
   d.querySelectorAll('[data-filtro]').forEach((b) => b.onclick = () => {
-    M.filtro = b.dataset.filtro;
+    M.filtro = (M.filtro === b.dataset.filtro) ? 'todos' : b.dataset.filtro;
     d.querySelectorAll('[data-filtro]').forEach((x) => x.classList.toggle('on', x.dataset.filtro === M.filtro));
     pintarPanel();
   });
@@ -585,7 +595,12 @@ function dibujar() {
   const x1 = W - mDer, y1 = H - mAba;
   const xVelas = x1 * 0.70;      // el 30% derecho, para las etiquetas
 
-  const vis = M.velas.slice(-Math.min(M.velas.length, M.ancho || 70));
+  /* La ventana visible: el ancho es el zoom y el desplazamiento el
+     arrastre. Así se puede recorrer el histórico como en TradingView. */
+  const ancho = Math.min(M.velas.length, M.ancho || 70);
+  const desp = Math.min(M.desplaz || 0, Math.max(0, M.velas.length - ancho));
+  const fin = M.velas.length - desp;
+  const vis = M.velas.slice(Math.max(0, fin - ancho), fin);
   if (!vis.length) return;
 
   /* El rango abarca velas Y muros: si un muro queda fuera de pantalla,
@@ -720,43 +735,69 @@ function dibujar() {
    ══════════════════════════════════════════════════════════════ */
 function engancharGestos(cv) {
   const zoom = (f) => {
-    M.zoom = Math.max(0.12, Math.min(1, M.zoom * f));
+    M.ancho = Math.max(20, Math.min(140, Math.round((M.ancho || 70) * f)));
     dibujar();
   };
 
+  /* Arrastrar para recorrer el tiempo, como en TradingView. */
+  let ax = 0, arr = false;
+  cv.addEventListener('mousedown', (e) => { arr = true; ax = e.clientX; cv.style.cursor = 'grabbing'; });
+  window.addEventListener('mousemove', (e) => {
+    if (!arr) return;
+    const paso = (cv.clientWidth * 0.7) / (M.ancho || 70);
+    const mov = Math.round((e.clientX - ax) / Math.max(1, paso));
+    if (mov !== 0) {
+      const tope = Math.max(0, M.velas.length - 20);
+      M.desplaz = Math.max(0, Math.min(tope, (M.desplaz || 0) + mov));
+      ax = e.clientX;
+      dibujar();
+    }
+  });
+  window.addEventListener('mouseup', () => { arr = false; cv.style.cursor = 'grab'; });
+
   cv.addEventListener('wheel', (e) => {
     e.preventDefault();
-    zoom(e.deltaY > 0 ? 1.16 : 0.86);
+    zoom(e.deltaY > 0 ? 1.14 : 0.88);
   }, { passive: false });
 
-  cv.addEventListener('dblclick', () => { M.zoom = 1; dibujar(); });
-
-  // La cruz sigue al ratón para leer precios
-  cv.addEventListener('mousemove', (e) => {
-    const r = cv.getBoundingClientRect();
-    const ny = Math.round(e.clientY - r.top);
-    if (ny !== M.cruzY) { M.cruzY = ny; dibujar(); }
+  // Doble clic: volver al encuadre inicial
+  cv.addEventListener('dblclick', () => {
+    M.ancho = window.innerWidth < 760 ? 45 : 70;
+    M.desplaz = 0;
+    dibujar();
   });
-  cv.addEventListener('mouseleave', () => { M.cruzY = -1; dibujar(); });
 
-  // Táctil: pellizco para acercar
-  let d0 = 0;
+  /* Táctil: un dedo mueve, dos hacen zoom. */
+  let d0 = 0, tx = 0;
   cv.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 2) {
+    if (e.touches.length === 1) { tx = e.touches[0].clientX; arr = true; }
+    else if (e.touches.length === 2) {
+      arr = false;
       d0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
                       e.touches[0].clientY - e.touches[1].clientY);
     }
   }, { passive: true });
   cv.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 2 && d0 > 0) {
+    if (e.touches.length === 1 && arr) {
+      e.preventDefault();
+      const paso = (cv.clientWidth * 0.7) / (M.ancho || 70);
+      const mov = Math.round((e.touches[0].clientX - tx) / Math.max(1, paso));
+      if (mov !== 0) {
+        const tope = Math.max(0, M.velas.length - 20);
+        M.desplaz = Math.max(0, Math.min(tope, (M.desplaz || 0) + mov));
+        tx = e.touches[0].clientX;
+        dibujar();
+      }
+    } else if (e.touches.length === 2 && d0 > 0) {
       e.preventDefault();
       const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
                            e.touches[0].clientY - e.touches[1].clientY);
       if (Math.abs(d - d0) > 8) { zoom(d0 / d); d0 = d; }
     }
   }, { passive: false });
-  cv.addEventListener('touchend', () => { d0 = 0; });
-  cv.style.cursor = 'crosshair';
+  cv.addEventListener('touchend', () => { arr = false; d0 = 0; });
+
+  cv.style.cursor = 'grab';
 }
 
 const COLORES = {
@@ -804,120 +845,26 @@ function pintarPanel() {
   const lista = $('mu-lista'); if (!lista) return;
   const estado = $('mu-estado');
 
+  /* Las cuentas de cada filtro, siempre visibles. */
+  const cuenta = (id, f) => {
+    const el = $('mu-n-' + id);
+    if (el) el.textContent = M.muros.filter(f).length;
+  };
+  cuenta('compra', (m) => m.p <= M.precio);
+  cuenta('venta', (m) => m.p > M.precio);
+  cuenta('fuertes', (m) => m.tipo === 'recargable' || m.tipo === 'probado');
+  cuenta('falsos', (m) => m.tipo === 'falso' || m.tipo === 'ido');
+
   if (M.error) { if (estado) estado.textContent = M.error; return; }
 
   if (M.cargando) {
-    if (estado) estado.textContent = `Observando… ${M.fotos.length} de ${MIN_TOMAS}`;
-    lista.innerHTML = `<div class="mu-esperar">
-      Analizando el comportamiento de cada nivel.<br>
-      En unos segundos sabrás cuáles son de verdad.
-    </div>`;
+    if (estado) estado.textContent = `${M.fotos.length}/${MIN_TOMAS}`;
+    lista.innerHTML = `<div class="mu-esperar">Analizando el libro de órdenes…</div>`;
     return;
   }
+  if (estado) estado.textContent = 'En directo';
 
-  if (estado) {
-    const mins = Math.round(M.fotos.length * CADA / 1000 / 60);
-    estado.textContent = `En directo · ${mins >= 1 ? mins + ' min observando' : 'observando'}`;
-  }
-
-  if (!M.muros.length) {
-    lista.innerHTML = `<div class="mu-esperar">
-      <b>Libro tranquilo</b>
-      Ahora mismo nadie está poniendo órdenes grandes en ${esc(_par)}.
-      Cuando aparezca dinero de verdad, lo verás aquí.
-    </div>`;
-    return;
-  }
-
-  /* La línea de "qué hacer": lo que convierte el dato en decisión. */
-  const consejo = (m) => {
-    const arriba = m.p > M.precio;
-    if (m.tipo === 'recargable') {
-      return arriba
-        ? 'Si va largo, plantéese recoger beneficios antes de este precio.'
-        : 'Buen sitio para poner su stop justo por debajo.';
-    }
-    if (m.tipo === 'probado') {
-      return arriba
-        ? 'Ya rechazó al precio una vez. Espere confirmación antes de apostar a que lo rompa.'
-        : 'Ya aguantó al precio una vez. Zona donde el rebote es más probable.';
-    }
-    if (m.tipo === 'real') {
-      return 'Vigílelo cuando el precio se acerque: ahí sabremos si va en serio.';
-    }
-    if (m.tipo === 'falso') {
-      return 'No lo use como referencia. Va a desaparecer cuando el precio llegue.';
-    }
-    if (m.tipo === 'ido') {
-      return 'Si su plan dependía de este nivel, revíselo.';
-    }
-    return 'Déle unos minutos más para tener veredicto.';
-  };
-
-  const tarjeta = (m) => {
-    const c = COLORES[m.tipo];
-    const pct = (Math.abs(m.dist) * 100).toFixed(2);
-    const esVenta = m.p > M.precio;
-    const accion = esVenta ? 'VENDIENDO' : 'COMPRANDO';
-
-    /* La fuerza sube con el tiempo y las recargas: cuanto más aguanta
-       una orden, más peso tiene. La tarjeta lo refleja visualmente. */
-    let fuerza = 0;
-    if (m.tipo === 'recargable' || m.tipo === 'probado') fuerza = 3;
-    else if (m.tipo === 'real') fuerza = m.segundos > 240 ? 3 : 2;
-    else if (m.tipo === 'vigilando') fuerza = 1;
-
-    const puntos = fuerza > 0
-      ? `<span class="mu-fuerza">${'●'.repeat(fuerza)}<i>${'●'.repeat(3 - fuerza)}</i></span>`
-      : '';
-
-    /* La consecuencia: qué le pasa al precio si llega aquí. Es la
-       frase por la que alguien paga por esta herramienta. */
-    let conse;
-    if (m.tipo === 'falso') {
-      conse = esVenta
-        ? 'Esta pared es humo. Si el precio sube hasta aquí, <b>no espere que lo frene</b>.'
-        : 'Este suelo es humo. Si el precio baja hasta aquí, <b>no espere que lo sostenga</b>.';
-    } else if (m.tipo === 'ido') {
-      conse = 'Esta orden <b>ya no está</b> en el mercado. El nivel quedó sin defensa.';
-    } else if (fuerza >= 3) {
-      conse = esVenta
-        ? `Si el precio llega a ${fmt(m.p)}, hay <b>alta probabilidad de rechazo</b>. Alguien grande defiende ese techo.`
-        : `Si el precio baja a ${fmt(m.p)}, hay <b>alta probabilidad de rebote</b>. Alguien grande sostiene ese suelo.`;
-    } else if (fuerza === 2) {
-      conse = esVenta
-        ? `Hay resistencia real en ${fmt(m.p)}. El precio puede frenarse ahí.`
-        : `Hay soporte real en ${fmt(m.p)}. El precio puede rebotar ahí.`;
-    } else {
-      conse = 'Orden recién puesta. Todavía no sabemos si va en serio.';
-    }
-
-    return `
-    <button class="mu-card ${c.clase} f${fuerza} ${M.seleccionado === m.p ? 'sel' : ''}" data-mp="${m.p}" data-lado="${esVenta ? 'venta' : 'compra'}">
-      <div class="mu-titular">
-        <span class="mu-accion">${accion}</span>
-        <span class="mu-monto">${dinero(m.v)}</span>
-      </div>
-      <div class="mu-en">en <b>${fmt(m.p)}</b> · a ${pct}% del precio</div>
-
-      <div class="mu-veredicto">
-        <span class="mu-chip">${c.icono} ${esc(m.titulo)}</span>
-        ${puntos}
-      </div>
-
-      <div class="mu-conse">${conse}</div>
-
-      <div class="mu-datos">
-        <span><b>${tiempo(m.segundos)}</b>aguantando</span>
-        ${m.recargas > 0 ? `<span><b>${m.recargas}×</b>repuesta</span>` : ''}
-        ${m.consumidoPct > 0.15 ? `<span><b>${Math.round(Math.min(100, m.consumidoPct * 100))}%</b>ejecutado</span>` : ''}
-      </div>
-
-      <div class="mu-hacer">${consejo(m)}</div>
-    </button>`;
-  };
-
-  /* El filtro: un trader quiere ver solo lo que le sirve ahora. */
+  /* El filtro. Sin ninguno activo se ven todas. */
   let lst = M.muros.slice();
   if (M.filtro === 'fuertes') lst = lst.filter((m) => m.tipo === 'recargable' || m.tipo === 'probado');
   else if (M.filtro === 'compra') lst = lst.filter((m) => m.p <= M.precio);
@@ -925,22 +872,82 @@ function pintarPanel() {
   else if (M.filtro === 'falsos') lst = lst.filter((m) => m.tipo === 'falso' || m.tipo === 'ido');
 
   if (!lst.length) {
-    lista.innerHTML = `<div class="mu-esperar"><b>Nada que mostrar</b>No hay órdenes de ese tipo ahora mismo.</div>`;
+    lista.innerHTML = `<div class="mu-esperar">
+      <b>${M.filtro === 'todos' ? 'Libro tranquilo' : 'Nada de ese tipo'}</b>
+      ${M.filtro === 'todos'
+        ? 'Nadie está poniendo órdenes grandes en ' + esc(_par) + ' ahora mismo.'
+        : 'Pruebe con otro filtro o quítelo para ver todas.'}
+    </div>`;
     return;
   }
 
-  const arriba = lst.filter((m) => m.p > M.precio);
-  const abajo = lst.filter((m) => m.p <= M.precio);
+  const tarjeta = (m) => {
+    const c = COLORES[m.tipo];
+    const esVenta = m.p > M.precio;
+    const pct = (Math.abs(m.dist) * 100).toFixed(2);
 
-  lista.innerHTML =
-    (arriba.length ? `<div class="mu-grupo rojo">Resistencias · frenan las subidas</div>` + arriba.map(tarjeta).join('') : '') +
-    (abajo.length ? `<div class="mu-grupo verde">Soportes · frenan las bajadas</div>` + abajo.map(tarjeta).join('') : '');
+    let fuerza = 0;
+    if (m.tipo === 'recargable' || m.tipo === 'probado') fuerza = 3;
+    else if (m.tipo === 'real') fuerza = m.segundos > 240 ? 3 : 2;
+    else if (m.tipo === 'vigilando') fuerza = 1;
+
+    let conse;
+    if (m.tipo === 'falso') {
+      conse = 'Esta pared es humo: se retira cuando el precio se acerca. <b>No la use como referencia</b>.';
+    } else if (m.tipo === 'ido') {
+      conse = 'La orden <b>ya no está</b> en el libro. Ese nivel quedó sin defensa.';
+    } else if (fuerza >= 3) {
+      conse = esVenta
+        ? `Alta probabilidad de <b>rechazo bajista</b> si el precio sube a ${fmt(m.p)}. Alguien grande defiende ese techo.`
+        : `Alta probabilidad de <b>rebote</b> si el precio cae a ${fmt(m.p)}. Alguien grande sostiene ese suelo.`;
+    } else if (fuerza === 2) {
+      conse = esVenta
+        ? 'Resistencia real, aún sin probar. Vigílela cuando el precio se acerque.'
+        : 'Soporte real, aún sin probar. Vigílelo cuando el precio se acerque.';
+    } else {
+      conse = 'Orden recién puesta. Todavía no sabemos si va en serio.';
+    }
+
+    const queHacer = (m.tipo === 'recargable' || m.tipo === 'probado')
+      ? (esVenta ? 'Buen sitio para recoger beneficios si va largo.' : 'Buen sitio para colocar su stop justo por debajo.')
+      : m.tipo === 'falso' ? 'Si su plan dependía de este nivel, revíselo.'
+      : 'Déle unos minutos más para tener veredicto.';
+
+    /* La tarjeta: lo esencial en dos líneas, el resto se despliega. */
+    const abierta = M.seleccionado === m.p;
+    return `
+    <div class="mu-card ${c.clase} f${fuerza} ${abierta ? 'sel' : ''}" data-lado="${esVenta ? 'venta' : 'compra'}">
+      <button class="mu-cab-card" data-mp="${m.p}">
+        <div class="mu-l1">
+          <span class="mu-lado">${esVenta ? 'EN VENTA' : 'EN COMPRA'}</span>
+          <span class="mu-imp">${dinero(m.v)}</span>
+        </div>
+        <div class="mu-l2">
+          <span class="mu-nivel">${fmt(m.p)}</span>
+          <span class="mu-dist2">${pct}% ${esVenta ? '↑' : '↓'}</span>
+          <span class="mu-sello">${c.icono} ${esc(c.nom || '')}</span>
+          <span class="mu-fl">${abierta ? '▲' : '▼'}</span>
+        </div>
+      </button>
+      ${abierta ? `<div class="mu-detalle">
+        <div class="mu-conse">${conse}</div>
+        <div class="mu-metricas">
+          <div><b>${tiempo(m.segundos)}</b><span>firme</span></div>
+          <div><b>${m.recargas || 0}×</b><span>repuesta</span></div>
+          <div><b>${Math.round(Math.min(100, m.consumidoPct * 100))}%</b><span>ejecutado</span></div>
+          <div><b>${'●'.repeat(fuerza)}${'○'.repeat(3 - fuerza)}</b><span>fuerza</span></div>
+        </div>
+        <div class="mu-hacer">${queHacer}</div>
+      </div>` : ''}
+    </div>`;
+  };
+
+  lista.innerHTML = lst.map(tarjeta).join('');
 
   lista.querySelectorAll('[data-mp]').forEach((b) => b.onclick = () => {
     const p = Number(b.dataset.mp);
     M.seleccionado = M.seleccionado === p ? null : p;
-    pintarPanel();
-    dibujar();
+    pintarPanel(); dibujar();
   });
 }
 
@@ -1209,8 +1216,7 @@ function estilos() {
   #mu-overlay .mu-cv{display:block}
   /* El logo, corrido a la derecha: en la izquierda tapaba la columna
      de precios. */
-  #mu-overlay .mu-marca{position:absolute;left:190px;bottom:14px;height:28px;width:auto;
-    opacity:.45;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.9))}
+  #mu-overlay .mu-marca{position:absolute;left:14px;bottom:30px;height:38px;width:auto;opacity:.75;pointer-events:none;filter:drop-shadow(0 2px 8px rgba(0,0,0,.95))}
 
   /* Pantalla de espera */
   #mu-overlay .mu-esperando{position:absolute;inset:0;display:flex;flex-direction:column;
@@ -1231,9 +1237,9 @@ function estilos() {
   /* ── Panel de veredictos ── */
   #mu-overlay .mu-panel{width:352px;flex:0 0 auto;display:flex;flex-direction:column;
     background:#0b0e12;border-left:1px solid #1c2128}
-  #mu-overlay .mu-panel-t{flex:0 0 auto;padding:12px 16px 4px;font-family:var(--mono,monospace);
-    font-size:10px;color:var(--gold,#E8B84B);text-transform:uppercase;letter-spacing:1.6px;
-    border-bottom:1px solid #1c2128}
+  #mu-overlay .mu-panel-t{flex:0 0 auto;padding:13px 16px 2px;text-align:center;
+    font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:1.8px}
   #mu-overlay .mu-lista{flex:1;overflow-y:auto;padding:10px}
   #mu-overlay .mu-grupo{font-family:var(--mono,monospace);font-size:9.5px;color:#5c6672;
     text-transform:uppercase;letter-spacing:1.2px;margin:12px 4px 8px}
@@ -1243,7 +1249,85 @@ function estilos() {
   #mu-overlay .mu-esperar b{display:block;font-family:var(--display,sans-serif);
     font-size:14px;color:#b7bdc6;margin-bottom:5px}
 
-  #mu-overlay .mu-card{display:block;width:100%;text-align:left;margin-bottom:9px;padding:13px 14px;
+  /* ══════════════════════════════════════════════════════════
+     LAS TARJETAS — compactas y desplegables
+
+     Lo esencial en dos líneas: cuánto, de qué lado, a qué precio y a
+     qué distancia. El detalle se abre al tocar. Así caben 10 en
+     pantalla en vez de 3.
+     ══════════════════════════════════════════════════════════ */
+  #mu-overlay .mu-card{display:flex;flex-direction:column;margin-bottom:7px;border-radius:12px;overflow:hidden;
+    border:1px solid #232a33;border-left-width:3px;
+    background:linear-gradient(145deg,rgba(255,255,255,.03),rgba(255,255,255,.01))}
+  #mu-overlay .mu-cab-card{display:block;width:100%;box-sizing:border-box;text-align:left;
+    padding:11px 13px;background:transparent;border:none;cursor:pointer}
+  #mu-overlay .mu-l1{display:flex;align-items:baseline;gap:9px;margin-bottom:4px}
+  #mu-overlay .mu-lado{font-family:var(--display,sans-serif);font-weight:800;font-size:15px;
+    letter-spacing:.3px}
+  #mu-overlay .mu-card[data-lado="venta"] .mu-lado{color:#ff6b7a}
+  #mu-overlay .mu-card[data-lado="compra"] .mu-lado{color:#3ee88a}
+  #mu-overlay .mu-imp{margin-left:auto;font-family:var(--display,sans-serif);font-weight:800;
+    font-size:20px;color:var(--gold,#E8B84B);line-height:1}
+  #mu-overlay .mu-l2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  /* El precio y la distancia: la información clave, con su peso. */
+  #mu-overlay .mu-nivel{font-family:var(--mono,monospace);font-weight:700;font-size:14px;color:#eaecef}
+  #mu-overlay .mu-dist2{font-family:var(--mono,monospace);font-weight:700;font-size:12px;
+    padding:2px 7px;border-radius:6px;background:rgba(255,255,255,.06);color:#b7bdc6}
+  #mu-overlay .mu-sello{font-family:var(--mono,monospace);font-size:9.5px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.6px;padding:3px 8px;border-radius:20px}
+  #mu-overlay .oro .mu-sello{background:rgba(232,184,75,.16);color:#E8B84B}
+  #mu-overlay .verde .mu-sello{background:rgba(46,232,106,.14);color:#2ee86a}
+  #mu-overlay .azul .mu-sello{background:rgba(77,159,255,.14);color:#4d9fff}
+  #mu-overlay .rojo .mu-sello{background:rgba(246,70,93,.16);color:#f6465d}
+  #mu-overlay .gris .mu-sello,#mu-overlay .ido .mu-sello{background:rgba(139,150,163,.12);color:#8b96a3}
+  #mu-overlay .mu-fl{margin-left:auto;font-size:9px;color:#5c6672}
+
+  /* La tarjeta de venta se tiñe de rojo oscuro: contraste con el
+     dorado del importe. */
+  #mu-overlay .mu-card[data-lado="venta"]{border-left-color:#f6465d}
+  #mu-overlay .mu-card[data-lado="compra"]{border-left-color:#2ee86a}
+  #mu-overlay .mu-card[data-lado="venta"].f3{
+    background:linear-gradient(145deg,rgba(120,20,32,.5),rgba(60,10,18,.22));
+    border-color:rgba(246,70,93,.42);box-shadow:0 4px 16px rgba(0,0,0,.45)}
+  #mu-overlay .mu-card[data-lado="compra"].f3{
+    background:linear-gradient(145deg,rgba(12,90,50,.42),rgba(6,44,26,.2));
+    border-color:rgba(46,232,106,.4);box-shadow:0 4px 16px rgba(0,0,0,.45)}
+  #mu-overlay .mu-card[data-lado="venta"].f2{background:linear-gradient(145deg,rgba(120,20,32,.22),rgba(255,255,255,.012))}
+  #mu-overlay .mu-card[data-lado="compra"].f2{background:linear-gradient(145deg,rgba(12,90,50,.2),rgba(255,255,255,.012))}
+  #mu-overlay .mu-card.f0{opacity:.66}
+  #mu-overlay .mu-card.sel{border-color:var(--gold-soft,#C9A84B)}
+
+  /* El detalle desplegado */
+  #mu-overlay .mu-detalle{display:block;width:100%;padding:0 13px 12px;animation:muAbre .16s ease}
+  @keyframes muAbre{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  #mu-overlay .mu-conse{font-family:var(--sans,sans-serif);font-size:12.5px;color:#c8cfd8;
+    line-height:1.55;margin-bottom:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07)}
+  #mu-overlay .mu-conse b{color:#fff;font-weight:700}
+  #mu-overlay .mu-metricas{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}
+  #mu-overlay .mu-metricas div{text-align:center;padding:7px 3px;border-radius:8px;
+    background:rgba(255,255,255,.035)}
+  #mu-overlay .mu-metricas b{display:block;font-family:var(--mono,monospace);font-weight:700;
+    font-size:12px;color:#eaecef}
+  #mu-overlay .mu-metricas span{font-family:var(--mono,monospace);font-size:8.5px;color:#5c6672;
+    text-transform:uppercase;letter-spacing:.5px}
+
+  /* Los cuatro botones de filtro */
+  #mu-overlay .mu-fbtn{flex:1;min-width:calc(50% - 4px);min-height:40px;padding:0 12px;
+    border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
+    background:rgba(255,255,255,.035);border:1px solid #232a33;
+    font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;color:#8b96a3}
+  #mu-overlay .mu-fbtn .mu-cuenta{font-family:var(--mono,monospace);font-size:10px;font-style:normal;
+    min-width:19px;padding:1px 5px;border-radius:20px;background:rgba(255,255,255,.08);color:#b7bdc6}
+  #mu-overlay .mu-fbtn.verde{border-color:rgba(46,232,106,.28);color:#3ee88a}
+  #mu-overlay .mu-fbtn.rojo{border-color:rgba(246,70,93,.28);color:#ff6b7a}
+  #mu-overlay .mu-fbtn.oro{border-color:rgba(232,184,75,.28);color:#E8B84B}
+  #mu-overlay .mu-fbtn.gris{border-color:#2b3139;color:#8b96a3}
+  #mu-overlay .mu-fbtn.verde.on{background:rgba(46,232,106,.18);border-color:#2ee86a}
+  #mu-overlay .mu-fbtn.rojo.on{background:rgba(246,70,93,.18);border-color:#f6465d}
+  #mu-overlay .mu-fbtn.oro.on{background:rgba(232,184,75,.18);border-color:#E8B84B}
+  #mu-overlay .mu-fbtn.gris.on{background:rgba(139,150,163,.16);border-color:#8b96a3}
+
+  #mu-overlay .mu-card-viejo{display:block;width:100%;text-align:left;margin-bottom:9px;padding:13px 14px;
     border-radius:13px;cursor:pointer;background:rgba(255,255,255,.022);
     border:1px solid #232a33;border-left-width:3px;transition:background .15s,border-color .15s}
   #mu-overlay .mu-card:hover{background:rgba(255,255,255,.045)}
