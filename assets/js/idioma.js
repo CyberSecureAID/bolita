@@ -1161,6 +1161,167 @@ const DIC = {
     'Con CriptoCuba ya abierta, busca su icono abajo en la barra de tareas de Windows, haz':
       'With CriptoCuba open, find its icon in the Windows taskbar below and',
     'Junta los restos de monedas que te van quedando': 'Collects the leftover crumbs of coins you accumulate',
+
+    /* ══════════════ LIQUIDITY POOLS ══════════════ */
+    'Calculando el mapa de liquidaciones…': 'Calculating the liquidation map…',
+    'menos liquidez': 'less liquidity',
+    'muros de liquidación': 'liquidation walls',
+    'Filtro de ruido': 'Noise filter',
+    'Mostrar': 'Show',
+    'Perfil de volumen': 'Volume profile',
+    'Mapa de liquidez': 'Liquidity map',
+    'Reencuadrar': 'Reframe',
+    'Pago': 'Payment',
+    'el mapa de dónde está el dinero atrapado': 'the map of where the money is trapped',
+    'aceleran el movimiento': 'accelerate the move',
+    'barrer esa zona': 'sweep that zone',
+    'atraviesa en minutos': 'crosses in minutes',
+    'Las de x100 saltan primero': 'The x100 ones blow up first',
+    'Qué hacer: si el x100 muestra un muro cerca del precio, espera volatilidad pronto.':
+      'What to do: if x100 shows a wall near the price, expect volatility soon.',
+    'información, no una señal': 'information, not a signal',
+    'De dónde salen estos datos': 'Where this data comes from',
+    'ya se liquidaron': 'have already been liquidated',
+    'Azul — liquidez de fondo': 'Blue — background liquidity',
+    'Verde — acumulación media': 'Green — medium accumulation',
+    'Amarillo — zona importante': 'Yellow — important zone',
+    'Rojo — muro de liquidación': 'Red — liquidation wall',
+
+    /* ══════════════ RADAR INSTITUCIONAL ══════════════ */
+    'Observando…': 'Watching…',
+    'Necesitamos unos segundos de observación para distinguir el dinero real del humo.':
+      'We need a few seconds of observation to tell real money from smoke.',
+    'Analizando el libro de órdenes…': 'Analyzing the order book…',
+    'Es humo': 'It is smoke',
+    'ya no está': 'is gone',
+    'Se está ejecutando ahora mismo.': 'It is being executed right now.',
+    'El precio está tocando este nivel.': 'The price is touching this level.',
+    'rechazo': 'rejection',
+    'rebote': 'bounce',
+    'la mayoría de las grandes son falsas': 'most of the large ones are fake',
+    'cada segundo y medio': 'every second and a half',
+    'cuánto dinero hay': 'how much money there is',
+    'a qué precio': 'at what price',
+    'a qué distancia': 'how far away',
+    'se consume y vuelve a aparecer': 'is consumed and reappears',
+    'la orden lo frenó': 'the order stopped it',
+    'el precio todavía no lo ha puesto a prueba': 'the price has not tested it yet',
+    'huir cuando el precio se acerca': 'flee when the price approaches',
+    'El mercado cambia y el veredicto también.': 'The market changes and so does the verdict.',
+    'cambia sola': 'changes on its own',
+
+    /* ══════════════ TUTORIAL ══════════════ */
+    'Ver guía': 'View guide',
+    'Guía de los bots ·': 'Bot guide ·',
+    'toca uno para aprender': 'tap one to learn',
+    'Cómo trabaja, paso a paso': 'How it works, step by step',
+    'Por qué funciona': 'Why it works',
+    'Qué te garantiza la blockchain': 'What the blockchain guarantees you',
+    'es exactamente de dónde sale la ganancia': 'is exactly where the profit comes from',
+    'nunca salen de tu control': 'never leave your control',
+    'compra más': 'buys more',
+    'baja tu precio promedio': 'lowers your average price',
+    'el bot compra más barato y en mayor cantidad': 'the bot buys cheaper and in larger amounts',
+    'no necesitas que el mercado vuelva a la cima': 'you do not need the market to return to its peak',
+    'paga menos comisiones': 'pays fewer fees',
+    'no vender cuando había que vender': 'not selling when you should have sold',
+    'sigue vigente': 'still applies',
+    'el promedio te acerca al precio justo': 'averaging brings you closer to a fair price',
+
+    /* ══════════════ COMPRAR CRIPTO ══════════════ */
+    'Con tarjeta': 'With card',
+    'Intercambiar cripto': 'Swap crypto',
+    'Desde Cuba': 'From Cuba',
+    'Tarjeta · Apple/Google Pay · PayPal': 'Card · Apple/Google Pay · PayPal',
+    'Tarjeta · transferencia bancaria': 'Card · bank transfer',
+    'Tarjeta · Apple/Google Pay': 'Card · Apple/Google Pay',
+    'Intercambiar en PancakeSwap': 'Swap on PancakeSwap',
+    'USDT con CUP/MLC · Transfermóvil · EnZona': 'USDT with CUP/MLC · Transfermóvil · EnZona',
+    'elige por dónde, te llevamos a una plataforma segura':
+      'choose how, and we take you to a secure platform',
+
+    /* ══════════════ GRÁFICA ══════════════ */
+    'Cargando gráfica…': 'Loading chart…',
+    'Velas reales de': 'Real candles from',
+    'tus cuadrículas': 'your grids',
+    'Tus cuadrículas salen del contrato: son las de verdad':
+      'Your grids come from the contract: they are the real ones',
+    'No se pudo cargar la gráfica.': 'Could not load the chart.',
+    'Vuelve a intentarlo en un momento.': 'Try again in a moment.',
+
+    /* ══════════════ ASISTENTE Y OTROS ══════════════ */
+    'En línea': 'Online',
+    'Temas': 'Topics',
+    'Entrar a la comunidad': 'Join the community',
+    'gente que ya usa CriptoCuba': 'people already using CriptoCuba',
+    'Tira para actualizar': 'Pull to refresh',
+
+    /* ══════════════ AUDITORÍA · FRASES FINALES ══════════════ */
+    'Plan de risk management, con software para aplicarlo': 'Risk management plan, with software to apply it',
+    '17 clases de cero a cien, con examen cada una': '17 classes from zero to a hundred, each with an exam',
+    '20 audiolibros escogidos por un trader con 10 años de oficio':
+      '20 audiobooks chosen by a trader with 10 years in the business',
+    'Tutoriales de las herramientas de verdad': 'Tutorials on the tools that matter',
+    'Acceso al grupo mientras dure tu plan': 'Group access for as long as your plan lasts',
+    'Cómo repartir tu dinero y cuánto arriesgar. Hecho a medida de nuestra estrategia, no es un plan genérico.':
+      'How to allocate your money and how much to risk. Tailored to our strategy, not a generic plan.',
+    'Antes de operar un solo dólar. Cómo repartir tu dinero, cuánto arriesgar por operación y cuándo parar.':
+      'Before trading a single dollar. How to allocate your money, how much to risk per trade and when to stop.',
+    'No pasa nada: sirve para ver dónde flojeas.': 'No problem: it shows where you are weak.',
+    'Baja hasta el final del examen y encontrarás': 'Scroll to the end of the exam and you will find',
+    'para pasar de una clase a otra.': 'to move from one class to another.',
+    'Puedes saltarte un examen o copiar las respuestas, y nadie se enterará.':
+      'You can skip an exam or copy the answers, and nobody will know.',
+    'Van en orden por una razón: cada una se apoya en la anterior.':
+      'They are in order for a reason: each builds on the one before.',
+
+    /* ── Tools ── */
+    'Junta los restos de monedas que te van quedando y los pasa todos a una sola.':
+      'Collects the leftover crumbs of coins and converts them all into one.',
+    'Te avisa cuando una moneda llega al precio que marques.':
+      'Alerts you when a coin reaches the price you set.',
+    'El humor del mercado en un número. Sirve para saber si la gente está comprando por euforia o vendiendo por pánico.':
+      'Market sentiment in a single number. Tells you whether people are buying on euphoria or selling on panic.',
+    'Qué dicen los indicadores de una moneda ahora mismo: comprar, vender o esperar.':
+      'What the indicators say about a coin right now: buy, sell or wait.',
+    'Qué dicen los indicadores más usados, en un solo medidor':
+      'What the most used indicators say, in a single gauge',
+    'Todas las monedas de un vistazo, por tamaño y color. Verde sube, rojo baja.':
+      'All coins at a glance, by size and colour. Green rises, red falls.',
+    'El gráfico completo, con velas y herramientas de dibujo.':
+      'The full chart, with candles and drawing tools.',
+    'Sirve para ver de un vistazo si el mercado entero se mueve o solo una moneda.':
+      'Useful to see at a glance whether the whole market is moving or just one coin.',
+    'Esto no es un consejo: es lo que dicen los indicadores ahora mismo. Úsalo como una opinión más, no como una orden.':
+      'This is not advice: it is what the indicators say right now. Treat it as one more opinion, not an order.',
+
+    /* ── Perfil ── */
+    'es la forma más segura de dejarlo todo cerrado.': 'is the safest way to leave everything closed.',
+    'Vendrá activada: tu suscripción se renovará sola y no tendrás que acordarte cada mes. Podrás desactivarla cuando quieras (se firmará en la blockchain).':
+      'It will come enabled: your subscription renews itself and you will not have to remember each month. You can disable it whenever you want (signed on the blockchain).',
+
+    /* Fragmentos partidos por etiquetas <b> dentro del texto */
+    'de cero a cien, con examen cada una': 'from zero to a hundred, each with an exam',
+    'escogidos por un trader con': 'chosen by a trader with',
+    'de oficio': 'in the business',
+    '10 años': '10 years',
+    '17 clases': '17 classes',
+    '20 audiolibros': '20 audiobooks',
+    'Plan de risk management, con software para aplicarlo': 'Risk management plan, with software to apply it',
+    'No pasa nada: sirve para ver dónde flojeas. Al terminar la clase, repítelo.':
+      'No problem: it shows where you are weak. After the class, retake it.',
+    'sirve para ver dónde flojeas': 'it shows where you are weak',
+    'Te avisa por correo cuando esté listo.': 'It emails you when it is ready.',
+    'para pasar de una clase a otra. Si te quedas en el grupo bajando de una a otra, te perderás.':
+      'to move from one class to another. If you stay in the group scrolling between them, you will get lost.',
+    'Puedes saltarte un examen o copiar las respuestas, y nadie se enterará. Pero el examen no es para nosotros: es para ti.':
+      'You can skip an exam or copy the answers, and nobody will know. But the exam is not for us: it is for you.',
+    'Van en orden por una razón: cada una se apoya en la anterior.':
+      'They are in order for a reason: each builds on the one before.',
+    '20 audiolibros escogidos uno a uno por alguien con más de 10 años en trading y criptomonedas. No los escribí yo: los elegí por lo que me sirvieron a mí.':
+      '20 audiobooks chosen one by one by someone with over 10 years in trading and crypto. I did not write them: I picked them for what they did for me.',
+    '20 audiolibros seleccionados': '20 selected audiobooks',
+    'es la forma más segura de dejarlo todo cerrado': 'is the safest way to leave everything closed',
     'Cambiar idioma': 'Change language',
     'Idioma': 'Language'
   },
@@ -1817,6 +1978,55 @@ const DIC = {
     'Copiar enlace': 'Copiar ligação',
     'Tipo de bot': 'Tipo de bot',
     'Vueltas completas': 'Ciclos completos',
+
+    /* ══════════════ LIQUIDITY POOLS ══════════════ */
+    'Calculando el mapa de liquidaciones…': 'A calcular o mapa de liquidações…',
+    'menos liquidez': 'menos liquidez',
+    'Filtro de ruido': 'Filtro de ruído',
+    'Mostrar': 'Mostrar',
+    'Perfil de volumen': 'Perfil de volume',
+    'Mapa de liquidez': 'Mapa de liquidez',
+    'Reencuadrar': 'Reenquadrar',
+    'Pago': 'Pagamento',
+    'información, no una señal': 'informação, não um sinal',
+
+    /* ══════════════ RADAR ══════════════ */
+    'Observando…': 'A observar…',
+    'Analizando el libro de órdenes…': 'A analisar o livro de ordens…',
+    'Es humo': 'É fumo',
+    'ya no está': 'já não está',
+    'rechazo': 'rejeição',
+    'rebote': 'ressalto',
+
+    /* ══════════════ TUTORIAL ══════════════ */
+    'Ver guía': 'Ver guia',
+    'Por qué funciona': 'Porque funciona',
+    'compra más': 'compra mais',
+    'baja tu precio promedio': 'baixa o seu preço médio',
+
+    /* ══════════════ COMPRAR ══════════════ */
+    'Con tarjeta': 'Com cartão',
+    'Intercambiar cripto': 'Trocar cripto',
+    'Desde Cuba': 'Desde Cuba',
+
+    /* ══════════════ GRÁFICO ══════════════ */
+    'Cargando gráfica…': 'A carregar gráfico…',
+    'Velas reales de': 'Velas reais de',
+    'No se pudo cargar la gráfica.': 'Não foi possível carregar o gráfico.',
+    'En línea': 'Online',
+    'Temas': 'Temas',
+    'Tira para actualizar': 'Puxe para atualizar',
+
+    /* ══════════════ FRASES FINAIS ══════════════ */
+    '17 clases de cero a cien, con examen cada una': '17 aulas do zero a cem, com exame em cada uma',
+    'Tutoriales de las herramientas de verdad': 'Tutoriais das ferramentas a sério',
+    'Acceso al grupo mientras dure tu plan': 'Acesso ao grupo enquanto durar o seu plano',
+    'Junta los restos de monedas que te van quedando y los pasa todos a una sola.':
+      'Junta os restos de moedas que vão sobrando e converte-os todos numa só.',
+    'Te avisa cuando una moneda llega al precio que marques.':
+      'Avisa-o quando uma moeda chega ao preço que definir.',
+    'El gráfico completo, con velas y herramientas de dibujo.':
+      'O gráfico completo, com velas e ferramentas de desenho.',
     'Cambiar idioma': 'Mudar idioma',
     'Idioma': 'Idioma'
   }
