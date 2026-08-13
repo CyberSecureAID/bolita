@@ -449,6 +449,9 @@ const WIDGETS = {
       cfg: { autosize: true, symbol: sim, interval: '60', timezone: 'Etc/UTC',
              theme: 'dark', style: '1', locale: 'es', backgroundColor: 'rgba(11,14,18,1)',
              gridColor: 'rgba(43,49,57,0.4)', hide_top_toolbar: false,
+             /* La barra lateral de dibujo: líneas, Fibonacci, textos.
+                Estaba oculta por defecto y por eso no aparecía. */
+             hide_side_toolbar: false, withdateranges: true,
              allow_symbol_change: false, save_image: false, calendar: false }
     })
   }
@@ -462,29 +465,52 @@ async function abrirWidget(id) {
   const d = document.createElement('div');
   d.id = 'w-overlay';
   if (w.plena) d.classList.add('plena');
+  /* ══════════════════════════════════════════════════════════════
+     UNA SOLA BARRA ARRIBA
+
+     Antes el título, el subtítulo y la nota de abajo se comían media
+     pantalla. Ahora todo va en una barra fina —título, monedas y
+     botones— y las explicaciones viven en un botón de información.
+     El gráfico se queda con el resto, que es a lo que viene el usuario.
+     ══════════════════════════════════════════════════════════════ */
   d.innerHTML = `<div class="pv-bg"></div>
     <div class="w-c">
-      <div class="tl-top">
-        <div class="tl-eyebrow">${esc(w.t)}</div>
-        <button class="pv-x" aria-label="Cerrar">✕</button>
-      </div>
-      <p class="tl-s">${esc(w.s)}</p>
+      <div class="w-barra">
+        <span class="w-tit">${esc(w.t)}</span>
 
-      ${w.conMonedas ? `<div class="w-mons" id="w-mons">
-        ${MON_WIDGET.map((m) => `<button class="w-mon ${m.id === _wMoneda ? 'on' : ''}" data-wm="${m.id}" title="${esc(m.n)}">${esc(m.id)}</button>`).join('')}
-      </div>` : ''}
+        ${w.conMonedas ? `<div class="w-mons" id="w-mons">
+          ${MON_WIDGET.map((m) => `<button class="w-mon ${m.id === _wMoneda ? 'on' : ''}" data-wm="${m.id}" title="${esc(m.n)}">${esc(m.id)}</button>`).join('')}
+        </div>` : ''}
+
+        <div class="w-der">
+          ${w.nota ? `<button class="w-ico" id="w-info" title="Qué es esto">i</button>` : ''}
+          <button class="w-ico pv-x" aria-label="Cerrar">✕</button>
+        </div>
+      </div>
 
       <div class="w-caja" id="w-caja" style="${w.plena ? '' : 'min-height:' + w.alto + 'px'}">
         <div class="tl-cargando">Cargando…</div>
       </div>
-
-      ${w.nota ? `<div class="w-nota">${w.nota}</div>` : ''}
     </div>`;
   document.body.appendChild(d);
 
   const cerrar = () => { const e = $('w-overlay'); if (e) e.remove(); };
   d.querySelector('.pv-bg').onclick = cerrar;
   d.querySelector('.pv-x').onclick = cerrar;
+
+  const bi = $('w-info');
+  if (bi) bi.onclick = (e) => {
+    e.stopPropagation();
+    const prev = document.getElementById('w-info-box');
+    if (prev) { prev.remove(); return; }
+    const c = document.createElement('div');
+    c.id = 'w-info-box';
+    c.innerHTML = `<b>${esc(w.t)}</b><span>${esc(w.s)}</span><i>${w.nota}</i>`;
+    d.querySelector('.w-c').appendChild(c);
+    setTimeout(() => document.addEventListener('click', () => {
+      const x = document.getElementById('w-info-box'); if (x) x.remove();
+    }, { once: true }), 10);
+  };
 
   const pintar = () => {
     const m = MON_WIDGET.find((x) => x.id === _wMoneda) || MON_WIDGET[0];
@@ -1078,16 +1104,44 @@ function estilos() {
     font-family:var(--mono,monospace);letter-spacing:.3px;line-height:1.5}
   #w-overlay .w-c{position:relative;width:100%;max-width:620px;max-height:calc(100vh - 32px);overflow-y:auto;
     background:linear-gradient(180deg,#141922,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);border-radius:20px;padding:22px 20px}
-  #w-overlay .w-mons{display:flex;gap:6px;overflow-x:auto;padding:4px;margin-bottom:14px;
-    background:#0b0e12;border:1px solid #2b3139;border-radius:12px;scrollbar-width:none}
+  /* ── Barra superior compacta ── */
+  #w-overlay .w-barra{display:flex;align-items:center;gap:10px;flex:0 0 auto;position:relative;
+    padding:8px 92px 8px 12px;margin-bottom:10px;background:#0b0e12;
+    border:1px solid #2b3139;border-radius:12px;overflow-x:auto;scrollbar-width:none}
+  #w-overlay .w-barra::-webkit-scrollbar{display:none}
+  #w-overlay .w-tit{flex:0 0 auto;font-family:var(--display,sans-serif);font-weight:800;
+    font-size:14px;color:#eaecef;white-space:nowrap}
+  #w-overlay .w-der{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+    display:flex;gap:5px;z-index:6;background:#0b0e12;padding-left:8px}
+  #w-overlay .w-ico{width:36px;height:36px;min-height:36px;flex:0 0 auto;border-radius:9px;
+    display:grid;place-items:center;padding:0;cursor:pointer;
+    background:rgba(255,255,255,.05);border:1px solid #2b3139;color:#8b96a3;
+    font-family:var(--display,sans-serif);font-size:14px;font-weight:800;font-style:italic}
+  #w-overlay .w-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  #w-overlay .w-ico.pv-x{font-style:normal;font-weight:400;font-size:14px}
+  /* La explicación, en un desplegable */
+  #w-info-box{position:absolute;top:52px;right:12px;left:12px;z-index:20;max-width:420px;margin-left:auto;
+    padding:16px 18px;border-radius:14px;background:linear-gradient(180deg,#1b2027,#0d1117);
+    border:1px solid var(--gold-soft,#C9A84B);box-shadow:0 16px 44px rgba(0,0,0,.7)}
+  #w-info-box b{display:block;font-family:var(--display,sans-serif);font-weight:800;
+    font-size:15px;color:var(--gold,#E8B84B);margin-bottom:6px}
+  #w-info-box span{display:block;font-family:var(--sans,sans-serif);font-size:13px;
+    color:#b7bdc6;line-height:1.6;margin-bottom:10px}
+  #w-info-box i{display:block;font-style:normal;padding:11px 13px;border-radius:10px;
+    background:rgba(232,184,75,.07);border-left:2px solid var(--gold-soft,#C9A84B);
+    font-family:var(--sans,sans-serif);font-size:12px;color:#8b96a3;line-height:1.55}
+
+  #w-overlay .w-mons{display:flex;gap:6px;overflow-x:auto;padding:3px;flex:1;min-width:0;
+    background:#12161c;border:none;border-radius:9px;scrollbar-width:none}
   #w-overlay .w-mons::-webkit-scrollbar{display:none}
-  #w-overlay .w-mon{flex:0 0 auto;min-height:38px;padding:0 15px;border-radius:9px;border:none;background:transparent;
+  #w-overlay .w-mon{flex:0 0 auto;min-height:36px;padding:0 13px;border-radius:9px;border:none;background:transparent;
     color:#8b96a3;font-family:var(--mono,monospace);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
   #w-overlay .w-mon.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
   #w-overlay .w-mon:not(.on):hover{background:rgba(255,255,255,.05);color:#b7bdc6}
   /* La caja que encapsula el widget: nuestro fondo, nuestro borde. */
   #w-overlay .w-caja{border-radius:14px;overflow:hidden;background:#0b0e12;border:1px solid #2b3139;
-    display:flex;align-items:center;justify-content:center}
+    display:flex;align-items:center;justify-content:center;flex:1;min-height:0}
+  #w-overlay .w-c{display:flex;flex-direction:column}
   #w-overlay .w-caja iframe{border:none!important;width:100%!important}
   #w-overlay .w-caja .tradingview-widget-copyright{display:none!important}
   /* ══════════════════════════════════════════════════════════════
@@ -1098,8 +1152,8 @@ function estilos() {
      ══════════════════════════════════════════════════════════════ */
   #w-overlay.plena{padding:0}
   #w-overlay.plena .w-c{max-width:none;width:100%;height:100vh;height:100dvh;max-height:none;
-    border-radius:0;border:none;padding:14px 14px 10px;display:flex;flex-direction:column}
-  #w-overlay.plena .tl-s{margin-bottom:12px}
+    border-radius:0;border:none;padding:8px 8px 8px;display:flex;flex-direction:column}
+  #w-overlay.plena .w-barra{margin-bottom:8px}
   #w-overlay.plena .w-caja{flex:1;min-height:0}
   #w-overlay.plena .w-nota{flex:0 0 auto}
   #w-overlay.plena .tradingview-widget-container,
