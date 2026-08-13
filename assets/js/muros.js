@@ -63,7 +63,9 @@ const M = {
   muros: [],          // los detectados, ya juzgados
   seleccionado: null,
   cargando: true,
-  error: null
+  error: null,
+  zoom: 1,            // 1 = todo el libro; menos = más cerca del precio
+  cruzY: -1
 };
 
 const CADA = 1500;          // una foto cada 1,5 segundos
@@ -256,7 +258,38 @@ function juzgar() {
     return pb - pa;
   });
 
-  M.muros = fuera.slice(0, 10);
+  /* [CORREGIDO] Antes la lista se reemplazaba entera en cada foto. Si
+     un muro dejaba de cumplir el mínimo por un momento, su tarjeta
+     desaparecía de golpe — que es lo que viste. Ahora los que ya
+     estaban se mantienen unos segundos y, si de verdad se han ido, se
+     avisa antes de quitarlos: un muro que desaparece ES información. */
+  const nuevos = fuera.slice(0, 10);
+  const antes = M.muros || [];
+
+  antes.forEach((v) => {
+    if (nuevos.some((x) => Math.abs(x.p - v.p) / Math.max(1e-9, v.p) < 0.0004)) return;
+    // Ya no está: se marca y se deja un rato para que se lea
+    const desde = v.seVaDesde || ahora;
+    if (ahora - desde < 12000) {
+      nuevos.push({
+        ...v,
+        seVaDesde: desde,
+        tipo: 'ido',
+        titulo: 'Ha desaparecido',
+        nota: v.tipo === 'falso'
+          ? 'Confirmado: se retiró del libro sin llegar a ejecutarse. Era falso.'
+          : 'Este muro ya no está en el libro. O se consumió del todo, o quien lo puso lo retiró.',
+        prioridad: 30, vivo: false
+      });
+    }
+  });
+
+  nuevos.sort((a, b) => {
+    const pa = a.prioridad - Math.abs(a.dist) * 900;
+    const pb = b.prioridad - Math.abs(b.dist) * 900;
+    return pb - pa;
+  });
+  M.muros = nuevos.slice(0, 12);
 }
 
 /* Utilidades de formato */
@@ -408,6 +441,7 @@ function dibujar() {
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     cv.style.width = W + 'px'; cv.style.height = H + 'px';
   }
+  if (!cv.dataset.listo) { engancharGestos(cv); cv.dataset.listo = '1'; }
   const g = cv.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -428,9 +462,16 @@ function dibujar() {
   const mDer = 76, mAba = 22;
   const x1 = W - mDer, y1 = H - mAba;
 
-  // Rango de precio: lo que abarcan los muros, con margen
-  const rango = M.precio * 0.016;
-  const pMax = M.precio + rango, pMin = M.precio - rango;
+  /* [CORREGIDO] El rango era ±1,6% fijo, pero el libro de Binance solo
+     cubre unas décimas alrededor del precio. Resultado: una banda
+     finita en medio de una pantalla vacía.
+     Ahora el rango sale de lo que de verdad hay en el libro. */
+  const ult = M.fotos[M.fotos.length - 1];
+  let lo = M.precio, hi = M.precio;
+  ult.compras.forEach((x) => { if (x.p < lo) lo = x.p; });
+  ult.ventas.forEach((x) => { if (x.p > hi) hi = x.p; });
+  const medio = Math.max(M.precio - lo, hi - M.precio) * (M.zoom || 1);
+  const pMax = M.precio + medio * 1.06, pMin = M.precio - medio * 1.06;
   const Y = (p) => y1 - y1 * ((p - pMin) / (pMax - pMin));
 
   const fotos = M.fotos.slice(-140);
@@ -439,7 +480,6 @@ function dibujar() {
   const altoFila = (pMax - pMin) / FILAS;
 
   /* ── El mapa de profundidad ── */
-  let vMax = 0;
   const cols = fotos.map((f) => {
     const col = new Float64Array(FILAS);
     [...f.compras, ...f.ventas].forEach(({ p, q }) => {
@@ -447,9 +487,19 @@ function dibujar() {
       const fi = Math.floor((p - pMin) / altoFila);
       if (fi >= 0 && fi < FILAS) col[fi] += p * q;
     });
-    for (const v of col) if (v > vMax) vMax = v;
     return col;
   });
+
+  /* [CORREGIDO] El color se normalizaba contra el MÁXIMO absoluto. Un
+     solo muro enorme dejaba todo lo demás en azul oscuro y el mapa no
+     decía nada. Ahora el techo es el percentil 92: lo que hay por
+     encima satura, y el resto reparte todo el rango de color. */
+  const muestras = [];
+  cols.forEach((c) => { for (const v of c) if (v > 0) muestras.push(v); });
+  muestras.sort((a, b) => a - b);
+  const vMax = muestras.length
+    ? (muestras[Math.floor(muestras.length * 0.90)] || muestras[muestras.length - 1])
+    : 0;
 
   if (vMax > 0) {
     cols.forEach((col, i) => {
@@ -457,8 +507,8 @@ function dibujar() {
       for (let fi = 0; fi < FILAS; fi++) {
         const v = col[fi];
         if (v <= 0) continue;
-        const rel = Math.min(1, Math.pow(v / vMax, 0.5));
-        if (rel < 0.06) continue;
+        const rel = Math.min(1, Math.pow(v / vMax, 0.55));
+        if (rel < 0.04) continue;
         const c = calor(rel);
         g.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
         const y = Y(pMin + (fi + 1) * altoFila);
@@ -467,9 +517,27 @@ function dibujar() {
     });
   }
 
-  /* ── La línea del precio ── */
+  /* ── EL RECORRIDO DEL PRECIO ──
+     Una línea con el precio de cada foto: así se ve cómo se ha movido
+     mientras vigilábamos, y si se acercó a algún muro. Sin esto el
+     mapa no tiene referencia y no se puede leer. */
+  g.beginPath();
+  fotos.forEach((f, i) => {
+    const p = ((f.compras[0]?.p || 0) + (f.ventas[0]?.p || 0)) / 2;
+    if (!p) return;
+    const x = i * paso + paso / 2, y = Y(p);
+    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+  });
+  g.strokeStyle = '#eaecef';
+  g.lineWidth = 1.8;
+  g.stroke();
+
+  // El punto de ahora, latiendo
   const yP = Y(M.precio);
-  g.strokeStyle = 'rgba(255,255,255,.5)';
+  g.beginPath();
+  g.arc(x1 - paso / 2, yP, 4, 0, Math.PI * 2);
+  g.fillStyle = '#eaecef'; g.fill();
+  g.strokeStyle = 'rgba(234,236,239,.3)';
   g.setLineDash([4, 4]); g.lineWidth = 1;
   g.beginPath(); g.moveTo(0, yP); g.lineTo(x1, yP); g.stroke();
   g.setLineDash([]);
@@ -532,6 +600,21 @@ function dibujar() {
   g.font = 'bold 11px ui-monospace,monospace';
   g.fillText(fmt(M.precio), x1 + 6, yP + 3.5);
 
+  /* ── La cruz, para leer precios ── */
+  if (M.cruzY >= 0 && M.cruzY < y1) {
+    g.strokeStyle = 'rgba(255,255,255,.22)';
+    g.setLineDash([3, 3]); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, M.cruzY); g.lineTo(x1, M.cruzY); g.stroke();
+    g.setLineDash([]);
+    const pC = pMin + (pMax - pMin) * ((y1 - M.cruzY) / y1);
+    g.fillStyle = '#2b3139';
+    g.fillRect(x1 + 1, M.cruzY - 9, mDer - 3, 18);
+    g.fillStyle = '#eaecef';
+    g.font = 'bold 10px ui-monospace,monospace';
+    g.textAlign = 'left';
+    g.fillText(fmt(pC), x1 + 6, M.cruzY + 3.5);
+  }
+
   /* ── Abajo: el tiempo ── */
   g.fillStyle = '#0b0e12';
   g.fillRect(0, y1, W, mAba);
@@ -541,7 +624,60 @@ function dibujar() {
   g.fillText('hace ' + tiempo(fotos.length * CADA / 1000), 8, y1 + 14);
   g.textAlign = 'right';
   g.fillText('ahora', x1 - 8, y1 + 14);
+  if (M.zoom < 0.98) {
+    g.textAlign = 'center';
+    g.fillStyle = 'rgba(232,184,75,.7)';
+    g.fillText('acercado ×' + (1 / M.zoom).toFixed(1) + ' · doble clic para ver todo', x1 / 2, y1 + 14);
+  }
   g.textAlign = 'left';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GESTOS — acercar y alejar
+
+   El libro es estrecho: sin poder acercarse, los muros próximos al
+   precio se amontonan. La rueda y el pellizco cambian el rango que
+   se muestra; el doble clic vuelve a verlo todo.
+   ══════════════════════════════════════════════════════════════ */
+function engancharGestos(cv) {
+  const zoom = (f) => {
+    M.zoom = Math.max(0.12, Math.min(1, M.zoom * f));
+    dibujar();
+  };
+
+  cv.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    zoom(e.deltaY > 0 ? 1.16 : 0.86);
+  }, { passive: false });
+
+  cv.addEventListener('dblclick', () => { M.zoom = 1; dibujar(); });
+
+  // La cruz sigue al ratón para leer precios
+  cv.addEventListener('mousemove', (e) => {
+    const r = cv.getBoundingClientRect();
+    const ny = Math.round(e.clientY - r.top);
+    if (ny !== M.cruzY) { M.cruzY = ny; dibujar(); }
+  });
+  cv.addEventListener('mouseleave', () => { M.cruzY = -1; dibujar(); });
+
+  // Táctil: pellizco para acercar
+  let d0 = 0;
+  cv.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      d0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                      e.touches[0].clientY - e.touches[1].clientY);
+    }
+  }, { passive: true });
+  cv.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && d0 > 0) {
+      e.preventDefault();
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                           e.touches[0].clientY - e.touches[1].clientY);
+      if (Math.abs(d - d0) > 8) { zoom(d0 / d); d0 = d; }
+    }
+  }, { passive: false });
+  cv.addEventListener('touchend', () => { d0 = 0; });
+  cv.style.cursor = 'crosshair';
 }
 
 const COLORES = {
@@ -549,7 +685,8 @@ const COLORES = {
   probado:    { linea: '#2ee86a', texto: '#04210f', icono: '✓', clase: 'verde' },
   real:       { linea: '#4d9fff', texto: '#04121f', icono: '●', clase: 'azul' },
   falso:      { linea: '#f6465d', texto: '#2a0509', icono: '✕', clase: 'rojo' },
-  vigilando:  { linea: '#8b96a3', texto: '#0b0e12', icono: '?', clase: 'gris' }
+  vigilando:  { linea: '#8b96a3', texto: '#0b0e12', icono: '?', clase: 'gris' },
+  ido:        { linea: '#4a525c', texto: '#0b0e12', icono: '·', clase: 'ido' }
 };
 
 function calor(v) {
@@ -657,6 +794,9 @@ function pintarPanel() {
     }
     if (m.tipo === 'falso') {
       return 'No lo uses como referencia. Es muy probable que desaparezca justo cuando el precio llegue.';
+    }
+    if (m.tipo === 'ido') {
+      return 'Ese nivel ya no tiene defensa. Si tu plan dependía de él, revísalo.';
     }
     return 'Todavía no hay historia suficiente. Dale unos minutos más.';
   }
