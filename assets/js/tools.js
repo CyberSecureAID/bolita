@@ -33,14 +33,32 @@ const num = (v, d = 2) => Number(v).toLocaleString('es', { maximumFractionDigits
    en Binance, que es donde hay más volumen y menos huecos.
    ══════════════════════════════════════════════════════════════ */
 const MON_WIDGET = [
-  { id: 'BTC',  sim: 'BINANCE:BTCUSDT',  n: 'Bitcoin' },
-  { id: 'ETH',  sim: 'BINANCE:ETHUSDT',  n: 'Ethereum' },
-  { id: 'BNB',  sim: 'BINANCE:BNBUSDT',  n: 'BNB' },
-  { id: 'SOL',  sim: 'BINANCE:SOLUSDT',  n: 'Solana' },
-  { id: 'XRP',  sim: 'BINANCE:XRPUSDT',  n: 'XRP' },
-  { id: 'DOGE', sim: 'BINANCE:DOGEUSDT', n: 'Dogecoin' },
-  { id: 'ADA',  sim: 'BINANCE:ADAUSDT',  n: 'Cardano' },
-  { id: 'LINK', sim: 'BINANCE:LINKUSDT', n: 'Chainlink' }
+  { id: 'BTC',   sim: 'BINANCE:BTCUSDT',   n: 'Bitcoin',    cg: 'bitcoin' },
+  { id: 'ETH',   sim: 'BINANCE:ETHUSDT',   n: 'Ethereum',   cg: 'ethereum' },
+  { id: 'BNB',   sim: 'BINANCE:BNBUSDT',   n: 'BNB',        cg: 'binancecoin' },
+  { id: 'SOL',   sim: 'BINANCE:SOLUSDT',   n: 'Solana',     cg: 'solana' },
+  { id: 'XRP',   sim: 'BINANCE:XRPUSDT',   n: 'XRP',        cg: 'ripple' },
+  { id: 'DOGE',  sim: 'BINANCE:DOGEUSDT',  n: 'Dogecoin',   cg: 'dogecoin' },
+  { id: 'ADA',   sim: 'BINANCE:ADAUSDT',   n: 'Cardano',    cg: 'cardano' },
+  { id: 'LINK',  sim: 'BINANCE:LINKUSDT',  n: 'Chainlink',  cg: 'chainlink' },
+  { id: 'AVAX',  sim: 'BINANCE:AVAXUSDT',  n: 'Avalanche',  cg: 'avalanche-2' },
+  { id: 'DOT',   sim: 'BINANCE:DOTUSDT',   n: 'Polkadot',   cg: 'polkadot' },
+  { id: 'MATIC', sim: 'BINANCE:MATICUSDT', n: 'Polygon',    cg: 'matic-network' },
+  { id: 'LTC',   sim: 'BINANCE:LTCUSDT',   n: 'Litecoin',   cg: 'litecoin' },
+  { id: 'TRX',   sim: 'BINANCE:TRXUSDT',   n: 'TRON',       cg: 'tron' },
+  { id: 'SHIB',  sim: 'BINANCE:SHIBUSDT',  n: 'Shiba Inu',  cg: 'shiba-inu' },
+  { id: 'PEPE',  sim: 'BINANCE:PEPEUSDT',  n: 'Pepe',       cg: 'pepe' },
+  { id: 'NEAR',  sim: 'BINANCE:NEARUSDT',  n: 'NEAR',       cg: 'near' },
+  { id: 'SUI',   sim: 'BINANCE:SUIUSDT',   n: 'Sui',        cg: 'sui' },
+  { id: 'ARB',   sim: 'BINANCE:ARBUSDT',   n: 'Arbitrum',   cg: 'arbitrum' },
+  { id: 'OP',    sim: 'BINANCE:OPUSDT',    n: 'Optimism',   cg: 'optimism' },
+  { id: 'ATOM',  sim: 'BINANCE:ATOMUSDT',  n: 'Cosmos',     cg: 'cosmos' },
+  { id: 'UNI',   sim: 'BINANCE:UNIUSDT',   n: 'Uniswap',    cg: 'uniswap' },
+  { id: 'INJ',   sim: 'BINANCE:INJUSDT',   n: 'Injective',  cg: 'injective-protocol' },
+  { id: 'APT',   sim: 'BINANCE:APTUSDT',   n: 'Aptos',      cg: 'aptos' },
+  { id: 'FIL',   sim: 'BINANCE:FILUSDT',   n: 'Filecoin',   cg: 'filecoin' },
+  { id: 'TIA',   sim: 'BINANCE:TIAUSDT',   n: 'Celestia',   cg: 'celestia' },
+  { id: 'WIF',   sim: 'BINANCE:WIFUSDT',   n: 'dogwifhat',  cg: 'dogwifcoin' }
 ];
 
 const HERRAMIENTAS = [
@@ -478,13 +496,15 @@ async function abrirWidget(id) {
       <div class="w-barra">
         <span class="w-tit">${esc(w.t)}</span>
 
-        ${w.conMonedas ? `<div class="w-mons" id="w-mons">
-          ${MON_WIDGET.map((m) => `<button class="w-mon ${m.id === _wMoneda ? 'on' : ''}" data-wm="${m.id}" title="${esc(m.n)}">${esc(m.id)}</button>`).join('')}
-        </div>` : ''}
+        ${w.conMonedas ? `<button class="w-sel" id="w-sel">
+          <i class="w-sel-logo" data-cg="${esc((MON_WIDGET.find((m) => m.id === _wMoneda) || {}).cg || '')}"></i>
+          <b>${esc(_wMoneda)}</b>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>` : ''}
 
         <div class="w-der">
           ${w.nota ? `<button class="w-ico" id="w-info" title="Qué es esto">i</button>` : ''}
-          <button class="w-ico pv-x" aria-label="Cerrar">✕</button>
+          <button class="w-ico w-cerrar" aria-label="Cerrar">✕</button>
         </div>
       </div>
 
@@ -496,7 +516,7 @@ async function abrirWidget(id) {
 
   const cerrar = () => { const e = $('w-overlay'); if (e) e.remove(); };
   d.querySelector('.pv-bg').onclick = cerrar;
-  d.querySelector('.pv-x').onclick = cerrar;
+  d.querySelector('.w-cerrar').onclick = cerrar;
 
   const bi = $('w-info');
   if (bi) bi.onclick = (e) => {
@@ -518,11 +538,60 @@ async function abrirWidget(id) {
     montarTV(w.tv(m.sim), w.alto);
   };
 
-  d.querySelectorAll('[data-wm]').forEach((b) => b.onclick = () => {
-    _wMoneda = b.dataset.wm;
-    d.querySelectorAll('.w-mon').forEach((x) => x.classList.toggle('on', x.dataset.wm === _wMoneda));
-    pintar();
-  });
+  /* Un desplegable en vez de la fila: con 26 monedas la fila se cortaba
+     en el móvil y no había forma de llegar a las últimas. */
+  const bsel = $('w-sel');
+  if (bsel) {
+    ponerLogos();
+    bsel.onclick = (e) => {
+      e.stopPropagation();
+      const prev = document.getElementById('w-picker');
+      if (prev) { prev.remove(); return; }
+
+      const m = document.createElement('div');
+      m.id = 'w-picker';
+      m.innerHTML = `
+        <input class="w-buscar" id="w-buscar" placeholder="Buscar…" autocomplete="off">
+        <div class="w-lista">
+          ${MON_WIDGET.map((x) => `
+            <button class="w-op ${x.id === _wMoneda ? 'on' : ''}" data-wm="${x.id}"
+                    data-busca="${esc((x.id + ' ' + x.n).toLowerCase())}">
+              <i class="w-sel-logo" data-cg="${esc(x.cg)}"></i>
+              <b>${esc(x.id)}</b><span>${esc(x.n)}</span>
+              ${x.id === _wMoneda ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg>' : ''}
+            </button>`).join('')}
+        </div>`;
+      document.body.appendChild(m);
+
+      const r = bsel.getBoundingClientRect();
+      const ancho = m.offsetWidth || 230;
+      m.style.left = Math.max(8, Math.min(window.innerWidth - ancho - 8, r.left)) + 'px';
+      m.style.top = (r.bottom + 6) + 'px';
+      setTimeout(ponerLogos, 30);
+
+      m.addEventListener('click', (ev) => ev.stopPropagation());
+      $('w-buscar').oninput = (ev) => {
+        const q = ev.target.value.toLowerCase().trim();
+        m.querySelectorAll('[data-wm]').forEach((x) => {
+          x.style.display = !q || x.dataset.busca.includes(q) ? '' : 'none';
+        });
+      };
+      setTimeout(() => { try { $('w-buscar').focus(); } catch (_) {} }, 60);
+
+      m.querySelectorAll('[data-wm]').forEach((b) => b.onclick = () => {
+        _wMoneda = b.dataset.wm;
+        const bb = bsel.querySelector('b'); if (bb) bb.textContent = _wMoneda;
+        const lg = bsel.querySelector('.w-sel-logo');
+        if (lg) { lg.dataset.cg = (MON_WIDGET.find((x) => x.id === _wMoneda) || {}).cg || ''; lg.classList.remove('con'); lg.style.backgroundImage = ''; }
+        m.remove();
+        ponerLogos();
+        pintar();
+      });
+      setTimeout(() => document.addEventListener('click', () => {
+        const x = document.getElementById('w-picker'); if (x) x.remove();
+      }, { once: true }), 10);
+    };
+  }
 
   pintar();
 }
@@ -814,7 +883,12 @@ async function ponerLogos() {
   }
   if (!_logos) {
     try {
-      const ids = [...new Set(Object.values(MONEDAS).map((m) => m.cg).filter(Boolean))];
+      /* Se piden juntos los de las alertas y los de los widgets: una
+         sola llamada para todo, y así el desplegable tiene sus logos. */
+      const ids = [...new Set([
+        ...Object.values(MONEDAS).map((m) => m.cg),
+        ...MON_WIDGET.map((m) => m.cg)
+      ].filter(Boolean))];
       const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids.join(',')}&per_page=250`);
       const j = await r.json();
       _logos = {};
@@ -826,6 +900,12 @@ async function ponerLogos() {
      iconos de TrustWallet, que sirve la imagen por DIRECCIÓN del token.
      Y si tampoco, queda la inicial de la moneda con su color: nunca un
      círculo vacío. */
+  // Los logos del selector de widgets
+  document.querySelectorAll('.w-sel-logo[data-cg]').forEach((el) => {
+    const url = _logos && _logos[el.dataset.cg];
+    if (url) { el.style.backgroundImage = `url(${url})`; el.classList.add('con'); }
+  });
+
   document.querySelectorAll('[data-logo]').forEach((el) => {
     const id = el.dataset.logo;
     const url = (_logos && _logos[id]) || null;
@@ -1092,13 +1172,11 @@ function estilos() {
   #w-overlay .tl-top{position:relative;display:flex;align-items:center;justify-content:center;min-height:38px;margin-bottom:10px}
   /* La ✕ heredaba un alto de 21px al posicionarse: hay que fijarlo.
      44px es lo mínimo cómodo para el dedo. */
-  /* La ✕ con el mismo estilo que en el resto de la web. Antes heredaba
-     un alto de 21px y salía sin fondo ni borde. */
-  #w-overlay .pv-x{position:absolute;top:0;right:0;width:38px;height:38px;min-height:38px;flex:0 0 auto;
-    border-radius:11px;display:grid;place-items:center;padding:0;cursor:pointer;font-size:15px;
-    background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6;z-index:5}
-  #w-overlay .pv-x:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
-  @media(max-width:560px){#w-overlay .pv-x{width:40px;height:40px;min-height:40px}}
+  /* [CORREGIDO] La ✕ usaba la clase .pv-x, que lleva position:absolute
+     en la esquina. Al meterla en la barra nueva quedaba ENCIMA del
+     botón de información, y por eso se veía la "i" por detrás.
+     Ahora tiene su propia clase y va en la fila, sin superponerse. */
+  #w-overlay .w-cerrar{font-style:normal;font-weight:400;font-size:15px}
   /* El subtítulo, dorado y centrado como el resto de la web. */
   #w-overlay .tl-s{color:var(--gold-soft,#C9A84B);font-size:12.5px;text-align:center;
     font-family:var(--mono,monospace);letter-spacing:.3px;line-height:1.5}
@@ -1118,7 +1196,7 @@ function estilos() {
     background:rgba(255,255,255,.05);border:1px solid #2b3139;color:#8b96a3;
     font-family:var(--display,sans-serif);font-size:14px;font-weight:800;font-style:italic}
   #w-overlay .w-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
-  #w-overlay .w-ico.pv-x{font-style:normal;font-weight:400;font-size:14px}
+
   /* La explicación, en un desplegable */
   #w-info-box{position:absolute;top:52px;right:12px;left:12px;z-index:20;max-width:420px;margin-left:auto;
     padding:16px 18px;border-radius:14px;background:linear-gradient(180deg,#1b2027,#0d1117);
@@ -1131,8 +1209,35 @@ function estilos() {
     background:rgba(232,184,75,.07);border-left:2px solid var(--gold-soft,#C9A84B);
     font-family:var(--sans,sans-serif);font-size:12px;color:#8b96a3;line-height:1.55}
 
-  #w-overlay .w-mons{display:flex;gap:6px;overflow-x:auto;padding:3px;flex:1;min-width:0;
-    background:#12161c;border:none;border-radius:9px;scrollbar-width:none}
+  /* ── Selector de moneda ── */
+  #w-overlay .w-sel{display:inline-flex;align-items:center;gap:9px;flex:0 0 auto;min-height:36px;
+    padding:0 12px;border-radius:9px;background:#12161c;border:1px solid #2b3139;color:#eaecef;
+    cursor:pointer;font-family:var(--mono,monospace);font-size:12.5px;white-space:nowrap}
+  #w-overlay .w-sel:hover{border-color:var(--gold-soft,#C9A84B)}
+  #w-overlay .w-sel b{font-weight:700}
+  #w-overlay .w-sel svg{width:13px;height:13px;opacity:.6}
+  .w-sel-logo{width:20px;height:20px;border-radius:50%;flex:0 0 auto;display:block;
+    background:rgba(255,255,255,.06) center/cover no-repeat;border:1px solid #2b3139}
+  .w-sel-logo.con{background-color:transparent;border-color:transparent}
+  /* El desplegable */
+  #w-picker{position:fixed;z-index:9790;min-width:232px;max-height:330px;overflow:hidden;
+    display:flex;flex-direction:column;background:linear-gradient(180deg,#1b2027,#0d1117);
+    border:1px solid var(--gold-soft,#C9A84B);border-radius:13px;padding:6px;
+    box-shadow:0 16px 44px rgba(0,0,0,.7)}
+  #w-picker .w-buscar{width:100%;box-sizing:border-box;padding:9px 11px;margin-bottom:6px;
+    border-radius:9px;border:1px solid #2b3139;background:#0b0e12;color:#eaecef;
+    font-family:var(--sans,sans-serif);font-size:13px;min-height:38px}
+  #w-picker .w-buscar:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
+  #w-picker .w-lista{overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+  #w-picker .w-op{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;
+    border-radius:9px;background:transparent;border:none;color:#b7bdc6;cursor:pointer;
+    text-align:left;min-height:42px}
+  #w-picker .w-op:hover{background:rgba(255,255,255,.05)}
+  #w-picker .w-op.on{background:rgba(232,184,75,.1);color:var(--gold,#E8B84B)}
+  #w-picker .w-op b{font-family:var(--mono,monospace);font-size:12px;font-weight:700;min-width:46px}
+  #w-picker .w-op span{flex:1;font-family:var(--sans,sans-serif);font-size:12px;color:#7d8794;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #w-picker .w-op svg{width:14px;height:14px;flex:0 0 auto;color:var(--gold,#E8B84B)}
   #w-overlay .w-mons::-webkit-scrollbar{display:none}
   #w-overlay .w-mon{flex:0 0 auto;min-height:36px;padding:0 13px;border-radius:9px;border:none;background:transparent;
     color:#8b96a3;font-family:var(--mono,monospace);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
