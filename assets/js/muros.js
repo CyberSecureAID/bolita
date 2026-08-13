@@ -408,7 +408,10 @@ export async function abrirMuros() {
           <button class="mu-ico" id="mu-foto" title="Compartir imagen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
           </button>
-          <button class="mu-ico" id="mu-ayuda" title="Cómo funciona">?</button>
+          <button class="mu-ico mu-comofunciona" id="mu-ayuda" title="Cómo funciona">
+            <span class="mu-cf-txt">Cómo funciona</span>
+            <span class="mu-cf-sig">?</span>
+          </button>
           <button class="mu-ico" id="mu-x" aria-label="Cerrar">✕</button>
         </div>
       </div>
@@ -488,6 +491,18 @@ export async function abrirMuros() {
    ══════════════════════════════════════════════════════════════ */
 let _reloj = null, _relojVelas = null;
 let _fallos = 0;
+let _huella = '';
+
+/** Actualiza solo los números que cambian, sin rehacer las tarjetas.
+ *  Así no parpadean. */
+function refrescarNumeros() {
+  M.muros.forEach((m) => {
+    const el = document.querySelector(`[data-mp="${m.p}"]`);
+    if (!el) return;
+    const t = el.closest('.mu-card')?.querySelector('.mu-firme');
+    if (t) t.textContent = tiempo(m.segundos);
+  });
+}
 
 /** Las velas se refrescan cada 12 s: el precio no cambia tan rápido
  *  como el libro, y no hace falta pedirlas cada segundo y medio. */
@@ -521,7 +536,13 @@ function arrancar() {
       const px = $('mu-px-v');
       if (px) px.textContent = fmt(M.precio);
       dibujar();
-      pintarPanel();
+
+      /* [CORREGIDO] El panel se repintaba entero en cada toma, y por
+         eso las tarjetas parpadeaban. Ahora solo se reconstruye si de
+         verdad cambió algo relevante: qué muros hay y en qué estado. */
+      const huella = M.muros.map((m) => `${m.p}|${m.tipo}|${Math.round(m.v)}`).join(',');
+      if (huella !== _huella) { _huella = huella; pintarPanel(); }
+      else refrescarNumeros();
     } catch (_) {
       /* Un fallo suelto no rompe nada: se sigue con lo que hay. Solo
          tras varios seguidos se avisa, porque entonces sí pasa algo. */
@@ -602,6 +623,23 @@ function dibujar() {
   const fin = M.velas.length - desp;
   const vis = M.velas.slice(Math.max(0, fin - ancho), fin);
   if (!vis.length) return;
+
+  /* ══════════════════════════════════════════════════════════
+     [CORREGIDO] La línea del precio se separaba de las velas.
+
+     Causa: el precio venía del LIBRO (se refresca cada 1,5 s) y las
+     velas del histórico (cada 12 s). En 1m y 5m eso basta para que
+     se despeguen a la vista.
+
+     Ahora la última vela se estira con el precio real del libro: son
+     el mismo dato, así que van juntas siempre.
+     ══════════════════════════════════════════════════════════ */
+  if (desp === 0 && M.precio > 0) {
+    const u = vis[vis.length - 1];
+    u.c = M.precio;
+    if (M.precio > u.h) u.h = M.precio;
+    if (M.precio < u.l) u.l = M.precio;
+  }
 
   /* El rango abarca velas Y muros: si un muro queda fuera de pantalla,
      el usuario no puede usarlo. */
@@ -891,21 +929,46 @@ function pintarPanel() {
     else if (m.tipo === 'real') fuerza = m.segundos > 240 ? 3 : 2;
     else if (m.tipo === 'vigilando') fuerza = 1;
 
+    /* ══════════════════════════════════════════════════════════
+       EL NARRADOR
+
+       El texto no describe un estado fijo: cuenta lo que está
+       pasando AHORA. Cambia según la distancia del precio, y cuando
+       se acerca sube la tensión, como un comentarista.
+       ══════════════════════════════════════════════════════════ */
+    const dist = Math.abs(m.dist) * 100;
+    const cerca = dist < 0.12;
+    const muyCerca = dist < 0.05;
     let conse;
+
     if (m.tipo === 'falso') {
-      conse = 'Esta pared es humo: se retira cuando el precio se acerca. <b>No la use como referencia</b>.';
+      conse = `Se retira cada vez que el precio se acerca. <b>Es humo</b>: no cuente con este nivel.`;
     } else if (m.tipo === 'ido') {
-      conse = 'La orden <b>ya no está</b> en el libro. Ese nivel quedó sin defensa.';
+      conse = `La orden <b>ya no está</b>. Ese nivel quedó sin defensa: el precio puede pasar de largo.`;
+    } else if (m.consumidoPct > 0.75 && cerca) {
+      conse = esVenta
+        ? `<b>Se está ejecutando ahora mismo.</b> Ya se ha comido el ${Math.round(m.consumidoPct * 100)}% de la orden. Si termina, el techo cae.`
+        : `<b>Se está ejecutando ahora mismo.</b> Ya se ha comido el ${Math.round(m.consumidoPct * 100)}% de la orden. Si termina, el suelo cede.`;
+    } else if (muyCerca) {
+      conse = esVenta
+        ? `<b>El precio está tocando este nivel.</b> ${dinero(m.v)} en venta esperando. Aquí se decide si rompe o rebota.`
+        : `<b>El precio está tocando este nivel.</b> ${dinero(m.v)} en compra esperando. Aquí se decide si aguanta o cede.`;
+    } else if (cerca) {
+      conse = esVenta
+        ? `El precio se está acercando: solo un <b>${dist.toFixed(2)}%</b> por debajo. Atento a lo que pase al llegar.`
+        : `El precio se está acercando: solo un <b>${dist.toFixed(2)}%</b> por encima. Atento a lo que pase al llegar.`;
+    } else if (m.recargas >= 2) {
+      conse = `Ya se la han comido <b>${m.recargas} veces</b> y la han vuelto a poner. Alguien grande insiste en defender ${fmt(m.p)}.`;
     } else if (fuerza >= 3) {
       conse = esVenta
-        ? `Alta probabilidad de <b>rechazo bajista</b> si el precio sube a ${fmt(m.p)}. Alguien grande defiende ese techo.`
-        : `Alta probabilidad de <b>rebote</b> si el precio cae a ${fmt(m.p)}. Alguien grande sostiene ese suelo.`;
+        ? `Lleva ${tiempo(m.segundos)} defendiendo ${fmt(m.p)}. Alta probabilidad de <b>rechazo</b> si el precio sube ahí.`
+        : `Lleva ${tiempo(m.segundos)} sosteniendo ${fmt(m.p)}. Alta probabilidad de <b>rebote</b> si el precio cae ahí.`;
     } else if (fuerza === 2) {
       conse = esVenta
-        ? 'Resistencia real, aún sin probar. Vigílela cuando el precio se acerque.'
-        : 'Soporte real, aún sin probar. Vigílelo cuando el precio se acerque.';
+        ? `${dinero(m.v)} en venta esperando. Aún sin probar: veremos cuando el precio llegue.`
+        : `${dinero(m.v)} en compra esperando. Aún sin probar: veremos cuando el precio llegue.`;
     } else {
-      conse = 'Orden recién puesta. Todavía no sabemos si va en serio.';
+      conse = `Orden recién puesta hace ${tiempo(m.segundos)}. Todavía no sabemos si va en serio.`;
     }
 
     const queHacer = (m.tipo === 'recargable' || m.tipo === 'probado')
@@ -924,15 +987,16 @@ function pintarPanel() {
         </div>
         <div class="mu-l2">
           <span class="mu-nivel">${fmt(m.p)}</span>
-          <span class="mu-dist2">${pct}% ${esVenta ? '↑' : '↓'}</span>
+          <span class="mu-dist2 ${muyCerca ? 'urge' : cerca ? 'cerca' : ''}">${pct}% ${esVenta ? '↑' : '↓'}</span>
           <span class="mu-sello">${c.icono} ${esc(c.nom || '')}</span>
           <span class="mu-fl">${abierta ? '▲' : '▼'}</span>
         </div>
+        ${muyCerca ? '<div class="mu-aviso-vivo">● El precio está tocando este nivel</div>' : ''}
       </button>
       ${abierta ? `<div class="mu-detalle">
         <div class="mu-conse">${conse}</div>
         <div class="mu-metricas">
-          <div><b>${tiempo(m.segundos)}</b><span>firme</span></div>
+          <div><b class="mu-firme">${tiempo(m.segundos)}</b><span>firme</span></div>
           <div><b>${m.recargas || 0}×</b><span>repuesta</span></div>
           <div><b>${Math.round(Math.min(100, m.consumidoPct * 100))}%</b><span>ejecutado</span></div>
           <div><b>${'●'.repeat(fuerza)}${'○'.repeat(3 - fuerza)}</b><span>fuerza</span></div>
@@ -1039,118 +1103,125 @@ async function ponerLogos() {
 /* ══════════════════════════════════════════════════════════════
    LA GUÍA
    ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   LA GUÍA — paso a paso, como en Prize Pool y Market
+
+   Nadie lee un muro de texto. Un paso por pantalla, con su idea
+   clara, y el usuario avanza a su ritmo.
+   ══════════════════════════════════════════════════════════════ */
+const PASOS_MU = [
+  {
+    t: 'El libro de órdenes miente',
+    d: 'En cualquier exchange puede ver las órdenes de compra y venta esperando. Lo que no le dicen es que <b>la mayoría de las grandes son falsas</b>: se ponen para asustar y se retiran justo cuando el precio se acerca.',
+    x: 'Un trader que persigue esos muros pierde dinero de forma sistemática.'
+  },
+  {
+    t: 'Nosotros las vigilamos',
+    d: 'Tomamos una foto del libro <b>cada segundo y medio</b> y seguimos la vida de cada orden grande: cuánto lleva puesta, si se ha ejecutado, si desapareció y volvió.',
+    x: 'Ningún exchange guarda esa historia. Ahí está la diferencia.'
+  },
+  {
+    t: 'La tarjeta le dice qué es',
+    d: 'Cada orden grande genera una tarjeta con <b>cuánto dinero hay</b>, <b>a qué precio</b> y <b>a qué distancia</b> del precio actual. Roja si es venta, verde si es compra.',
+    x: 'Toque la tarjeta para desplegar el detalle completo.'
+  },
+  {
+    t: '★ Muro con recarga',
+    d: 'La señal más fuerte que existe. La orden <b>se consume y vuelve a aparecer</b> al mismo precio, una y otra vez.',
+    x: 'Es alguien grande reponiendo su posición para no mover el mercado. Ese nivel casi siempre aguanta: buen sitio para su stop.'
+  },
+  {
+    t: '✓ Nivel probado',
+    d: 'El precio ya llegó hasta ahí y <b>la orden lo frenó</b>, comiéndose parte del flujo que venía.',
+    x: 'Tiene defensa demostrada. Si vuelve, es probable que reaccione igual.'
+  },
+  {
+    t: '● Muro firme',
+    d: 'Lleva mucho tiempo sin moverse, pero <b>el precio todavía no lo ha puesto a prueba</b>.',
+    x: 'La constancia es buena señal, pero espere a ver qué pasa cuando llegue.'
+  },
+  {
+    t: '✕ Muro falso',
+    d: 'Lo hemos visto <b>huir cuando el precio se acerca</b> y volver cuando se aleja. Esa orden nunca se ejecuta.',
+    x: 'No la use como referencia. Si su plan dependía de ese nivel, revíselo.'
+  },
+  {
+    t: 'Por qué cambian de estado',
+    d: 'Una orden puede pasar de falsa a fiable, o al revés. <b>El mercado cambia y el veredicto también.</b>',
+    x: 'Si una orden que huía empieza a reponerse, sube de categoría. Es información viva, no una etiqueta fija.'
+  },
+  {
+    t: 'El texto le cuenta qué pasa',
+    d: 'La descripción de cada tarjeta <b>cambia sola</b> según lo que ocurre: le avisa cuando el precio se acerca, cuando está tocando el nivel y cuando la orden se está ejecutando.',
+    x: 'Como un comentarista: no tiene que estar mirando los números.'
+  },
+  {
+    t: 'Cómo sacarle partido',
+    d: 'Busque <b>desequilibrios</b>: si hay tres muros fuertes debajo y ninguno arriba, el camino de menor resistencia es hacia arriba.',
+    x: 'Opere a favor del lado vacío, no contra el lado defendido.'
+  },
+  {
+    t: 'Combínelo con Liquidity Pools',
+    d: 'El mapa de liquidaciones dice <b>hacia dónde</b> quiere ir el precio. Esta herramienta dice <b>qué lo está frenando ahora</b>.',
+    x: 'Un muro falso justo delante de un imán de liquidez es de las señales más claras que va a encontrar.'
+  },
+  {
+    t: 'Una última cosa',
+    d: 'Esto es <b>información, no una señal</b>. Le decimos qué es real y qué es humo, con datos del libro de Binance.',
+    x: 'La decisión de entrar o salir sigue siendo suya. Nosotros le quitamos la venda.'
+  }
+];
+
+let _pasoMu = 0;
+
 function ayuda() {
+  _pasoMu = 0;
   const d = document.createElement('div');
   d.id = 'mu-ayuda-box';
   d.innerHTML = `<div class="mu-bg"></div>
     <div class="mua-c">
       <button class="mua-x" id="mua-x" aria-label="Cerrar">✕</button>
-
-      <div class="mua-tabs">
-        <button class="mua-tab on" data-mtab="usar">Cómo operar con esto</button>
-        <button class="mua-tab" data-mtab="leer">Qué significa cada muro</button>
-      </div>
-
-      <div class="mua-pane on" id="mup-usar">
-        <div class="mua-intro">
-          El libro de órdenes <b>miente</b>. La mayoría de los muros grandes que
-          ves en cualquier exchange son falsos: órdenes puestas para asustar
-          que se retiran justo cuando el precio llega.
-          <br><br>
-          Esta herramienta hace lo único que los delata: <b>vigilarlos en el
-          tiempo</b> y decirte cuáles son de verdad.
-        </div>
-
-        <div class="mua-p">
-          <b>1 · Fíate solo de lo que ha aguantado</b>
-          Un muro que lleva minutos firme y que ya se ha comido parte del flujo
-          tiene dinero real detrás. Uno que apareció hace 20 segundos, no.
-          <i>Qué hacer: usa los niveles ★ y ✓ para colocar stops y objetivos. Los ? déjalos madurar.</i>
-        </div>
-
-        <div class="mua-p">
-          <b>2 · La recarga es la señal más fuerte del mercado</b>
-          Cuando un muro se consume y <b>vuelve a aparecer al mismo precio</b>,
-          eso es alguien grande reponiendo su orden para no mover el mercado.
-          Casi nadie ve esto, y es justo donde el precio suele girar.
-          <i>Qué hacer: un nivel con recargas es el mejor sitio para poner tu stop justo detrás.</i>
-        </div>
-
-        <div class="mua-p">
-          <b>3 · No persigas los muros rojos</b>
-          Si marcamos un muro como falso es porque lo hemos visto huir cuando el
-          precio se acercaba. Operar contra él es perder dinero:
-          <b>va a desaparecer</b>.
-          <i>Qué hacer: si tu plan dependía de ese nivel, cámbialo. Ese soporte no existe.</i>
-        </div>
-
-        <div class="mua-p">
-          <b>4 · Mira el desequilibrio</b>
-          Si hay tres muros reales debajo y ninguno arriba, el camino de menor
-          resistencia es hacia arriba: no hay nada que frene al precio en esa
-          dirección.
-          <i>Qué hacer: opera a favor del lado vacío, no contra el lado defendido.</i>
-        </div>
-
-        <div class="mua-p">
-          <b>5 · Combínalo con Liquidity Pools</b>
-          El mapa de liquidaciones dice <b>hacia dónde</b> quiere ir el precio.
-          Esta herramienta dice <b>qué lo está frenando ahora mismo</b>. Un muro
-          falso justo delante de un imán de liquidez es de las señales más
-          claras que vas a encontrar.
-        </div>
-
-        <div class="mua-aviso">
-          Esto es <b>información, no una señal</b>. Te decimos qué es real y qué
-          no lo es. La decisión de entrar o salir sigue siendo tuya.
-        </div>
-      </div>
-
-      <div class="mua-pane" id="mup-leer">
-        <div class="mua-p">
-          <b>Los cinco veredictos</b>
-          <span class="mua-col"><i style="background:#E8B84B;color:#3a2800">★</i><b>Muro con recarga</b> — se consume y vuelve. Alguien grande repone. El más fiable.</span>
-          <span class="mua-col"><i style="background:#2ee86a;color:#04210f">✓</i><b>Nivel probado</b> — el precio ya lo visitó y aguantó.</span>
-          <span class="mua-col"><i style="background:#4d9fff;color:#04121f">●</i><b>Muro firme</b> — lleva mucho sin moverse, pero sin probar.</span>
-          <span class="mua-col"><i style="background:#f6465d;color:#2a0509">✕</i><b>Muro falso</b> — huye cuando el precio se acerca.</span>
-          <span class="mua-col"><i style="background:#8b96a3;color:#0b0e12">?</i><b>En observación</b> — muy reciente, sin historia.</span>
-        </div>
-
-        <div class="mua-p">
-          <b>Cómo lo sabemos</b>
-          Tomamos una foto del libro <b>cada segundo y medio</b> y seguimos la
-          vida de cada nivel: cuánto lleva ahí, cuántas veces ha desaparecido,
-          si se ha consumido, y qué hizo cuando el precio se le acercó.
-          Ningún gráfico normal guarda esa historia.
-        </div>
-
-        <div class="mua-p">
-          <b>El mapa de fondo</b>
-          Cada columna es una foto del libro; a la derecha, ahora. El color
-          indica cuánto dinero hay a cada precio: azul poco, verde bastante,
-          amarillo mucho. Así se ve cómo se mueven las órdenes con el tiempo.
-        </div>
-
-        <div class="mua-aviso">
-          Los datos vienen del <b>libro real de Binance</b>. No hay estimaciones
-          aquí: lo que ves es lo que hay puesto en el mercado.
-        </div>
-      </div>
-
-      <button class="mua-b" id="mua-cerrar">Entendido</button>
+      <div class="mua-eyebrow">Muros Reales</div>
+      <div id="mua-cuerpo"></div>
     </div>`;
   document.body.appendChild(d);
 
   const q = () => d.remove();
   d.querySelector('.mu-bg').onclick = q;
   $('mua-x').onclick = q;
-  $('mua-cerrar').onclick = q;
-  d.querySelectorAll('[data-mtab]').forEach((b) => b.onclick = () => {
-    d.querySelectorAll('.mua-tab').forEach((x) => x.classList.toggle('on', x === b));
-    d.querySelectorAll('.mua-pane').forEach((p) => p.classList.remove('on'));
-    const p = $('mup-' + b.dataset.mtab);
-    if (p) p.classList.add('on');
-    d.querySelector('.mua-c').scrollTop = 0;
+  pintarPaso();
+}
+
+function pintarPaso() {
+  const c = $('mua-cuerpo'); if (!c) return;
+  const p = PASOS_MU[_pasoMu];
+  const ultimo = _pasoMu === PASOS_MU.length - 1;
+
+  c.innerHTML = `
+    <div class="mua-card">
+      <div class="mua-n">${_pasoMu + 1} <em>de ${PASOS_MU.length}</em></div>
+      <div class="mua-t">${p.t}</div>
+      <div class="mua-d">${p.d}</div>
+      <div class="mua-x2">${p.x}</div>
+    </div>
+
+    <div class="mua-puntos">
+      ${PASOS_MU.map((_, i) => `<i class="${i === _pasoMu ? 'on' : ''}" data-paso="${i}"></i>`).join('')}
+    </div>
+
+    <div class="mua-acts">
+      ${_pasoMu > 0 ? '<button class="mua-atras" id="mua-atras">Atrás</button>' : ''}
+      <button class="mua-b" id="mua-sig">${ultimo ? 'Entendido' : 'Saber más'}</button>
+    </div>`;
+
+  $('mua-sig').onclick = () => {
+    if (_pasoMu >= PASOS_MU.length - 1) { document.getElementById('mu-ayuda-box')?.remove(); return; }
+    _pasoMu++; pintarPaso();
+  };
+  const at = $('mua-atras');
+  if (at) at.onclick = () => { _pasoMu = Math.max(0, _pasoMu - 1); pintarPaso(); };
+  c.querySelectorAll('[data-paso]').forEach((b) => b.onclick = () => {
+    _pasoMu = Number(b.dataset.paso); pintarPaso();
   });
 }
 
@@ -1209,6 +1280,25 @@ function estilos() {
     background:rgba(255,255,255,.05);border:1px solid #2b3139;color:#8b96a3;
     font-family:var(--mono,monospace);font-size:14px;font-weight:700}
   #mu-overlay .mu-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  /* "Cómo funciona" con texto en escritorio, solo el signo en móvil. */
+  #mu-overlay .mu-comofunciona{width:auto;padding:0 14px;gap:0;
+    border-color:rgba(232,184,75,.4);color:var(--gold,#E8B84B)}
+  #mu-overlay .mu-cf-txt{font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;
+    white-space:nowrap;letter-spacing:.2px}
+  #mu-overlay .mu-cf-sig{display:none}
+  @media(max-width:860px){
+    #mu-overlay .mu-comofunciona{width:36px;padding:0}
+    #mu-overlay .mu-cf-txt{display:none}
+    #mu-overlay .mu-cf-sig{display:block;font-size:14px;font-weight:700}
+  }
+  /* Avisos del narrador */
+  #mu-overlay .mu-dist2.cerca{background:rgba(232,184,75,.2);color:#E8B84B}
+  #mu-overlay .mu-dist2.urge{background:rgba(246,70,93,.25);color:#ff8a95;
+    animation:muPulso 1.3s ease-in-out infinite}
+  @keyframes muPulso{0%,100%{opacity:1}50%{opacity:.55}}
+  #mu-overlay .mu-aviso-vivo{margin-top:7px;padding:5px 9px;border-radius:7px;
+    background:rgba(246,70,93,.14);border:1px solid rgba(246,70,93,.3);
+    font-family:var(--mono,monospace);font-size:10px;color:#ff8a95;letter-spacing:.4px}
 
   /* ── Cuerpo: gráfico + panel ── */
   #mu-overlay .mu-cuerpo{flex:1;min-height:0;display:flex}
@@ -1439,6 +1529,31 @@ function estilos() {
   #mu-ayuda-box .mua-x{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:10px;
     display:grid;place-items:center;padding:0;cursor:pointer;font-size:15px;z-index:5;
     background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6}
+  #mu-ayuda-box .mua-eyebrow{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:2px;text-align:center;margin-bottom:18px}
+  #mu-ayuda-box .mua-card{padding:24px 20px;border-radius:16px;text-align:center;margin-bottom:18px;
+    background:linear-gradient(165deg,rgba(232,184,75,.08),rgba(255,255,255,.015));
+    border:1px solid rgba(232,184,75,.26)}
+  #mu-ayuda-box .mua-n{font-family:var(--mono,monospace);font-size:11px;color:var(--gold,#E8B84B);
+    font-weight:700;margin-bottom:10px}
+  #mu-ayuda-box .mua-n em{font-style:normal;color:#5c6672;font-weight:400}
+  #mu-ayuda-box .mua-t{font-family:var(--display,sans-serif);font-weight:800;font-size:21px;
+    color:#eaecef;margin-bottom:12px;line-height:1.25}
+  #mu-ayuda-box .mua-d{font-family:var(--sans,sans-serif);font-size:14px;color:#b7bdc6;
+    line-height:1.65;margin-bottom:14px}
+  #mu-ayuda-box .mua-d b{color:var(--gold,#E8B84B);font-weight:700}
+  #mu-ayuda-box .mua-x2{padding:12px 14px;border-radius:11px;background:rgba(255,255,255,.035);
+    border-left:2px solid var(--gold-soft,#C9A84B);font-family:var(--sans,sans-serif);
+    font-size:12.5px;color:#8b96a3;line-height:1.55;text-align:left}
+  #mu-ayuda-box .mua-puntos{display:flex;gap:5px;justify-content:center;margin-bottom:18px;flex-wrap:wrap}
+  #mu-ayuda-box .mua-puntos i{width:7px;height:7px;border-radius:50%;background:#2b3139;cursor:pointer;
+    transition:background .18s,transform .18s}
+  #mu-ayuda-box .mua-puntos i.on{background:var(--gold,#E8B84B);transform:scale(1.35)}
+  #mu-ayuda-box .mua-acts{display:flex;gap:9px}
+  #mu-ayuda-box .mua-atras{flex:0 0 auto;min-height:48px;padding:0 20px;border-radius:12px;
+    background:transparent;border:1px solid #2b3139;color:#8b96a3;cursor:pointer;
+    font-family:var(--display,sans-serif);font-weight:700;font-size:13px}
+  #mu-ayuda-box .mua-atras:hover{border-color:#3a424c;color:#b7bdc6}
   #mu-ayuda-box .mua-tabs{display:flex;gap:4px;padding:4px;margin:0 44px 18px 0;
     background:#0b0e12;border:1px solid #2b3139;border-radius:12px}
   #mu-ayuda-box .mua-tab{flex:1;min-height:40px;padding:0 10px;border-radius:9px;border:none;
@@ -1468,7 +1583,7 @@ function estilos() {
     border-left:2px solid var(--gold-soft,#C9A84B);font-family:var(--sans,sans-serif);
     font-size:12px;color:#b7bdc6;line-height:1.6;margin-bottom:18px}
   #mu-ayuda-box .mua-aviso b{color:var(--gold,#E8B84B)}
-  #mu-ayuda-box .mua-b{width:100%;min-height:48px;border-radius:12px;border:1px solid #c79426;
+  #mu-ayuda-box .mua-b{flex:1;min-height:48px;border-radius:12px;border:1px solid #c79426;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
     font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;
     box-shadow:0 4px 0 #8f6a1a}
