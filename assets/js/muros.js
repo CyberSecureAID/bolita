@@ -926,6 +926,46 @@ function calor(v) {
    se abre una vez. No son números: es qué significa cada muro y qué
    hacer con él.
    ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   EL NARRADOR
+   El texto cuenta lo que pasa AHORA, no un estado fijo. Cambia con
+   la distancia del precio y sube la tensión cuando se acerca.
+   ══════════════════════════════════════════════════════════════ */
+function narrar(m, esVenta, dist) {
+  const cerca = dist < 0.12, muyCerca = dist < 0.05;
+
+  if (m.tipo === 'falso') {
+    return 'Se retira cada vez que el precio se acerca. <b>Es humo</b>: no cuente con este nivel.';
+  }
+  if (m.tipo === 'ido') {
+    return 'La orden <b>ya no está</b>. Ese nivel quedó sin defensa: el precio puede pasar de largo.';
+  }
+  if (m.consumidoPct > 0.75 && cerca) {
+    return `<b>Se está ejecutando ahora mismo.</b> Ya se ha comido el ${Math.round(m.consumidoPct * 100)}% de la orden. ` +
+           (esVenta ? 'Si termina, el techo cae.' : 'Si termina, el suelo cede.');
+  }
+  if (muyCerca) {
+    return `<b>El precio está tocando este nivel.</b> ${dinero(m.v)} ${esVenta ? 'en venta' : 'en compra'} esperando. ` +
+           (esVenta ? 'Aquí se decide si rompe o rebota.' : 'Aquí se decide si aguanta o cede.');
+  }
+  if (cerca) {
+    return `El precio se está acercando: solo un <b>${dist.toFixed(2)}%</b> ${esVenta ? 'por debajo' : 'por encima'}. Atento a lo que pase al llegar.`;
+  }
+  if (m.recargas >= 2) {
+    return `Ya se la han comido <b>${m.recargas} veces</b> y la han vuelto a poner. Alguien grande insiste en defender ${fmt(m.p)}.`;
+  }
+  const fuerte = m.tipo === 'recargable' || m.tipo === 'probado' || (m.tipo === 'real' && m.segundos > 240);
+  if (fuerte) {
+    return esVenta
+      ? `Lleva ${tiempo(m.segundos)} defendiendo ${fmt(m.p)}. Alta probabilidad de <b>rechazo</b> si el precio sube ahí.`
+      : `Lleva ${tiempo(m.segundos)} sosteniendo ${fmt(m.p)}. Alta probabilidad de <b>rebote</b> si el precio cae ahí.`;
+  }
+  if (m.tipo === 'real') {
+    return `${dinero(m.v)} ${esVenta ? 'en venta' : 'en compra'} esperando. Aún sin probar: veremos cuando el precio llegue.`;
+  }
+  return `Orden recién puesta hace ${tiempo(m.segundos)}. Todavía no sabemos si va en serio.`;
+}
+
 function pintarPanel() {
   const lista = $('mu-lista'); if (!lista) return;
   const estado = $('mu-estado');
@@ -966,7 +1006,7 @@ function pintarPanel() {
     return;
   }
 
-  const tarjeta = (m) => {
+  const tarjeta = (m, id) => {
     const c = COLORES[m.tipo];
     const esVenta = m.p > M.precio;
     const pct = (Math.abs(m.dist) * 100).toFixed(2);
@@ -986,37 +1026,7 @@ function pintarPanel() {
     const dist = Math.abs(m.dist) * 100;
     const cerca = dist < 0.12;
     const muyCerca = dist < 0.05;
-    let conse;
-
-    if (m.tipo === 'falso') {
-      conse = `Se retira cada vez que el precio se acerca. <b>Es humo</b>: no cuente con este nivel.`;
-    } else if (m.tipo === 'ido') {
-      conse = `La orden <b>ya no está</b>. Ese nivel quedó sin defensa: el precio puede pasar de largo.`;
-    } else if (m.consumidoPct > 0.75 && cerca) {
-      conse = esVenta
-        ? `<b>Se está ejecutando ahora mismo.</b> Ya se ha comido el ${Math.round(m.consumidoPct * 100)}% de la orden. Si termina, el techo cae.`
-        : `<b>Se está ejecutando ahora mismo.</b> Ya se ha comido el ${Math.round(m.consumidoPct * 100)}% de la orden. Si termina, el suelo cede.`;
-    } else if (muyCerca) {
-      conse = esVenta
-        ? `<b>El precio está tocando este nivel.</b> ${dinero(m.v)} en venta esperando. Aquí se decide si rompe o rebota.`
-        : `<b>El precio está tocando este nivel.</b> ${dinero(m.v)} en compra esperando. Aquí se decide si aguanta o cede.`;
-    } else if (cerca) {
-      conse = esVenta
-        ? `El precio se está acercando: solo un <b>${dist.toFixed(2)}%</b> por debajo. Atento a lo que pase al llegar.`
-        : `El precio se está acercando: solo un <b>${dist.toFixed(2)}%</b> por encima. Atento a lo que pase al llegar.`;
-    } else if (m.recargas >= 2) {
-      conse = `Ya se la han comido <b>${m.recargas} veces</b> y la han vuelto a poner. Alguien grande insiste en defender ${fmt(m.p)}.`;
-    } else if (fuerza >= 3) {
-      conse = esVenta
-        ? `Lleva ${tiempo(m.segundos)} defendiendo ${fmt(m.p)}. Alta probabilidad de <b>rechazo</b> si el precio sube ahí.`
-        : `Lleva ${tiempo(m.segundos)} sosteniendo ${fmt(m.p)}. Alta probabilidad de <b>rebote</b> si el precio cae ahí.`;
-    } else if (fuerza === 2) {
-      conse = esVenta
-        ? `${dinero(m.v)} en venta esperando. Aún sin probar: veremos cuando el precio llegue.`
-        : `${dinero(m.v)} en compra esperando. Aún sin probar: veremos cuando el precio llegue.`;
-    } else {
-      conse = `Orden recién puesta hace ${tiempo(m.segundos)}. Todavía no sabemos si va en serio.`;
-    }
+    const conse = narrar(m, esVenta, dist);
 
     const queHacer = (m.tipo === 'recargable' || m.tipo === 'probado')
       ? (esVenta ? 'Buen sitio para recoger beneficios si va largo.' : 'Buen sitio para colocar su stop justo por debajo.')
@@ -1026,7 +1036,8 @@ function pintarPanel() {
     /* La tarjeta: lo esencial en dos líneas, el resto se despliega. */
     const abierta = M.seleccionado === m.p;
     return `
-    <div class="mu-card ${c.clase} f${fuerza} ${abierta ? 'sel' : ''}" data-lado="${esVenta ? 'venta' : 'compra'}">
+    <div class="mu-card ${c.clase} f${fuerza} ${abierta ? 'sel' : ''}"
+         data-id="${id}" data-lado="${esVenta ? 'venta' : 'compra'}">
       <button class="mu-cab-card" data-mp="${m.p}">
         <div class="mu-l1">
           <span class="mu-lado">${esVenta ? 'EN VENTA' : 'EN COMPRA'}</span>
@@ -1044,8 +1055,8 @@ function pintarPanel() {
         <div class="mu-conse mu-escribe">${conse}</div>
         <div class="mu-metricas">
           <div><b class="mu-firme">${tiempo(m.segundos)}</b><span>firme</span></div>
-          <div><b>${m.recargas || 0}×</b><span>repuesta</span></div>
-          <div><b>${Math.round(Math.min(100, m.consumidoPct * 100))}%</b><span>ejecutado</span></div>
+          <div><b class="mu-rec-n">${m.recargas || 0}×</b><span>repuesta</span></div>
+          <div><b class="mu-eje-n">${Math.round(Math.min(100, m.consumidoPct * 100))}%</b><span>ejecutado</span></div>
           <div><b>${'●'.repeat(fuerza)}${'○'.repeat(3 - fuerza)}</b><span>fuerza</span></div>
         </div>
         <div class="mu-hacer">${queHacer}</div>
@@ -1060,21 +1071,133 @@ function pintarPanel() {
      Ahora se compara con lo que ya está pintado: las tarjetas que
      siguen igual NO se tocan, solo se añaden las nuevas y se quitan
      las que se fueron. */
-  const nuevoHTML = lst.map(tarjeta).join('');
-  if (lista.dataset.firma !== nuevoHTML) {
-    // Se guarda la posición del scroll: recrear la lista la perdía
-    const sc = lista.scrollTop;
-    lista.innerHTML = nuevoHTML;
-    lista.dataset.firma = nuevoHTML;
-    lista.scrollTop = sc;
-  }
+  /* ══════════════════════════════════════════════════════════
+     [RESUELTO A FONDO] EL PARPADEO
 
-  lista.querySelectorAll('[data-mp]').forEach((b) => b.onclick = () => {
-    const p = Number(b.dataset.mp);
-    M.seleccionado = M.seleccionado === p ? null : p;
-    pintarPanel(); dibujar();
+     `innerHTML = ...` destruye y recrea TODOS los nodos del panel.
+     Da igual cuándo se llame: cada repintado hace parpadear la lista
+     entera. Controlar la frecuencia no lo arregla, solo lo espacia.
+
+     La solución de verdad es no recrear nada:
+
+       · Cada tarjeta lleva su precio como identidad (data-id).
+       · Las que ya están se REUTILIZAN: solo se actualizan los
+         textos que cambiaron, uno a uno.
+       · Solo se crean las tarjetas nuevas y se borran las que
+         desaparecieron.
+
+     Resultado: los nodos sobreviven entre refrescos y la lista no
+     parpadea nunca.
+     ══════════════════════════════════════════════════════════ */
+  const vistos = new Set();
+
+  lst.forEach((m, idx) => {
+    const id = 'w' + m.p.toFixed(6);
+    vistos.add(id);
+    let card = lista.querySelector(`[data-id="${id}"]`);
+
+    if (!card) {
+      // Tarjeta nueva: se crea y se coloca en su sitio
+      const tmp = document.createElement('div');
+      tmp.innerHTML = tarjeta(m, id);
+      card = tmp.firstElementChild;
+      const enPos = lista.children[idx];
+      if (enPos) lista.insertBefore(card, enPos); else lista.appendChild(card);
+      enganchar(card);
+    } else {
+      /* Si cambia el estado abierto/cerrado hay que rehacer ESA
+         tarjeta (aparece o desaparece el bloque de detalle), pero
+         solo esa: las demás siguen intactas. */
+      const abiertaAhora = M.seleccionado === m.p;
+      const estabaAbierta = !!card.querySelector('.mu-detalle');
+      if (abiertaAhora !== estabaAbierta) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = tarjeta(m, id);
+        const nueva = tmp.firstElementChild;
+        card.replaceWith(nueva);
+        card = nueva;
+        enganchar(card);
+      } else {
+        actualizar(card, m);
+      }
+      // Y se recoloca solo si cambió de orden
+      if (lista.children[idx] !== card) {
+        const enPos = lista.children[idx];
+        if (enPos) lista.insertBefore(card, enPos); else lista.appendChild(card);
+      }
+    }
   });
+
+  // Fuera las que ya no están
+  [...lista.children].forEach((el) => {
+    if (!vistos.has(el.dataset.id)) el.remove();
+  });
+
+  function enganchar(card) {
+    const b = card.querySelector('[data-mp]');
+    if (!b) return;
+    b.onclick = () => {
+      const p = Number(b.dataset.mp);
+      M.seleccionado = M.seleccionado === p ? null : p;
+      pintarPanel(); dibujar();
+    };
+  }
 }
+
+/** Actualiza una tarjeta sin recrearla: solo lo que cambió. */
+function actualizar(card, m) {
+  const c = COLORES[m.tipo];
+  const esVenta = m.p > M.precio;
+  const dist = Math.abs(m.dist) * 100;
+
+  const pon = (sel, txt) => {
+    const e = card.querySelector(sel);
+    if (e && e.textContent !== txt) e.textContent = txt;
+  };
+  const clase = (sel, cl, si) => {
+    const e = card.querySelector(sel);
+    if (e) e.classList.toggle(cl, si);
+  };
+
+  pon('.mu-imp', dinero(m.v));
+  pon('.mu-nivel', fmt(m.p));
+  pon('.mu-dist2', dist.toFixed(2) + '% ' + (esVenta ? '↑' : '↓'));
+  pon('.mu-sello', c.icono + ' ' + (c.nom || ''));
+  pon('.mu-lado', esVenta ? 'EN VENTA' : 'EN COMPRA');
+
+  // El veredicto puede cambiar: la tarjeta cambia de color con él
+  ['oro', 'verde', 'azul', 'rojo', 'gris', 'ido'].forEach((k) => {
+    card.classList.toggle(k, k === c.clase);
+  });
+  card.dataset.lado = esVenta ? 'venta' : 'compra';
+
+  clase('.mu-dist2', 'cerca', dist < 0.12 && dist >= 0.05);
+  clase('.mu-dist2', 'urge', dist < 0.05);
+
+  // El detalle, si está abierto
+  const det = card.querySelector('.mu-detalle');
+  if (det) {
+    pon('.mu-firme', tiempo(m.segundos));
+    const rec = card.querySelector('.mu-rec-n');
+    if (rec) rec.textContent = (m.recargas || 0) + '×';
+    const eje = card.querySelector('.mu-eje-n');
+    if (eje) eje.textContent = Math.round(Math.min(100, m.consumidoPct * 100)) + '%';
+
+    /* El narrador: solo se reescribe si el mensaje cambió, y entonces
+       se reanima. Así el efecto de escritura marca los momentos que
+       importan en vez de repetirse cada segundo. */
+    const cn = card.querySelector('.mu-conse');
+    const txt = narrar(m, esVenta, dist);
+    if (cn && cn.innerHTML !== txt) {
+      cn.innerHTML = txt;
+      cn.classList.remove('mu-escribe');
+      void cn.offsetWidth;
+      cn.classList.add('mu-escribe');
+    }
+  }
+}
+
+
 
 /* ══════════════════════════════════════════════════════════════
    SELECTOR DE MONEDA
@@ -1453,8 +1576,14 @@ function estilos() {
   @keyframes muAbre{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
   /* El texto entra escribiéndose: da la sensación de que alguien
      está narrando lo que pasa en directo. */
-  #mu-overlay .mu-escribe{animation:muEscribe .5s steps(28) both}
-  @keyframes muEscribe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+  /* [CORREGIDO] clip-path recortaba el texto cuando ocupaba varias
+     líneas y lo dejaba a medias. Un barrido de opacidad da la misma
+     sensación de "se está escribiendo" sin cortar nada. */
+  #mu-overlay .mu-escribe{animation:muEscribe .55s ease both}
+  @keyframes muEscribe{
+    from{opacity:0;transform:translateY(-3px);filter:blur(1.5px)}
+    to{opacity:1;transform:none;filter:none}
+  }
   #mu-overlay .mu-conse{font-family:var(--sans,sans-serif);font-size:12.5px;color:#c8cfd8;
     line-height:1.55;margin-bottom:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07)}
   #mu-overlay .mu-conse b{color:#fff;font-weight:700}
