@@ -396,6 +396,26 @@ const DIC = {
     'minutos': 'minutes',
     'horas': 'hours',
     'segundos': 'seconds',
+
+    /* ══════════════ PERFIL ══════════════ */
+    'Conecta tu wallet para ver tu panel:': 'Connect your wallet to see your panel:',
+    'suscripción, rendimiento, bots y gas.': 'subscription, performance, bots and gas.',
+    'Ver en BscScan ↗': 'View on BscScan ↗',
+    'BscScan ↗': 'BscScan ↗',
+    'Coste por operación': 'Cost per trade',
+    'Cada compra o venta que hace un bot': 'Each buy or sell a bot makes',
+    'Se descuenta de tu gas, no de tu inversión.': 'Deducted from your gas, not your investment.',
+    'Permisos de gasto': 'Spending approvals',
+    'No tienes permisos que revisar.': 'You have no approvals to review.',
+    'quítaselo': 'revoke it',
+    'quitar': 'revoke',
+    'Notificaciones': 'Notifications',
+    'Renovación automática': 'Auto-renewal',
+    'Pronto': 'Soon',
+    'Suscripción y gas': 'Subscription and gas',
+    'Actividad': 'Activity',
+    'Tus bots por estrategia': 'Your bots by strategy',
+    'Los datos se leen directamente de la blockchain.': 'Data is read directly from the blockchain.',
     'Cambiar idioma': 'Change language',
     'Idioma': 'Language'
   },
@@ -734,6 +754,22 @@ const DIC = {
     'minutos': 'minutos',
     'horas': 'horas',
     'segundos': 'segundos',
+
+    /* ══════════════ PERFIL ══════════════ */
+    'Conecta tu wallet para ver tu panel:': 'Ligue a sua carteira para ver o seu painel:',
+    'suscripción, rendimiento, bots y gas.': 'subscrição, desempenho, bots e gás.',
+    'Ver en BscScan ↗': 'Ver no BscScan ↗',
+    'Coste por operación': 'Custo por operação',
+    'Cada compra o venta que hace un bot': 'Cada compra ou venda que um bot faz',
+    'Se descuenta de tu gas, no de tu inversión.': 'É descontado do seu gás, não do investimento.',
+    'Permisos de gasto': 'Permissões de gasto',
+    'No tienes permisos que revisar.': 'Não tem permissões para rever.',
+    'quítaselo': 'remover',
+    'quitar': 'remover',
+    'Notificaciones': 'Notificações',
+    'Renovación automática': 'Renovação automática',
+    'Pronto': 'Em breve',
+    'Los datos se leen directamente de la blockchain.': 'Os dados são lidos diretamente da blockchain.',
     'Cambiar idioma': 'Mudar idioma',
     'Idioma': 'Idioma'
   }
@@ -754,23 +790,19 @@ const DIC = {
    Así se capta el público de fuera sin obligar a nadie a buscar el
    selector, y el de casa no nota ningún cambio.
    ══════════════════════════════════════════════════════════════ */
-let _idioma = 'es';
+/* INGLÉS POR DEFECTO.
+
+   El producto se presenta en inglés a todo el mundo. Quien prefiera
+   español o portugués lo cambia desde su perfil, y esa elección se
+   guarda para las siguientes visitas. */
+let _idioma = 'en';
 let _autodetectado = false;
 
 try {
   const g = localStorage.getItem(CLAVE);
-  if (g && (g === 'es' || DIC[g])) {
-    // El usuario ya decidió: se respeta y no se toca más
-    _idioma = g;
-  } else {
-    const nav = (navigator.languages && navigator.languages[0]) || navigator.language || '';
-    const base = String(nav).toLowerCase().slice(0, 2);
-    if (base === 'pt') { _idioma = 'pt'; _autodetectado = true; }
-    else if (base && base !== 'es') { _idioma = 'en'; _autodetectado = true; }
-    // Cualquier variante de español (es-MX, es-ES, es-CU…) se queda en 'es'
-  }
+  if (g && (g === 'es' || DIC[g])) _idioma = g;   // el usuario ya decidió
 } catch (_) {
-  /* Si el navegador bloquea el almacenamiento, se queda en español.
+  /* Si el navegador bloquea el almacenamiento, se queda en inglés.
      No es motivo para romper nada. */
 }
 
