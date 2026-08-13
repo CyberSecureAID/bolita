@@ -462,8 +462,11 @@ function columnaDe(mapa, c, sinRefuerzo) {
 let _vivo = null;
 function arrancarVivo() {
   clearInterval(_vivo);
+  const idVivo = _cargaId;
   _vivo = setInterval(async () => {
-    if (!$('lq-caja') || V.arrastrando) return;
+    // Si ya se cambió de temporalidad, este reloj es de la carga vieja
+    if (idVivo !== _cargaId) { clearInterval(_vivo); return; }
+    if (!$('lq-caja') || V.arrastrando || !V.mapa) return;
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
       const nuevas = await traerVelas(par.s, _tf, 3);
@@ -494,8 +497,9 @@ function arrancarVivo() {
       if (!cambio) return;
 
       if (V.velas.length > 520) V.velas = V.velas.slice(-500);
-      V.mapa = construirMapa(V.velas);
-      dibujar();
+      const m2 = construirMapa(V.velas);
+      // Solo se sustituye si el mapa nuevo es válido
+      if (m2 && idVivo === _cargaId) { V.mapa = m2; dibujar(); }
     } catch (_) {}
   }, 3000);   // 3 s: el precio tiene que verse moverse
 }
@@ -848,12 +852,28 @@ async function abrirPools() {
   });
 }
 
+/* Cada carga lleva su número. Si el usuario cambia de temporalidad
+   mientras una petición está en vuelo, la vieja se descarta al volver:
+   así no puede pisar los datos de la nueva. */
+let _cargaId = 0;
+
 async function pintar() {
   const caja = $('lq-caja'); if (!caja) return;
+  const miId = ++_cargaId;
+
+  /* Se limpia el estado ANTES de pedir nada. Antes, si la carga fallaba,
+     V.mapa se quedaba con los datos de la temporalidad anterior y el
+     dibujo mezclaba las dos: el mapa desaparecía y solo quedaba la
+     gráfica, que es justo lo que viste. */
+  clearInterval(_vivo);
+  V.mapa = null;
+  V.velas = [];
   caja.innerHTML = `<div class="lq-cargando">Calculando zonas de liquidez…</div>`;
+
   try {
     const par = PARES.find((p) => p.id === _par) || PARES[0];
     const velas = await traerVelas(par.s, _tf, 500);
+    if (miId !== _cargaId) return;              // llegó tarde: se descarta
     if (velas.length < 30) throw new Error('vacío');
 
     /* [CORREGIDO] El precio salía desfasado porque la última vela trae
@@ -872,15 +892,29 @@ async function pintar() {
       }
     } catch (_) {}
 
+    if (miId !== _cargaId) return;
     V.velas = velas;
     V.tfLargo = (_tf === '1d' || _tf === '4h');
-    V.mapa = construirMapa(velas);
-    if (!V.mapa) throw new Error('pocos datos');
+
+    const mapa = construirMapa(velas);
+    if (!mapa) throw new Error('pocos datos');
+    if (miId !== _cargaId) return;
+    V.mapa = mapa;
 
     encuadrar();
     arrancarVivo();
   } catch (_) {
-    caja.innerHTML = `<div class="lq-vacio">No se pudieron cargar los datos.<br>Revisa tu conexión y vuelve a intentarlo.</div>`;
+    if (miId !== _cargaId) return;
+    /* Con el estado limpio, un fallo deja un mensaje claro y un botón
+       para reintentar. Nunca media pantalla con datos viejos. */
+    V.mapa = null;
+    caja.innerHTML = `<div class="lq-vacio">
+      No se pudieron cargar los datos de ${esc(_par)} en ${esc(_tf)}.<br>
+      Revisa tu conexión.
+      <button class="lq-reintentar" id="lq-reintentar">Reintentar</button>
+    </div>`;
+    const b = $('lq-reintentar');
+    if (b) b.onclick = () => pintar();
   }
 }
 
@@ -953,7 +987,9 @@ function ajustarY() {
 }
 
 function dibujar() {
-  const caja = $('lq-caja'); if (!caja || !V.mapa) return;
+  const caja = $('lq-caja');
+  // Sin mapa no se dibuja nada: evita mezclar datos de dos cargas.
+  if (!caja || !V.mapa || !V.mapa.velas || !V.mapa.velas.length) return;
 
   const W = caja.clientWidth || 900;
   const H = caja.clientHeight || 500;
@@ -1714,47 +1750,72 @@ function menuTfs() {
    el nombre y el par abajo. Así, cuando alguien comparte su análisis,
    va firmado. Es publicidad que se reparte sola.
    ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   GUARDAR IMAGEN
+
+   La imagen que se comparte lleva su propia franja de marca abajo:
+   el logo grande y nítido, y a su derecha los dos textos en dorado.
+
+   IMPORTANTE: la marca de agua de la interfaz NO sale aquí. Son dos
+   cosas distintas, y duplicarlas quedaría mal. Por eso se oculta
+   mientras se hace la captura y se devuelve después.
+   ══════════════════════════════════════════════════════════════ */
 function guardarImagen() {
   const cv = document.querySelector('.lq-cv');
   if (!cv) return;
+
+  // Fuera la marca de la interfaz durante la captura
+  const marca = document.querySelector('.lq-marca');
+  const antes = marca ? marca.style.display : null;
+  if (marca) marca.style.display = 'none';
+  const devolver = () => { if (marca) marca.style.display = antes || ''; };
+
   try {
+    const esc2 = cv.width / cv.clientWidth;
+    const barra = 78 * esc2;
     const out = document.createElement('canvas');
-    const barra = 46;
     out.width = cv.width;
-    out.height = cv.height + barra * (cv.width / cv.clientWidth);
+    out.height = cv.height + barra;
     const g = out.getContext('2d');
-    const esc = cv.width / cv.clientWidth;
 
     g.fillStyle = '#0a0d12';
     g.fillRect(0, 0, out.width, out.height);
     g.drawImage(cv, 0, 0);
 
-    // La franja de la marca
     const yB = cv.height;
     g.fillStyle = '#0b0e12';
-    g.fillRect(0, yB, out.width, barra * esc);
-    g.fillStyle = 'rgba(232,184,75,.25)';
-    g.fillRect(0, yB, out.width, 1.5 * esc);
+    g.fillRect(0, yB, out.width, barra);
+    g.fillStyle = 'rgba(232,184,75,.35)';
+    g.fillRect(0, yB, out.width, 2 * esc2);
 
-    g.fillStyle = '#E8B84B';
-    g.font = `800 ${17 * esc}px system-ui,sans-serif`;
-    g.textAlign = 'left';
-    g.fillText('CRIPTO CUBA OFICIAL', 16 * esc, yB + 21 * esc);
+    /* Los textos y la fecha se pintan siempre; el logo se añade cuando
+       carga. Si tardara o fallara, la imagen sale igual con su marca
+       de texto: nunca se queda el usuario sin su captura. */
+    const pintarTextos = (xTexto) => {
+      g.textAlign = 'left';
+      g.fillStyle = '#E8B84B';
+      g.font = `800 ${19 * esc2}px system-ui,sans-serif`;
+      g.fillText('Mapa de Liquidaciones', xTexto, yB + 34 * esc2);
 
-    g.fillStyle = '#6b7681';
-    g.font = `${11 * esc}px ui-monospace,monospace`;
-    g.fillText('criptocubaoficial.com  ·  Mapa de Liquidaciones', 16 * esc, yB + 36 * esc);
+      g.font = `700 ${14 * esc2}px ui-monospace,monospace`;
+      g.fillStyle = '#C9A84B';
+      g.fillText('CriptoCubaOficial.com', xTexto, yB + 56 * esc2);
 
-    g.textAlign = 'right';
-    g.fillStyle = '#8b96a3';
-    g.font = `700 ${13 * esc}px ui-monospace,monospace`;
-    const fecha = new Date().toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-    g.fillText(`${_par} · ${_tf}`, out.width - 16 * esc, yB + 21 * esc);
-    g.font = `${10 * esc}px ui-monospace,monospace`;
-    g.fillStyle = '#6b7681';
-    g.fillText(fecha, out.width - 16 * esc, yB + 36 * esc);
+      // A la derecha, el par y la fecha
+      g.textAlign = 'right';
+      g.fillStyle = '#8b96a3';
+      g.font = `700 ${14 * esc2}px ui-monospace,monospace`;
+      g.fillText(`${_par} · ${_tf}`, out.width - 20 * esc2, yB + 34 * esc2);
+      g.font = `${11 * esc2}px ui-monospace,monospace`;
+      g.fillStyle = '#6b7681';
+      g.fillText(new Date().toLocaleString('es',
+        { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+        out.width - 20 * esc2, yB + 56 * esc2);
+      g.textAlign = 'left';
+    };
 
-    out.toBlob((blob) => {
+    const bajar = () => out.toBlob((blob) => {
+      devolver();
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1763,7 +1824,27 @@ function guardarImagen() {
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1500);
     }, 'image/png');
-  } catch (_) {}
+
+    const logo = new Image();
+    let hecho = false;
+    const una = (conLogo) => {
+      if (hecho) return; hecho = true;
+      pintarTextos(conLogo ? 20 * esc2 + conLogo + 18 * esc2 : 20 * esc2);
+      bajar();
+    };
+    logo.onload = () => {
+      try {
+        // Nítido y grande: es la firma de la imagen
+        const alto = 52 * esc2;
+        const ancho = Math.round(logo.width * (alto / logo.height));
+        g.drawImage(logo, 20 * esc2, yB + (barra - alto) / 2, ancho, alto);
+        una(ancho);
+      } catch (_) { una(0); }
+    };
+    logo.onerror = () => una(0);
+    setTimeout(() => una(0), 1500);
+    logo.src = 'assets/img/cco-marca.png';
+  } catch (_) { devolver(); }
 }
 
 /** Refleja en los botones qué herramienta está activa. */
@@ -1998,9 +2079,14 @@ function estilos() {
   #lq-overlay .lq-slider input::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
     background:var(--gold,#E8B84B);cursor:pointer;border:none}
   /* La marca de agua: nuestra, en la esquina, discreta */
-  /* La marca de agua: el logo, discreto. */
-  #lq-overlay .lq-marca{position:absolute;left:12px;bottom:28px;pointer-events:none;
-    height:26px;width:auto;opacity:.28;user-select:none}
+  /* La marca de agua: se tiene que ver quiénes somos. Al 28% de
+     opacidad prácticamente desaparecía sobre el mapa. */
+  #lq-overlay .lq-marca{position:absolute;left:14px;bottom:30px;pointer-events:none;
+    height:40px;width:auto;opacity:.72;user-select:none;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,.85))}
+  @media(max-width:760px){
+    #lq-overlay .lq-marca{height:30px;left:10px;bottom:26px}
+  }
   #lq-overlay .lq-ayuda,#lq-overlay .lq-x{width:34px;height:34px;min-height:34px;flex:0 0 auto;border-radius:9px;display:grid;place-items:center;
     padding:0;cursor:pointer;background:rgba(255,255,255,.05);border:1px solid #2b3139;color:#8b96a3;
     font-family:var(--mono,monospace);font-size:14px;font-weight:700}
@@ -2012,6 +2098,10 @@ function estilos() {
   #lq-overlay .lq-cv{display:block}
   #lq-overlay .lq-info{position:absolute;left:9px;top:8px;font-family:var(--mono,monospace);font-size:10px;
     color:#6b7681;background:rgba(7,9,12,.75);padding:3px 8px;border-radius:20px;pointer-events:none}
+  #lq-overlay .lq-reintentar{display:block;margin:14px auto 0;min-height:42px;padding:0 22px;
+    border-radius:11px;border:1px solid #c79426;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:13px;cursor:pointer}
   #lq-overlay .lq-cargando,#lq-overlay .lq-vacio{font-family:var(--mono,monospace);font-size:12px;
     color:#7d8794;text-align:center;padding:30px;line-height:1.7}
 
