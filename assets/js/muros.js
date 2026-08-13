@@ -63,7 +63,8 @@ const TFS = [
   { id: '5m',  n: '5m' },
   { id: '15m', n: '15m' },
   { id: '1h',  n: '1H' },
-  { id: '4h',  n: '4H' }
+  { id: '4h',  n: '4H' },
+  { id: '1d',  n: '1D' }
 ];
 
 async function traerVelas(simbolo, tf, n = 120) {
@@ -105,6 +106,7 @@ const M = {
   ancho: 70,          // cuántas velas se ven
   filtro: 'todos',
   maxMuro: 1,
+  zoomY: 1,           // estirar/contraer la escala de precios
   desplaz: 0          // cuántas velas se ha movido la vista
 };
 
@@ -492,15 +494,24 @@ export async function abrirMuros() {
 let _reloj = null, _relojVelas = null;
 let _fallos = 0;
 let _huella = '';
+let _ultPintado = 0;
 
 /** Actualiza solo los números que cambian, sin rehacer las tarjetas.
  *  Así no parpadean. */
 function refrescarNumeros() {
   M.muros.forEach((m) => {
-    const el = document.querySelector(`[data-mp="${m.p}"]`);
-    if (!el) return;
-    const t = el.closest('.mu-card')?.querySelector('.mu-firme');
-    if (t) t.textContent = tiempo(m.segundos);
+    const b = document.querySelector(`[data-mp="${m.p}"]`);
+    if (!b) return;
+    const card = b.closest('.mu-card');
+    if (!card) return;
+    const pon = (sel, txt) => {
+      const e = card.querySelector(sel);
+      if (e && e.textContent !== txt) e.textContent = txt;
+    };
+    const esVenta = m.p > M.precio;
+    pon('.mu-imp', dinero(m.v));
+    pon('.mu-firme', tiempo(m.segundos));
+    pon('.mu-dist2', (Math.abs(m.dist) * 100).toFixed(2) + '% ' + (esVenta ? '↑' : '↓'));
   });
 }
 
@@ -540,9 +551,23 @@ function arrancar() {
       /* [CORREGIDO] El panel se repintaba entero en cada toma, y por
          eso las tarjetas parpadeaban. Ahora solo se reconstruye si de
          verdad cambió algo relevante: qué muros hay y en qué estado. */
-      const huella = M.muros.map((m) => `${m.p}|${m.tipo}|${Math.round(m.v)}`).join(',');
-      if (huella !== _huella) { _huella = huella; pintarPanel(); }
-      else refrescarNumeros();
+      /* [CORREGIDO] La huella incluía el importe, que cambia en cada
+         foto: por eso el panel se repintaba siempre y las tarjetas
+         parpadeaban. Ahora solo cuenta QUÉ muros hay y en qué estado.
+         Los números se actualizan sin tocar el HTML. */
+      /* [CORREGIDO de nuevo] Aún parpadeaba: la huella cambiaba porque
+         el orden de la lista bailaba entre tomas. Ahora se ordena
+         antes de comparar, y además hay una espera mínima de 3
+         segundos entre repintados: si un muro entra y sale, el panel
+         no se reconstruye a cada segundo. */
+      const huella = M.muros.map((m) => `${m.p.toFixed(6)}|${m.tipo}`).sort().join(',');
+      const ahora2 = Date.now();
+      if (huella !== _huella && ahora2 - _ultPintado > 3000) {
+        _huella = huella; _ultPintado = ahora2;
+        pintarPanel();
+      } else {
+        refrescarNumeros();
+      }
     } catch (_) {
       /* Un fallo suelto no rompe nada: se sigue con lo que hay. Solo
          tras varios seguidos se avisa, porque entonces sí pasa algo. */
@@ -614,7 +639,7 @@ function dibujar() {
 
   const mDer = 88, mAba = 22;
   const x1 = W - mDer, y1 = H - mAba;
-  const xVelas = x1 * 0.70;      // el 30% derecho, para las etiquetas
+  const xVelas = x1 * 0.82;      // las velas ocupan casi todo
 
   /* La ventana visible: el ancho es el zoom y el desplazamiento el
      arrastre. Así se puede recorrer el histórico como en TradingView. */
@@ -646,8 +671,12 @@ function dibujar() {
   let pAlto = Math.max(...vis.map((v) => v.h));
   let pBajo = Math.min(...vis.map((v) => v.l));
   M.muros.forEach((m) => { if (m.p > pAlto) pAlto = m.p; if (m.p < pBajo) pBajo = m.p; });
-  const pad = (pAlto - pBajo) * 0.07 || 1;
-  const pMax = pAlto + pad, pMin = pBajo - pad;
+  /* El zoom vertical estira o comprime la escala de precios, como al
+     arrastrar el borde derecho en TradingView. */
+  const centro = (pAlto + pBajo) / 2;
+  const semi = ((pAlto - pBajo) / 2) * (M.zoomY || 1);
+  const pad = semi * 0.14 || 1;
+  const pMax = centro + semi + pad, pMin = centro - semi - pad;
   const Y = (p) => y1 - y1 * ((p - pMin) / Math.max(1e-12, pMax - pMin));
 
   /* ── Rejilla ── */
@@ -670,12 +699,18 @@ function dibujar() {
     const c = COLORES[m.tipo];
     const sel = M.seleccionado === m.p;
 
+    /* [CORREGIDO] El color venía del veredicto, y por eso todas salían
+       azules. En el gráfico manda el LADO: rojo si es venta, verde si
+       es compra. Sin confirmar quedan grises, como en las tarjetas. */
+    const sinProbar = m.tipo === 'vigilando' || m.tipo === 'ido';
+    const col = sinProbar ? '#6b7681' : (m.p > M.precio ? '#f6465d' : '#2ee86a');
+
     // La banda: su grosor dice cuánto dinero hay
     const alto = Math.max(4, Math.min(18, (m.v / (M.maxMuro || m.v)) * 18));
-    g.fillStyle = c.linea + (sel ? '33' : '1a');
+    g.fillStyle = col + (sel ? '3a' : '1e');
     g.fillRect(0, y - alto / 2, x1, alto);
 
-    g.strokeStyle = c.linea;
+    g.strokeStyle = col;
     g.lineWidth = sel ? 2.2 : 1.4;
     if (m.tipo === 'falso' || m.tipo === 'vigilando' || m.tipo === 'ido') g.setLineDash([7, 5]);
     g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
@@ -685,9 +720,9 @@ function dibujar() {
     const et = dinero(m.v);
     g.font = 'bold 11px ui-monospace,monospace';
     const wCaja = g.measureText(et).width + 32;
-    g.fillStyle = c.linea;
+    g.fillStyle = col;
     redondeado(g, xVelas + 12, y - 10, wCaja, 20, 5); g.fill();
-    g.fillStyle = c.texto;
+    g.fillStyle = sinProbar ? '#0b0e12' : (m.p > M.precio ? '#2a0509' : '#04210f');
     g.font = 'bold 10px system-ui,sans-serif';
     g.textAlign = 'center';
     g.fillText(c.icono, xVelas + 23, y + 3.5);
@@ -734,10 +769,12 @@ function dibujar() {
   }
   M.muros.forEach((m) => {
     if (m.p < pMin || m.p > pMax) return;
-    const y = Y(m.p), c = COLORES[m.tipo];
-    g.fillStyle = c.linea;
+    const y = Y(m.p);
+    const sinProbar = m.tipo === 'vigilando' || m.tipo === 'ido';
+    const col = sinProbar ? '#6b7681' : (m.p > M.precio ? '#f6465d' : '#2ee86a');
+    g.fillStyle = col;
     redondeado(g, x1 + 2, y - 9, mDer - 5, 18, 4); g.fill();
-    g.fillStyle = c.texto;
+    g.fillStyle = sinProbar ? '#0b0e12' : (m.p > M.precio ? '#2a0509' : '#04210f');
     g.font = 'bold 10px ui-monospace,monospace';
     g.fillText(fmt(m.p), x1 + 7, y + 3.5);
   });
@@ -795,13 +832,23 @@ function engancharGestos(cv) {
 
   cv.addEventListener('wheel', (e) => {
     e.preventDefault();
-    zoom(e.deltaY > 0 ? 1.14 : 0.88);
+    const r = cv.getBoundingClientRect();
+    /* Sobre la escala de precios (el borde derecho) la rueda estira o
+       comprime en vertical. En el resto, zoom de tiempo. Igual que
+       en TradingView. */
+    if (e.clientX - r.left > r.width - 95) {
+      M.zoomY = Math.max(0.25, Math.min(4, (M.zoomY || 1) * (e.deltaY > 0 ? 1.12 : 0.9)));
+      dibujar();
+    } else {
+      zoom(e.deltaY > 0 ? 1.14 : 0.88);
+    }
   }, { passive: false });
 
   // Doble clic: volver al encuadre inicial
   cv.addEventListener('dblclick', () => {
     M.ancho = window.innerWidth < 760 ? 45 : 70;
     M.desplaz = 0;
+    M.zoomY = 1;
     dibujar();
   });
 
@@ -994,7 +1041,7 @@ function pintarPanel() {
         ${muyCerca ? '<div class="mu-aviso-vivo">● El precio está tocando este nivel</div>' : ''}
       </button>
       ${abierta ? `<div class="mu-detalle">
-        <div class="mu-conse">${conse}</div>
+        <div class="mu-conse mu-escribe">${conse}</div>
         <div class="mu-metricas">
           <div><b class="mu-firme">${tiempo(m.segundos)}</b><span>firme</span></div>
           <div><b>${m.recargas || 0}×</b><span>repuesta</span></div>
@@ -1006,7 +1053,21 @@ function pintarPanel() {
     </div>`;
   };
 
-  lista.innerHTML = lst.map(tarjeta).join('');
+  /* [CORREGIDO a fondo] `innerHTML = ...` destruye y recrea TODOS los
+     nodos, y eso es lo que produce el parpadeo por mucho que se
+     controle cuándo llamar.
+
+     Ahora se compara con lo que ya está pintado: las tarjetas que
+     siguen igual NO se tocan, solo se añaden las nuevas y se quitan
+     las que se fueron. */
+  const nuevoHTML = lst.map(tarjeta).join('');
+  if (lista.dataset.firma !== nuevoHTML) {
+    // Se guarda la posición del scroll: recrear la lista la perdía
+    const sc = lista.scrollTop;
+    lista.innerHTML = nuevoHTML;
+    lista.dataset.firma = nuevoHTML;
+    lista.scrollTop = sc;
+  }
 
   lista.querySelectorAll('[data-mp]').forEach((b) => b.onclick = () => {
     const p = Number(b.dataset.mp);
@@ -1390,6 +1451,10 @@ function estilos() {
   /* El detalle desplegado */
   #mu-overlay .mu-detalle{display:block;width:100%;padding:0 13px 12px;animation:muAbre .16s ease}
   @keyframes muAbre{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  /* El texto entra escribiéndose: da la sensación de que alguien
+     está narrando lo que pasa en directo. */
+  #mu-overlay .mu-escribe{animation:muEscribe .5s steps(28) both}
+  @keyframes muEscribe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
   #mu-overlay .mu-conse{font-family:var(--sans,sans-serif);font-size:12.5px;color:#c8cfd8;
     line-height:1.55;margin-bottom:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07)}
   #mu-overlay .mu-conse b{color:#fff;font-weight:700}
@@ -1412,10 +1477,20 @@ function estilos() {
   #mu-overlay .mu-fbtn.rojo{border-color:rgba(246,70,93,.28);color:#ff6b7a}
   #mu-overlay .mu-fbtn.oro{border-color:rgba(232,184,75,.28);color:#E8B84B}
   #mu-overlay .mu-fbtn.gris{border-color:#2b3139;color:#8b96a3}
-  #mu-overlay .mu-fbtn.verde.on{background:rgba(46,232,106,.18);border-color:#2ee86a}
-  #mu-overlay .mu-fbtn.rojo.on{background:rgba(246,70,93,.18);border-color:#f6465d}
-  #mu-overlay .mu-fbtn.oro.on{background:rgba(232,184,75,.18);border-color:#E8B84B}
-  #mu-overlay .mu-fbtn.gris.on{background:rgba(139,150,163,.16);border-color:#8b96a3}
+  /* El filtro activo tiene que verse a la primera. */
+  #mu-overlay .mu-fbtn.on{border-width:2px;font-weight:800;transform:translateY(-1px)}
+  #mu-overlay .mu-fbtn.verde.on{background:linear-gradient(180deg,#4dffa0,#1fc96e);
+    border-color:#2ee86a;color:#04210f;box-shadow:0 3px 12px rgba(46,232,106,.3)}
+  #mu-overlay .mu-fbtn.verde.on .mu-cuenta{background:rgba(0,0,0,.25);color:#04210f}
+  #mu-overlay .mu-fbtn.rojo.on{background:linear-gradient(180deg,#ff8a95,#e03546);
+    border-color:#f6465d;color:#2a0509;box-shadow:0 3px 12px rgba(246,70,93,.3)}
+  #mu-overlay .mu-fbtn.rojo.on .mu-cuenta{background:rgba(0,0,0,.25);color:#2a0509}
+  #mu-overlay .mu-fbtn.oro.on{background:linear-gradient(180deg,#f7db8d,#E8B84B);
+    border-color:#E8B84B;color:#3a2800;box-shadow:0 3px 12px rgba(232,184,75,.3)}
+  #mu-overlay .mu-fbtn.oro.on .mu-cuenta{background:rgba(0,0,0,.22);color:#3a2800}
+  #mu-overlay .mu-fbtn.gris.on{background:linear-gradient(180deg,#b7bdc6,#8b96a3);
+    border-color:#b7bdc6;color:#0b0e12}
+  #mu-overlay .mu-fbtn.gris.on .mu-cuenta{background:rgba(0,0,0,.2);color:#0b0e12}
 
   #mu-overlay .mu-card-viejo{display:block;width:100%;text-align:left;margin-bottom:9px;padding:13px 14px;
     border-radius:13px;cursor:pointer;background:rgba(255,255,255,.022);
