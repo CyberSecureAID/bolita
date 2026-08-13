@@ -102,16 +102,28 @@ function procesar(foto) {
   M.precio = (mejorC + mejorV) / 2;
   if (!M.precio) return;
 
-  // Los niveles se agrupan: el libro tiene demasiado detalle
-  const paso = M.precio * 0.0006;        // 0,06% del precio
+  /* [CORREGIDO — este era el fallo de fondo]
+
+     Los niveles se agrupan en cubos, y la clave del cubo se usa para
+     seguirlos entre fotos. Pero el paso se calculaba con el precio
+     ACTUAL, que cambia en cada toma. Resultado: el mismo nivel caía en
+     un cubo con un número ligeramente distinto cada vez, se creaba un
+     seguimiento nuevo, y ninguno llegaba a acumular historia.
+
+     Por eso el panel decía siempre "libro tranquilo" aunque el mapa
+     mostrara muros bien claros.
+
+     Ahora el paso se fija en la primera foto y no cambia. */
+  if (!M.paso) M.paso = Math.max(1e-8, M.precio * 0.0005);
+  const paso = M.paso;
+
   const agrupar = (lista, lado) => {
     const mapa = new Map();
     lista.forEach(({ p, q }) => {
-      const k = Math.round(p / paso) * paso;
-      const dinero = p * q;
-      mapa.set(k, (mapa.get(k) || 0) + dinero);
+      const k = Math.round(p / paso);          // entero: clave estable
+      mapa.set(k, (mapa.get(k) || 0) + p * q);
     });
-    return [...mapa].map(([p, v]) => ({ p, v, lado }));
+    return [...mapa].map(([k, v]) => ({ p: k * paso, v, lado, k }));
   };
 
   const todos = [...agrupar(foto.compras, 'compra'), ...agrupar(foto.ventas, 'venta')];
@@ -122,12 +134,15 @@ function procesar(foto) {
   /* El umbral se calcula sobre el percentil 90, no la mediana. Con la
      mediana, en libros muy poblados el corte quedaba tan alto que ni
      los muros grandes lo pasaban. */
+  /* [UNIFICADO] El umbral del panel era mucho más exigente que el del
+     dibujo: se veían muros en el mapa pero el panel decía "libro
+     tranquilo". Ahora usan la misma referencia. */
   const vals = todos.map((x) => x.v).sort((a, b) => a - b);
-  const p90 = vals[Math.floor(vals.length * 0.90)] || 1;
-  const umbral = Math.max(p90 * 1.6, (vals[Math.floor(vals.length / 2)] || 1) * 3);
+  const base = vals[Math.floor(vals.length * 0.55)] || 1;
+  const umbral = base * 2.2;
 
   const ahora = foto.t;
-  const clave = (x) => x.lado + ':' + x.p.toFixed(8);
+  const clave = (x) => x.lado + ':' + x.k;   // entero estable entre fotos
 
   // Marcar los que se ven en esta foto
   const vistos = new Set();
@@ -200,7 +215,7 @@ function juzgar() {
   const fuera = [];
 
   M.niveles.forEach((nv) => {
-    if (nv.tomas < 4) return;
+    if (nv.tomas < 3) return;
     const vivo = nv.ausente === 0;
     const segundos = (nv.visto - nv.nacio) / 1000;
     const consumidoPct = nv.vInicial > 0 ? nv.consumido / nv.vInicial : 0;
@@ -231,7 +246,7 @@ function juzgar() {
       nota = 'Lleva ahí sin moverse desde que empezamos a mirar. Aún no ha sido puesto a prueba, pero la constancia es buena señal.';
       prioridad = 80;
 
-    } else if (vivo && segundos > 25) {
+    } else if (vivo && segundos > 6) {
       tipo = 'vigilando';
       titulo = 'En observación';
       nota = 'Apareció hace poco. Todavía no hay historia suficiente para saber si aguantará.';
@@ -325,7 +340,7 @@ export async function abrirMuros() {
 
   // Estado limpio: cada apertura empieza de cero
   M.fotos = []; M.niveles = new Map(); M.muros = [];
-  M.cargando = true; M.error = null; M.seleccionado = null;
+  M.cargando = true; M.error = null; M.seleccionado = null; M.paso = 0;
 
   const d = document.createElement('div');
   d.id = 'mu-overlay';
@@ -479,7 +494,15 @@ function dibujar() {
   const FILAS = 150;
   const altoFila = (pMax - pMin) / FILAS;
 
-  /* ── El mapa de profundidad ── */
+  /* ══════════════════════════════════════════════════════════
+     [REPLANTEADO] Antes se pintaban TODOS los niveles del libro, y
+     un libro tiene cientos de órdenes pequeñas repartidas por todas
+     partes. Resultado: la pantalla entera rayada de colores, que es
+     ruido, no información.
+
+     Ahora solo se pinta lo que DESTACA sobre lo normal de ese libro.
+     El resto queda negro. Así el ojo va directo a donde hay algo.
+     ══════════════════════════════════════════════════════════ */
   const cols = fotos.map((f) => {
     const col = new Float64Array(FILAS);
     [...f.compras, ...f.ventas].forEach(({ p, q }) => {
@@ -494,21 +517,26 @@ function dibujar() {
      solo muro enorme dejaba todo lo demás en azul oscuro y el mapa no
      decía nada. Ahora el techo es el percentil 92: lo que hay por
      encima satura, y el resto reparte todo el rango de color. */
+  /* Dos referencias del propio libro:
+       · base  — lo que hay en un nivel corriente (mediana)
+       · techo — lo que hay en los niveles gordos (percentil 98)
+     Solo se pinta lo que supera varias veces la base. */
   const muestras = [];
   cols.forEach((c) => { for (const v of c) if (v > 0) muestras.push(v); });
   muestras.sort((a, b) => a - b);
-  const vMax = muestras.length
-    ? (muestras[Math.floor(muestras.length * 0.90)] || muestras[muestras.length - 1])
-    : 0;
+  const base = muestras.length ? muestras[Math.floor(muestras.length * 0.55)] : 0;
+  const techo = muestras.length ? muestras[Math.floor(muestras.length * 0.98)] : 0;
+  const corte = base * 1.5;
+  const vMax = techo;
 
   if (vMax > 0) {
     cols.forEach((col, i) => {
       const x = i * paso;
       for (let fi = 0; fi < FILAS; fi++) {
         const v = col[fi];
-        if (v <= 0) continue;
-        const rel = Math.min(1, Math.pow(v / vMax, 0.55));
-        if (rel < 0.04) continue;
+        // Lo corriente no se pinta: solo lo que sobresale
+        if (v < corte) continue;
+        const rel = Math.min(1, (v - corte) / Math.max(1e-9, vMax - corte));
         const c = calor(rel);
         g.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
         const y = Y(pMin + (fi + 1) * altoFila);
@@ -689,14 +717,16 @@ const COLORES = {
   ido:        { linea: '#4a525c', texto: '#0b0e12', icono: '·', clase: 'ido' }
 };
 
+/* La paleta va de tenue a intenso: lo poco destacable apenas se ve, y
+   lo grande grita. Así el mapa se lee de un vistazo. */
 function calor(v) {
   const paradas = [
-    [0.00, [12, 24, 52]],
-    [0.28, [26, 60, 130]],
-    [0.52, [30, 120, 200]],
-    [0.72, [40, 180, 170]],
-    [0.88, [120, 210, 80]],
-    [1.00, [235, 200, 60]]
+    [0.00, [22, 46, 88]],      // azul apagado — apenas destaca
+    [0.30, [34, 96, 176]],     // azul
+    [0.55, [30, 170, 190]],    // turquesa
+    [0.75, [90, 205, 90]],     // verde
+    [0.90, [235, 205, 50]],    // amarillo
+    [1.00, [255, 120, 30]]     // naranja — los muros gordos
   ];
   for (let i = 1; i < paradas.length; i++) {
     if (v <= paradas[i][0]) {
@@ -862,7 +892,7 @@ function menuPares() {
     m.remove();
     // Cambiar de moneda es empezar de cero: el historial no vale
     M.fotos = []; M.niveles = new Map(); M.muros = [];
-    M.cargando = true; M.seleccionado = null;
+    M.cargando = true; M.seleccionado = null; M.paso = 0;
     ponerLogos();
     pintarPanel();
     arrancar();
