@@ -54,6 +54,40 @@ const PARES = [
 let _par = 'BNB';
 
 /* ══════════════════════════════════════════════════════════════
+   LAS VELAS — el contexto que faltaba
+   Sin gráfico, los muros son números sueltos. Con él se ve dónde
+   está el precio respecto a cada nivel.
+   ══════════════════════════════════════════════════════════════ */
+const TFS = [
+  { id: '1m',  n: '1m' },
+  { id: '5m',  n: '5m' },
+  { id: '15m', n: '15m' },
+  { id: '1h',  n: '1H' },
+  { id: '4h',  n: '4H' }
+];
+
+async function traerVelas(simbolo, tf, n = 120) {
+  const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${simbolo}&interval=${tf}&limit=${n}`);
+  if (!r.ok) throw new Error('sin velas');
+  const j = await r.json();
+  return j.map((x) => ({
+    t: Math.floor(x[0] / 1000),
+    o: Number(x[1]), h: Number(x[2]), l: Number(x[3]), c: Number(x[4])
+  }));
+}
+
+/** Rectángulo con esquinas redondeadas. */
+function redondeado(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
+  g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  g.lineTo(x + r, y + h); g.quadraticCurveTo(x, y + h, x, y + h - r);
+  g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y);
+  g.closePath();
+}
+
+/* ══════════════════════════════════════════════════════════════
    ESTADO
    ══════════════════════════════════════════════════════════════ */
 const M = {
@@ -64,8 +98,13 @@ const M = {
   seleccionado: null,
   cargando: true,
   error: null,
-  zoom: 1,            // 1 = todo el libro; menos = más cerca del precio
-  cruzY: -1
+  zoom: 1,
+  cruzY: -1,
+  velas: [],          // las velas del gráfico
+  tf: '5m',           // temporalidad
+  ancho: 70,          // cuántas velas se ven
+  filtro: 'todos',
+  maxMuro: 1
 };
 
 const CADA = 1500;          // una foto cada 1,5 segundos
@@ -353,9 +392,21 @@ export async function abrirMuros() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
         </button>
 
-        <div class="mu-vivo"><i></i><span id="mu-estado">Observando el libro…</span></div>
+        <div class="mu-tfs">
+          ${TFS.map((t) => `<button class="mu-tf ${t.id === M.tf ? 'on' : ''}" data-tf="${t.id}">${t.n}</button>`).join('')}
+        </div>
+
+        <div class="mu-px">
+          <span>Precio ahora</span>
+          <b id="mu-px-v">—</b>
+        </div>
+
+        <div class="mu-vivo"><i></i><span id="mu-estado">Observando…</span></div>
 
         <div class="mu-der">
+          <button class="mu-ico" id="mu-foto" title="Compartir imagen">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          </button>
           <button class="mu-ico" id="mu-ayuda" title="Cómo funciona">?</button>
           <button class="mu-ico" id="mu-x" aria-label="Cerrar">✕</button>
         </div>
@@ -374,7 +425,14 @@ export async function abrirMuros() {
         </div>
 
         <aside class="mu-panel" id="mu-panel">
-          <div class="mu-panel-t">Veredictos</div>
+          <div class="mu-panel-t">Órdenes detectadas</div>
+          <div class="mu-chips">
+            <button class="mu-fchip on" data-filtro="todos">Todas</button>
+            <button class="mu-fchip" data-filtro="fuertes">★ Fuertes</button>
+            <button class="mu-fchip" data-filtro="compra">Soportes</button>
+            <button class="mu-fchip" data-filtro="venta">Resistencias</button>
+            <button class="mu-fchip" data-filtro="falsos">✕ Falsas</button>
+          </div>
           <div class="mu-lista" id="mu-lista"></div>
         </aside>
       </div>
@@ -382,7 +440,7 @@ export async function abrirMuros() {
   document.body.appendChild(d);
 
   const cerrar = () => {
-    clearInterval(_reloj);
+    clearInterval(_reloj); clearInterval(_relojVelas);
     document.querySelectorAll('#mu-picker').forEach((x) => x.remove());
     const e = $('mu-overlay'); if (e) e.remove();
   };
@@ -391,8 +449,22 @@ export async function abrirMuros() {
   $('mu-ayuda').onclick = () => ayuda();
   $('mu-sel').onclick = (e) => { e.stopPropagation(); menuPares(); };
 
+  $('mu-foto').onclick = () => guardarImagen();
+
+  d.querySelectorAll('[data-tf]').forEach((b) => b.onclick = () => {
+    M.tf = b.dataset.tf;
+    d.querySelectorAll('[data-tf]').forEach((x) => x.classList.toggle('on', x.dataset.tf === M.tf));
+    cargarVelas();
+  });
+  d.querySelectorAll('[data-filtro]').forEach((b) => b.onclick = () => {
+    M.filtro = b.dataset.filtro;
+    d.querySelectorAll('[data-filtro]').forEach((x) => x.classList.toggle('on', x.dataset.filtro === M.filtro));
+    pintarPanel();
+  });
+
   ponerLogos();
   arrancar();
+  cargarVelas();
 
   let _t = null;
   window.addEventListener('resize', () => {
@@ -404,8 +476,24 @@ export async function abrirMuros() {
 /* ══════════════════════════════════════════════════════════════
    EL RELOJ — una foto cada 1,5 s
    ══════════════════════════════════════════════════════════════ */
-let _reloj = null;
+let _reloj = null, _relojVelas = null;
 let _fallos = 0;
+
+/** Las velas se refrescan cada 12 s: el precio no cambia tan rápido
+ *  como el libro, y no hace falta pedirlas cada segundo y medio. */
+async function cargarVelas() {
+  clearInterval(_relojVelas);
+  const traer = async () => {
+    if (!$('mu-cv')) { clearInterval(_relojVelas); return; }
+    try {
+      const par = PARES.find((p) => p.id === _par) || PARES[0];
+      M.velas = await traerVelas(par.s, M.tf, 120);
+      dibujar();
+    } catch (_) {}
+  };
+  await traer();
+  _relojVelas = setInterval(traer, 12000);
+}
 
 function arrancar() {
   clearInterval(_reloj);
@@ -419,6 +507,9 @@ function arrancar() {
       _fallos = 0;
       M.cargando = M.fotos.length < MIN_TOMAS;
       M.error = null;
+      M.maxMuro = Math.max(1, ...M.muros.map((x) => x.v));
+      const px = $('mu-px-v');
+      if (px) px.textContent = fmt(M.precio);
       dibujar();
       pintarPanel();
     } catch (_) {
@@ -464,8 +555,7 @@ function arrancar() {
    ══════════════════════════════════════════════════════════════ */
 function dibujar() {
   const cv = $('mu-cv'); const zona = $('mu-graf');
-  if (!cv || !zona || !M.fotos.length) return;
-
+  if (!cv || !zona) return;
   const W = zona.clientWidth, H = zona.clientHeight;
   if (W < 50 || H < 50) return;
 
@@ -477,11 +567,11 @@ function dibujar() {
   }
   const g = cv.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  g.fillStyle = '#0a0d12';
+  g.fillStyle = '#0a0e14';
   g.fillRect(0, 0, W, H);
 
   const esp = $('mu-esperando');
-  if (M.cargando) {
+  if (M.cargando || !M.velas.length) {
     if (esp) {
       esp.style.display = '';
       const pr = $('mu-prog');
@@ -491,131 +581,134 @@ function dibujar() {
   }
   if (esp) esp.style.display = 'none';
 
-  const foto = M.fotos[M.fotos.length - 1];
-  if (!foto) return;
+  const mDer = 88, mAba = 22;
+  const x1 = W - mDer, y1 = H - mAba;
+  const xVelas = x1 * 0.70;      // el 30% derecho, para las etiquetas
 
-  /* ── Agrupar el libro en escalones de precio ── */
-  const paso = M.paso || M.precio * 0.0005;
-  const acum = (lista) => {
-    const mapa = new Map();
-    lista.forEach(({ p, q }) => {
-      const k = Math.round(p / paso);
-      mapa.set(k, (mapa.get(k) || 0) + p * q);
-    });
-    return mapa;
-  };
-  const compras = acum(foto.compras);
-  const ventas = acum(foto.ventas);
+  const vis = M.velas.slice(-Math.min(M.velas.length, M.ancho || 70));
+  if (!vis.length) return;
 
-  // Cuántos escalones caben, según el alto disponible
-  const altoFila = 22;
-  const cabenLado = Math.max(3, Math.floor((H - 70) / 2 / altoFila));
+  /* El rango abarca velas Y muros: si un muro queda fuera de pantalla,
+     el usuario no puede usarlo. */
+  let pAlto = Math.max(...vis.map((v) => v.h));
+  let pBajo = Math.min(...vis.map((v) => v.l));
+  M.muros.forEach((m) => { if (m.p > pAlto) pAlto = m.p; if (m.p < pBajo) pBajo = m.p; });
+  const pad = (pAlto - pBajo) * 0.07 || 1;
+  const pMax = pAlto + pad, pMin = pBajo - pad;
+  const Y = (p) => y1 - y1 * ((p - pMin) / Math.max(1e-12, pMax - pMin));
 
-  const kPrecio = Math.round(M.precio / paso);
-  const filasV = [];   // ventas: por encima
-  const filasC = [];   // compras: por debajo
-  for (let i = 1; i <= cabenLado; i++) {
-    const kv = kPrecio + i;
-    filasV.push({ k: kv, p: kv * paso, v: ventas.get(kv) || 0, lado: 'venta' });
-    const kc = kPrecio - i;
-    filasC.push({ k: kc, p: kc * paso, v: compras.get(kc) || 0, lado: 'compra' });
-  }
-  filasV.reverse();     // el más alto arriba
-
-  const maxV = Math.max(1, ...filasV.map((x) => x.v), ...filasC.map((x) => x.v));
-
-  /* ── La franja del precio, en el centro ── */
-  const yCentro = H / 2;
-  const anchoBarra = W * 0.62;
-  const xTexto = 14;
-
-  const pintarFila = (fila, y) => {
-    const esVenta = fila.lado === 'venta';
-    const rel = fila.v / maxV;
-    const w = Math.max(0, anchoBarra * rel);
-
-    // ¿Hay un muro vigilado en este escalón?
-    const muro = M.muros.find((m) => Math.abs(m.p - fila.p) < paso * 0.75);
-    const col = muro ? COLORES[muro.tipo] : null;
-
-    // La barra
-    const base = esVenta ? 'rgba(239,83,80,' : 'rgba(38,166,154,';
-    g.fillStyle = muro ? col.linea + '55' : base + (0.30 + rel * 0.45) + ')';
-    g.fillRect(W - 96 - w, y - altoFila / 2 + 2, w, altoFila - 4);
-
-    // Borde si es un muro reconocido
-    if (muro) {
-      g.strokeStyle = col.linea;
-      g.lineWidth = 1.4;
-      g.strokeRect(W - 96 - w, y - altoFila / 2 + 2, w, altoFila - 4);
-    }
-
-    // El precio
-    g.font = (muro ? 'bold ' : '') + '11px ui-monospace,monospace';
-    g.fillStyle = muro ? col.linea : (esVenta ? 'rgba(239,83,80,.75)' : 'rgba(38,166,154,.75)');
-    g.textAlign = 'left';
-    g.fillText(fmt(fila.p), xTexto, y + 4);
-
-    // El sello del veredicto
-    if (muro) {
-      g.beginPath();
-      g.arc(xTexto + 88, y, 8, 0, Math.PI * 2);
-      g.fillStyle = col.linea; g.fill();
-      g.fillStyle = col.texto;
-      g.font = 'bold 10px system-ui,sans-serif';
-      g.textAlign = 'center';
-      g.fillText(col.icono, xTexto + 88, y + 3.5);
-      g.textAlign = 'left';
-    }
-
-    // El dinero, a la derecha
-    if (fila.v > 0) {
-      g.font = '10px ui-monospace,monospace';
-      g.fillStyle = fila.v / maxV > 0.5 ? '#b7bdc6' : '#5c6672';
-      g.textAlign = 'right';
-      g.fillText(dinero(fila.v), W - 12, y + 4);
-      g.textAlign = 'left';
-    }
-  };
-
-  // Ventas hacia arriba
-  filasV.forEach((f, i) => {
-    const y = yCentro - 26 - (filasV.length - 1 - i) * altoFila;
-    if (y > 6) pintarFila(f, y);
-  });
-  // Compras hacia abajo
-  filasC.forEach((f, i) => {
-    const y = yCentro + 26 + i * altoFila;
-    if (y < H - 6) pintarFila(f, y);
-  });
-
-  /* ── El precio actual, destacado en el centro ── */
-  g.fillStyle = '#12161c';
-  g.fillRect(0, yCentro - 20, W, 40);
-  g.strokeStyle = 'rgba(232,184,75,.35)';
+  /* ── Rejilla ── */
+  g.strokeStyle = 'rgba(255,255,255,.03)';
   g.lineWidth = 1;
-  g.beginPath();
-  g.moveTo(0, yCentro - 20); g.lineTo(W, yCentro - 20);
-  g.moveTo(0, yCentro + 20); g.lineTo(W, yCentro + 20);
-  g.stroke();
+  for (let i = 1; i < 6; i++) {
+    const y = (y1 / 6) * i;
+    g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
+  }
 
-  g.font = 'bold 19px ui-monospace,monospace';
-  g.fillStyle = '#E8B84B';
-  g.textAlign = 'left';
-  g.fillText(fmt(M.precio), xTexto, yCentro + 7);
+  /* ══════════════════════════════════════════════════════════
+     LOS MUROS — cada uno con su línea y su importe
+
+     Esto es lo que convierte el gráfico en herramienta: ver la
+     cantidad escrita al nivel exacto donde está puesta.
+     ══════════════════════════════════════════════════════════ */
+  M.muros.forEach((m) => {
+    if (m.p < pMin || m.p > pMax) return;
+    const y = Y(m.p);
+    const c = COLORES[m.tipo];
+    const sel = M.seleccionado === m.p;
+
+    // La banda: su grosor dice cuánto dinero hay
+    const alto = Math.max(4, Math.min(18, (m.v / (M.maxMuro || m.v)) * 18));
+    g.fillStyle = c.linea + (sel ? '33' : '1a');
+    g.fillRect(0, y - alto / 2, x1, alto);
+
+    g.strokeStyle = c.linea;
+    g.lineWidth = sel ? 2.2 : 1.4;
+    if (m.tipo === 'falso' || m.tipo === 'vigilando' || m.tipo === 'ido') g.setLineDash([7, 5]);
+    g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
+    g.setLineDash([]);
+
+    // La etiqueta con el importe
+    const et = dinero(m.v);
+    g.font = 'bold 11px ui-monospace,monospace';
+    const wCaja = g.measureText(et).width + 32;
+    g.fillStyle = c.linea;
+    redondeado(g, xVelas + 12, y - 10, wCaja, 20, 5); g.fill();
+    g.fillStyle = c.texto;
+    g.font = 'bold 10px system-ui,sans-serif';
+    g.textAlign = 'center';
+    g.fillText(c.icono, xVelas + 23, y + 3.5);
+    g.font = 'bold 11px ui-monospace,monospace';
+    g.textAlign = 'left';
+    g.fillText(et, xVelas + 33, y + 4);
+  });
+
+  /* ── LAS VELAS ── */
+  const paso = xVelas / vis.length;
+  const cuerpo = Math.max(1.6, paso * 0.6);
+  vis.forEach((v, i) => {
+    const x = i * paso + paso / 2;
+    const col = v.c >= v.o ? '#26a69a' : '#ef5350';
+    g.strokeStyle = col; g.fillStyle = col;
+    g.lineWidth = Math.max(1, paso * 0.12);
+    g.beginPath(); g.moveTo(x, Y(v.h)); g.lineTo(x, Y(v.l)); g.stroke();
+    const yA = Y(Math.max(v.o, v.c)), yB = Y(Math.min(v.o, v.c));
+    g.fillRect(x - cuerpo / 2, yA, cuerpo, Math.max(1.4, yB - yA));
+  });
+
+  /* ── El precio actual ── */
+  const yP = Y(M.precio);
+  g.strokeStyle = 'rgba(232,184,75,.9)';
+  g.setLineDash([6, 4]); g.lineWidth = 1.4;
+  g.beginPath(); g.moveTo(0, yP); g.lineTo(x1, yP); g.stroke();
+  g.setLineDash([]);
+
+  /* ── La escala, con los niveles marcados ── */
+  g.fillStyle = 'rgba(10,14,20,.94)';
+  g.fillRect(x1, 0, mDer, H);
+  g.strokeStyle = 'rgba(255,255,255,.06)';
+  g.beginPath(); g.moveTo(x1 + .5, 0); g.lineTo(x1 + .5, H); g.stroke();
 
   g.font = '10px ui-monospace,monospace';
-  g.fillStyle = '#7d8794';
-  g.textAlign = 'right';
-  g.fillText('PRECIO AHORA · ' + esc(_par), W - 12, yCentro + 4);
   g.textAlign = 'left';
+  for (let i = 0; i <= 6; i++) {
+    const p = pMin + (pMax - pMin) * (i / 6);
+    const y = Y(p);
+    if (Math.abs(y - yP) < 15) continue;
+    if (M.muros.some((m) => Math.abs(Y(m.p) - y) < 15)) continue;
+    g.fillStyle = '#4a525c';
+    g.fillText(fmt(p), x1 + 7, y + 3.5);
+  }
+  M.muros.forEach((m) => {
+    if (m.p < pMin || m.p > pMax) return;
+    const y = Y(m.p), c = COLORES[m.tipo];
+    g.fillStyle = c.linea;
+    redondeado(g, x1 + 2, y - 9, mDer - 5, 18, 4); g.fill();
+    g.fillStyle = c.texto;
+    g.font = 'bold 10px ui-monospace,monospace';
+    g.fillText(fmt(m.p), x1 + 7, y + 3.5);
+  });
+  g.fillStyle = '#E8B84B';
+  redondeado(g, x1 + 2, yP - 11, mDer - 5, 22, 5); g.fill();
+  g.fillStyle = '#2a1c00';
+  g.font = 'bold 12px ui-monospace,monospace';
+  g.fillText(fmt(M.precio), x1 + 7, yP + 4);
 
-  /* ── Etiquetas de los lados ── */
+  /* ── Las horas ── */
+  g.fillStyle = 'rgba(10,14,20,.94)';
+  g.fillRect(0, y1, W, mAba);
   g.font = '9px ui-monospace,monospace';
-  g.fillStyle = 'rgba(239,83,80,.6)';
-  g.fillText('VENTAS · resistencia', xTexto, 16);
-  g.fillStyle = 'rgba(38,166,154,.6)';
-  g.fillText('COMPRAS · soporte', xTexto, H - 8);
+  g.fillStyle = '#4a525c';
+  const cada = Math.max(1, Math.floor(vis.length / 5));
+  g.textAlign = 'center';
+  vis.forEach((v, i) => {
+    if (i % cada !== 0) return;
+    const x = i * paso + paso / 2;
+    if (x > xVelas - 12) return;
+    const d = new Date(v.t * 1000);
+    g.fillText(d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }), x, y1 + 14);
+  });
+  g.textAlign = 'left';
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -824,8 +917,20 @@ function pintarPanel() {
     </button>`;
   };
 
-  const arriba = M.muros.filter((m) => m.p > M.precio);
-  const abajo = M.muros.filter((m) => m.p <= M.precio);
+  /* El filtro: un trader quiere ver solo lo que le sirve ahora. */
+  let lst = M.muros.slice();
+  if (M.filtro === 'fuertes') lst = lst.filter((m) => m.tipo === 'recargable' || m.tipo === 'probado');
+  else if (M.filtro === 'compra') lst = lst.filter((m) => m.p <= M.precio);
+  else if (M.filtro === 'venta') lst = lst.filter((m) => m.p > M.precio);
+  else if (M.filtro === 'falsos') lst = lst.filter((m) => m.tipo === 'falso' || m.tipo === 'ido');
+
+  if (!lst.length) {
+    lista.innerHTML = `<div class="mu-esperar"><b>Nada que mostrar</b>No hay órdenes de ese tipo ahora mismo.</div>`;
+    return;
+  }
+
+  const arriba = lst.filter((m) => m.p > M.precio);
+  const abajo = lst.filter((m) => m.p <= M.precio);
 
   lista.innerHTML =
     (arriba.length ? `<div class="mu-grupo rojo">Resistencias · frenan las subidas</div>` + arriba.map(tarjeta).join('') : '') +
@@ -892,6 +997,7 @@ function menuPares() {
     ponerLogos();
     pintarPanel();
     arrancar();
+    cargarVelas();
   });
   setTimeout(() => document.addEventListener('click', () => {
     const x = document.getElementById('mu-picker'); if (x) x.remove();
@@ -1055,7 +1161,7 @@ function estilos() {
 
   /* ── Barra ── */
   #mu-overlay .mu-barra{display:flex;align-items:center;gap:12px;flex:0 0 auto;position:relative;
-    padding:9px 96px 9px 12px;background:#0b0e12;border-bottom:1px solid #1c2128}
+    padding:9px 136px 9px 12px;background:#0b0e12;border-bottom:1px solid #1c2128}
   #mu-overlay .mu-sel{display:inline-flex;align-items:center;gap:9px;flex:0 0 auto;min-height:36px;
     padding:0 12px;border-radius:10px;background:#12161c;border:1px solid #2b3139;color:#eaecef;
     cursor:pointer;font-family:var(--mono,monospace);font-size:12.5px}
@@ -1071,6 +1177,24 @@ function estilos() {
   #mu-overlay .mu-vivo i{width:7px;height:7px;border-radius:50%;background:#2ee86a;flex:0 0 auto;
     animation:muLat 1.8s ease-in-out infinite}
   @keyframes muLat{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(46,232,106,.5)}50%{opacity:.55;box-shadow:0 0 0 5px rgba(46,232,106,0)}}
+  /* Temporalidad y precio en la barra */
+  #mu-overlay .mu-tfs{display:flex;gap:2px;flex:0 0 auto;padding:3px;background:#12161c;border-radius:9px}
+  #mu-overlay .mu-tf{min-height:30px;padding:0 11px;border-radius:7px;border:none;background:transparent;
+    color:#7d8794;font-family:var(--mono,monospace);font-size:11px;font-weight:700;cursor:pointer}
+  #mu-overlay .mu-tf.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
+  #mu-overlay .mu-px{display:flex;flex-direction:column;gap:1px;flex:0 0 auto;padding-left:6px}
+  #mu-overlay .mu-px span{font-family:var(--mono,monospace);font-size:8.5px;color:#5c6672;
+    text-transform:uppercase;letter-spacing:1.1px}
+  #mu-overlay .mu-px b{font-family:var(--display,sans-serif);font-weight:800;font-size:19px;
+    color:var(--gold,#E8B84B);line-height:1}
+  /* Filtros del panel */
+  #mu-overlay .mu-chips{display:flex;gap:5px;flex-wrap:wrap;padding:9px 14px 11px}
+  #mu-overlay .mu-fchip{min-height:30px;padding:0 11px;border-radius:20px;cursor:pointer;
+    background:rgba(255,255,255,.04);border:1px solid #232a33;color:#7d8794;
+    font-family:var(--mono,monospace);font-size:10.5px;font-weight:700;white-space:nowrap}
+  #mu-overlay .mu-fchip:hover{border-color:#3a424c;color:#b7bdc6}
+  #mu-overlay .mu-fchip.on{background:rgba(232,184,75,.14);border-color:var(--gold-soft,#C9A84B);
+    color:var(--gold,#E8B84B)}
   #mu-overlay .mu-der{position:absolute;right:10px;top:50%;transform:translateY(-50%);
     display:flex;gap:6px;background:#0b0e12;padding-left:8px}
   #mu-overlay .mu-ico{width:36px;height:36px;min-height:36px;flex:0 0 auto;border-radius:10px;
@@ -1085,10 +1209,8 @@ function estilos() {
   #mu-overlay .mu-cv{display:block}
   /* El logo, corrido a la derecha: en la izquierda tapaba la columna
      de precios. */
-  /* El logo: a la derecha de la columna de precios, sin taparla, pero
-     sin irse al centro de la pantalla. */
-  #mu-overlay .mu-marca{position:absolute;left:118px;bottom:12px;height:26px;width:auto;
-    opacity:.42;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.9))}
+  #mu-overlay .mu-marca{position:absolute;left:190px;bottom:14px;height:28px;width:auto;
+    opacity:.45;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.9))}
 
   /* Pantalla de espera */
   #mu-overlay .mu-esperando{position:absolute;inset:0;display:flex;flex-direction:column;
@@ -1109,7 +1231,7 @@ function estilos() {
   /* ── Panel de veredictos ── */
   #mu-overlay .mu-panel{width:352px;flex:0 0 auto;display:flex;flex-direction:column;
     background:#0b0e12;border-left:1px solid #1c2128}
-  #mu-overlay .mu-panel-t{flex:0 0 auto;padding:12px 16px;font-family:var(--mono,monospace);
+  #mu-overlay .mu-panel-t{flex:0 0 auto;padding:12px 16px 4px;font-family:var(--mono,monospace);
     font-size:10px;color:var(--gold,#E8B84B);text-transform:uppercase;letter-spacing:1.6px;
     border-bottom:1px solid #1c2128}
   #mu-overlay .mu-lista{flex:1;overflow-y:auto;padding:10px}
@@ -1280,4 +1402,73 @@ function estilos() {
     #mu-ayuda-box .mua-tabs{margin-right:46px;flex-direction:column}
   }`;
   document.head.appendChild(s);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   COMPARTIR — con la marca, para que circule
+   ══════════════════════════════════════════════════════════════ */
+function guardarImagen() {
+  const cv = $('mu-cv'); if (!cv) return;
+  const marca = document.querySelector('.mu-marca');
+  const antes = marca ? marca.style.display : null;
+  if (marca) marca.style.display = 'none';
+  const devolver = () => { if (marca) marca.style.display = antes || ''; };
+
+  try {
+    const e2 = cv.width / cv.clientWidth;
+    const barra = 78 * e2;
+    const out = document.createElement('canvas');
+    out.width = cv.width; out.height = cv.height + barra;
+    const g = out.getContext('2d');
+    g.fillStyle = '#0a0e14'; g.fillRect(0, 0, out.width, out.height);
+    g.drawImage(cv, 0, 0);
+
+    const yB = cv.height;
+    g.fillStyle = '#0b0e12'; g.fillRect(0, yB, out.width, barra);
+    g.fillStyle = 'rgba(232,184,75,.35)'; g.fillRect(0, yB, out.width, 2 * e2);
+
+    const textos = (x) => {
+      g.textAlign = 'left';
+      g.fillStyle = '#E8B84B';
+      g.font = `800 ${19 * e2}px system-ui,sans-serif`;
+      g.fillText('Muros Reales · Libro de Órdenes', x, yB + 34 * e2);
+      g.font = `700 ${14 * e2}px ui-monospace,monospace`;
+      g.fillStyle = '#C9A84B';
+      g.fillText('CriptoCubaOficial.com', x, yB + 56 * e2);
+      g.textAlign = 'right';
+      g.fillStyle = '#8b96a3';
+      g.font = `700 ${14 * e2}px ui-monospace,monospace`;
+      g.fillText(`${_par} · ${M.tf}`, out.width - 20 * e2, yB + 34 * e2);
+      g.font = `${11 * e2}px ui-monospace,monospace`;
+      g.fillStyle = '#6b7681';
+      g.fillText(new Date().toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+        out.width - 20 * e2, yB + 56 * e2);
+      g.textAlign = 'left';
+    };
+
+    const bajar = () => out.toBlob((blob) => {
+      devolver();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `criptocuba-muros-${_par}-${Date.now()}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }, 'image/png');
+
+    const logo = new Image();
+    let hecho = false;
+    const una = (w) => { if (hecho) return; hecho = true; textos(w ? 20 * e2 + w + 18 * e2 : 20 * e2); bajar(); };
+    logo.onload = () => {
+      try {
+        const alto = 52 * e2;
+        const ancho = Math.round(logo.width * (alto / logo.height));
+        g.drawImage(logo, 20 * e2, yB + (barra - alto) / 2, ancho, alto);
+        una(ancho);
+      } catch (_) { una(0); }
+    };
+    logo.onerror = () => una(0);
+    setTimeout(() => una(0), 1500);
+    logo.src = 'assets/img/cco-marca.png';
+  } catch (_) { devolver(); }
 }
