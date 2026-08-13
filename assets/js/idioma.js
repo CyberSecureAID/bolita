@@ -1380,6 +1380,49 @@ const DIC = {
     'Desequilibrio en el posicionamiento': 'Positioning imbalance',
     'Combinación de purga': 'Purge combination',
     'Combinación de rebote': 'Bounce combination',
+
+    /* ══════════════ BOTONES Y AVISOS DE LOS BOTS ══════════════ */
+    'Pon un rango para ver la rejilla': 'Set a range to see the grid',
+    'Cerrar y vender': 'Close and sell',
+    'Sí, cerrar': 'Yes, close',
+    'Sí, cerrar y vender': 'Yes, close and sell',
+    'No, seguir': 'No, keep going',
+    'Compra y vende a niveles': 'Buys and sells at levels',
+    'compra y vende a niveles': 'buys and sells at levels',
+    'Con el botón Cerrar y vender. Vende todo a estable y el dinero queda en tu wallet.':
+      'With the Close and sell button. It sells everything to stablecoin and the money stays in your wallet.',
+    '¿Cerrar este bot?': 'Close this bot?',
+    '¿Cerrar todos los bots?': 'Close all bots?',
+    'Se venderá todo lo comprado y el dinero volverá a tu wallet.':
+      'Everything bought will be sold and the money returns to your wallet.',
+    'Vender todo y cerrar': 'Sell everything and close',
+    'Solo cerrar': 'Close only',
+    'Cerrando…': 'Closing…',
+    'Vendiendo…': 'Selling…',
+    'Bot cerrado': 'Bot closed',
+    'Creando tu bot…': 'Creating your bot…',
+    'Bot creado': 'Bot created',
+    'Firma en tu wallet': 'Sign in your wallet',
+    'Confirma en tu wallet': 'Confirm in your wallet',
+    'Esperando confirmación de la red…': 'Waiting for network confirmation…',
+    'Siguiente': 'Next',
+    'Anterior': 'Previous',
+    'Empezar de nuevo': 'Start over',
+    'Ver mis bots': 'View my bots',
+    'Entendido, cerrar': 'Got it, close',
+    'Saltar': 'Skip',
+    'Saltar guía': 'Skip guide',
+    'Vender': 'Sell',
+    'Cerrar': 'Close',
+    'Rejilla': 'Grid',
+    'la rejilla': 'the grid',
+    'Nivel': 'Level',
+    'Niveles': 'Levels',
+    'Sin rango': 'No range',
+    'Rango no válido': 'Invalid range',
+    'Elige un rango válido': 'Choose a valid range',
+    'Rango de precio': 'Price range',
+    'Rango de precios': 'Price range',
     'Cambiar idioma': 'Change language',
     'Idioma': 'Language'
   },
@@ -2107,6 +2150,31 @@ const DIC = {
     'Los cortos pagan': 'Os curtos pagam',
     'Casi todos están largos': 'Quase todos estão longos',
     'Casi todos están cortos': 'Quase todos estão curtos',
+
+    /* ══════════════ BOTÕES E AVISOS DOS BOTS ══════════════ */
+    'Pon un rango para ver la rejilla': 'Defina um intervalo para ver a grelha',
+    'Cerrar y vender': 'Fechar e vender',
+    'Sí, cerrar': 'Sim, fechar',
+    'No, seguir': 'Não, continuar',
+    'Compra y vende a niveles': 'Compra e vende por níveis',
+    '¿Cerrar este bot?': 'Fechar este bot?',
+    '¿Cerrar todos los bots?': 'Fechar todos os bots?',
+    'Vender todo y cerrar': 'Vender tudo e fechar',
+    'Solo cerrar': 'Apenas fechar',
+    'Cerrando…': 'A fechar…',
+    'Vendiendo…': 'A vender…',
+    'Bot cerrado': 'Bot fechado',
+    'Bot creado': 'Bot criado',
+    'Firma en tu wallet': 'Assine na sua carteira',
+    'Siguiente': 'Seguinte',
+    'Anterior': 'Anterior',
+    'Ver mis bots': 'Ver os meus bots',
+    'Saltar': 'Saltar',
+    'Vender': 'Vender',
+    'Rejilla': 'Grelha',
+    'Nivel': 'Nível',
+    'Niveles': 'Níveis',
+    'Rango de precio': 'Intervalo de preço',
     'Cambiar idioma': 'Mudar idioma',
     'Idioma': 'Idioma'
   }
@@ -2174,6 +2242,9 @@ function traducirNodo(raiz) {
         // Ni scripts ni estilos: ahí no hay nada que traducir
         const p = n.parentElement;
         if (!p) return NodeFilter.FILTER_REJECT;
+        /* El canvas se dibuja, no lleva texto en el árbol. Los SVG SÍ
+           llevan <text> y hay que traducirlos: ahí viven los avisos
+           de las gráficas de los bots. */
         const et = p.tagName;
         if (et === 'SCRIPT' || et === 'STYLE' || et === 'CANVAS') return NodeFilter.FILTER_REJECT;
         return n.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
@@ -2231,10 +2302,21 @@ function vigilar() {
       cambios.forEach((c) => {
         c.addedNodes.forEach((n) => {
           if (n.nodeType === 1) traducirNodo(n);
+          /* [CORREGIDO] También los nodos de texto sueltos. Antes solo
+             se miraban los elementos, y los textos que se inyectan
+             directamente (dentro de SVG, o al reescribir un innerHTML
+             parcial) se quedaban sin traducir. */
+          else if (n.nodeType === 3 && n.parentElement) traducirNodo(n.parentElement);
         });
+        // Y cuando cambia el texto de un nodo que ya existía
+        if (c.type === 'characterData' && c.target && c.target.parentElement) {
+          traducirNodo(c.target.parentElement);
+        }
       });
     });
-    _observador.observe(document.body, { childList: true, subtree: true });
+    _observador.observe(document.body, {
+      childList: true, subtree: true, characterData: true
+    });
   } catch (_) {}
 }
 
