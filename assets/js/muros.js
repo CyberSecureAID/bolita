@@ -1,4 +1,4 @@
-// muros.js — Detector de Muros Reales
+// muros.js — Detector de Radar Institucional
 //
 // EL PROBLEMA QUE RESUELVE
 //
@@ -266,13 +266,13 @@ function juzgar() {
 
     if (nv.recargas >= 2) {
       tipo = 'recargable';
-      titulo = 'Muro con recarga';
+      titulo = 'Orden blindada';
       nota = 'Alguien está reponiendo su orden cada vez que se la comen. Es un jugador grande defendiendo este precio sin querer llamar la atención.';
       prioridad = 100;
 
     } else if (nv.huyo && nv.desapariciones >= 2) {
       tipo = 'falso';
-      titulo = 'Muro falso';
+      titulo = 'Orden falsa';
       nota = 'Esta orden se retira cuando el precio se acerca y vuelve cuando se aleja. Está puesta para asustar, no para ejecutarse.';
       prioridad = 70;
 
@@ -284,7 +284,7 @@ function juzgar() {
 
     } else if (vivo && segundos > 90 && nv.desapariciones === 0) {
       tipo = 'real';
-      titulo = 'Muro firme';
+      titulo = 'Orden firme';
       nota = 'Esta orden lleva ahí sin moverse desde que empezamos a vigilar. Todavía no ha llegado el precio a probarla.';
       prioridad = 80;
 
@@ -424,7 +424,7 @@ export async function abrirMuros() {
           <div class="mu-esperando" id="mu-esperando">
             <div class="mu-spin"></div>
             <b>Analizando el libro de órdenes</b>
-            <span>Necesitamos unos segundos de observación para distinguir los muros reales de los falsos.</span>
+            <span>Necesitamos unos segundos de observación para distinguir el dinero real del humo.</span>
             <div class="mu-progreso"><i id="mu-prog"></i></div>
           </div>
           <img class="mu-marca" src="assets/img/cco-marca.webp" alt="">
@@ -1297,7 +1297,7 @@ const PASOS_MU = [
   {
     t: 'El libro de órdenes miente',
     d: 'En cualquier exchange puede ver las órdenes de compra y venta esperando. Lo que no le dicen es que <b>la mayoría de las grandes son falsas</b>: se ponen para asustar y se retiran justo cuando el precio se acerca.',
-    x: 'Un trader que persigue esos muros pierde dinero de forma sistemática.'
+    x: 'Un trader que persigue esas órdenes pierde dinero de forma sistemática.'
   },
   {
     t: 'Nosotros las vigilamos',
@@ -1310,7 +1310,7 @@ const PASOS_MU = [
     x: 'Toque la tarjeta para desplegar el detalle completo.'
   },
   {
-    t: '★ Muro con recarga',
+    t: '★ Orden blindada',
     d: 'La señal más fuerte que existe. La orden <b>se consume y vuelve a aparecer</b> al mismo precio, una y otra vez.',
     x: 'Es alguien grande reponiendo su posición para no mover el mercado. Ese nivel casi siempre aguanta: buen sitio para su stop.'
   },
@@ -1320,12 +1320,12 @@ const PASOS_MU = [
     x: 'Tiene defensa demostrada. Si vuelve, es probable que reaccione igual.'
   },
   {
-    t: '● Muro firme',
+    t: '● Orden firme',
     d: 'Lleva mucho tiempo sin moverse, pero <b>el precio todavía no lo ha puesto a prueba</b>.',
     x: 'La constancia es buena señal, pero espere a ver qué pasa cuando llegue.'
   },
   {
-    t: '✕ Muro falso',
+    t: '✕ Orden falsa',
     d: 'Lo hemos visto <b>huir cuando el precio se acerca</b> y volver cuando se aleja. Esa orden nunca se ejecuta.',
     x: 'No la use como referencia. Si su plan dependía de ese nivel, revíselo.'
   },
@@ -1365,7 +1365,7 @@ function ayuda() {
   d.innerHTML = `<div class="mu-bg"></div>
     <div class="mua-c">
       <button class="mua-x" id="mua-x" aria-label="Cerrar">✕</button>
-      <div class="mua-eyebrow">Muros Reales</div>
+      <div class="mua-eyebrow">Radar Institucional</div>
       <div id="mua-cuerpo"></div>
     </div>`;
   document.body.appendChild(d);
@@ -1834,7 +1834,7 @@ function guardarImagen() {
       g.textAlign = 'left';
       g.fillStyle = '#E8B84B';
       g.font = `800 ${19 * e2}px system-ui,sans-serif`;
-      g.fillText('Muros Reales · Libro de Órdenes', x, yB + 34 * e2);
+      g.fillText('Radar Institucional · Flujo de Órdenes', x, yB + 34 * e2);
       g.font = `700 ${14 * e2}px ui-monospace,monospace`;
       g.fillStyle = '#C9A84B';
       g.fillText('CriptoCubaOficial.com', x, yB + 56 * e2);
@@ -1854,7 +1854,7 @@ function guardarImagen() {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `criptocuba-muros-${_par}-${Date.now()}.png`;
+      a.href = url; a.download = `criptocuba-radar-${_par}-${Date.now()}.png`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1500);
     }, 'image/png');

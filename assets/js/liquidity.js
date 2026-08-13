@@ -558,9 +558,9 @@ const SERVICIOS = [
   },
   {
     id: 'libro',
-    nombre: 'Muros Reales',
-    lema: 'Cuáles aguantan y cuáles mienten',
-    desc: 'El libro de órdenes miente: la mayoría de los muros grandes son falsos. Esta herramienta los vigila y te dice cuáles tienen dinero real detrás.',
+    nombre: 'Radar Institucional',
+    lema: 'Vea lo que hacen los grandes',
+    desc: 'El libro de órdenes miente: la mayoría de las órdenes grandes son falsas. Vigilamos cada una y le decimos cuáles tienen dinero real detrás.',
     img: 'assets/img/serv-libro.webp',
     listo: true
   },
@@ -2003,7 +2003,7 @@ function ayuda() {
           <span class="lqa-col"><i style="background:rgb(34,70,167)"></i>Azul — liquidez de fondo</span>
           <span class="lqa-col"><i style="background:rgb(8,190,12)"></i>Verde — acumulación media</span>
           <span class="lqa-col"><i style="background:rgb(228,229,5)"></i>Amarillo — zona importante</span>
-          <span class="lqa-col"><i style="background:rgb(255,0,0)"></i>Rojo — <b>muro de liquidación</b></span>
+          <span class="lqa-col"><i style="background:rgb(255,0,0)"></i>Rojo — <b>zona de liquidación</b></span>
         </div>
 
         <div class="lqa-p">

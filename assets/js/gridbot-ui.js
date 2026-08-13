@@ -1386,7 +1386,7 @@ function headerHTML() {
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
   else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg></button><button class="dir" id="c-dir" type="button" title="Cambiar de wallet">${iconoWallet()}<span class="dir-tx">${String(cuenta).slice(-4)}</span><span class="dir-ch"></span></button>`;
   return `<header class="c-hdr">
-    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/cco-logo.png" alt="" width="30" height="30"><img class="c-logo-full" src="assets/img/cco-full.webp" alt="Cripto Cuba Oficial" width="152" height="40" loading="eager"></a>
+    <a class="c-brand" href="./"><img class="c-logo" src="assets/img/cco-logo.png" alt="" width="30" height="30"><img class="c-logo-full" src="assets/img/cco-full.webp" alt="Cripto Cuba Oficial" width="152" height="40" loading="eager"></a>
     <span class="c-estado" id="c-estado" title="Estado de tu wallet"><i></i><b>Sin conectar</b></span>
     <img class="c-logo-mov" src="assets/img/cco-movil.webp" alt="CriptoCuba Oficial" width="140" height="91" loading="eager" decoding="async">
     <button class="c-ticker" id="c-ticker" type="button" aria-label="Prize Pool"><img class="c-ticker-img" src="assets/img/cinta-prize.webp" alt="Prize Pool" loading="lazy"></button>
@@ -1584,6 +1584,40 @@ function wireHeader() {
   if ($('c-swap')) $('c-swap').onclick = abrirSwap;
   // La academia se carga solo cuando alguien la pide: no pesa al entrar.
   // Herramientas: se cargan solo al pedirlas.
+  /* ══════════════════════════════════════════════════════════════
+     ENLACES DIRECTOS A UNA SECCIÓN
+
+     Permite que el bot de Telegram (o cualquier enlace compartido)
+     abra la sección concreta en vez de la portada:
+
+       criptocubaoficial.com/#academia
+       criptocubaoficial.com/#liquidity
+       criptocubaoficial.com/#market
+
+     Se espera un momento a que la wallet se conecte, porque algunas
+     secciones la necesitan para pintarse bien.
+     ══════════════════════════════════════════════════════════════ */
+  const RUTAS = {
+    academia: 'c-academy', academy: 'c-academy', planes: 'c-academy',
+    liquidity: 'c-liq', liquidez: 'c-liq', pro: 'c-liq',
+    market: 'c-market', mercado: 'c-market', p2p: 'c-market',
+    sorteo: 'c-prize', prize: 'c-prize',
+    tools: 'c-tools', herramientas: 'c-tools'
+  };
+
+  const abrirRuta = () => {
+    const r = (location.hash || '').replace('#', '').toLowerCase().trim();
+    if (!r || !RUTAS[r]) return;
+    const b = $(RUTAS[r]);
+    if (b) {
+      b.click();
+      // Se limpia para que al recargar no vuelva a abrirse sola
+      history.replaceState(null, '', location.pathname);
+    }
+  };
+  setTimeout(abrirRuta, 1200);
+  window.addEventListener('hashchange', abrirRuta);
+
   // Liquidity Pools: se carga solo al pedirlo.
   if ($('c-liq')) $('c-liq').onclick = async () => {
     try {
