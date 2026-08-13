@@ -98,29 +98,42 @@ function estilos() {
   #perfil-overlay .pf-sect{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.9px;margin-bottom:8px;margin-top:20px}
   /* Textos: versión corta en el móvil */
   #perfil-overlay .tx-s{display:none}
+  /* ══════════════════════════════════════════════════════════════
+     IDIOMA — botón junto al estado
+
+     Va fuera del @media a propósito: la vez anterior quedó dentro y
+     por eso en escritorio salían cuadros blancos sin estilo.
+     ══════════════════════════════════════════════════════════════ */
+  #perfil-overlay .pf-hr{display:flex;align-items:center;gap:9px}
+  #perfil-overlay .pf-globo{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;
+    height:32px;padding:0 10px;border-radius:9px;cursor:pointer;
+    background:rgba(255,255,255,.05);border:1px solid var(--line,#2b3139);
+    color:var(--ink-2,#b7bdc6);transition:border-color .14s,color .14s}
+  #perfil-overlay .pf-globo:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  #perfil-overlay .pf-globo svg{width:15px;height:15px;flex:0 0 auto}
+  #perfil-overlay .pf-globo b{font-family:var(--mono,monospace);font-size:10.5px;font-weight:700}
+
+  /* El desplegable va en el body, fuera del overlay, para que no lo
+     recorte el scroll de la tarjeta. */
+  #pf-idi-menu{position:fixed;z-index:9820;min-width:184px;padding:6px;
+    display:flex;flex-direction:column;gap:2px;
+    background:linear-gradient(180deg,#1b2027,#0d1117);
+    border:1px solid var(--gold-soft,#C9A84B);border-radius:13px;
+    box-shadow:0 16px 44px rgba(0,0,0,.72)}
+  #pf-idi-menu .pf-idi{display:flex;align-items:center;gap:11px;width:100%;
+    padding:11px 12px;border-radius:9px;min-height:46px;cursor:pointer;text-align:left;
+    background:transparent;border:none;color:#b7bdc6}
+  #pf-idi-menu .pf-idi:hover{background:rgba(255,255,255,.05)}
+  #pf-idi-menu .pf-idi.on{background:rgba(232,184,75,.1);color:var(--gold,#E8B84B)}
+  #pf-idi-menu .pf-idi i{font-style:normal;font-size:19px;line-height:1}
+  #pf-idi-menu .pf-idi b{flex:1;font-family:var(--sans,sans-serif);font-weight:600;font-size:13.5px}
+  #pf-idi-menu .pf-idi svg{width:15px;height:15px;flex:0 0 auto;color:var(--gold,#E8B84B)}
+
   @media(max-width:560px){
     #perfil-overlay .tx-l{display:none}
     #perfil-overlay .tx-s{display:inline}
     #perfil-overlay .pf-sect{text-align:center;margin-top:22px;margin-bottom:10px}
-    /* ── Idioma ── */
-  #perfil-overlay .pf-idioma{margin-top:14px;padding:14px;border-radius:14px;
-    background:rgba(255,255,255,.028);border:1px solid var(--line,#2b3139)}
-  #perfil-overlay .pf-idi-t{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
-    text-transform:uppercase;letter-spacing:1.6px;margin-bottom:10px}
-  #perfil-overlay .pf-idi-ops{display:flex;flex-direction:column;gap:5px}
-  #perfil-overlay .pf-idi{display:flex;align-items:center;gap:11px;width:100%;
-    padding:11px 12px;border-radius:10px;min-height:46px;cursor:pointer;text-align:left;
-    background:transparent;border:1px solid transparent;color:var(--ink-2,#b7bdc6)}
-  #perfil-overlay .pf-idi:hover{background:rgba(255,255,255,.045)}
-  #perfil-overlay .pf-idi.on{background:rgba(232,184,75,.1);
-    border-color:rgba(232,184,75,.35);color:var(--gold,#E8B84B)}
-  #perfil-overlay .pf-idi i{font-style:normal;font-size:20px;line-height:1}
-  #perfil-overlay .pf-idi b{flex:1;font-family:var(--sans,sans-serif);font-weight:600;font-size:13.5px}
-  #perfil-overlay .pf-idi svg{width:15px;height:15px;flex:0 0 auto;color:var(--gold,#E8B84B)}
-
   #perfil-overlay .pf-note{font-size:11px;line-height:1.5;text-align:center;padding:0 4px}
-    #perfil-overlay .pf-idi{padding:10px 11px}
-    #perfil-overlay .pf-idi b{font-size:13px}
     #perfil-overlay .pf-setname{font-size:12.5px}
   }
   #perfil-overlay .pf-box{background:rgba(255,255,255,.02);border:1px solid #2b3139;border-radius:13px;padding:4px 14px}
@@ -221,7 +234,13 @@ export async function abrirPerfil() {
       <div class="pf-name" id="pf-name"></div>
       <div class="pf-addr" id="pf-addr" title="Copiar dirección">${wallet.abreviar(cuenta)} ${iconoCopy()}</div>
     </div>
-    <div class="pf-hr" id="pf-sub"><span class="pf-sk"></span></div>
+    <div class="pf-hr">
+      <button class="pf-globo" id="pf-globo" title="Idioma" aria-label="Cambiar idioma">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+        <b id="pf-globo-tx">ES</b>
+      </button>
+      <span id="pf-sub"><span class="pf-sk"></span></span>
+    </div>
   </div>
 
   <div class="pf-kpis">
@@ -300,48 +319,59 @@ export async function abrirPerfil() {
     </div>
     <div class="d">Vendrá activada: tu suscripción se renovará sola y no tendrás que acordarte cada mes. Podrás desactivarla cuando quieras (se firmará en la blockchain).</div>
   </div>
-  <!-- ══════════════════════════════════════════════════════════
-       IDIOMA
-       Aquí y no en la cabecera: arriba ya hay demasiado ocupado.
-       ══════════════════════════════════════════════════════════ -->
-  <div class="pf-idioma" id="pf-idioma">
-    <div class="pf-idi-t">Idioma</div>
-    <div class="pf-idi-ops" id="pf-idi-ops"></div>
-  </div>
-
   <div class="pf-note"><span class="tx-l">Los datos se leen directamente de la blockchain. Tu nombre se guarda solo en este dispositivo.</span><span class="tx-s">Datos leídos de la blockchain. Tu nombre solo se guarda en este dispositivo.</span></div>`;
 
   /* ══════════════════════════════════════════════════════════════
      IDIOMA
-     El módulo se carga solo al abrir el perfil. Si fallara, la
-     sección simplemente no aparece y todo lo demás sigue igual.
+     Un botón con globo terráqueo junto al estado, y un desplegable
+     con las tres opciones. Si el módulo fallara, el botón se oculta
+     y el resto del perfil sigue igual.
      ══════════════════════════════════════════════════════════════ */
   (async () => {
+    const bot = $('pf-globo');
+    if (!bot) return;
     try {
       const idi = await import('./idioma.js?v=126');
-      const caja = $('pf-idi-ops');
-      if (!caja) return;
-      const hoy = idi.idiomaActual();
+      const tx = $('pf-globo-tx');
+      if (tx) tx.textContent = idi.idiomaActual().toUpperCase();
 
-      caja.innerHTML = idi.IDIOMAS.map((x) => `
-        <button class="pf-idi ${x.id === hoy ? 'on' : ''}" data-idi="${x.id}">
-          <i>${x.bandera}</i>
-          <b>${x.nombre}</b>
-          ${x.id === hoy ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg>' : ''}
-        </button>`).join('');
+      bot.onclick = (ev) => {
+        ev.stopPropagation();
+        const prev = document.getElementById('pf-idi-menu');
+        if (prev) { prev.remove(); return; }
 
-      caja.querySelectorAll('[data-idi]').forEach((b) => b.onclick = () => {
-        const id = b.dataset.idi;
-        if (id === idi.idiomaActual()) return;
-        idi.cambiarIdioma(id);
-        // Se marca el elegido al momento, sin esperar
-        caja.querySelectorAll('.pf-idi').forEach((x) => x.classList.toggle('on', x.dataset.idi === id));
-      });
+        const m = document.createElement('div');
+        m.id = 'pf-idi-menu';
+        const hoy = idi.idiomaActual();
+        m.innerHTML = idi.IDIOMAS.map((x) => `
+          <button class="pf-idi ${x.id === hoy ? 'on' : ''}" data-idi="${x.id}">
+            <i>${x.bandera}</i><b>${x.nombre}</b>
+            ${x.id === hoy ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m20 6-11 11-5-5"/></svg>' : ''}
+          </button>`).join('');
+        document.body.appendChild(m);
+
+        // Se coloca bajo el botón sin salirse de la pantalla
+        const r = bot.getBoundingClientRect();
+        const ancho = m.offsetWidth || 184;
+        m.style.left = Math.max(8, Math.min(window.innerWidth - ancho - 8, r.left - 20)) + 'px';
+        m.style.top = (r.bottom + 8) + 'px';
+
+        m.addEventListener('click', (e2) => e2.stopPropagation());
+        m.querySelectorAll('[data-idi]').forEach((b) => b.onclick = () => {
+          const id = b.dataset.idi;
+          m.remove();
+          if (tx) tx.textContent = id.toUpperCase();
+          idi.cambiarIdioma(id);
+        });
+        setTimeout(() => document.addEventListener('click', () => {
+          const x = document.getElementById('pf-idi-menu'); if (x) x.remove();
+        }, { once: true }), 10);
+      };
     } catch (_) {
-      const z = document.getElementById('pf-idioma');
-      if (z) z.style.display = 'none';
+      bot.style.display = 'none';
     }
   })();
+
 
   $('pf-x').onclick = cerrar;
   pintarNombre(cuenta);
