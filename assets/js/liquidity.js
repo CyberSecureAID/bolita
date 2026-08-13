@@ -37,11 +37,7 @@ const ABI_PRO = [
   'function pausado() view returns (bool)'
 ];
 
-const PLANES_PRO = [
-  { id: 0, nombre: 'Un mes',     etiqueta: 'para probarlo',     destacado: false },
-  { id: 1, nombre: 'Tres meses', etiqueta: 'el más elegido',    destacado: true  },
-  { id: 2, nombre: 'Un año',     etiqueta: 'el que sale a cuenta', destacado: false }
-];
+
 
 const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -540,11 +536,148 @@ async function tieneAccesoPro() {
   }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   PORTADA DE LIQUIDITY
+
+   Al entrar no se abre nada: se muestran los tres servicios y, debajo,
+   los planes de acceso. Así el menú principal queda limpio (un solo
+   botón) y el usuario ve de un vistazo qué hay y cuánto cuesta.
+   ══════════════════════════════════════════════════════════════ */
+const SERVICIOS = [
+  {
+    id: 'pools',
+    nombre: 'Liquidity Pools',
+    lema: 'Dónde está el dinero atrapado',
+    desc: 'El mapa de liquidaciones: los precios donde hay posiciones esperando a ser barridas. El precio va a buscarlas.',
+    img: 'assets/img/serv-pools.webp',
+    listo: true
+  },
+  {
+    id: 'libro',
+    nombre: 'Libro de Órdenes',
+    lema: 'Las paredes, en directo',
+    desc: 'Las órdenes de compra y venta que hay AHORA MISMO en el mercado, actualizándose en tiempo real.',
+    img: 'assets/img/serv-libro.webp',
+    listo: false
+  },
+  {
+    id: 'tercero',
+    nombre: 'Próximamente',
+    lema: 'En desarrollo',
+    desc: 'La tercera herramienta del paquete. Muy pronto.',
+    img: 'assets/img/serv-tres.webp',
+    listo: false
+  }
+];
+
+const PLANES_PRO = [
+  { id: 0, nombre: 'Una semana', dias: 7,  usd: 3,  etiqueta: 'para probarlo',  destacado: false },
+  { id: 1, nombre: 'Un mes',     dias: 30, usd: 10, etiqueta: 'sale a cuenta',  destacado: false },
+  { id: 2, nombre: 'Tres meses', dias: 90, usd: 20, etiqueta: 'recomendado',    destacado: true  }
+];
+
 export async function abrirLiquidity() {
   estilos();
+  portada();
+}
+
+/** La pantalla que se ve al entrar: servicios arriba, planes abajo. */
+async function portada() {
+  const prev = $('lqp-overlay'); if (prev) prev.remove();
 
   const acc = await tieneAccesoPro();
-  if (!acc.ok) { pantallaPlanes(acc); return; }
+
+  const d = document.createElement('div');
+  d.id = 'lqp-overlay';
+  d.innerHTML = `<div class="lq-bg"></div>
+    <div class="lqp-c">
+      <button class="lqp-x" id="lqp-x" aria-label="Cerrar">✕</button>
+
+      <div class="lqp-eyebrow">Herramientas Pro</div>
+      <h2 class="lqp-t">Análisis profesional</h2>
+      <p class="lqp-s">Tres herramientas para ver lo que el gráfico esconde</p>
+
+      ${acc.ok && !acc.prueba ? `<div class="lqp-activo">
+        <b>Tu acceso está activo</b>
+        ${acc.quedan ? 'Te quedan ' + Math.ceil(acc.quedan / 86400) + ' días.' : ''}
+      </div>` : ''}
+
+      <div class="lqp-servs">
+        ${SERVICIOS.map((sv) => `
+          <button class="lqp-serv ${sv.listo ? '' : 'pronto'}" data-serv="${sv.id}" ${sv.listo ? '' : 'disabled'}>
+            <div class="lqp-img" data-img="${esc(sv.img)}">
+              <span class="lqp-ini">${esc(sv.nombre[0])}</span>
+            </div>
+            <div class="lqp-nom">${esc(sv.nombre)}</div>
+            <div class="lqp-lema">${esc(sv.lema)}</div>
+            <div class="lqp-desc">${esc(sv.desc)}</div>
+            ${sv.listo ? '<span class="lqp-abrir">Abrir →</span>' : '<span class="lqp-pronto">Próximamente</span>'}
+          </button>`).join('')}
+      </div>
+
+      <div class="lqp-sep"><span>Acceso a las tres</span></div>
+
+      <div class="lqp-planes">
+        ${PLANES_PRO.map((p) => {
+          // Cuánto costaría ese mismo tiempo pagando por semanas
+          const semanas = p.dias / 7;
+          const suelto = semanas * 3;
+          const ahorro = Math.max(0, Math.round((suelto - p.usd) / suelto * 100));
+          return `
+          <div class="lqp-plan ${p.destacado ? 'top' : ''}">
+            ${p.destacado ? '<div class="lqp-badge">Recomendado</div>' : ''}
+            <div class="lqp-plan-n">${p.nombre}</div>
+            <div class="lqp-precio"><b>${p.usd}</b><span>USD</span></div>
+            ${ahorro > 4
+              ? `<div class="lqp-ahorro">ahorras un ${ahorro}%</div>`
+              : `<div class="lqp-ahorro-x">${p.etiqueta}</div>`}
+            <button class="lqp-b" data-plan="${p.id}">Suscribirme</button>
+            <div class="lqp-dias">${p.dias} días</div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <div class="lqp-pago">Se paga en <b>BNB</b> o <b>USDT</b> desde tu wallet. Si renuevas antes de que caduque, los días que te quedan se suman.</div>
+    </div>`;
+  document.body.appendChild(d);
+
+  const cerrar = () => { const e = $('lqp-overlay'); if (e) e.remove(); };
+  d.querySelector('.lq-bg').onclick = cerrar;
+  $('lqp-x').onclick = cerrar;
+
+  // Las imágenes se ponen si existen; si no, queda la inicial y su color
+  d.querySelectorAll('[data-img]').forEach((el) => {
+    const img = new Image();
+    img.onload = () => { el.style.backgroundImage = `url(${el.dataset.img})`; el.classList.add('con'); };
+    img.src = el.dataset.img;
+  });
+
+  d.querySelectorAll('[data-serv]').forEach((b) => b.onclick = async () => {
+    const sv = SERVICIOS.find((x) => x.id === b.dataset.serv);
+    if (!sv || !sv.listo) return;
+    const a = await tieneAccesoPro();
+    if (!a.ok) { avisoSinAcceso(); return; }
+    cerrar();
+    if (sv.id === 'pools') abrirPools();
+  });
+
+  d.querySelectorAll('[data-plan]').forEach((b) => b.onclick = () => comprarPro(Number(b.dataset.plan)));
+}
+
+/** Aviso al intentar entrar sin suscripción. */
+function avisoSinAcceso() {
+  const p = document.querySelector('.lqp-planes');
+  if (!p) return;
+  const prev = document.querySelector('.lqp-msg');
+  if (prev) prev.remove();
+  p.insertAdjacentHTML('beforebegin',
+    '<div class="lqp-msg">Elige un plan para entrar a las herramientas.</div>');
+  p.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/** El mapa de liquidaciones. */
+async function abrirPools() {
+  estilos();
   const prev = $('lq-overlay'); if (prev) prev.remove();
 
   const d = document.createElement('div');
@@ -830,7 +963,7 @@ function dibujar() {
   if (!cv) {
     caja.innerHTML = `<canvas class="lq-cv"></canvas>
       <div class="lq-info" id="lq-info"></div>
-      <div class="lq-marca">CriptoCuba Oficial</div>`;
+      <img class="lq-marca" src="assets/img/cco-marca.webp" alt="">`;
     cv = caja.querySelector('.lq-cv');
     engancharGestos(cv);
   }
@@ -1402,118 +1535,63 @@ function engancharGestos(cv) {
   cv.style.cursor = 'grab';
 }
 
-/* ══════════════════════════════════════════════════════════════
-   PANTALLA DE PLANES
-   Misma dinámica que la Academia, pero el acceso va por wallet: no
-   hace falta usuario de Telegram ni que nadie apruebe nada.
-   ══════════════════════════════════════════════════════════════ */
-async function pantallaPlanes(estado) {
-  const prev = $('pro-overlay'); if (prev) prev.remove();
 
-  const d = document.createElement('div');
-  d.id = 'pro-overlay';
-  d.innerHTML = `<div class="lq-bg"></div>
-    <div class="pro-c">
-      <button class="lq-x" id="pro-x" aria-label="Cerrar">✕</button>
-      <div class="pro-eyebrow">Herramientas Pro</div>
-      <h2 class="pro-t">Tres herramientas, un solo pago</h2>
-      <p class="pro-s">Análisis profesional dentro de Cripto Cuba Oficial</p>
+/** Elegir moneda y pagar. */
+function comprarPro(plan) {
+  const p = PLANES_PRO.find((x) => x.id === plan) || PLANES_PRO[0];
+  const prev = document.querySelector('.lqp-msg');
+  if (prev) prev.remove();
 
-      <div class="pro-lista">
-        <div class="pro-item">
-          <b>Liquidity Pools</b>
-          <span>El mapa de liquidaciones: dónde están las posiciones esperando a ser barridas.</span>
-        </div>
-        <div class="pro-item">
-          <b>Volumen Delta</b>
-          <span>Cuánto se compró y cuánto se vendió en cada vela, y quién manda.</span>
-        </div>
-        <div class="pro-item">
-          <b>Libro de Órdenes</b>
-          <span>Las paredes de compra y venta que hay ahora mismo, en directo.</span>
-        </div>
+  const zona = document.querySelector('.lqp-planes');
+  if (!zona) return;
+
+  zona.insertAdjacentHTML('beforebegin', `
+    <div class="lqp-msg" id="lqp-pago">
+      <b>${p.nombre} · ${p.usd} USD</b>
+      ¿Con qué quieres pagar?
+      <div class="lqp-mon">
+        <button data-pago="bnb">BNB</button>
+        <button data-pago="usdt">USDT</button>
       </div>
+    </div>`);
 
-      <div class="pro-planes" id="pro-planes">
-        <div class="lq-cargando">Consultando los precios…</div>
-      </div>
-
-      ${estado.sinWallet
-        ? `<div class="pro-aviso">Conecta tu wallet para poder suscribirte.</div>`
-        : `<div class="pro-aviso">El acceso queda ligado a tu wallet. Si renuevas antes de que caduque, los días que te quedan se suman.</div>`}
-    </div>`;
-  document.body.appendChild(d);
-
-  const cerrar = () => { const e = $('pro-overlay'); if (e) e.remove(); };
-  d.querySelector('.lq-bg').onclick = cerrar;
-  $('pro-x').onclick = cerrar;
-
-  pintarPlanes();
+  document.querySelectorAll('[data-pago]').forEach((b) => b.onclick = () => pagar(plan, b.dataset.pago));
 }
 
-async function pintarPlanes() {
-  const caja = $('pro-planes'); if (!caja) return;
-  try {
-    const prov = await wallet.proveedor();
-    const c = new ethers.Contract(PRO, ABI_PRO, prov);
+async function pagar(plan, moneda) {
+  const caja = $('lqp-pago'); if (!caja) return;
+  const decir = (t) => { caja.innerHTML = `<b>Pago</b>${t}`; };
 
-    /* Uno detrás de otro con reintento: si van los tres a la vez y
-       falla uno, se cae todo. Y si el contrato no responde, se usan
-       los precios acordados: mejor eso que un mensaje de error. */
-    const datos = [];
-    for (const p of PLANES_PRO) {
-      let info = null;
-      for (let i = 0; i < 3 && !info; i++) {
-        try { info = await c.planes(p.id); }
-        catch (_) { await new Promise((r) => setTimeout(r, 400)); }
-      }
-      const respaldo = [{ dias: 30, usd: 10 }, { dias: 90, usd: 25 }, { dias: 365, usd: 80 }][p.id];
-      let bnb = 0n;
-      try { bnb = await c.costeEnBnb(p.id); } catch (_) {}
-      datos.push(info
-        ? { ...p, dias: Number(info.dias), usd: Number(info.precioUsd) / 100, bnb }
-        : { ...p, dias: respaldo.dias, usd: respaldo.usd, bnb });
-    }
-
-    // Lo que se ahorra frente a pagar mes a mes
-    const mensual = datos[0].usd;
-    caja.innerHTML = datos.map((p) => {
-      const meses = p.dias / 30;
-      const ahorro = Math.max(0, Math.round((mensual * meses - p.usd) / (mensual * meses) * 100));
-      return `
-      <div class="pro-plan ${p.destacado ? 'top' : ''}">
-        ${p.destacado ? '<div class="pro-badge">' + p.etiqueta + '</div>' : ''}
-        <div class="pro-nom">${p.nombre}</div>
-        <div class="pro-precio"><b>${p.usd}</b><span>USD</span></div>
-        ${ahorro > 4 ? `<div class="pro-ahorro">ahorras un ${ahorro}%</div>` : `<div class="pro-ahorro-x">${p.etiqueta}</div>`}
-        <button class="pro-b" data-plan="${p.id}" data-bnb="${p.bnb}">Suscribirme</button>
-        <div class="pro-dias">${p.dias} días de acceso</div>
-      </div>`;
-    }).join('');
-
-    caja.querySelectorAll('[data-plan]').forEach((b) => b.onclick = () => comprarPro(Number(b.dataset.plan)));
-  } catch (_) {
-    caja.innerHTML = `<div class="lq-vacio">No se pudieron consultar los precios.<br>Revisa tu conexión.</div>`;
+  if (!PRO) {
+    decir('El cobro todavía no está activo. Estás en fase de pruebas: puedes usar las herramientas libremente.');
+    return;
   }
-}
-
-async function comprarPro(plan) {
-  const caja = $('pro-planes'); if (!caja) return;
   try {
+    decir('Confirma en tu wallet…');
     const firm = await wallet.firmante();
     const c = new ethers.Contract(PRO, ABI_PRO, firm);
-    const coste = await c.costeEnBnb(plan);
-    caja.insertAdjacentHTML('afterbegin', '<div class="pro-msg">Confirma en tu wallet…</div>');
-    const tx = await c.comprarConBnb(plan, { value: coste });
-    await tx.wait();
-    // Ya tiene acceso: se cierra y se abre la herramienta
-    const e = $('pro-overlay'); if (e) e.remove();
-    abrirLiquidity();
+
+    if (moneda === 'bnb') {
+      const coste = await c.costeEnBnb(plan);
+      const tx = await c.comprarConBnb(plan, { value: coste });
+      await tx.wait();
+    } else {
+      /* Con USDT hacen falta dos firmas: primero el permiso por la
+         cantidad exacta, después el pago. Se avisa para que nadie se
+         extrañe de que la wallet pregunte dos veces. */
+      const coste = await c.costeEnUsdt(plan);
+      const USDT = '0x55d398326f99059fF775485246999027B3197955';
+      const erc = new ethers.Contract(USDT, ['function approve(address,uint256) returns (bool)'], firm);
+      decir('Primera firma: dar permiso por la cantidad exacta…');
+      await (await erc.approve(PRO, coste)).wait();
+      decir('Segunda firma: el pago…');
+      await (await c.comprarConUsdt(plan)).wait();
+    }
+    decir('¡Listo! Ya tienes acceso.');
+    setTimeout(() => portada(), 1200);
   } catch (err) {
-    const m = String(err?.shortMessage || err?.message || err);
-    const msg = /reject|denied/i.test(m) ? 'Cancelaste la firma.' : 'No se pudo completar el pago.';
-    const p = caja.querySelector('.pro-msg');
-    if (p) p.textContent = msg; else caja.insertAdjacentHTML('afterbegin', `<div class="pro-msg">${msg}</div>`);
+    const m = String(err?.shortMessage || err?.reason || err?.message || err);
+    decir(/reject|denied/i.test(m) ? 'Cancelaste la firma.' : 'No se pudo completar el pago. Inténtalo de nuevo.');
   }
 }
 
@@ -1920,9 +1998,9 @@ function estilos() {
   #lq-overlay .lq-slider input::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
     background:var(--gold,#E8B84B);cursor:pointer;border:none}
   /* La marca de agua: nuestra, en la esquina, discreta */
-  #lq-overlay .lq-marca{position:absolute;left:10px;bottom:26px;pointer-events:none;
-    font-family:var(--display,sans-serif);font-weight:800;font-size:13px;
-    color:rgba(232,184,75,.22);letter-spacing:.5px;user-select:none}
+  /* La marca de agua: el logo, discreto. */
+  #lq-overlay .lq-marca{position:absolute;left:12px;bottom:28px;pointer-events:none;
+    height:26px;width:auto;opacity:.28;user-select:none}
   #lq-overlay .lq-ayuda,#lq-overlay .lq-x{width:34px;height:34px;min-height:34px;flex:0 0 auto;border-radius:9px;display:grid;place-items:center;
     padding:0;cursor:pointer;background:rgba(255,255,255,.05);border:1px solid #2b3139;color:#8b96a3;
     font-family:var(--mono,monospace);font-size:14px;font-weight:700}
@@ -1991,6 +2069,102 @@ function estilos() {
     #pro-overlay .pro-nom{flex:1;min-width:80px}
     #pro-overlay .pro-b{width:100%;order:9}
     #pro-overlay .pro-dias{width:100%;order:10}
+  }
+
+  /* ══════════════ PORTADA DE LIQUIDITY ══════════════ */
+  #lqp-overlay{position:fixed;inset:0;z-index:9745;display:flex;align-items:center;justify-content:center;padding:16px}
+  #lqp-overlay .lq-bg{position:absolute;inset:0;background:rgba(3,5,8,.93);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  #lqp-overlay .lqp-c{position:relative;width:100%;max-width:820px;max-height:calc(100vh - 32px);overflow-y:auto;
+    background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,#C9A84B);
+    border-radius:20px;padding:28px 22px;text-align:center}
+  #lqp-overlay .lqp-x{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:10px;
+    display:grid;place-items:center;padding:0;cursor:pointer;font-size:15px;z-index:5;
+    background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#b7bdc6}
+  #lqp-overlay .lqp-x:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  #lqp-overlay .lqp-eyebrow{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:2px;margin-bottom:8px}
+  #lqp-overlay .lqp-t{font-family:var(--display,sans-serif);font-weight:800;font-size:26px;color:#eaecef;margin:0 0 5px}
+  #lqp-overlay .lqp-s{font-family:var(--sans,sans-serif);font-size:13px;color:#7d8794;margin:0 0 22px}
+  #lqp-overlay .lqp-activo{padding:11px 15px;border-radius:12px;margin-bottom:20px;
+    background:rgba(46,232,106,.08);border:1px solid rgba(46,232,106,.3);
+    font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6}
+  #lqp-overlay .lqp-activo b{display:block;color:var(--neon-lit,#2ee86a);
+    font-family:var(--display,sans-serif);font-size:13.5px;margin-bottom:2px}
+
+  #lqp-overlay .lqp-servs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+  #lqp-overlay .lqp-serv{display:flex;flex-direction:column;align-items:center;gap:6px;
+    padding:16px 13px 14px;border-radius:16px;cursor:pointer;text-align:center;
+    background:rgba(255,255,255,.025);border:1px solid #2b3139;transition:border-color .16s,transform .1s}
+  #lqp-overlay .lqp-serv:not(.pronto):hover{border-color:var(--gold,#E8B84B);transform:translateY(-2px)}
+  #lqp-overlay .lqp-serv.pronto{opacity:.5;cursor:default}
+  #lqp-overlay .lqp-img{width:100%;aspect-ratio:16/10;border-radius:12px;margin-bottom:6px;
+    background:linear-gradient(140deg,#1b2230,#0d1117) center/cover no-repeat;
+    border:1px solid #2b3139;display:grid;place-items:center}
+  #lqp-overlay .lqp-img.con{border-color:transparent}
+  #lqp-overlay .lqp-img.con .lqp-ini{display:none}
+  #lqp-overlay .lqp-ini{font-family:var(--display,sans-serif);font-weight:800;font-size:32px;
+    color:rgba(232,184,75,.3)}
+  #lqp-overlay .lqp-nom{font-family:var(--display,sans-serif);font-weight:800;font-size:15px;color:#eaecef}
+  #lqp-overlay .lqp-lema{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:.7px}
+  #lqp-overlay .lqp-desc{font-family:var(--sans,sans-serif);font-size:12px;color:#7d8794;line-height:1.5;flex:1}
+  #lqp-overlay .lqp-abrir{font-family:var(--mono,monospace);font-size:11px;color:var(--gold,#E8B84B);margin-top:4px}
+  #lqp-overlay .lqp-pronto{font-family:var(--mono,monospace);font-size:10px;color:#6b7681;margin-top:4px}
+
+  #lqp-overlay .lqp-sep{display:flex;align-items:center;gap:12px;margin:0 0 16px}
+  #lqp-overlay .lqp-sep:before,#lqp-overlay .lqp-sep:after{content:'';flex:1;height:1px;background:#2b3139}
+  #lqp-overlay .lqp-sep span{font-family:var(--mono,monospace);font-size:10px;color:#6b7681;
+    text-transform:uppercase;letter-spacing:1.4px}
+
+  #lqp-overlay .lqp-planes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  #lqp-overlay .lqp-plan{position:relative;padding:20px 12px 14px;border-radius:14px;
+    background:rgba(255,255,255,.025);border:1px solid #2b3139;display:flex;flex-direction:column;gap:6px}
+  #lqp-overlay .lqp-plan.top{border-color:var(--gold,#E8B84B);background:rgba(232,184,75,.08)}
+  #lqp-overlay .lqp-badge{position:absolute;top:-9px;left:50%;transform:translateX(-50%);white-space:nowrap;
+    padding:3px 11px;border-radius:20px;background:var(--gold,#E8B84B);color:#3a2800;
+    font-family:var(--mono,monospace);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+  #lqp-overlay .lqp-plan-n{font-family:var(--display,sans-serif);font-weight:700;font-size:14px;color:#eaecef}
+  #lqp-overlay .lqp-precio b{font-family:var(--display,sans-serif);font-weight:800;font-size:30px;color:var(--gold,#E8B84B)}
+  #lqp-overlay .lqp-precio span{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;margin-left:3px}
+  #lqp-overlay .lqp-ahorro{font-family:var(--mono,monospace);font-size:10px;color:var(--neon-lit,#2ee86a)}
+  #lqp-overlay .lqp-ahorro-x{font-family:var(--mono,monospace);font-size:10px;color:#6b7681}
+  #lqp-overlay .lqp-b{min-height:44px;border-radius:11px;border:1px solid #c79426;margin-top:3px;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 3px 0 #8f6a1a}
+  #lqp-overlay .lqp-b:active{transform:translateY(2px)}
+  #lqp-overlay .lqp-dias{font-family:var(--mono,monospace);font-size:9.5px;color:#6b7681}
+  #lqp-overlay .lqp-pago{font-family:var(--sans,sans-serif);font-size:11.5px;color:#7d8794;line-height:1.6}
+  #lqp-overlay .lqp-pago b{color:var(--gold,#E8B84B)}
+  #lqp-overlay .lqp-msg{padding:14px 16px;border-radius:12px;margin-bottom:14px;
+    background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.32);
+    font-family:var(--sans,sans-serif);font-size:12.5px;color:#b7bdc6;line-height:1.6}
+  #lqp-overlay .lqp-msg b{display:block;color:var(--gold,#E8B84B);
+    font-family:var(--display,sans-serif);font-size:14px;margin-bottom:3px}
+  #lqp-overlay .lqp-mon{display:flex;gap:8px;justify-content:center;margin-top:10px}
+  #lqp-overlay .lqp-mon button{min-width:96px;min-height:42px;border-radius:11px;border:1px solid #c79426;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:13px;cursor:pointer}
+
+  @media(max-width:720px){
+    #lqp-overlay{padding:9px}
+    #lqp-overlay .lqp-c{padding:22px 14px;border-radius:17px}
+    #lqp-overlay .lqp-t{font-size:21px}
+    #lqp-overlay .lqp-servs{grid-template-columns:1fr;gap:10px}
+    /* En fila, pero con el texto en su propia columna: si no, los
+       hijos empujan y la tarjeta se sale de la pantalla. */
+    #lqp-overlay .lqp-serv{position:relative;display:grid;
+      grid-template-columns:72px minmax(0,1fr);gap:4px 12px;
+      align-items:center;text-align:left;padding:12px}
+    #lqp-overlay .lqp-img{width:72px;flex:0 0 auto;aspect-ratio:1;margin:0;grid-row:1/span 3}
+    #lqp-overlay .lqp-nom,#lqp-overlay .lqp-lema,#lqp-overlay .lqp-desc{
+      grid-column:2;min-width:0;overflow-wrap:anywhere}
+    #lqp-overlay .lqp-desc{font-size:11.5px;line-height:1.45}
+    #lqp-overlay .lqp-abrir,#lqp-overlay .lqp-pronto{grid-column:2;justify-self:start;margin-top:2px}
+    #lqp-overlay .lqp-planes{grid-template-columns:1fr;gap:12px}
+    #lqp-overlay .lqp-plan{flex-direction:row;align-items:center;flex-wrap:wrap;text-align:left;padding:16px 14px}
+    #lqp-overlay .lqp-plan-n{flex:1;min-width:86px}
+    #lqp-overlay .lqp-b{width:100%;order:9}
+    #lqp-overlay .lqp-dias{width:100%;order:10}
   }
 
   /* Ayuda */

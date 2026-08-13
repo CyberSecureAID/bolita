@@ -218,11 +218,22 @@ function inyectarEstilo() {
        ══════════════════════════════════════════════════════════════ */
     #colmena-app #f-gasdep{min-height:0;height:25.99%;padding:0;line-height:1}
   }
-  /* El nombre ocupaba demasiado y competía con la cinta. */
-  #colmena-app .c-brand-tx{font-size:15px;letter-spacing:-.2px;white-space:nowrap}
-  #colmena-app .c-brand-tx b{font-weight:800;color:var(--gold)}
+  /* ══════════════════════════════════════════════════════════════
+     EL LOGO EN ESCRITORIO
+     El nombre en texto nunca encajaba: o se salía o quedaba diminuto.
+     Ahora es el logo completo, que ya trae el nombre dibujado y se ve
+     sólido. El icono suelto se oculta para no duplicarlo.
+     ══════════════════════════════════════════════════════════════ */
+  #colmena-app .c-logo-full{display:block;height:40px;width:auto;object-fit:contain}
+  @media(min-width:761px){
+    #colmena-app .c-brand .c-logo{display:none}
+  }
   @media(min-width:761px) and (max-width:1100px){
-    #colmena-app .c-brand-tx{font-size:13.5px}
+    #colmena-app .c-logo-full{height:34px}
+  }
+  /* En el móvil no cambia nada: sigue el logo centrado de arriba. */
+  @media(max-width:760px){
+    #colmena-app .c-logo-full{display:none}
   }
   /* La wallet: su logo y los 4 últimos caracteres, que es como la
      reconoce todo el mundo. La dirección entera no la lee nadie. */
@@ -232,8 +243,6 @@ function inyectarEstilo() {
     #colmena-app .marca-corta{display:inline}
     #colmena-app .marca-larga{display:none}
   }
-  #colmena-app .c-delta{border-color:rgba(38,166,154,.45);color:#26a69a}
-  #colmena-app .c-delta:hover{border-color:#26a69a;background:rgba(38,166,154,.1)}
   #colmena-app .c-liq{border-color:rgba(246,70,93,.42);color:#f6465d}
   #colmena-app .c-liq:hover{border-color:#f6465d;background:rgba(246,70,93,.1)}
   #colmena-app .c-tools{border-color:rgba(77,159,255,.42);color:var(--ac-m,#4d9fff)}
@@ -1375,7 +1384,7 @@ function headerHTML() {
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
   else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><button class="dir" id="c-dir" type="button" title="Cambiar de wallet">${iconoWallet()}<span class="dir-tx">${String(cuenta).slice(-4)}</span><span class="dir-ch"></span></button><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
   return `<header class="c-hdr">
-    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/cco-logo.png" alt="" width="30" height="30"><span class="c-brand-tx"><span class="marca-larga">C Cuba <b>Oficial</b></span></span></a>
+    <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/cco-logo.png" alt="" width="30" height="30"><img class="c-logo-full" src="assets/img/cco-full.webp" alt="Cripto Cuba Oficial" width="152" height="40" loading="eager"></a>
     <span class="c-estado" id="c-estado" title="Estado de tu wallet"><i></i><b>Sin conectar</b></span>
     <img class="c-logo-mov" src="assets/img/cco-movil.webp" alt="CriptoCuba Oficial" width="140" height="91" loading="eager" decoding="async">
     <button class="c-ticker" id="c-ticker" type="button" aria-label="Prize Pool"><img class="c-ticker-img" src="assets/img/cinta-prize.webp" alt="Prize Pool" loading="lazy"></button>
@@ -1385,7 +1394,6 @@ function headerHTML() {
       <button class="c-swap c-academy" id="c-academy" type="button" aria-label="Academy"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9 12 4 2 9l10 5 10-5z"/><path d="M6 11.5V16c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-4.5"/><path d="M22 9v5"/></svg><span class="c-swap-tx">Academy</span></button>
       <button class="c-swap c-tools" id="c-tools" type="button" aria-label="Herramientas"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span class="c-swap-tx">Tools</span></button>
       <button class="c-swap c-liq" id="c-liq" type="button" aria-label="Liquidity Pools"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h4V10H3zM10 20h4V4h-4zM17 20h4v-7h-4z"/></svg><span class="c-swap-tx">Liquidity</span></button>
-      <button class="c-swap c-delta" id="c-delta" type="button" aria-label="Volumen Delta"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M7 8l5-5 5 5M7 16l5 5 5-5"/></svg><span class="c-swap-tx">Delta</span></button>
       <button class="c-prize" id="c-prize" type="button" aria-label="Prize Pool"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg><span class="c-prize-tx">Prize Pool</span></button>
       <button class="c-market" id="c-market" type="button" aria-label="Marketplace"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18l-1.5 10.5a2 2 0 0 1-2 1.5H6.5a2 2 0 0 1-2-1.5L3 9z"/><path d="M8 9V6a4 4 0 0 1 8 0v3"/></svg><span class="c-market-tx">Market</span></button>
       <button class="c-loteria" id="c-instalar" type="button" aria-label="Instalar la app"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="c-lot-tx"><span class="lbl-pc">Instalar</span><span class="lbl-mov">Compartir</span></span></button>
@@ -1558,14 +1566,6 @@ function wireHeader() {
   if ($('c-swap')) $('c-swap').onclick = abrirSwap;
   // La academia se carga solo cuando alguien la pide: no pesa al entrar.
   // Herramientas: se cargan solo al pedirlas.
-  // Volumen Delta: se carga solo al pedirlo.
-  if ($('c-delta')) $('c-delta').onclick = async () => {
-    try {
-      const dl = await import('./delta.js?v=126');
-      dl.abrirDelta();
-    } catch (e) { console.warn('[Aurex] delta:', e); }
-  };
-
   // Liquidity Pools: se carga solo al pedirlo.
   if ($('c-liq')) $('c-liq').onclick = async () => {
     try {
