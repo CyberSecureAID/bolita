@@ -62,7 +62,8 @@ const D = {
   vista: 'delta',      // 'delta' | 'acumulado'
   arrastrando: false,
   x0: 0,
-  cruzX: -1, cruzY: -1
+  cruzX: -1, cruzY: -1,
+  marcas: []
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -178,6 +179,7 @@ async function cargar() {
     if (velas.length < 10) throw new Error('vacío');
 
     D.velas = velas;
+    D.marcas = detectar(velas);
     D.ancho = Math.min(velas.length, window.innerWidth < 700 ? 40 : 70);
     D.desde = Math.max(0, velas.length - D.ancho);
     caja.innerHTML = '';
@@ -204,10 +206,120 @@ function arrancarVivo() {
       });
       if (cambio) {
         if (D.velas.length > 320) D.velas = D.velas.slice(-300);
+        D.marcas = detectar(D.velas);
         dibujar();
       }
     } catch (_) {}
   }, 4000);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EL DETECTOR — esto es lo que no está gratis
+
+   Un delta a secas es un histograma de colores: cualquiera lo tiene.
+   Lo que vale dinero es que la herramienta te SEÑALE los momentos
+   donde el flujo de órdenes revela algo, y esos son cuatro:
+
+   1. ABSORCIÓN — mucho volumen agresivo y el precio no se mueve.
+      Significa que alguien grande está absorbiendo con órdenes
+      pasivas: está defendiendo ese nivel. Es la señal más fuerte
+      del análisis de flujo, y la que un gráfico normal esconde.
+
+   2. AGOTAMIENTO — un pico de delta enorme al final de un tramo,
+      seguido de nada. El último en entrar ya entró.
+
+   3. DIVERGENCIA — precio hace máximo nuevo y el delta acumulado
+      no lo acompaña. El movimiento no tiene fuerza real detrás.
+
+   4. TRAMPA — ruptura de un extremo con delta en contra: los que
+      persiguieron el movimiento están atrapados.
+   ══════════════════════════════════════════════════════════════ */
+
+function detectar(velas) {
+  const marcas = [];
+  if (velas.length < 25) return marcas;
+
+  // Referencias: qué es "mucho" en este gráfico concreto
+  const vols = velas.map((v) => v.v).slice().sort((a, b) => a - b);
+  const volAlto = vols[Math.floor(vols.length * 0.85)];
+  const rangos = velas.map((v) => (v.h - v.l) / v.c).slice().sort((a, b) => a - b);
+  const rangoBajo = rangos[Math.floor(rangos.length * 0.35)];
+  const deltas = velas.map((v) => Math.abs(v.delta)).slice().sort((a, b) => a - b);
+  const deltaAlto = deltas[Math.floor(deltas.length * 0.92)];
+
+  // Delta acumulado, para las divergencias
+  let acum = 0;
+  const cvd = velas.map((v) => { acum += v.delta; return acum; });
+
+  velas.forEach((v, i) => {
+    if (i < 12) return;
+    const rango = (v.h - v.l) / v.c;
+
+    /* 1 · ABSORCIÓN
+       Volumen alto + delta fuerte + el precio casi no se movió.
+       Alguien está comiéndose todas las órdenes a ese precio. */
+    if (v.v >= volAlto && Math.abs(v.delta) >= deltaAlto * 0.6 && rango <= rangoBajo) {
+      marcas.push({
+        i, tipo: 'absorcion',
+        alcista: v.delta < 0,      // vendedores absorbidos → gira al alza
+        titulo: v.delta < 0 ? 'Absorción de venta' : 'Absorción de compra',
+        texto: v.delta < 0
+          ? 'Vendieron con fuerza y el precio no bajó: alguien está comprando todo lo que sueltan.'
+          : 'Compraron con fuerza y el precio no subió: alguien está vendiendo contra ellos.'
+      });
+      return;
+    }
+
+    /* 2 · AGOTAMIENTO
+       Pico de delta desproporcionado tras un tramo largo en la misma
+       dirección. Cuando todos entran a la vez, ya no queda nadie. */
+    if (Math.abs(v.delta) >= deltaAlto) {
+      const tramo = velas.slice(Math.max(0, i - 8), i);
+      const mismaDir = tramo.filter((x) => (x.c > x.o) === (v.delta > 0)).length;
+      if (mismaDir >= 6) {
+        marcas.push({
+          i, tipo: 'agotamiento',
+          alcista: v.delta < 0,
+          titulo: v.delta > 0 ? 'Agotamiento comprador' : 'Agotamiento vendedor',
+          texto: 'Entrada masiva al final de un tramo largo. Los últimos en llegar suelen ser los que se quedan atrapados.'
+        });
+        return;
+      }
+    }
+
+    /* 3 · DIVERGENCIA
+       El precio hace un extremo nuevo pero el delta acumulado no. */
+    const ventana = 14;
+    if (i >= ventana) {
+      const prev = velas.slice(i - ventana, i);
+      const maxPrev = Math.max(...prev.map((x) => x.h));
+      const minPrev = Math.min(...prev.map((x) => x.l));
+      const cvdPrev = cvd.slice(i - ventana, i);
+
+      if (v.h > maxPrev && cvd[i] < Math.max(...cvdPrev)) {
+        marcas.push({
+          i, tipo: 'divergencia', alcista: false,
+          titulo: 'Divergencia bajista',
+          texto: 'Precio en máximos nuevos, pero el flujo comprador no acompaña. La subida está perdiendo apoyo.'
+        });
+        return;
+      }
+      if (v.l < minPrev && cvd[i] > Math.min(...cvdPrev)) {
+        marcas.push({
+          i, tipo: 'divergencia', alcista: true,
+          titulo: 'Divergencia alcista',
+          texto: 'Precio en mínimos nuevos, pero el flujo vendedor se está agotando. Alguien está recogiendo.'
+        });
+      }
+    }
+  });
+
+  // Sin marcas pegadas: quedarse con la primera de cada racha
+  const limpias = [];
+  marcas.forEach((m) => {
+    if (!limpias.some((x) => Math.abs(x.i - m.i) < 4)) limpias.push(m);
+  });
+  return limpias;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -277,6 +389,37 @@ function dibujar() {
     g.beginPath(); g.moveTo(x, Y(v.h)); g.lineTo(x, Y(v.l)); g.stroke();
     const yA = Y(Math.max(v.o, v.c)), yB = Y(Math.min(v.o, v.c));
     g.fillRect(x - cuerpo / 2, yA, cuerpo, Math.max(1.4, yB - yA));
+  });
+
+  /* ══════════════════════════════════════════════════════════
+     LAS SEÑALES sobre el gráfico
+     Cada una con su forma y color: lo que hace útil la herramienta
+     no es el histograma, es que te señale DÓNDE mirar.
+     ══════════════════════════════════════════════════════════ */
+  const visibles = D.marcas.filter((mk) => mk.i >= desde && mk.i < hasta);
+  visibles.forEach((mk) => {
+    const v = D.velas[mk.i];
+    const x = (mk.i - desde) * paso + paso / 2;
+    const arriba = !mk.alcista;
+    const y = arriba ? Y(v.h) - 14 : Y(v.l) + 14;
+    const col = mk.tipo === 'absorcion' ? '#E8B84B'
+              : mk.tipo === 'agotamiento' ? '#c77dff'
+              : mk.alcista ? VERDE : ROJO;
+
+    // El triángulo
+    g.fillStyle = col;
+    g.beginPath();
+    if (arriba) { g.moveTo(x, y + 7); g.lineTo(x - 5.5, y - 2); g.lineTo(x + 5.5, y - 2); }
+    else { g.moveTo(x, y - 7); g.lineTo(x - 5.5, y + 2); g.lineTo(x + 5.5, y + 2); }
+    g.closePath(); g.fill();
+
+    // La letra: A absorción, X agotamiento, D divergencia
+    g.font = 'bold 8px ui-monospace,monospace';
+    g.fillStyle = col;
+    g.textAlign = 'center';
+    const letra = mk.tipo === 'absorcion' ? 'A' : mk.tipo === 'agotamiento' ? 'X' : 'D';
+    g.fillText(letra, x, arriba ? y - 6 : y + 13);
+    g.textAlign = 'left';
   });
 
   /* ── Separador ── */
@@ -449,12 +592,29 @@ function pintarPie(vis) {
       <span>Última vela</span>
       <b class="${ult.delta >= 0 ? 'verde' : 'rojo'}">${ult.delta >= 0 ? '+' : ''}${miles(ult.delta)}</b>
     </div>
-    ${divergencia ? `<div class="dl-alerta">
-      <b>Divergencia</b>
-      ${subio
-        ? 'El precio sube pero manda la venta: subida sin apoyo real.'
-        : 'El precio baja pero manda la compra: alguien está recogiendo.'}
-    </div>` : ''}`;
+    ${ultimaMarca()}`;
+}
+
+/** La señal más reciente, explicada. Es lo que el usuario mira primero. */
+function ultimaMarca() {
+  if (!D.marcas.length) {
+    return `<div class="dl-alerta neutra">
+      <b>Sin señales</b>
+      El flujo va acorde al precio. Nada destacable ahora mismo.
+    </div>`;
+  }
+  const mk = D.marcas[D.marcas.length - 1];
+  const v = D.velas[mk.i];
+  const cuando = new Date(v.t * 1000).toLocaleString('es',
+    { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const clase = mk.tipo === 'absorcion' ? 'oro' : mk.tipo === 'agotamiento' ? 'morada' : (mk.alcista ? 'verde' : 'roja');
+  const cuantas = D.marcas.length;
+
+  return `<div class="dl-alerta ${clase}">
+    <b>${esc(mk.titulo)} <em>· ${cuando}</em></b>
+    ${esc(mk.texto)}
+    ${cuantas > 1 ? `<u>${cuantas} señales en el tramo cargado</u>` : ''}
+  </div>`;
 }
 
 const miles = (v) => {
@@ -684,13 +844,29 @@ function ayuda() {
 
       <div class="dla-pane on" id="dp-operar">
         <div class="dla-intro">
-          El precio te dice <b>qué pasó</b>. El delta te dice <b>quién lo hizo
-          pasar</b>. Y esa diferencia es donde está la ventaja: ves la fuerza
-          real detrás de cada movimiento antes de que se note en el gráfico.
+          Esto no es un indicador de volumen. Es un <b>detector de huellas
+          institucionales</b>: te marca los momentos exactos donde un jugador
+          grande está actuando y el gráfico normal no lo enseña.
         </div>
 
         <div class="dla-p">
-          <b>1 · La divergencia es la señal más valiosa</b>
+          <b>Las tres señales que busca</b>
+          <span class="dla-col"><i style="background:#E8B84B"></i><b>A — Absorción.</b> La más valiosa.</span>
+          <span class="dla-col"><i style="background:#c77dff"></i><b>X — Agotamiento.</b> El final de un tramo.</span>
+          <span class="dla-col"><i style="background:#26a69a"></i><b>D — Divergencia.</b> Movimiento sin apoyo.</span>
+        </div>
+
+        <div class="dla-p">
+          <b>1 · La absorción es lo que nadie te enseña</b>
+          Cuando ves una <b>A dorada</b>, ha pasado esto: alguien lanzó una
+          avalancha de órdenes en una dirección y <b>el precio no se movió</b>.
+          Eso solo ocurre cuando un participante grande está absorbiendo cada
+          orden con posiciones pasivas. Está defendiendo ese nivel.
+          <i>Qué hacer: la absorción marca dónde hay alguien grande al otro lado. Suele aparecer justo antes de un giro, porque cuando los agresivos se agotan, el precio se va hacia el que absorbió.</i>
+        </div>
+
+        <div class="dla-p">
+          <b>2 · La divergencia avisa antes que el precio</b>
           Cuando el precio sube pero el delta es negativo, esa subida
           <b>la están sosteniendo órdenes pasivas, no compradores con prisa</b>.
           Suele durar poco. Y al revés: precio que baja con delta positivo
@@ -699,7 +875,7 @@ function ayuda() {
         </div>
 
         <div class="dla-p">
-          <b>2 · El delta acumulado marca la tendencia real</b>
+          <b>3 · El delta acumulado marca la tendencia real</b>
           Cambia a la vista <b>Acumulado</b>. Si esa línea sube de forma
           constante mientras el precio va de lado, hay acumulación silenciosa:
           alguien está construyendo posición sin mover el precio.
@@ -707,7 +883,7 @@ function ayuda() {
         </div>
 
         <div class="dla-p">
-          <b>3 · Las barras enormes marcan el clímax</b>
+          <b>4 · El agotamiento marca el clímax</b>
           Una barra de delta mucho mayor que las demás es un momento de
           pánico o euforia. <b>Ahí suele estar el final del movimiento</b>,
           no el principio: cuando todos entran a la vez, ya no queda nadie
@@ -716,7 +892,7 @@ function ayuda() {
         </div>
 
         <div class="dla-p">
-          <b>4 · La presión en pantalla te da el contexto</b>
+          <b>5 · La presión en pantalla te da el contexto</b>
           El indicador de abajo resume quién manda en todo lo que estás
           viendo. Por encima del 60% de compra, el tramo es claramente
           comprador; por debajo del 40%, vendedor. Entre medias, indecisión.
@@ -724,7 +900,7 @@ function ayuda() {
         </div>
 
         <div class="dla-p">
-          <b>5 · Combínalo con Liquidity Pools</b>
+          <b>6 · Combínalo con Liquidity Pools</b>
           El mapa de liquidez te dice <b>dónde</b> hay dinero esperando. El
           delta te dice <b>si están yendo a por él</b>. Un muro rojo con delta
           creciendo hacia él es la combinación más clara que vas a encontrar.
@@ -837,7 +1013,20 @@ function estilos() {
     background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.32);
     font-family:var(--sans,sans-serif);font-size:11.5px;color:#b7bdc6;line-height:1.4}
   #dl-overlay .dl-alerta b{display:block;color:var(--gold,#E8B84B);
-    font-family:var(--display,sans-serif);font-size:12px;margin-bottom:1px}
+    font-family:var(--display,sans-serif);font-size:12.5px;margin-bottom:2px}
+  #dl-overlay .dl-alerta b em{font-style:normal;font-weight:400;font-size:9.5px;
+    color:#6b7681;font-family:var(--mono,monospace)}
+  #dl-overlay .dl-alerta u{display:block;margin-top:4px;text-decoration:none;
+    font-family:var(--mono,monospace);font-size:9.5px;color:#6b7681}
+  #dl-overlay .dl-alerta.oro{background:rgba(232,184,75,.12);border-color:rgba(232,184,75,.4)}
+  #dl-overlay .dl-alerta.morada{background:rgba(199,125,255,.1);border-color:rgba(199,125,255,.35)}
+  #dl-overlay .dl-alerta.morada b{color:#c77dff}
+  #dl-overlay .dl-alerta.verde{background:rgba(38,166,154,.1);border-color:rgba(38,166,154,.35)}
+  #dl-overlay .dl-alerta.verde b{color:#26a69a}
+  #dl-overlay .dl-alerta.roja{background:rgba(239,83,80,.1);border-color:rgba(239,83,80,.35)}
+  #dl-overlay .dl-alerta.roja b{color:#ef5350}
+  #dl-overlay .dl-alerta.neutra{background:rgba(255,255,255,.03);border-color:#2b3139}
+  #dl-overlay .dl-alerta.neutra b{color:#8b96a3}
 
   .dl-menu{position:fixed;z-index:9780;min-width:212px;max-height:340px;overflow:hidden;
     display:flex;flex-direction:column;background:linear-gradient(180deg,#1b2027,#0d1117);
