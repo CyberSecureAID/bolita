@@ -1338,6 +1338,48 @@ const DIC = {
       'to move from one class to another. If you stay in the group scrolling between them, you lose the thread and no record of your progress is kept.',
     'Puedes saltarte un examen o copiar las respuestas, y nadie se enterará. Pero el día que operes con tu dinero, el mercado no acepta certificados: acepta lo que de verdad sabes.':
       'You can skip an exam or copy the answers, and nobody will know. But the day you trade with your own money, the market does not accept certificates: it accepts what you actually know.',
+
+    /* ══════════════ LIQUIDATION PRESSURE ══════════════ */
+    'Liquidation Pressure': 'Liquidation Pressure',
+    'Cuándo el mercado va a purgar': 'When the market is about to purge',
+    'Mide la tensión acumulada en los futuros: funding, apalancamiento y posicionamiento. Le avisa antes de que el mercado limpie posiciones.':
+      'Measures built-up tension in futures: funding, leverage and positioning. It warns you before the market flushes positions.',
+    'Midiendo la presión del mercado': 'Measuring market pressure',
+    'Leyendo funding, interés abierto y posicionamiento de todo el mercado.':
+      'Reading funding, open interest and positioning across the whole market.',
+    'Riesgo extremo de purga': 'Extreme purge risk',
+    'Tensión alta': 'High tension',
+    'Tensión moderada': 'Moderate tension',
+    'Mercado equilibrado': 'Balanced market',
+    'Qué hacer': 'What to do',
+    'Por qué lo decimos': 'Why we say this',
+    'Funding': 'Funding',
+    'Posicionamiento': 'Positioning',
+    'Apalancamiento': 'Leverage',
+    'Próximo cobro': 'Next payment',
+    'Los largos pagan': 'Longs are paying',
+    'Los cortos pagan': 'Shorts are paying',
+    'largos': 'long',
+    'cortos': 'short',
+    'de su máximo de 48h': 'of its 48h high',
+    'se paga el funding': 'funding is charged',
+    'Sin señales de tensión': 'No tension signals',
+    'Ninguno de los cuatro indicadores está en zona de riesgo ahora mismo.':
+      'None of the four indicators is in the risk zone right now.',
+    'Datos del mercado de futuros de Binance · se actualizan cada 45 segundos':
+      'Binance futures market data · updated every 45 seconds',
+    'No se pudieron cargar los datos del mercado.': 'Could not load market data.',
+    'Los alcistas pagan una fortuna': 'Bulls are paying a fortune',
+    'Los bajistas pagan una fortuna': 'Bears are paying a fortune',
+    'Sesgo alcista caro': 'Expensive bullish bias',
+    'Sesgo bajista caro': 'Expensive bearish bias',
+    'Récord de dinero apalancado': 'Record leveraged money',
+    'Entrada rápida de apalancamiento': 'Rapid leverage inflow',
+    'Casi todos están largos': 'Almost everyone is long',
+    'Casi todos están cortos': 'Almost everyone is short',
+    'Desequilibrio en el posicionamiento': 'Positioning imbalance',
+    'Combinación de purga': 'Purge combination',
+    'Combinación de rebote': 'Bounce combination',
     'Cambiar idioma': 'Change language',
     'Idioma': 'Language'
   },
@@ -2048,6 +2090,23 @@ const DIC = {
     'que te lo explica. Luego repites.': 'que lho explica. Depois repete.',
     'en la materia que acabas de estudiar.': 'sobre a matéria que acabou de estudar.',
     ': es la forma más eficaz de proteger tu dinero.': ': é a forma mais eficaz de proteger o seu dinheiro.',
+
+    /* ══════════════ LIQUIDATION PRESSURE ══════════════ */
+    'Cuándo el mercado va a purgar': 'Quando o mercado vai purgar',
+    'Midiendo la presión del mercado': 'A medir a pressão do mercado',
+    'Riesgo extremo de purga': 'Risco extremo de purga',
+    'Tensión alta': 'Tensão alta',
+    'Tensión moderada': 'Tensão moderada',
+    'Mercado equilibrado': 'Mercado equilibrado',
+    'Qué hacer': 'O que fazer',
+    'Por qué lo decimos': 'Porque o dizemos',
+    'Posicionamiento': 'Posicionamento',
+    'Apalancamiento': 'Alavancagem',
+    'Próximo cobro': 'Próxima cobrança',
+    'Los largos pagan': 'Os longos pagam',
+    'Los cortos pagan': 'Os curtos pagam',
+    'Casi todos están largos': 'Quase todos estão longos',
+    'Casi todos están cortos': 'Quase todos estão curtos',
     'Cambiar idioma': 'Mudar idioma',
     'Idioma': 'Idioma'
   }

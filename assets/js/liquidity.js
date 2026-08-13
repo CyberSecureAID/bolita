@@ -566,11 +566,11 @@ const SERVICIOS = [
   },
   {
     id: 'tercero',
-    nombre: 'Próximamente',
-    lema: 'En desarrollo',
-    desc: 'La tercera herramienta del paquete. Muy pronto.',
+    nombre: 'Liquidation Pressure',
+    lema: 'Cuándo el mercado va a purgar',
+    desc: 'Mide la tensión acumulada en los futuros: funding, apalancamiento y posicionamiento. Le avisa antes de que el mercado limpie posiciones.',
     img: 'assets/img/serv-tres.webp',
-    listo: false
+    listo: true
   }
 ];
 
@@ -667,7 +667,14 @@ async function portada() {
       try {
         const mu = await import('./muros.js?v=126');
         mu.abrirMuros();
-      } catch (er) { console.warn('[CCO] muros:', er); }
+      } catch (er) { console.warn('[CCO] radar:', er); }
+      return;
+    }
+    if (sv.id === 'tercero') {
+      try {
+        const tm = await import('./termometro.js?v=126');
+        tm.abrirTermometro();
+      } catch (er) { console.warn('[CCO] presion:', er); }
     }
   });
 
