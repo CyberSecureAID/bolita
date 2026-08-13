@@ -930,7 +930,43 @@ async function pintar() {
    ══════════════════════════════════════════════════════════════ */
 
 /** Paleta de calor. v va de 0 a 1. */
+/* ══════════════════════════════════════════════════════════════
+   LOS COLORES — POR ESCALONES, NO EN DEGRADADO
+
+   Antes era un degradado continuo de 8 paradas: entre azul y verde
+   salían turquesas, entre verde y amarillo salían limas… y el
+   resultado era un revoltijo donde nada se distinguía.
+
+   Ahora son SEIS escalones cerrados. Cada franja de intensidad tiene
+   UN color, y punto:
+
+     azul oscuro / azul / azul claro  → poca liquidez
+     verde                            → media
+     amarillo                         → alta
+     naranja + rojo                   → los muros
+
+   Y una regla que pediste y tiene sentido: el naranja SOLO aparece
+   acompañando al rojo. Nunca suelto, porque solo sirve para dar
+   gradación al muro, no para marcar nada por sí mismo.
+   ══════════════════════════════════════════════════════════════ */
+const ESCALONES = [
+  { hasta: 0.20, c: [10, 36, 92] },     // azul oscuro
+  { hasta: 0.40, c: [30, 74, 168] },    // azul
+  { hasta: 0.58, c: [56, 130, 220] },   // azul claro
+  { hasta: 0.76, c: [8, 190, 12] },     // VERDE
+  { hasta: 0.89, c: [228, 229, 5] },    // AMARILLO
+  { hasta: 0.96, c: [255, 132, 0] },    // naranja (solo junto al rojo)
+  { hasta: 1.01, c: [255, 0, 0] }       // ROJO
+];
+
 function calor(v) {
+  if (v <= 0) return null;
+  const p = Math.max(0, Math.min(1, v));
+  for (const e of ESCALONES) if (p <= e.hasta) return e.c;
+  return ESCALONES[ESCALONES.length - 1].c;
+}
+
+function calorViejo(v) {
   if (v <= 0) return null;
   /* Curva 0,72 en vez de 0,42: antes casi todo saltaba a verde y
      amarillo y no había jerarquía. Ahora la base se queda en azul y
@@ -998,7 +1034,6 @@ function dibujar() {
   let cv = caja.querySelector('.lq-cv');
   if (!cv) {
     caja.innerHTML = `<canvas class="lq-cv"></canvas>
-      <div class="lq-info" id="lq-info"></div>
       <img class="lq-marca" src="assets/img/cco-marca.webp" alt="">`;
     cv = caja.querySelector('.lq-cv');
     engancharGestos(cv);
@@ -1410,8 +1445,6 @@ function dibujar() {
     }
   }
 
-  const info = $('lq-info');
-  if (info) info.textContent = `${_par} · ${_tf} · ${V.apal === 'todos' ? 'todo apalancamiento' : 'x' + V.apal}`;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2111,8 +2144,13 @@ function estilos() {
   #lq-overlay .lq-escala span{font-family:var(--mono,monospace);font-size:9px;color:#6b7681;
     text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
   /* La escala refleja la paleta real del mapa. */
+  /* La escala refleja los escalones exactos del mapa, sin degradados
+     intermedios: lo que se ve abajo es lo que se ve arriba. */
   #lq-overlay .lq-gr{flex:1;height:8px;border-radius:20px;
-    background:linear-gradient(90deg,rgb(6,30,96),rgb(34,70,167),rgb(8,150,150),rgb(8,190,12),rgb(140,210,8),rgb(228,229,5),rgb(250,150,20),rgb(252,54,71))}
+    background:linear-gradient(90deg,
+      rgb(10,36,92) 0 20%, rgb(30,74,168) 20% 40%, rgb(56,130,220) 40% 58%,
+      rgb(8,190,12) 58% 76%, rgb(228,229,5) 76% 89%,
+      rgb(255,132,0) 89% 96%, rgb(255,0,0) 96% 100%)}
 
   /* ── Planes Pro ── */
   #pro-overlay{position:fixed;inset:0;z-index:9750;display:flex;align-items:center;justify-content:center;padding:16px}

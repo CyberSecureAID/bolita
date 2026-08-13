@@ -1382,7 +1382,7 @@ function headerHTML() {
   let right;
   if (!cuenta) right = `<button class="btn btn-oro hdr-btn" id="c-conectar">Conectar wallet</button>`;
   else if (!wallet.esRedCorrecta()) right = `<button class="btn btn-rojo hdr-btn" id="c-red">Cambiar a BNB Chain</button>`;
-  else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><button class="dir" id="c-dir" type="button" title="Cambiar de wallet">${iconoWallet()}<span class="dir-tx">${String(cuenta).slice(-4)}</span><span class="dir-ch"></span></button><button class="hdr-off" id="c-off" title="Desconectar" aria-label="Desconectar"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
+  else right = `<span class="c-sep"></span><button class="c-perfil" id="c-perfil" type="button" aria-label="Mi perfil"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c.6-3.4 3.2-5 6.5-5s5.9 1.6 6.5 5"/></svg><span class="c-perfil-tx">Perfil</span></button><button class="dir" id="c-dir" type="button" title="Cambiar de wallet">${iconoWallet()}<span class="dir-tx">${String(cuenta).slice(-4)}</span><span class="dir-ch"></span></button>`;
   return `<header class="c-hdr">
     <a class="c-brand" href="index.html"><img class="c-logo" src="assets/img/cco-logo.png" alt="" width="30" height="30"><img class="c-logo-full" src="assets/img/cco-full.webp" alt="Cripto Cuba Oficial" width="152" height="40" loading="eager"></a>
     <span class="c-estado" id="c-estado" title="Estado de tu wallet"><i></i><b>Sin conectar</b></span>
@@ -1594,15 +1594,22 @@ function wireHeader() {
   /* [CORREGIDO] El logo de la wallet se dibujaba UNA vez, al montar la
      cabecera, cuando todavía no se sabía qué wallet era: salía el icono
      genérico y ahí se quedaba. Ahora se vuelve a pintar al conectar. */
+  /* [CORREGIDO] Buscaba un elemento con clase .dir-logo, pero el icono
+     genérico que se pinta al arrancar no siempre la lleva. Al no
+     encontrarlo, no repintaba nada y se quedaba el cuadradito.
+     Ahora se busca el primer hijo, sea lo que sea. */
   const pintarLogoWallet = () => {
     const d = $('c-dir'); if (!d) return;
-    const svg = d.querySelector('.dir-logo'); if (!svg) return;
+    const viejo = d.querySelector('.dir-logo') || d.firstElementChild;
+    if (!viejo || viejo.classList.contains('dir-tx')) return;
     const tmp = document.createElement('span');
     tmp.innerHTML = iconoWallet();
     const nuevo = tmp.firstElementChild;
-    if (nuevo && nuevo.outerHTML !== svg.outerHTML) svg.replaceWith(nuevo);
+    if (nuevo && nuevo.outerHTML !== viejo.outerHTML) viejo.replaceWith(nuevo);
   };
-  setTimeout(pintarLogoWallet, 400);
+  /* Se reintenta varias veces: algunas wallets tardan en decir cuáles
+     son, y con un solo intento a los 400ms se perdía. */
+  [200, 700, 1500, 3000].forEach((ms) => setTimeout(pintarLogoWallet, ms));
   try {
     wallet.alCambiar(() => { pintarEstado(); setTimeout(pintarLogoWallet, 250); });
   } catch (_) {}
