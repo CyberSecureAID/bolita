@@ -711,10 +711,8 @@ function pintarPanel() {
   const lista = $('mu-lista'); if (!lista) return;
   const estado = $('mu-estado');
 
-  if (M.error) {
-    if (estado) estado.textContent = M.error;
-    return;
-  }
+  if (M.error) { if (estado) estado.textContent = M.error; return; }
+
   if (M.cargando) {
     if (estado) estado.textContent = `Observando… ${M.fotos.length} de ${MIN_TOMAS}`;
     lista.innerHTML = `<div class="mu-esperar">
@@ -732,75 +730,106 @@ function pintarPanel() {
   if (!M.muros.length) {
     lista.innerHTML = `<div class="mu-esperar">
       <b>Libro tranquilo</b>
-      Ahora mismo no hay muros destacables en ${esc(_par)}. Nadie está
-      defendiendo ningún nivel con fuerza.
+      Ahora mismo nadie está poniendo órdenes grandes en ${esc(_par)}.
+      Cuando aparezca dinero de verdad, lo verás aquí.
     </div>`;
     return;
   }
 
-  // Se separan por encima y por debajo del precio: así se lee mejor
-  const arriba = M.muros.filter((m) => m.p > M.precio);
-  const abajo = M.muros.filter((m) => m.p <= M.precio);
+  /* La línea de "qué hacer": lo que convierte el dato en decisión. */
+  const consejo = (m) => {
+    const arriba = m.p > M.precio;
+    if (m.tipo === 'recargable') {
+      return arriba
+        ? 'Si va largo, plantéese recoger beneficios antes de este precio.'
+        : 'Buen sitio para poner su stop justo por debajo.';
+    }
+    if (m.tipo === 'probado') {
+      return arriba
+        ? 'Ya rechazó al precio una vez. Espere confirmación antes de apostar a que lo rompa.'
+        : 'Ya aguantó al precio una vez. Zona donde el rebote es más probable.';
+    }
+    if (m.tipo === 'real') {
+      return 'Vigílelo cuando el precio se acerque: ahí sabremos si va en serio.';
+    }
+    if (m.tipo === 'falso') {
+      return 'No lo use como referencia. Va a desaparecer cuando el precio llegue.';
+    }
+    if (m.tipo === 'ido') {
+      return 'Si su plan dependía de este nivel, revíselo.';
+    }
+    return 'Déle unos minutos más para tener veredicto.';
+  };
 
   const tarjeta = (m) => {
     const c = COLORES[m.tipo];
     const pct = (Math.abs(m.dist) * 100).toFixed(2);
-    const dir = m.p > M.precio ? 'arriba' : 'abajo';
-    /* La cabecera dice en una línea QUÉ es esto. Sin esa frase, el
-       usuario ve un precio y una cifra y no sabe qué mira. */
     const esVenta = m.p > M.precio;
-    const queEs = esVenta
-      ? `Órdenes de <b>venta</b> esperando a ${fmt(m.p)}`
-      : `Órdenes de <b>compra</b> esperando a ${fmt(m.p)}`;
-    const rol = esVenta ? 'Frena las subidas' : 'Frena las bajadas';
+    const accion = esVenta ? 'VENDIENDO' : 'COMPRANDO';
+
+    /* La fuerza sube con el tiempo y las recargas: cuanto más aguanta
+       una orden, más peso tiene. La tarjeta lo refleja visualmente. */
+    let fuerza = 0;
+    if (m.tipo === 'recargable' || m.tipo === 'probado') fuerza = 3;
+    else if (m.tipo === 'real') fuerza = m.segundos > 240 ? 3 : 2;
+    else if (m.tipo === 'vigilando') fuerza = 1;
+
+    const puntos = fuerza > 0
+      ? `<span class="mu-fuerza">${'●'.repeat(fuerza)}<i>${'●'.repeat(3 - fuerza)}</i></span>`
+      : '';
+
+    /* La consecuencia: qué le pasa al precio si llega aquí. Es la
+       frase por la que alguien paga por esta herramienta. */
+    let conse;
+    if (m.tipo === 'falso') {
+      conse = esVenta
+        ? 'Esta pared es humo. Si el precio sube hasta aquí, <b>no espere que lo frene</b>.'
+        : 'Este suelo es humo. Si el precio baja hasta aquí, <b>no espere que lo sostenga</b>.';
+    } else if (m.tipo === 'ido') {
+      conse = 'Esta orden <b>ya no está</b> en el mercado. El nivel quedó sin defensa.';
+    } else if (fuerza >= 3) {
+      conse = esVenta
+        ? `Si el precio llega a ${fmt(m.p)}, hay <b>alta probabilidad de rechazo</b>. Alguien grande defiende ese techo.`
+        : `Si el precio baja a ${fmt(m.p)}, hay <b>alta probabilidad de rebote</b>. Alguien grande sostiene ese suelo.`;
+    } else if (fuerza === 2) {
+      conse = esVenta
+        ? `Hay resistencia real en ${fmt(m.p)}. El precio puede frenarse ahí.`
+        : `Hay soporte real en ${fmt(m.p)}. El precio puede rebotar ahí.`;
+    } else {
+      conse = 'Orden recién puesta. Todavía no sabemos si va en serio.';
+    }
 
     return `
-    <button class="mu-card ${c.clase} ${M.seleccionado === m.p ? 'sel' : ''}" data-mp="${m.p}">
-      <div class="mu-card-top">
+    <button class="mu-card ${c.clase} f${fuerza} ${M.seleccionado === m.p ? 'sel' : ''}" data-mp="${m.p}" data-lado="${esVenta ? 'venta' : 'compra'}">
+      <div class="mu-titular">
+        <span class="mu-accion">${accion}</span>
+        <span class="mu-monto">${dinero(m.v)}</span>
+      </div>
+      <div class="mu-en">en <b>${fmt(m.p)}</b> · a ${pct}% del precio</div>
+
+      <div class="mu-veredicto">
         <span class="mu-chip">${c.icono} ${esc(m.titulo)}</span>
-        <span class="mu-dist">${pct}% ${dir}</span>
+        ${puntos}
       </div>
-      <div class="mu-precio">${fmt(m.p)}</div>
-      <div class="mu-quees">${queEs}<em>${rol}</em></div>
+
+      <div class="mu-conse">${conse}</div>
+
       <div class="mu-datos">
-        <span><b>${dinero(m.v)}</b>puestos aquí</span>
-        <span><b>${tiempo(m.segundos)}</b>vigilando</span>
-        ${m.recargas > 0 ? `<span><b>${m.recargas}</b>veces repuesta</span>` : ''}
-        ${m.consumidoPct > 0.15 ? `<span><b>${Math.round(Math.min(100, m.consumidoPct * 100))}%</b>ya ejecutado</span>` : ''}
+        <span><b>${tiempo(m.segundos)}</b>aguantando</span>
+        ${m.recargas > 0 ? `<span><b>${m.recargas}×</b>repuesta</span>` : ''}
+        ${m.consumidoPct > 0.15 ? `<span><b>${Math.round(Math.min(100, m.consumidoPct * 100))}%</b>ejecutado</span>` : ''}
       </div>
-      <div class="mu-nota">${esc(m.nota)}</div>
+
       <div class="mu-hacer">${consejo(m)}</div>
     </button>`;
   };
 
-  /* La línea de "qué hacer": lo que convierte el dato en decisión. */
-  function consejo(m) {
-    const arriba = m.p > M.precio;
-    if (m.tipo === 'recargable') {
-      return arriba
-        ? 'Es un techo con dinero real detrás. Si vas largo, plantéate recoger antes de llegar.'
-        : 'Es un suelo con dinero real detrás. Un stop justo debajo tiene sentido aquí.';
-    }
-    if (m.tipo === 'probado') {
-      return arriba
-        ? 'Ya rechazó al precio una vez. Espera confirmación antes de apostar a que lo rompa.'
-        : 'Ya aguantó al precio una vez. Es una zona donde el rebote es más probable.';
-    }
-    if (m.tipo === 'real') {
-      return 'Lleva firme un buen rato, pero aún no ha sido puesto a prueba. Vigílalo cuando el precio se acerque.';
-    }
-    if (m.tipo === 'falso') {
-      return 'No lo uses como referencia. Es muy probable que desaparezca justo cuando el precio llegue.';
-    }
-    if (m.tipo === 'ido') {
-      return 'Ese nivel ya no tiene defensa. Si tu plan dependía de él, revísalo.';
-    }
-    return 'Todavía no hay historia suficiente. Dale unos minutos más.';
-  }
+  const arriba = M.muros.filter((m) => m.p > M.precio);
+  const abajo = M.muros.filter((m) => m.p <= M.precio);
 
   lista.innerHTML =
-    (arriba.length ? `<div class="mu-grupo">Por encima del precio</div>` + arriba.map(tarjeta).join('') : '') +
-    (abajo.length ? `<div class="mu-grupo">Por debajo del precio</div>` + abajo.map(tarjeta).join('') : '');
+    (arriba.length ? `<div class="mu-grupo rojo">Resistencias · frenan las subidas</div>` + arriba.map(tarjeta).join('') : '') +
+    (abajo.length ? `<div class="mu-grupo verde">Soportes · frenan las bajadas</div>` + abajo.map(tarjeta).join('') : '');
 
   lista.querySelectorAll('[data-mp]').forEach((b) => b.onclick = () => {
     const p = Number(b.dataset.mp);
@@ -1054,8 +1083,10 @@ function estilos() {
   #mu-overlay .mu-cuerpo{flex:1;min-height:0;display:flex}
   #mu-overlay .mu-graf{flex:1;min-width:0;position:relative;background:#080b10}
   #mu-overlay .mu-cv{display:block}
-  #mu-overlay .mu-marca{position:absolute;left:12px;bottom:30px;height:32px;width:auto;
-    opacity:.55;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.9))}
+  /* El logo, corrido a la derecha: en la izquierda tapaba la columna
+     de precios. */
+  #mu-overlay .mu-marca{position:absolute;left:190px;bottom:14px;height:28px;width:auto;
+    opacity:.45;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.9))}
 
   /* Pantalla de espera */
   #mu-overlay .mu-esperando{position:absolute;inset:0;display:flex;flex-direction:column;
@@ -1109,6 +1140,43 @@ function estilos() {
   #mu-overlay .mu-quees em{display:block;font-style:normal;margin-top:3px;
     font-family:var(--mono,monospace);font-size:9.5px;color:#5c6672;
     text-transform:uppercase;letter-spacing:.7px}
+  /* ══════════════════════════════════════════════════════════
+     LA TARJETA — que se lea sola
+     Lo primero y más grande: cuánto dinero y de qué lado. Todo lo
+     demás es contexto.
+     ══════════════════════════════════════════════════════════ */
+  #mu-overlay .mu-titular{display:flex;align-items:baseline;gap:9px;margin-bottom:2px}
+  #mu-overlay .mu-accion{font-family:var(--mono,monospace);font-size:10px;font-weight:700;
+    letter-spacing:1.4px;padding:3px 8px;border-radius:6px}
+  /* La etiqueta del lado tiene que gritar: es lo primero que se mira. */
+  #mu-overlay .mu-card[data-lado="venta"] .mu-accion{background:rgba(246,70,93,.22);color:#ff8a95}
+  #mu-overlay .mu-card[data-lado="compra"] .mu-accion{background:rgba(46,232,106,.2);color:#5affab}
+  #mu-overlay .mu-monto{font-family:var(--display,sans-serif);font-weight:800;
+    font-size:27px;color:#eaecef;line-height:1}
+  #mu-overlay .mu-en{font-family:var(--sans,sans-serif);font-size:12px;color:#7d8794;margin-bottom:11px}
+  #mu-overlay .mu-en b{color:#b7bdc6;font-family:var(--mono,monospace);font-size:13px}
+  #mu-overlay .mu-veredicto{display:flex;align-items:center;justify-content:space-between;
+    gap:8px;margin-bottom:10px}
+  #mu-overlay .mu-fuerza{font-size:9px;letter-spacing:2px;color:currentColor}
+  #mu-overlay .mu-fuerza i{opacity:.22;font-style:normal}
+  #mu-overlay .oro .mu-fuerza{color:#E8B84B}
+  #mu-overlay .verde .mu-fuerza{color:#2ee86a}
+  #mu-overlay .azul .mu-fuerza{color:#4d9fff}
+  #mu-overlay .mu-conse{font-family:var(--sans,sans-serif);font-size:13px;color:#c8cfd8;
+    line-height:1.55;margin-bottom:11px}
+  #mu-overlay .mu-conse b{color:#fff;font-weight:700}
+
+  /* Cuanto más fuerte el muro, más presencia tiene la tarjeta. */
+  #mu-overlay .mu-card.f3{background:linear-gradient(150deg,rgba(232,184,75,.10),rgba(255,255,255,.02) 60%);
+    border-color:rgba(232,184,75,.32);box-shadow:0 4px 18px rgba(0,0,0,.4)}
+  #mu-overlay .mu-card.f3.verde{background:linear-gradient(150deg,rgba(46,232,106,.10),rgba(255,255,255,.02) 60%);
+    border-color:rgba(46,232,106,.3)}
+  #mu-overlay .mu-card.f2{background:rgba(255,255,255,.035)}
+  #mu-overlay .mu-card.f0{opacity:.72}
+
+  #mu-overlay .mu-grupo.rojo{color:#ff7b88}
+  #mu-overlay .mu-grupo.verde{color:#4dffa0}
+
   #mu-overlay .mu-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
   #mu-overlay .mu-chip{font-family:var(--mono,monospace);font-size:9.5px;font-weight:700;
     text-transform:uppercase;letter-spacing:.7px;padding:3px 8px;border-radius:20px}
