@@ -275,7 +275,10 @@ function inyectarEstilo() {
   @media(min-width:561px) and (max-width:900px){
     #colmena-app .c-ticker{display:none}                     /* la cinta cede el sitio */
     /* Un respiro a la derecha: la wallet quedaba pegada al borde. */
-  #colmena-app .c-hdr-r{padding-right:4px}
+  /* La wallet quedaba rozando el borde. 14px le da aire sin robar
+     sitio al menú. */
+  #colmena-app .c-hdr-r{padding-right:14px}
+  @media(max-width:760px){#colmena-app .c-hdr-r{padding-right:10px}}
   #colmena-app .dir{max-width:132px;overflow:hidden;padding:0 9px;font-size:11px}
     #colmena-app .c-swap,#colmena-app .c-prize,#colmena-app .c-market,
     #colmena-app .c-loteria,#colmena-app .c-perfil{padding:0 7px}
