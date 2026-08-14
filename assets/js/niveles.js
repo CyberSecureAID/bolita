@@ -1610,7 +1610,24 @@ function dibujar() {
   const W = zona.clientWidth, H = zona.clientHeight;
   if (W < 50 || H < 50) return;
 
-  if (!cv.dataset.listo) { gestos(cv); cv.dataset.listo = '1'; }
+  if (!cv.dataset.listo) {
+    gestos(cv);
+    cv.dataset.listo = '1';
+    /* Órdenes desde el gráfico: clic derecho o toque largo. */
+    import('./orden.js?v=126').then((od) => {
+      od.conectar({
+        canvas: cv,
+        precioEn: (y) => {
+          if (!_geo) return 0;
+          const { pMin, pMax, y1 } = _geo;
+          return pMin + (pMax - pMin) * ((y1 - y) / y1);
+        },
+        precioActual: () => N.precio,
+        par: () => _par,
+        simbolo: () => (PARES.find((p) => p.id === _par) || {}).s || ''
+      });
+    }).catch(() => {});
+  }
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   if (cv.width !== Math.round(W * dpr)) {
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);

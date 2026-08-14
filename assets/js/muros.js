@@ -615,7 +615,24 @@ function dibujar() {
   const W = zona.clientWidth, H = zona.clientHeight;
   if (W < 50 || H < 50) return;
 
-  if (!cv.dataset.listo) { engancharGestos(cv); cv.dataset.listo = '1'; }
+  if (!cv.dataset.listo) {
+    engancharGestos(cv);
+    cv.dataset.listo = '1';
+    /* Órdenes desde el gráfico: clic derecho o toque largo. */
+    import('./orden.js?v=126').then((od) => {
+      od.conectar({
+        canvas: cv,
+        precioEn: (y) => {
+          if (!M._geo) return 0;
+          const { pMin, pMax, y1 } = M._geo;
+          return pMin + (pMax - pMin) * ((y1 - y) / y1);
+        },
+        precioActual: () => M.precio,
+        par: () => _par,
+        simbolo: () => (PARES.find((p) => p.id === _par) || {}).s || ''
+      });
+    }).catch(() => {});
+  }
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   if (cv.width !== Math.round(W * dpr)) {
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
@@ -678,6 +695,9 @@ function dibujar() {
   const pad = semi * 0.14 || 1;
   const pMax = centro + semi + pad, pMin = centro - semi - pad;
   const Y = (p) => y1 - y1 * ((p - pMin) / Math.max(1e-12, pMax - pMin));
+  /* Se guarda para que el módulo de órdenes sepa qué precio hay a
+     cada altura del gráfico. */
+  M._geo = { pMin, pMax, y1 };
 
   /* ── Rejilla ── */
   g.strokeStyle = 'rgba(255,255,255,.03)';

@@ -1060,6 +1060,27 @@ function dibujar() {
   const g = cv.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+  /* Órdenes desde el gráfico: clic derecho o toque largo. */
+  if (!cv.dataset.ordenOk) {
+    cv.dataset.ordenOk = '1';
+    import('./orden.js?v=126').then((od) => {
+      od.conectar({
+        canvas: cv,
+        precioEn: (yy) => {
+          if (!V._geo) return 0;
+          const { pMin, pMax, y1: h } = V._geo;
+          return pMin + (pMax - pMin) * ((h - yy) / h);
+        },
+        precioActual: () => {
+          const v = V.velas || [];
+          return v.length ? v[v.length - 1].c : 0;
+        },
+        par: () => _par,
+        simbolo: () => (PARES.find((p) => p.id === _par) || {}).s || ''
+      });
+    }).catch(() => {});
+  }
+
   const mDer = 62, mAba = 20;
   const x1 = W - mDer;                 // donde empieza la escala
   /* Las velas al 78%: el perfil de la derecha se ha quitado (estaba
@@ -1071,6 +1092,8 @@ function dibujar() {
   ajustarY();
   const { yMin, yMax } = V;
   const Y = (p) => y1 - y1 * ((p - yMin) / Math.max(1e-12, yMax - yMin));
+  /* Se guarda para que el módulo de órdenes traduzca altura a precio. */
+  V._geo = { pMin: yMin, pMax: yMax, y1 };
 
   g.fillStyle = '#0a0d12';
   g.fillRect(0, 0, W, H);
