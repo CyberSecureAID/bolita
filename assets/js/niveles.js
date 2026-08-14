@@ -2910,6 +2910,15 @@ function estilos() {
     font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;
     box-shadow:0 4px 0 #8f6a1a}
 
+  /* Pantallas muy estrechas: todo más compacto para que el plan
+     quepa sin pelear con el scroll. */
+  @media(max-width:360px){
+    #nv-overlay .nv-cap-panel{max-height:min(68dvh, 480px);padding:11px}
+    #nv-overlay .nv-plan{padding:8px;margin-top:8px}
+    #nv-overlay .nv-plan-fila{padding:3px 0}
+    #nv-overlay .nv-pm-ava{width:28px;height:28px}
+  }
+
   @media(max-width:760px){
     #nv-overlay .nv-cab{padding:8px 10px;gap:8px}
     #nv-overlay .nv-comof{width:36px;padding:0}
@@ -2937,13 +2946,31 @@ function estilos() {
     /* [CORREGIDO] El panel se cortaba: el max-height en vh no cuenta
        la barra del navegador móvil. Se ancla arriba Y abajo, así
        ocupa exactamente lo que hay disponible. */
-    /* [CORREGIDO] El panel tapaba toda la pantalla. Ahora ocupa la
-       mitad inferior, con su scroll, y deja ver la gráfica. */
+    /* [RESUELTO] El panel cabía, pero la tabla del plan quedaba
+       por debajo del borde y había que adivinar que existía.
+
+       Ahora el panel se dimensiona con dvh (que sí cuenta la barra
+       del navegador móvil), lleva un degradado abajo que avisa de
+       que hay más contenido, y desplazamiento suave. */
     #nv-overlay .nv-cap-panel{position:fixed;top:auto;bottom:10px;
       left:8px;right:8px;width:auto;height:auto;
-      max-height:min(48vh, 380px);overflow-y:auto;
+      max-height:min(62dvh, 460px);overflow-y:auto;
+      overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+      scroll-behavior:smooth;padding-bottom:22px;
       box-shadow:0 -8px 40px rgba(0,0,0,.8)}
+    /* La pista visual de que hay más abajo */
+    #nv-overlay .nv-cap.abierto:after{content:'';position:fixed;
+      left:9px;right:9px;bottom:11px;height:26px;border-radius:0 0 13px 13px;
+      pointer-events:none;z-index:41;
+      background:linear-gradient(180deg,transparent,rgba(11,15,22,.96))}
     #nv-overlay .nv-acts{flex-direction:column}
+    /* El plan, compacto: cabe entero sin tanto desplazamiento */
+    #nv-overlay .nv-plan{padding:9px}
+    #nv-overlay .nv-plan-fila{padding:4px 0}
+    #nv-overlay .nv-plan-fila span{font-size:11px}
+    #nv-overlay .nv-plan-fila b{font-size:12px}
+    #nv-overlay .nv-pm-tx{font-size:12px}
+    #nv-overlay .nv-pm-hacer{padding:9px 11px;font-size:11.5px}
     /* La barra superior, ordenada en dos filas */
     /* Una sola fila compacta: la banda ancha robaba gráfica */
     #nv-overlay .nv-cab{flex-wrap:nowrap;padding:7px 9px;gap:7px;
