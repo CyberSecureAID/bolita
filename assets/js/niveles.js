@@ -278,6 +278,9 @@ function calcularNiveles(velas, piv, precio) {
    La zona de origen del impulso es donde entró el dinero que lo
    provocó. Cuando el precio vuelve ahí, suele defenderse otra vez.
    ══════════════════════════════════════════════════════════════ */
+/** ¿El impulso fue alcista? */
+function alcista(imp) { return imp && imp.dir === 'alcista'; }
+
 function detectarImpulso(velas) {
   if (velas.length < 30) return null;
 
@@ -336,19 +339,36 @@ function detectarImpulso(velas) {
   const zonaMedia = (mejor.zonaAlta + mejor.zonaBaja) / 2;
   const distZona = ((precioAhora - zonaMedia) / precioAhora) * 100;
 
-  /* Cuánto ha retrocedido: 0% = sigue en el extremo, 100% = volvió
-     del todo al origen. Lo interesante está entre el 50% y el 100%. */
-  const recorrido = Math.abs(mejor.precioFin - zonaMedia);
-  const vuelta = recorrido > 0
-    ? (Math.abs(precioAhora - mejor.precioFin) / recorrido) * 100
-    : 0;
+  /* [CORREGIDO] Se usaba Math.abs, así que si el precio ATRAVESABA
+     la zona de origen y seguía, el retroceso pasaba del 100%: salían
+     esos "130% del impulso" que no significan nada.
 
-  mejor.retroceso = Math.min(150, vuelta);
+     Un retroceso por encima del 100% quiere decir que la estructura
+     se ha roto: el precio se comió el impulso entero. Ahí no hay
+     entrada, y hay que decirlo en vez de inventar una. */
+  const recorrido = Math.abs(mejor.precioFin - zonaMedia);
+  let vuelta = 0;
+  if (recorrido > 0) {
+    /* Con signo: si el precio pasó de largo, sale mayor que 100. */
+    const avance = alcista(mejor)
+      ? (mejor.precioFin - precioAhora)      // alcista: retrocede bajando
+      : (precioAhora - mejor.precioFin);     // bajista: retrocede subiendo
+    vuelta = (avance / recorrido) * 100;
+  }
+
+  /* Si el impulso está agotado o invalidado, no sirve como señal. */
+  mejor.invalidado = vuelta > 100;
+  mejor.retroceso = Math.max(0, Math.min(100, vuelta));
+  mejor.retrocesoReal = vuelta;
   mejor.distZona = distZona;
   mejor.zonaMedia = zonaMedia;
-  mejor.enZona = Math.abs(distZona) < 1.2;
-  mejor.acercandose = Math.abs(distZona) < 3.5 && vuelta > 45;
+  mejor.enZona = !mejor.invalidado && Math.abs(distZona) < 1.2;
+  mejor.acercandose = !mejor.invalidado && Math.abs(distZona) < 3.5 && vuelta > 45 && vuelta <= 100;
   mejor.velasDesde = despues.length;
+
+  /* Un impulso viejo ya no dice nada: si han pasado más velas que
+     el propio impulso por tres, se descarta. */
+  if (despues.length > mejor.velas * 4) return null;
 
   return mejor;
 }
@@ -808,7 +828,30 @@ function analizar() {
      una zona de origen; cuando el precio vuelve ahí, quien lo
      provocó suele defenderla otra vez. */
   const imp = N.impulso;
-  if (imp && (imp.enZona || imp.acercandose)) {
+  if (imp && imp.invalidado) {
+    /* El precio se comió el impulso entero: la estructura ya no
+       vale. Decirlo es más útil que inventar una entrada. */
+    msgs.push({
+      tipo: 'aviso', p: N.precio, prioridad: 7,
+      titulo: elegir(['Estructura rota', 'El impulso se agotó', 'Ya no hay setup aquí']),
+      txt: elegir([
+        `El precio se pasó de la zona que originó el último impulso ${imp.dir}. Cuando eso ocurre, la estructura deja de servir como referencia.`,
+        `El movimiento ${imp.dir} se ha deshecho por completo. La zona de origen ya no aguanta.`,
+        `El retroceso superó el punto de partida del impulso: esa estructura está invalidada.`
+      ]),
+      hacer: elegir([
+        'Espere a que se forme una estructura nueva. Operar sobre una rota es lo que más caro sale.',
+        'No hay referencia válida ahora mismo. Deje que el mercado construya un impulso nuevo.',
+        'Cambie de marco temporal o de par: aquí ya no queda nada que operar.'
+      ]),
+      detalle: [
+        `Impulso ${imp.dir} de ${imp.pct.toFixed(2)}%`,
+        `Retroceso: ${Math.round(imp.retrocesoReal)}% (por encima del 100% = invalidado)`,
+        `Zona de origen: ${fmt(imp.zonaBaja)} – ${fmt(imp.zonaAlta)}`,
+        `Han pasado ${imp.velasDesde} velas desde que terminó`
+      ]
+    });
+  } else if (imp && (imp.enZona || imp.acercandose)) {
     const alcista = imp.dir === 'alcista';
     const zA = imp.zonaAlta, zB = imp.zonaBaja;
     const stop = alcista ? zB * 0.993 : zA * 1.007;
@@ -2245,8 +2288,25 @@ function burbujas() {
      tocan, se despliegan hacia abajo, y solo si el usuario pulsa
      "Señálame dónde está" aparece la línea al nivel.
      ══════════════════════════════════════════════════════════ */
-  const firma = N.mensajes.map((m) => m.titulo + '|' + m.txt).join('~');
-  if (caja.dataset.firma === firma) return;
+  /* [CORREGIDO] La firma incluía los números con decimales, así que
+     cualquier micromovimiento del precio la cambiaba y las tarjetas
+     se rehacían y reanimaban cada 30 segundos con el mismo mensaje.
+
+     Ahora los números se redondean para la firma: solo se rehace
+     cuando el mensaje cambia de verdad. */
+  const firma = N.mensajes
+    .map((m) => m.tipo + '|' + m.titulo + '|' + String(m.txt).replace(/[\d.,]+/g, '#'))
+    .join('~');
+  if (caja.dataset.firma === firma) {
+    /* Mismo mensaje: solo se refrescan las cifras, sin reanimar. */
+    N.mensajes.forEach((m, i) => {
+      const el = caja.querySelector(`[data-nvm="${i}"] .nv-pm-tx`);
+      if (el && el.dataset.hecho) el.textContent = T(m.txt);
+      const h = caja.querySelector(`[data-nvm="${i}"] .nv-pm-hacer`);
+      if (h) h.textContent = T(m.hacer);
+    });
+    return;
+  }
   caja.dataset.firma = firma;
 
   const ic = { compra: '▲', venta: '▼', vigilar: '◆', aviso: '✱', tendencia: '➜', contexto: '·' };

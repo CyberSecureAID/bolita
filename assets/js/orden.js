@@ -97,6 +97,8 @@ const fmt = (p) => {
    sobreviven a recargar la página.
    ══════════════════════════════════════════════════════════════ */
 const _puestas = [];
+let _ultimoBotId = 0;                 // de la última orden creada
+let _ultimoPar = { base: '', quote: '' };
 
 export function ordenesPuestas() {
   const alertas = leerAvisos().map((a) => ({ ...a, modo: 'aviso' }));
@@ -503,7 +505,6 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
     const elSl = $('od-slp');
     const sl = elSl ? (parseFloat(String(elSl.value).replace(',', '.')) || 0) : 0;
     ok.disabled = true;
-    ok.textContent = T('Preparando…');
     try {
       if (modo === 'aviso') {
         const id = guardarAviso({
@@ -513,10 +514,15 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
         if (cfg.repintar) cfg.repintar();
         exito(d, T('Aviso puesto'), T('Te avisaremos cuando el precio llegue a') + ' ' + fmt(precio));
       } else {
+        /* [CORREGIDO] Los pasos se escribían dentro del botón y lo
+           estiraban hasta deformar la ficha. Ahora van en su propia
+           ventana, que además explica qué está pasando. */
+        abrirPasos(vender);
         await ponerOrdenReal({
           cfg, precio, cant, vender, sl,
-          alPaso: (t) => { ok.textContent = t; }
+          alPaso: (t) => pintarPaso(t)
         });
+        cerrarPasos();
         exito(d, T('Orden puesta'), T('Se ejecutará sola cuando el precio llegue a') + ' ' + fmt(precio));
       }
       /* Se guarda para pintarla en el gráfico con su propia marca,
@@ -524,13 +530,18 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
       _puestas.push({
         precio, cant, vender, modo,
         par, simbolo: cfg.simbolo ? cfg.simbolo() : '',
+        botId: _ultimoBotId,          // para poder cancelarla en el contrato
+        base: _ultimoPar.base, quote: _ultimoPar.quote,
+        id: 'ord-' + _ultimoBotId,
         cuando: Date.now()
       });
       if (cfg.alPoner) cfg.alPoner({ precio, cant, vender, modo });
       if (cfg.repintar) cfg.repintar();
     } catch (er) {
+      cerrarPasos();
       ok.disabled = false;
-      ok.textContent = T(vender ? 'Poner orden de venta' : 'Poner orden de compra');
+      ok.textContent = modo === 'aviso' ? T('Activar aviso')
+        : T(vender ? 'Poner orden de venta' : 'Poner orden de compra');
       /* [CORREGIDO] Antes se tragaba el error real y salía siempre
          "no se puede poner la orden", que no dice nada. Ahora se
          traduce a lenguaje claro y, si no se reconoce, se muestra
@@ -628,6 +639,8 @@ async function ponerOrdenReal({ cfg, precio, cant, vender, sl, alPaso }) {
       targetPrice: precio
     });
     conf.botId = Date.now();
+    _ultimoBotId = conf.botId;
+    _ultimoPar = { base: dirBase, quote: quote.address };
 
     /* ── 2. Si se vende BNB, hay que envolverlo primero ── */
     if (gb.esBNB(dirBase)) {
@@ -660,6 +673,8 @@ async function ponerOrdenReal({ cfg, precio, cant, vender, sl, alPaso }) {
       comprasMax: 1
     });
     conf.botId = Date.now();
+    _ultimoBotId = conf.botId;
+    _ultimoPar = { base: dirBase, quote: quote.address };
     /* El precio objetivo va en el mínimo de salida: así solo entra
        si el precio es el que pidió el usuario o mejor. */
     conf.niveles = [{
@@ -908,6 +923,36 @@ export function clicCancelar(cv, dameZonas, repintar) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   LA VENTANA DE PASOS
+
+   Crear una orden lleva varias firmas. En vez de meter el texto en
+   el botón (que lo estiraba y rompía la ficha), se enseña aquí
+   qué está pasando en cada momento.
+   ══════════════════════════════════════════════════════════════ */
+function abrirPasos(vender) {
+  cerrarPasos();
+  const d = document.createElement('div');
+  d.id = 'od-pasos';
+  d.innerHTML = `<div class="od-p-fondo"></div>
+    <div class="od-p-caja ${vender ? 'vender' : 'comprar'}">
+      <div class="od-p-spin"></div>
+      <b id="od-p-tx">${esc(T('Preparando…'))}</b>
+      <span>${esc(T('Cada firma es un paso. No cierres esta ventana.'))}</span>
+    </div>`;
+  document.body.appendChild(d);
+}
+
+function pintarPaso(t) {
+  const el = $('od-p-tx');
+  if (el) el.textContent = t;
+}
+
+function cerrarPasos() {
+  const d = $('od-pasos');
+  if (d) d.remove();
+}
+
+/* ══════════════════════════════════════════════════════════════
    CANCELAR — con confirmación, que es dinero
    ══════════════════════════════════════════════════════════════ */
 export function pedirCancelar(orden, alCancelar) {
@@ -929,10 +974,45 @@ export function pedirCancelar(orden, alCancelar) {
   const q = () => d.remove();
   d.querySelector('.od-cb-fondo').onclick = q;
   d.querySelector('.od-cb-no').onclick = q;
-  d.querySelector('.od-cb-si').onclick = () => {
-    cancelar(orden.id);
-    q();
-    if (alCancelar) alCancelar();
+  d.querySelector('.od-cb-si').onclick = async () => {
+    /* [CORREGIDO] Cancelar una orden REAL toca el contrato y
+       necesita firma: antes se borraba solo de la pantalla y la
+       orden seguía viva en la blockchain. Las alertas sí son
+       locales y no llevan firma. */
+    if (esAlerta) {
+      cancelar(orden.id);
+      q();
+      if (alCancelar) alCancelar();
+      return;
+    }
+    const si = d.querySelector('.od-cb-si');
+    si.disabled = true;
+    si.textContent = T('Firma en tu wallet…');
+    try {
+      const gb = await import('./gridbot.js?v=125');
+      const w = await import('./wallet.js?v=125');
+      const cuenta = (w.cuentaActual && w.cuentaActual()) || null;
+      if (!cuenta) throw new Error(T('Conecta tu wallet.'));
+      /* El contrato cancela por par de tokens, que es lo que se
+         guardó al crear la orden. */
+      if (!orden.base || !orden.quote) {
+        throw new Error(T('Esta orden hay que cerrarla desde tus bots, en el panel principal.'));
+      }
+      await gb.cancelarRejilla(orden.base, orden.quote);
+      cancelar(orden.id);
+      q();
+      if (alCancelar) alCancelar();
+    } catch (er) {
+      si.disabled = false;
+      si.textContent = T('Sí, cancelar');
+      const m = String((er && (er.reason || er.message)) || er);
+      const av = d.querySelector('.od-cb-caja > span');
+      if (av) {
+        av.style.color = '#ff6b7a';
+        av.textContent = /user rejected|denied|4001/i.test(m)
+          ? T('Cancelaste la firma.') : m.slice(0, 120);
+      }
+    }
   };
 }
 
@@ -1163,6 +1243,25 @@ function estilos() {
   .od-t-x{width:26px;height:26px;flex:0 0 auto;border-radius:7px;cursor:pointer;
     display:grid;place-items:center;padding:0;font-size:11px;
     background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#8b96a3}
+
+  /* La ventana de pasos: no cabía en el botón */
+  #od-pasos{position:fixed;inset:0;z-index:9910;display:flex;
+    align-items:center;justify-content:center;padding:16px}
+  .od-p-fondo{position:absolute;inset:0;background:rgba(3,5,8,.88)}
+  .od-p-caja{position:relative;width:100%;max-width:320px;padding:26px 22px;
+    border-radius:18px;text-align:center;
+    background:linear-gradient(165deg,rgba(22,28,38,.99),rgba(11,15,22,.99));
+    border:1.5px solid #3a424c;box-shadow:0 20px 60px rgba(0,0,0,.85)}
+  .od-p-caja.comprar{border-color:rgba(46,232,106,.5)}
+  .od-p-caja.vender{border-color:rgba(246,70,93,.5)}
+  .od-p-spin{width:38px;height:38px;margin:0 auto 15px;border-radius:50%;
+    border:2.5px solid rgba(232,184,75,.16);border-top-color:var(--gold,#E8B84B);
+    animation:odGira .85s linear infinite}
+  @keyframes odGira{to{transform:rotate(360deg)}}
+  .od-p-caja b{display:block;font-family:var(--display,sans-serif);font-weight:800;
+    font-size:15px;color:#eaecef;margin-bottom:7px;line-height:1.35}
+  .od-p-caja span{display:block;font-family:var(--sans,sans-serif);font-size:11.5px;
+    color:#8b96a3;line-height:1.5}
 
   /* La ventana de confirmar cancelación */
   .od-confirmar-box{position:fixed;inset:0;z-index:9900;display:flex;
