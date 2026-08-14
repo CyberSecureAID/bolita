@@ -2387,12 +2387,9 @@ function burbujas() {
     };
   });
 
-  /* En escritorio se abre la principal; en móvil no, porque taparía
-     la gráfica. Ahí solo parpadea para avisar de que hay algo. */
-  if (window.innerWidth > 760) {
-    const uno = caja.querySelector('.nv-cap');
-    if (uno) { uno.classList.add('abierto'); escribir(uno.querySelector('[data-escribir]')); }
-  }
+  /* [CORREGIDO] Ninguna se abre sola: molestaba y tapaba la gráfica
+     nada más entrar. La flecha parpadea para avisar de que hay algo
+     que leer, y el usuario decide cuándo. */
 }
 
 /** Traza el Fibonacci delante del usuario, como la tendencia. */
@@ -3069,8 +3066,18 @@ function estilos() {
   #nv-overlay .nv-cap-ava{width:22px;height:22px;border-radius:50%;object-fit:cover;flex:0 0 auto;
     border:1px solid rgba(232,184,75,.5)}
   #nv-overlay .nv-cap-tx{font-family:var(--mono,monospace);font-size:9.5px;font-weight:700;letter-spacing:.6px}
-  #nv-overlay .nv-cap-fl{font-size:9px;color:#5c6672;transition:transform .2s}
-  #nv-overlay .nv-cap.abierto .nv-cap-fl{transform:rotate(180deg)}
+  /* La flecha late como una lucecita: dice "aquí hay algo, tócame" */
+  #nv-overlay .nv-cap-fl{font-size:11px;transition:transform .2s;
+    animation:nvFlecha 1.8s ease-in-out infinite}
+  @keyframes nvFlecha{
+    0%,100%{opacity:.35;transform:translateY(0)}
+    50%{opacity:1;transform:translateY(1.5px)}}
+  #nv-overlay .nv-cap.abierto .nv-cap-fl{transform:rotate(180deg);animation:none;opacity:.6}
+  #nv-overlay .t-compra .nv-cap-fl{color:#3ee88a}
+  #nv-overlay .t-venta .nv-cap-fl{color:#ff6b7a}
+  #nv-overlay .t-aviso .nv-cap-fl{color:var(--gold,#E8B84B)}
+  #nv-overlay .t-vigilar .nv-cap-fl,#nv-overlay .t-contexto .nv-cap-fl{color:#9aa5b1}
+  #nv-overlay .t-tendencia .nv-cap-fl{color:#6fb0ff}
   #nv-overlay .t-compra .nv-cap-b{border-color:#2ee86a}
   #nv-overlay .t-compra .nv-cap-tx{color:#3ee88a}
   #nv-overlay .t-venta .nv-cap-b{border-color:#f6465d}
@@ -3242,7 +3249,9 @@ function estilos() {
        rojo latiendo, para que se vea que hay que tocarlas. */
     #nv-overlay .nv-cap-b{width:34px;height:34px;padding:0;border-radius:50%;
       justify-content:center;position:relative}
-    #nv-overlay .nv-cap-ava,#nv-overlay .nv-cap-tx,#nv-overlay .nv-cap-fl{display:none}
+    #nv-overlay .nv-cap-ava,#nv-overlay .nv-cap-tx{display:none}
+    /* La flecha se convierte en el punto que late */
+    #nv-overlay .nv-cap-fl{position:absolute;bottom:-1px;right:-1px;font-size:8px}
     /* Los números 2 y 3 salían en negro sobre fondo oscuro */
     #nv-overlay .nv-num{width:auto;height:auto;background:none !important;
       font-size:14px;color:#eaecef !important}
