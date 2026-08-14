@@ -1962,9 +1962,9 @@ export async function abrirNiveles() {
 
 
         <div class="nv-der">
-          <button class="nv-ico nv-registrar" id="nv-registrar" title="Registrar mi indicador">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16l4.5-5 3 3L16 7"/><circle cx="19" cy="6" r="3"/><path d="M19 4.7v2.6M17.7 6h2.6"/></svg>
-            <span class="nv-rg-tx">Registrar mi indicador</span>
+          <button class="nv-ico nv-registrar" id="nv-registrar" title="Register indicator">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16l4.5-5 3 3L16 7"/><circle cx="19" cy="6" r="3"/><path d="M19 4.7v2.6M17.7 6h2.6"/></svg>
+            <span class="nv-rg-tx">Register indicator</span>
           </button>
           <button class="nv-ico" id="nv-widget" title="Ventana flotante" style="display:none">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="15" rx="2"/><rect x="12" y="11" width="7" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
@@ -2448,46 +2448,59 @@ function dibujar() {
        · un AURA suave sobre el giro más reciente, para guiar la mirada. */
     if (visSig.length && !MA.finde) {
       const rgbOf = (alc) => (alc ? '46,232,106' : '255,60,80');
+      const nvv = N.velas;
 
-      /* Traza un tramo con un ARQUEO suave, como una soga que se pandea:
-         los tramos LONG se comban hacia ABAJO y los SHORT hacia ARRIBA.
-         El arqueo es proporcional a la distancia, con tope, para que en
-         tramos cortos sea leve y nunca desproporcionado. */
-      const traza = (ax, ay, bx, by, alc) => {
-        const len = Math.hypot(bx - ax, by - ay);
-        const arco = Math.min(16, len * 0.11);
-        const mx = (ax + bx) / 2;
-        const my = (ay + by) / 2 + (alc ? 1 : -1) * 2 * arco;
-        g.moveTo(ax, ay);
-        g.quadraticCurveTo(mx, my, bx, by);
+      /* Traza la TENDENCIA REAL entre dos velas: recorre los cierres
+         punto por punto y los suaviza, de modo que la línea "recoja" el
+         movimiento real del precio en vez de un arco improvisado. Así el
+         pandeo aparece solo, y es más fuerte donde el mercado se movió
+         más y más leve donde apenas se movió. */
+      const trazaReal = (iA, iB) => {
+        if (iB <= iA || !nvv[iA] || !nvv[iB]) return false;
+        const paso = Math.max(1, Math.floor((iB - iA) / 48));   // muestreo
+        const pts = [];
+        for (let k = iA; k <= iB; k += paso) { if (nvv[k]) pts.push({ x: idxVis(k), y: Y(nvv[k].c) }); }
+        const xf = idxVis(iB), yf = Y(nvv[iB].c);
+        if (!pts.length || pts[pts.length - 1].x !== xf) pts.push({ x: xf, y: yf });
+        if (pts.length < 2) return false;
+        g.moveTo(pts[0].x, pts[0].y);
+        for (let k = 1; k < pts.length - 1; k++) {
+          const mx = (pts[k].x + pts[k + 1].x) / 2, my = (pts[k].y + pts[k + 1].y) / 2;
+          g.quadraticCurveTo(pts[k].x, pts[k].y, mx, my);
+        }
+        g.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+        return true;
       };
 
-      // Espina: enlaza los últimos giros visibles (máx. 6, para no cargar)
+      g.save();
+      g.lineJoin = 'round'; g.lineCap = 'round';
+
+      // Espina: enlaza los últimos giros visibles siguiendo la tendencia real
       const espina = visSig.slice(-6);
       for (let k = 1; k < espina.length; k++) {
         const a = espina[k - 1], b = espina[k];
         const gl = g.createLinearGradient(a.x, a.y, b.x, b.y);
-        gl.addColorStop(0, `rgba(${rgbOf(a.alc)},.26)`);
-        gl.addColorStop(1, `rgba(${rgbOf(b.alc)},.26)`);
-        g.strokeStyle = gl; g.lineWidth = 1.4;
-        g.beginPath(); traza(a.x, a.y, b.x, b.y, a.alc); g.stroke();
+        gl.addColorStop(0, `rgba(${rgbOf(a.alc)},.22)`);
+        gl.addColorStop(1, `rgba(${rgbOf(b.alc)},.22)`);
+        g.strokeStyle = gl; g.lineWidth = 1.3;
+        g.beginPath(); if (trazaReal(a.i, b.i)) g.stroke();
         g.fillStyle = `rgba(${rgbOf(a.alc)},.5)`;
         g.beginPath(); g.arc(a.x, a.y, 2.1, 0, Math.PI * 2); g.fill();
       }
 
-      // Tramo activo: del último giro al precio actual, también arqueado
+      // Tramo activo: del último giro al precio actual, siguiendo la tendencia
       const last = visSig[visSig.length - 1];
-      const xNow = Math.min(x1 - 2, idxVis(fin - 1));
+      const iNow = fin - 1;
+      const xNow = Math.min(x1 - 2, idxVis(iNow));
       const yNow = Y(N.precio);
       const rgb = rgbOf(last.alc);
-      g.save();
       g.strokeStyle = `rgba(${rgb},.12)`; g.lineWidth = 6;
-      g.beginPath(); traza(last.x, last.y, xNow, yNow, last.alc); g.stroke();
+      g.beginPath(); if (trazaReal(last.i, iNow)) g.stroke();
       const gl2 = g.createLinearGradient(last.x, last.y, xNow, yNow);
-      gl2.addColorStop(0, `rgba(${rgb},.32)`);
-      gl2.addColorStop(1, `rgba(${rgb},.9)`);
+      gl2.addColorStop(0, `rgba(${rgb},.3)`);
+      gl2.addColorStop(1, `rgba(${rgb},.92)`);
       g.strokeStyle = gl2; g.lineWidth = 2;
-      g.beginPath(); traza(last.x, last.y, xNow, yNow, last.alc); g.stroke();
+      g.beginPath(); if (trazaReal(last.i, iNow)) g.stroke();
       g.fillStyle = `rgba(${rgb},1)`; g.shadowColor = `rgba(${rgb},.9)`; g.shadowBlur = 8;
       g.beginPath(); g.arc(xNow, yNow, 3, 0, Math.PI * 2); g.fill();
       g.restore();
@@ -4427,13 +4440,15 @@ function estilos() {
      debajo del ícono). Con flex quedan uno al lado del otro y centrados. */
   #nv-overlay .nv-registrar,
   #nv-overlay .nv-herr-btn{display:inline-flex;flex-direction:row;align-items:center;justify-content:center}
-  #nv-overlay .nv-registrar{width:auto;height:36px;padding:0 14px;gap:8px;
-    border-color:rgba(232,184,75,.55);color:#0b0f16;
-    background:linear-gradient(180deg,#f0c869,#E8B84B);
-    box-shadow:0 4px 14px rgba(232,184,75,.22)}
-  #nv-overlay .nv-registrar:hover{filter:brightness(1.05);
-    box-shadow:0 6px 20px rgba(232,184,75,.32)}
-  #nv-overlay .nv-rg-tx{font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;white-space:nowrap;letter-spacing:.2px}
+  #nv-overlay .nv-registrar{width:auto;height:36px;padding:0 15px;gap:8px;
+    border:1px solid #c79426;color:#3a2800;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 48%,#c79426);
+    box-shadow:0 2px 0 #9c7016,0 6px 14px rgba(232,184,75,.28),inset 0 1px 0 rgba(255,255,255,.45)}
+  #nv-overlay .nv-registrar:hover{color:#3a2800;filter:brightness(1.04);
+    box-shadow:0 2px 0 #9c7016,0 9px 20px rgba(232,184,75,.4),inset 0 1px 0 rgba(255,255,255,.5)}
+  #nv-overlay .nv-registrar:active{transform:translateY(1px);
+    box-shadow:0 1px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.3)}
+  #nv-overlay .nv-rg-tx{font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;white-space:nowrap;letter-spacing:.2px;color:#3a2800}
 
   /* ══ Modal Registrar mi indicador ══ */
   #nv-reg-modal{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px}
@@ -4457,9 +4472,12 @@ function estilos() {
   #nv-reg-modal .nv-reg-paso b{display:block;font-family:var(--display,sans-serif);font-size:12.5px;color:#eaecef;margin-bottom:2px}
   #nv-reg-modal .nv-reg-paso em{font-style:normal;font-size:11px;line-height:1.5;color:#98a1ab}
   #nv-reg-modal .nv-reg-cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
-    padding:12px;border-radius:12px;text-decoration:none;font-family:var(--display,sans-serif);font-weight:700;font-size:13.5px;
-    color:#0b0f16;background:linear-gradient(180deg,#f0c869,#E8B84B);box-shadow:0 8px 22px rgba(232,184,75,.25)}
-  #nv-reg-modal .nv-reg-cta:hover{filter:brightness(1.06)}
+    padding:12px;border-radius:12px;text-decoration:none;font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;
+    color:#3a2800;border:1px solid #c79426;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 48%,#c79426);
+    box-shadow:0 3px 0 #9c7016,0 8px 22px rgba(232,184,75,.28),inset 0 1px 0 rgba(255,255,255,.45)}
+  #nv-reg-modal .nv-reg-cta:hover{filter:brightness(1.04)}
+  #nv-reg-modal .nv-reg-cta:active{transform:translateY(1px);box-shadow:0 1px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.3)}
   #nv-reg-modal .nv-reg-pie{font-size:10.5px;line-height:1.5;color:#7d8794;text-align:center;margin:13px 0 0}
 
   /* ══ Modal de Alertas ══ */
@@ -4499,10 +4517,13 @@ function estilos() {
   #nv-al-modal .nv-al-cond .nv-al-dot{width:9px;height:9px;border-radius:50%;opacity:.4;transition:.15s}
   #nv-al-modal .nv-al-cond.on{color:#eaecef;border-color:var(--gold,#E8B84B);background:rgba(232,184,75,.1)}
   #nv-al-modal .nv-al-cond.on .nv-al-dot{opacity:1;box-shadow:0 0 8px currentColor}
-  #nv-al-modal .nv-al-go{width:100%;padding:12px;border-radius:12px;cursor:pointer;border:none;
-    font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;color:#0b0f16;
-    background:linear-gradient(180deg,#f0c869,#E8B84B);box-shadow:0 8px 22px rgba(232,184,75,.25)}
-  #nv-al-modal .nv-al-go:hover{filter:brightness(1.05)}
+  #nv-al-modal .nv-al-go{width:100%;padding:12px;border-radius:12px;cursor:pointer;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;color:#3a2800;
+    border:1px solid #c79426;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 48%,#c79426);
+    box-shadow:0 3px 0 #9c7016,0 8px 22px rgba(232,184,75,.28),inset 0 1px 0 rgba(255,255,255,.45)}
+  #nv-al-modal .nv-al-go:hover{filter:brightness(1.04)}
+  #nv-al-modal .nv-al-go:active{transform:translateY(1px);box-shadow:0 1px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.3)}
   #nv-al-modal .nv-al-nota{font-size:10.5px;line-height:1.5;color:#7d8794;text-align:center;margin:11px 0 0}
   #nv-al-modal .nv-al-faro p{font-size:12px;line-height:1.55;color:#c4ccd4;margin:0 0 10px}
   #nv-al-modal .nv-al-faro ol{margin:0 0 14px;padding-left:20px;display:flex;flex-direction:column;gap:6px}

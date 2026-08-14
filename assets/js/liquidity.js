@@ -666,24 +666,29 @@ async function portada() {
     /* [CORREGIDO] Antes se destruía la portada, así que al cerrar la
        herramienta se salía de Liquidity entero. Ahora solo se oculta
        y vuelve cuando el usuario cierra la herramienta. */
-    d.style.display = 'none';
     window.__lqpVolver = () => {
       const p = $('lqp-overlay');
       if (p) p.style.display = '';
       else portada();
     };
-    if (sv.id === 'pools') { abrirPools(); return; }
+    /* [CORREGIDO] El parpadeo: antes se ocultaba la portada ANTES de
+       cargar el módulo, así que durante el `import` se veía por un
+       instante la página inicial. Ahora la portada se oculta SOLO
+       después de que el overlay de la herramienta ya está montado y la
+       cubre: la transición es limpia, sin destello. */
+    const ocultarPortada = () => { d.style.display = 'none'; };
+    if (sv.id === 'pools') { abrirPools(); ocultarPortada(); return; }
     if (sv.id === 'libro') {
       try {
         const mu = await import('./muros.js?v=126');
-        mu.abrirMuros();
+        mu.abrirMuros(); ocultarPortada();
       } catch (er) { console.warn('[CCO] radar:', er); }
       return;
     }
     if (sv.id === 'tercero') {
       try {
         const sl = await import('./niveles.js?v=126');
-        sl.abrirNiveles();
+        sl.abrirNiveles(); ocultarPortada();
       } catch (er) { console.warn('[CCO] niveles:', er); }
     }
 
@@ -1172,6 +1177,31 @@ function dibujar() {
       const hueco = paso > 6 ? 1 : 0.35;        // separación entre celdas
       const huecoV = altoFila > 5 ? 0.9 : 0.25;
 
+      /* ══════════════════════════════════════════════════════════
+         MAPA DE CALOR LIMPIO (sin tocar los rojos)
+
+         El "collage" venía de colorear cada celda por su valor CRUDO:
+         como la acumulación es picuda, salían celdas sueltas verdes o
+         amarillas entre azules, y despuntes de color en los bordes de
+         una línea roja. Aquí los tonos INTERMEDIOS (azul→amarillo) se
+         colorean por un valor SUAVIZADO (promedio de su entorno), así
+         forman zonas coherentes en vez de ruido. El ROJO real (los muros
+         confirmados) se colorea por su valor crudo, intacto: ni se mueve
+         ni se apaga. */
+      const ROJO_DESDE = 0.96;
+      const suave = (i, f) => {
+        let s = 0, w = 0;
+        for (let di = -1; di <= 1; di++) {
+          const cc = cols[i + di]; if (!cc) continue;
+          for (let df = -2; df <= 2; df++) {
+            const ff = f + df; if (ff < 0 || ff >= FILAS) continue;
+            const wt = (3 - Math.abs(df)) * (di === 0 ? 2 : 1);
+            s += cc[ff] * wt; w += wt;
+          }
+        }
+        return w ? s / w : 0;
+      };
+
       cols.forEach((col, i) => {
         const x = i * paso;
         /* El mapa TERMINA donde terminan las velas. Antes la última
@@ -1183,18 +1213,18 @@ function dibujar() {
         for (let f = fMin; f < fMax; f++) {
           const v = col[f];
           if (v <= 0) continue;
-          /* ══════════════════════════════════════════════════════
-             LA INTENSIDAD FILTRA, NO SATURA
-
-             Antes multiplicaba el valor y al subirla todo se iba al
-             rojo. Ahora lo que hace es subir el UMBRAL: cuanto más
-             alta, menos zonas se pintan y solo quedan las fuertes.
-             Es lo que espera un trader: quitar ruido, no añadir color.
-             ══════════════════════════════════════════════════════ */
           const rel = Math.min(1, v / max);
           const umbral = 0.03 + (V.intensidad - 0.55) * 0.30;
-          if (rel < umbral) continue;
-          const rgb = calor(rel);
+          let relC;
+          if (rel >= ROJO_DESDE) {
+            relC = rel;                          // muro real: color crudo, intacto
+          } else {
+            // tono intermedio: color por el promedio del entorno, sin
+            // permitir que un suavizado se cuele al rojo
+            relC = Math.min(0.95, Math.min(1, suave(i, f) / max));
+          }
+          if (relC < umbral) continue;
+          const rgb = calor(relC);
           if (!rgb) continue;
           const pF = V.mapa.yMin + f * V.mapa.alturaFila;
           const y = Y(pF + V.mapa.alturaFila);
@@ -1310,16 +1340,16 @@ function dibujar() {
 
         if (f === pocIdx) {
           // El punto de control: dorado y entero
-          g.fillStyle = 'rgba(232,184,75,.92)';
+          g.fillStyle = 'rgba(240,200,90,.98)';
           g.fillRect(xBorde - w, yA, w, h);
         } else {
-          // Compra y venta, cada una su trozo
+          // Compra y venta, cada una su trozo — colores vivos, no apagados
           const wC = w * (compras[f] / Math.max(1e-9, total[f]));
           const wV = w - wC;
-          const op = dentroVA ? 0.72 : 0.34;
-          g.fillStyle = `rgba(38,166,154,${op})`;      // verde: compras
+          const op = dentroVA ? 0.95 : 0.6;
+          g.fillStyle = `rgba(46,232,106,${op})`;      // verde vivo: compras
           g.fillRect(xBorde - wC, yA, wC, h);
-          g.fillStyle = `rgba(239,83,80,${op})`;       // rojo: ventas
+          g.fillStyle = `rgba(255,70,90,${op})`;       // rojo vivo: ventas
           g.fillRect(xBorde - w, yA, wV, h);
         }
       }
