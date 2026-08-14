@@ -136,6 +136,10 @@ const V = {
   x0: 0, y0: 0,
   cruzX: -1, cruzY: -1,    // dónde está el puntero, para la cruz
 
+  /* Tachuelas de zonas de alta liquidez (banda del perfil) */
+  tachuelas: [],           // hitboxes recalculados en cada dibujo
+  tachAbierta: null,       // índice de la tachuela desplegada, o null
+
   /* ── DIBUJO ──
      Las líneas se guardan en PRECIO y TIEMPO, no en píxeles. Así se
      quedan pegadas al gráfico cuando se hace zoom o se arrastra, que
@@ -1135,6 +1139,10 @@ function dibujar() {
   const paso = xVelas / V.ancho;
   const altoFila = y1 / FILAS;
 
+  /* Zonas de alta liquidez (acumulación de muros rojos), para las
+     tachuelas del perfil. Se rellenan con datos REALES del mapa. */
+  let zonasLiq = [];
+
   /* ── EL MAPA DE CALOR ── */
   if (V.verMapa) {
     /* Los valores ya vienen normalizados de 0 a 1 desde columnaDe(),
@@ -1233,6 +1241,42 @@ function dibujar() {
           g.fillRect(x, y, ancho, h);
         }
       });
+
+      /* ══════════════════════════════════════════════════════════
+         ZONAS DE ALTA LIQUIDEZ (datos reales del mapa)
+
+         Se busca dónde se ACUMULAN varios muros rojos: filas de precio
+         que salen en ROJO a lo largo de muchas columnas (tiempo). Donde
+         eso pasa hay una pared de liquidez real, y el precio suele
+         reaccionar al llegar. Se agrupan las filas rojas contiguas en
+         zonas y se guardan las más fuertes para marcarlas con tachuela. */
+      const redCount = new Float32Array(FILAS);
+      for (const col of cols) {
+        for (let f = fMin; f < fMax; f++) {
+          if (col[f] / max >= ROJO_DESDE) redCount[f]++;
+        }
+      }
+      const minCols = Math.max(2, Math.floor((hasta - desde) * 0.10)); // rojo en ≥10% del tiempo
+      let f = fMin;
+      while (f < fMax) {
+        if (redCount[f] >= minCols) {
+          let f0 = f, fuerza = 0, filas = 0;
+          while (f < fMax && redCount[f] >= minCols * 0.6) { fuerza += redCount[f]; filas++; f++; }
+          const fc = (f0 + f - 1) / 2;
+          const precio = V.mapa.yMin + (fc + 0.5) * V.mapa.alturaFila;
+          const pLow = V.mapa.yMin + f0 * V.mapa.alturaFila;
+          const pHigh = V.mapa.yMin + f * V.mapa.alturaFila;
+          zonasLiq.push({ precio, pLow, pHigh, fuerza, filas });
+        } else f++;
+      }
+      // las más fuertes primero; nos quedamos con unas pocas separadas
+      zonasLiq.sort((a, b) => b.fuerza - a.fuerza);
+      const elegidas = [];
+      for (const z of zonasLiq) {
+        if (elegidas.length >= 4) break;
+        if (elegidas.every((e) => Math.abs(Y(e.precio) - Y(z.precio)) > 30)) elegidas.push(z);
+      }
+      zonasLiq = elegidas;
     }
   }
 
@@ -1380,6 +1424,130 @@ function dibujar() {
         g.fillText(et, xVelas + 8, yy - 3);
       });
     }
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     TACHUELAS DE ALTA LIQUIDEZ
+
+     En la banda del perfil (donde acaban las barras), una tachuelita con
+     bordes redondeados y una colita de globo abajo-izquierda marca cada
+     zona donde se acumulan muros rojos. Lleva un puntico latente y una
+     flecha que apunta al nivel. Al tocar el desplegable, explica que ahí
+     hay alta probabilidad de reacción y muestra DATOS REALES: cuántos
+     muros se acumulan y el volumen realmente negociado en ese nivel,
+     partido en compra y venta. Nada de placeholders.
+     ══════════════════════════════════════════════════════════════ */
+  V.tachuelas = [];
+  if (zonasLiq.length) {
+    const fmtVol = (n) => n >= 1e9 ? (n / 1e9).toFixed(1) + 'B'
+      : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M'
+      : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toString();
+
+    // cuerpo redondeado con colita de globo en la esquina inferior izquierda
+    const cuerpoTach = (x, y, w, h, r) => {
+      g.beginPath();
+      g.moveTo(x + r, y);
+      g.lineTo(x + w - r, y);
+      g.arcTo(x + w, y, x + w, y + r, r);
+      g.lineTo(x + w, y + h - r);
+      g.arcTo(x + w, y + h, x + w - r, y + h, r);
+      g.lineTo(x + r + 6, y + h);
+      g.lineTo(x - 3, y + h + 8);          // punta de la cola
+      g.lineTo(x + r - 1, y + h);
+      g.arcTo(x, y + h, x, y + h - r, r);
+      g.lineTo(x, y + r);
+      g.arcTo(x, y, x + r, y, r);
+      g.closePath();
+    };
+
+    zonasLiq.forEach((z, idx) => {
+      const yN = Y(z.precio);
+      if (yN < 8 || yN > y1 - 10) return;
+      // volumen REAL negociado dentro de la zona, partido compra/venta
+      let volC = 0, volV = 0;
+      for (const v of vis) {
+        if (v.h >= z.pLow && v.l <= z.pHigh) { if (v.c >= v.o) volC += v.v; else volV += v.v; }
+      }
+
+      const w = 104, h = 22, r = 7;
+      const x = x1 - w - 8;
+      const y = Math.max(4, Math.min(y1 - h - 10, yN - h / 2));
+
+      // flecha + guía tenue apuntando al nivel exacto (hacia la izquierda)
+      g.strokeStyle = 'rgba(255,70,90,.35)'; g.lineWidth = 1; g.setLineDash([2, 3]);
+      g.beginPath(); g.moveTo(xVelas + 4, yN); g.lineTo(x - 6, yN); g.stroke();
+      g.setLineDash([]);
+      g.fillStyle = '#ff465a';
+      g.beginPath(); g.moveTo(x - 6, yN); g.lineTo(x - 1, yN - 4); g.lineTo(x - 1, yN + 4); g.closePath(); g.fill();
+
+      // cuerpo
+      g.save();
+      g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 8; g.shadowOffsetY = 2;
+      g.fillStyle = 'rgba(19,23,30,.97)';
+      cuerpoTach(x, y, w, h, r); g.fill();
+      g.restore();
+      g.strokeStyle = 'rgba(255,70,90,.8)'; g.lineWidth = 1.2;
+      cuerpoTach(x, y, w, h, r); g.stroke();
+
+      // puntico latente (dot + anillo)
+      const dx = x + 13, dy = y + h / 2;
+      g.fillStyle = '#ff465a'; g.beginPath(); g.arc(dx, dy, 3, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = 'rgba(255,70,90,.45)'; g.lineWidth = 1.4;
+      g.beginPath(); g.arc(dx, dy, 6.2, 0, Math.PI * 2); g.stroke();
+
+      // precio
+      g.fillStyle = '#eaecef'; g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'left';
+      g.fillText(fmt(z.precio), x + 24, y + h / 2 + 3.5);
+
+      // chevron desplegable (▾ / ▴)
+      const abierta = V.tachAbierta === idx;
+      const cx = x + w - 13, cy = y + h / 2;
+      g.strokeStyle = '#E8B84B'; g.lineWidth = 1.6; g.lineCap = 'round';
+      g.beginPath();
+      if (abierta) { g.moveTo(cx - 4, cy + 2); g.lineTo(cx, cy - 2); g.lineTo(cx + 4, cy + 2); }
+      else { g.moveTo(cx - 4, cy - 2); g.lineTo(cx, cy + 2); g.lineTo(cx + 4, cy - 2); }
+      g.stroke(); g.lineCap = 'butt';
+
+      // hitbox (incluye la colita)
+      V.tachuelas.push({ x, y, w, h: h + 8, idx });
+
+      // ── DESPLEGABLE ──
+      if (abierta) {
+        const volT = volC + volV || 1;
+        const pw = 216, lineas = 3;
+        const ph = 92;
+        const py = Math.max(4, Math.min(y1 - ph - 4, y + h + 10));
+        const pxL = x1 - pw - 8;
+        g.save();
+        g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 12; g.shadowOffsetY = 3;
+        g.fillStyle = 'rgba(15,19,26,.98)';
+        redondeadoLq(g, pxL, py, pw, ph, 10); g.fill();
+        g.restore();
+        g.strokeStyle = 'rgba(232,184,75,.4)'; g.lineWidth = 1;
+        redondeadoLq(g, pxL, py, pw, ph, 10); g.stroke();
+
+        g.textAlign = 'left';
+        g.fillStyle = '#E8B84B'; g.font = 'bold 10px ui-monospace,monospace';
+        g.fillText('ZONA DE ALTA LIQUIDEZ', pxL + 12, py + 16);
+        g.fillStyle = '#c4ccd4'; g.font = '9px ui-monospace,monospace';
+        g.fillText('Alta probabilidad de reacción del', pxL + 12, py + 30);
+        g.fillText('precio al alcanzar ' + fmt(z.precio) + '.', pxL + 12, py + 41);
+
+        // datos reales: muros + volumen negociado compra/venta
+        g.fillStyle = '#8b95a1'; g.font = '8.5px ui-monospace,monospace';
+        g.fillText('Muros acumulados: ' + z.filas + '  ·  vol. negociado', pxL + 12, py + 55);
+        // barra compra/venta
+        const bx = pxL + 12, by = py + 62, bw = pw - 24, bh = 8;
+        const wc = bw * (volC / volT);
+        g.fillStyle = 'rgba(46,232,106,.9)'; g.fillRect(bx, by, wc, bh);
+        g.fillStyle = 'rgba(255,70,90,.9)'; g.fillRect(bx + wc, by, bw - wc, bh);
+        g.fillStyle = '#2ee86a'; g.font = 'bold 9px ui-monospace,monospace';
+        g.fillText('C ' + fmtVol(volC), bx, by + bh + 12);
+        g.textAlign = 'right';
+        g.fillStyle = '#ff6b7a'; g.fillText('V ' + fmtVol(volV), bx + bw, by + bh + 12);
+        g.textAlign = 'left';
+      }
+    });
   }
 
   /* ── LA ESCALA DE PRECIOS ── */
@@ -1598,6 +1766,9 @@ function engancharGestos(cv) {
     const r = cv.getBoundingClientRect();
     const px = e.clientX - r.left, py = e.clientY - r.top;
 
+    // ¿Se tocó una tachuela de liquidez? Abre/cierra su desplegable.
+    if (clicTachuela(px, py)) return;
+
     // Si hay una herramienta activa, se dibuja en vez de arrastrar.
     if (V.herramienta) {
       const d = aDatos(px, py);
@@ -1661,6 +1832,8 @@ function engancharGestos(cv) {
   let d0 = 0;
   cv.addEventListener('touchstart', (e) => {
     if (e.touches.length === 1) {
+      const r = cv.getBoundingClientRect();
+      if (clicTachuela(e.touches[0].clientX - r.left, e.touches[0].clientY - r.top)) return;
       V.arrastrando = true;
       V.x0 = e.touches[0].clientX; V.y0 = e.touches[0].clientY;
     } else if (e.touches.length === 2) {
@@ -1997,6 +2170,33 @@ const fmt = (p) => {
   if (p >= 0.01) return p.toFixed(4);
   return p.toFixed(6);
 };
+
+function redondeadoLq(g, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+/* ¿El punto (px,py) cayó sobre alguna tachuela de liquidez? Abre o
+   cierra su desplegable y redibuja. Devuelve true si consumió el toque. */
+function clicTachuela(px, py) {
+  const t = V.tachuelas || [];
+  for (const b of t) {
+    if (px >= b.x - 6 && px <= b.x + b.w + 2 && py >= b.y - 2 && py <= b.y + b.h + 2) {
+      V.tachAbierta = (V.tachAbierta === b.idx) ? null : b.idx;
+      dibujar();
+      return true;
+    }
+  }
+  // tocar fuera cierra cualquier desplegable abierto
+  if (V.tachAbierta != null) { V.tachAbierta = null; dibujar(); }
+  return false;
+}
 
 /** Qué significa cada cosa. */
 /* ══════════════════════════════════════════════════════════════
