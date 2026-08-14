@@ -791,6 +791,139 @@ function detectarDobles(velas, piv, precio) {
    ══════════════════════════════════════════════════════════════ */
 
 /* ══════════════════════════════════════════════════════════════
+   GUADAÑA — el segador de tendencias
+
+   Marca el punto exacto donde la tendencia cambia de manos. No es
+   un SuperTrend: un SuperTrend dispara en cada sacudida. Aquí una
+   señal necesita CUATRO confirmaciones a la vez.
+
+   1. CANAL DE VOLATILIDAD (el motor)
+      Una banda que sigue al precio a distancia de 3 ATR. Cuando el
+      precio la cruza con el cuerpo, cambia el lado.
+
+   2. IMPULSO REAL (el filtro de fuerza)
+      La vela del cruce tiene que tener cuerpo de verdad: al menos
+      la mitad de su rango. Una vela de indecisión no confirma nada.
+
+   3. ESTRUCTURA (el filtro de contexto)
+      El precio tiene que haber roto el último pivote en la misma
+      dirección. Sin eso, es un rebote dentro del rango.
+
+   4. VOLUMEN (el filtro de participación)
+      La vela necesita más volumen que la media. Un giro sin
+      volumen es un giro que nadie está respaldando.
+
+   Y encima, tres filtros que matan las señales falsas:
+
+   · MERCADO LATERAL — si el precio lleva días en una banda
+     estrecha, cada cruce es ruido. Se detecta y se calla.
+   · FIN DE SEMANA — sábado y domingo el volumen cae y las señales
+     no valen. Se avisa en vez de operar.
+   · DESCANSO — tras una señal, se exigen varias velas antes de
+     admitir la contraria. Evita el vaivén.
+   ══════════════════════════════════════════════════════════════ */
+function guadana(velas, piv, atr) {
+  if (velas.length < 60 || !(atr > 0)) return null;
+
+  const MULT = 3;              // distancia del canal, en ATR
+  const DESCANSO = 8;          // velas mínimas entre señales
+  const señales = [];
+
+  /* Media de volumen, para saber qué es "mucho" */
+  const volMedia = velas.slice(-60).reduce((a, v) => a + v.v, 0) / 60;
+
+  /* ── 1. El canal que persigue al precio ── */
+  let lado = 0;                // 1 alcista, -1 bajista
+  let linea = velas[30].c;
+  const curva = [];
+
+  for (let i = 30; i < velas.length; i++) {
+    const v = velas[i];
+    const medio = (v.h + v.l) / 2;
+    const arriba = medio + MULT * atr;
+    const abajo = medio - MULT * atr;
+
+    const antes = lado;
+    if (lado >= 0) {
+      linea = Math.max(abajo, linea);
+      if (v.c < linea) { lado = -1; linea = arriba; }
+      else lado = 1;
+    } else {
+      linea = Math.min(arriba, linea);
+      if (v.c > linea) { lado = 1; linea = abajo; }
+    }
+    curva.push({ i, p: linea, lado });
+
+    /* ── Hay cruce: ahora se comprueba si merece la pena ── */
+    if (antes !== 0 && lado !== antes) {
+      const alcista = lado === 1;
+      const rechazos = [];
+
+      /* 2. ¿La vela tiene cuerpo? */
+      const rango = v.h - v.l;
+      const cuerpo = Math.abs(v.c - v.o);
+      const fuerza = rango > 0 ? cuerpo / rango : 0;
+      if (fuerza < 0.45) rechazos.push('vela sin fuerza');
+
+      /* 3. ¿Rompió estructura? */
+      const antesDe = velas.slice(Math.max(0, i - 25), i);
+      const techo = Math.max(...antesDe.map((x) => x.h));
+      const suelo = Math.min(...antesDe.map((x) => x.l));
+      const rompe = alcista ? v.c > suelo + (techo - suelo) * 0.6
+                            : v.c < techo - (techo - suelo) * 0.6;
+      if (!rompe) rechazos.push('sin ruptura de estructura');
+
+      /* 4. ¿Hubo volumen? */
+      const volRel = volMedia > 0 ? v.v / volMedia : 1;
+      if (volRel < 0.9) rechazos.push('volumen flojo');
+
+      /* Filtro de descanso */
+      const ultima = señales[señales.length - 1];
+      if (ultima && i - ultima.i < DESCANSO) rechazos.push('demasiado pronto');
+
+      /* Filtro de lateralidad: banda estrecha = puro ruido */
+      const ancho = ((techo - suelo) / v.c) * 100;
+      if (ancho < 2.2) rechazos.push('mercado lateral');
+
+      /* Filtro de fin de semana */
+      const dia = new Date(v.t).getUTCDay();
+      const finde = dia === 0 || dia === 6;
+      if (finde) rechazos.push('fin de semana');
+
+      señales.push({
+        i, t: v.t, precio: v.c, alcista,
+        valida: rechazos.length === 0,
+        rechazos, fuerza, volRel, ancho, finde,
+        /* Calidad: cuántos filtros pasó, de 4 */
+        calidad: 4 - Math.min(4, rechazos.filter((r) =>
+          !/pronto|lateral|semana/.test(r)).length)
+      });
+    }
+  }
+
+  const validas = señales.filter((x) => x.valida);
+  const ultima = validas[validas.length - 1] || null;
+  const ultimaCruda = señales[señales.length - 1] || null;
+
+  /* ¿Estamos en lateral ahora mismo? */
+  const rec = velas.slice(-30);
+  const tMax = Math.max(...rec.map((x) => x.h));
+  const tMin = Math.min(...rec.map((x) => x.l));
+  const anchoAhora = ((tMax - tMin) / velas[velas.length - 1].c) * 100;
+
+  const hoy = new Date().getUTCDay();
+
+  return {
+    curva, señales, validas, ultima, ultimaCruda,
+    lado,
+    lateral: anchoAhora < 2.2,
+    anchoAhora,
+    finde: hoy === 0 || hoy === 6,
+    velasDesde: ultima ? velas.length - 1 - ultima.i : null
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
    9. ATR — la volatilidad real
 
    El recorrido medio de una vela. Sirve para poner el stop donde
@@ -895,6 +1028,7 @@ function analizar() {
   N.linea = calcularTendencia(v, piv, N.tendencia);
   N.dobles = detectarDobles(v, piv, N.precio);
   N.atr = calcularATR(v);
+  N.guadana = guadana(v, piv, N.atr);
   N.precio = v[v.length - 1].c;
   N.niveles = calcularNiveles(v, piv, N.precio);
 
@@ -1000,7 +1134,7 @@ function analizar() {
   /* ══ MENSAJES DE ESTRUCTURA ══
      Cada patrón detectado tiene su lectura y su recomendación, con
      varias formas de decirlo. Todo sale de datos, nada inventado. */
-  if (!N.limpia) (N.estructuras || []).forEach((e) => {
+  (N.estructuras || []).forEach((e) => {
     const alc = e.dir === 'alcista';
 
     if (e.tipo === 'bos') {
@@ -1109,6 +1243,91 @@ function analizar() {
     }
   });
 
+  /* ══ GUADAÑA ══
+     Solo habla si la herramienta está encendida y tiene algo real
+     que contar. */
+  if (N.verGuadana && N.guadana) {
+    const GU = N.guadana;
+
+    if (GU.finde) {
+      msgs.push({
+        tipo: 'aviso', p: N.precio, prioridad: 6,
+        titulo: elegir(['Fin de semana', 'Guadaña descansa', 'Mercado de fin de semana']),
+        txt: elegir([
+          'Sábado y domingo el volumen cae en picado y las señales de cambio de tendencia fallan mucho más. La herramienta no opera hoy.',
+          'Es fin de semana: menos participantes, movimientos exagerados y rupturas que no aguantan el lunes.',
+          'Guadaña solo trabaja de lunes a viernes. En fin de semana el mercado engaña.'
+        ]),
+        hacer: elegir([
+          'Espere al lunes. Lo que se rompe en fin de semana suele deshacerse cuando vuelve el volumen real.',
+          'No abra posiciones nuevas basándose en lo que pase hoy o mañana.',
+          'Use estos días para preparar niveles, no para entrar.'
+        ]),
+        detalle: [
+          'Guadaña opera de lunes a viernes',
+          'En fin de semana el volumen baja entre un 40% y un 60%',
+          'Las rupturas de fin de semana se revierten con frecuencia'
+        ]
+      });
+    } else if (GU.lateral) {
+      msgs.push({
+        tipo: 'aviso', p: N.precio, prioridad: 6,
+        titulo: elegir(['Mercado lateral', 'Sin ciclo definido', 'Guadaña en espera']),
+        txt: elegir([
+          `El precio lleva 30 velas moviéndose en una banda del ${GU.anchoAhora.toFixed(1)}%. Con tan poco recorrido, cualquier cruce es ruido.`,
+          `La banda es demasiado estrecha (${GU.anchoAhora.toFixed(1)}%) para que un cambio de tendencia signifique algo.`,
+          'No hay ciclo que seguir: el precio está lateral y las señales aquí fallan.'
+        ]),
+        hacer: elegir([
+          'Espere a que el precio salga de la banda con volumen. Ahí sí habrá una señal que valga.',
+          'En lateral, lo rentable es operar los bordes, no seguir la tendencia.',
+          'Guadaña vuelve a hablar cuando haya un movimiento con recorrido.'
+        ]),
+        detalle: [
+          `Banda actual: ${GU.anchoAhora.toFixed(2)}% en 30 velas`,
+          'Por debajo del 2,2% se considera lateral',
+          'Las señales de tendencia en lateral tienen el peor rendimiento'
+        ]
+      });
+    } else if (GU.ultima && GU.velasDesde != null && GU.velasDesde < 25) {
+      const sg = GU.ultima;
+      const alc = sg.alcista;
+      msgs.push({
+        tipo: alc ? 'compra' : 'venta', p: sg.precio, prioridad: 10,
+        iAncla: sg.i,
+        titulo: elegir([
+          alc ? 'Guadaña marcó LONG' : 'Guadaña marcó SHORT',
+          alc ? 'La tendencia cambió a comprador' : 'La tendencia cambió a vendedor',
+          'Cambio de ciclo confirmado'
+        ]),
+        txt: elegir([
+          `El ciclo cambió de manos en ${fmt(sg.precio)}, hace ${GU.velasDesde} ${GU.velasDesde === 1 ? 'vela' : 'velas'}. Pasó las cuatro confirmaciones: cuerpo de vela, ruptura de estructura, volumen y contexto.`,
+          `Hubo un giro confirmado en ${fmt(sg.precio)}. La vela tenía un ${(sg.fuerza * 100).toFixed(0)}% de cuerpo y ${sg.volRel.toFixed(1)} veces el volumen medio.`,
+          `Guadaña detectó el cambio en ${fmt(sg.precio)}. No es un cruce cualquiera: superó los cuatro filtros.`
+        ]),
+        hacer: alc
+          ? elegir([
+              'El lado comprador tiene el control. Busque entradas en los retrocesos, no persiga el precio aquí arriba.',
+              'Opere a favor: compras en soporte mientras el canal siga verde.',
+              'Mantenga la dirección larga hasta que el canal cambie de color.'
+            ])
+          : elegir([
+              'El lado vendedor tiene el control. Busque ventas en los rebotes, no persiga la caída.',
+              'Opere a favor: ventas en resistencia mientras el canal siga rojo.',
+              'Mantenga la dirección corta hasta que el canal cambie de color.'
+            ]),
+        detalle: [
+          `Señal en ${fmt(sg.precio)}`,
+          `Cuerpo de la vela: ${(sg.fuerza * 100).toFixed(0)}% del rango`,
+          `Volumen: ${sg.volRel.toFixed(2)} veces la media`,
+          `Recorrido del tramo: ${sg.ancho.toFixed(1)}%`,
+          `Calidad: ${sg.calidad} de 4 confirmaciones`,
+          `Señales descartadas por los filtros: ${GU.señales.length - GU.validas.length}`
+        ]
+      });
+    }
+  }
+
   /* ══ LA LÍNEA DE TENDENCIA ══ */
   if (N.linea) {
     const alc = N.linea.tipo === 'alcista';
@@ -1144,7 +1363,7 @@ function analizar() {
   }
 
   /* ══ DOBLE SUELO / DOBLE TECHO ══ */
-  if (!N.limpia) (N.dobles || []).forEach((d) => {
+  (N.dobles || []).forEach((d) => {
     const suelo = d.tipo === 'dobleSuelo';
     msgs.push({
       tipo: suelo ? 'compra' : 'venta', p: d.nivel, prioridad: d.confirmado ? 9 : 6,
@@ -2004,6 +2223,94 @@ function dibujar() {
     }
   }
 
+  /* ══ GUADAÑA ══
+     El canal que persigue al precio y las alertas de cambio. */
+  if (N.guadana && N.verGuadana) {
+    const GU = N.guadana;
+    const primG = Math.max(0, fin - ancho);
+
+    /* La línea del canal: verde cuando manda la compra, roja
+       cuando manda la venta. */
+    const trozos = GU.curva.filter((c) => c.i >= primG);
+    if (trozos.length > 1) {
+      let lote = [trozos[0]];
+      for (let k = 1; k <= trozos.length; k++) {
+        const c = trozos[k];
+        if (c && c.lado === lote[0].lado) { lote.push(c); continue; }
+        if (lote.length > 1) {
+          g.strokeStyle = lote[0].lado === 1 ? 'rgba(46,232,106,.85)' : 'rgba(246,70,93,.85)';
+          g.lineWidth = 2.2;
+          g.beginPath();
+          lote.forEach((q, j) => {
+            const x = idxVis(q.i), y = Y(q.p);
+            j === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+          });
+          g.stroke();
+        }
+        if (c) lote = [c];
+      }
+    }
+
+    /* Las alertas: solo las válidas se dibujan. */
+    GU.validas.forEach((sg) => {
+      if (sg.i < primG) return;
+      const x = idxVis(sg.i);
+      if (x < 10 || x > x1 - 10) return;
+      const y = Y(sg.precio);
+      const alc = sg.alcista;
+
+      const txt = alc ? 'LONG' : 'SHORT';
+      g.font = 'bold 12px ui-monospace,monospace';
+      const w = g.measureText(txt).width + 22;
+      const h = 24;
+      const pico = 7;
+
+      /* LONG sale de abajo con el pico arriba; SHORT de arriba con
+         el pico abajo, apuntando a la vela del cruce. */
+      const yCaja = alc ? y + 16 : y - 16 - h;
+      const xCaja = Math.max(2, Math.min(x1 - w - 2, x - w / 2));
+
+      g.save();
+      g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 10; g.shadowOffsetY = 2;
+      g.fillStyle = alc ? '#2ee86a' : '#FF0000';
+      redondeado(g, xCaja, yCaja, w, h, 6); g.fill();
+      /* El piquito, apuntando a la vela */
+      g.beginPath();
+      if (alc) {
+        g.moveTo(x, yCaja - pico);
+        g.lineTo(x - pico, yCaja + 1);
+        g.lineTo(x + pico, yCaja + 1);
+      } else {
+        g.moveTo(x, yCaja + h + pico);
+        g.lineTo(x - pico, yCaja + h - 1);
+        g.lineTo(x + pico, yCaja + h - 1);
+      }
+      g.closePath(); g.fill();
+      g.restore();
+
+      g.fillStyle = alc ? '#000000' : '#FFD400';
+      g.textAlign = 'center';
+      g.fillText(txt, xCaja + w / 2, yCaja + h / 2 + 4.5);
+      g.textAlign = 'left';
+
+      /* Un punto en la vela exacta del cruce */
+      g.beginPath(); g.arc(x, y, 3.5, 0, Math.PI * 2);
+      g.fillStyle = alc ? '#2ee86a' : '#FF0000'; g.fill();
+      g.strokeStyle = '#0b0f16'; g.lineWidth = 1.5; g.stroke();
+    });
+
+    /* El estado, arriba: qué está haciendo la herramienta */
+    let et, col, tinta;
+    if (GU.finde) { et = 'GUADAÑA · FIN DE SEMANA, NO OPERO'; col = '#8b96a3'; tinta = '#0b0f16'; }
+    else if (GU.lateral) { et = 'GUADAÑA · MERCADO LATERAL, ESPERO'; col = '#C9A84B'; tinta = '#2a1c00'; }
+    else if (GU.lado === 1) { et = 'GUADAÑA · LADO COMPRADOR'; col = '#2ee86a'; tinta = '#04210f'; }
+    else { et = 'GUADAÑA · LADO VENDEDOR'; col = '#FF0000'; tinta = '#FFD400'; }
+    g.font = 'bold 10px ui-monospace,monospace';
+    const wE = g.measureText(et).width + 20;
+    etiquetas.push({ txt: et, x: 10, y: 10, w: wE, h: 21,
+                     fondo: col, tinta, borde: 'rgba(232,184,75,.9)' });
+  }
+
   /* ══ EL CANAL DEL RANGO ══
      Si el precio va lateral, se marcan las dos horizontales. */
   if (N.rango && _trazo > 0 && !N.limpia) {
@@ -2031,7 +2338,7 @@ function dibujar() {
   }
 
   /* ══ DOBLE SUELO / DOBLE TECHO ══ */
-  (N.dobles || []).forEach((d) => {
+  if (!N.limpia) (N.dobles || []).forEach((d) => {
     const primero2 = Math.max(0, fin - ancho);
     if (d.p1.i < primero2 - 2) return;
     const suelo = d.tipo === 'dobleSuelo';
@@ -2081,7 +2388,7 @@ function dibujar() {
   /* ══ LAS ESTRUCTURAS DIBUJADAS ══
      Aquí es donde el usuario VE de lo que se le habla: la ruptura,
      la zona institucional, el barrido. No hay que creerse nada. */
-  (N.estructuras || []).forEach((e) => {
+  if (!N.limpia) (N.estructuras || []).forEach((e) => {
     const primero = Math.max(0, fin - ancho);
     if (e.iRef < primero - 2 || e.iRef > fin) return;
     const col = e.dir === 'alcista' ? '#2ee86a' : '#f6465d';
@@ -2181,7 +2488,7 @@ function dibujar() {
      Solo cuando el usuario pulsa "Señálame dónde está". Sale de
      arriba (donde está su cápsula) y baja curvándose hasta el
      punto exacto, con la punta marcada. */
-  if (N.senalado != null && N.mensajes[N.senalado]) {
+  if (!N.limpia && N.senalado != null && N.mensajes[N.senalado]) {
     const m = N.mensajes[N.senalado];
     if (m.p >= pMin && m.p <= pMax) {
       const y = Y(m.p);
@@ -2711,6 +3018,14 @@ function menuHerramientas() {
   m.id = 'nv-herr-menu';
   m.innerHTML = `
     <div class="nv-hm-t">${esc(T('Herramientas profesionales'))}</div>
+    <button class="nv-hm-b ${N.verGuadana ? 'on' : ''}" data-h="guadana" type="button">
+      <span class="nv-hm-luz"></span>
+      <div class="nv-hm-tx">
+        <b>${esc(T('Guadaña'))} <em>${esc(T('cambio de ciclo'))}</em></b>
+        <span>${esc(T('Marca dónde la tendencia cambia de manos, con cuatro confirmaciones'))}</span>
+      </div>
+    </button>
+
     <button class="nv-hm-b ${N.limpia ? 'on' : ''}" data-h="limpia" type="button">
       <span class="nv-hm-luz"></span>
       <div class="nv-hm-tx">
@@ -2728,6 +3043,12 @@ function menuHerramientas() {
   m.style.top = (r.bottom + 8) + 'px';
 
   m.addEventListener('click', (e) => e.stopPropagation());
+  m.querySelector('[data-h=guadana]').onclick = () => {
+    N.verGuadana = !N.verGuadana;
+    m.querySelector('[data-h=guadana]').classList.toggle('on', N.verGuadana);
+    dibujar(); burbujas();
+  };
+
   m.querySelector('[data-h=limpia]').onclick = () => {
     N.limpia = !N.limpia;
     m.querySelector('[data-h=limpia]').classList.toggle('on', N.limpia);
