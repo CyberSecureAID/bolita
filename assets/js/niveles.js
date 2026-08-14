@@ -24,6 +24,23 @@
 // Preferimos callar que inventar una señal.
 
 const $ = (id) => document.getElementById(id);
+
+/* ══════════════════════════════════════════════════════════════
+   TRADUCCIÓN
+
+   Los textos del asistente se escriben letra a letra, así que el
+   traductor global no los alcanza: intercepta un texto a medias.
+   Aquí se traducen ANTES de mostrarlos.
+   ══════════════════════════════════════════════════════════════ */
+let _tr = null;
+try {
+  import('./idioma.js?v=126').then((m) => { _tr = m; }).catch(() => {});
+} catch (_) {}
+
+const T = (txt) => {
+  if (!_tr || !txt) return txt;
+  try { return _tr.t(txt); } catch (_) { return txt; }
+};
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const PARES = [
@@ -1025,8 +1042,99 @@ function analizar() {
     });
   }
 
+  /* ══════════════════════════════════════════════════════════
+     EL PLAN ÚNICO
+
+     Antes salían tres análisis independientes contradiciéndose:
+     uno decía compra, otro venta, otro espera. Eso no es una
+     herramienta, es ruido.
+
+     Ahora todo se pondera y sale UN plan. Cada señal vota según
+     su peso, y el resultado manda. Las demás lecturas quedan como
+     contexto de apoyo, no como veredictos rivales.
+     ══════════════════════════════════════════════════════════ */
   msgs.sort((a, b) => (b.prioridad || 0) - (a.prioridad || 0));
-  N.mensajes = msgs.slice(0, 3);
+  N.mensajes = unificar(msgs);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UNIFICAR: de varias lecturas a un plan
+   ══════════════════════════════════════════════════════════════ */
+function unificar(msgs) {
+  if (!msgs.length) return [];
+
+  /* Cada señal vota. El peso sale de su prioridad, que ya refleja
+     lo fiable que es el patrón según los estudios del sector. */
+  let votoC = 0, votoV = 0, votoE = 0;
+  msgs.forEach((m) => {
+    const p = (m.prioridad || 5);
+    if (m.tipo === 'compra') votoC += p;
+    else if (m.tipo === 'venta') votoV += p;
+    else votoE += p * 0.55;      // esperar pesa menos: no es una postura activa
+  });
+
+  const total = votoC + votoV + votoE || 1;
+  let lado, conf;
+  if (votoC > votoV && votoC > votoE) { lado = 'compra'; conf = votoC / total; }
+  else if (votoV > votoC && votoV > votoE) { lado = 'venta'; conf = votoV / total; }
+  else { lado = 'esperar'; conf = votoE / total; }
+
+  /* Si el resultado está muy repartido, no hay plan claro: se dice.
+     Es más honesto que forzar una dirección. */
+  const disputado = Math.abs(votoC - votoV) < Math.max(votoC, votoV) * 0.35 && votoC > 0 && votoV > 0;
+  if (disputado) { lado = 'esperar'; conf = 0.4; }
+
+  N.plan = {
+    lado, conf: Math.round(conf * 100), disputado,
+    votoC: Math.round(votoC), votoV: Math.round(votoV), votoE: Math.round(votoE)
+  };
+
+  /* El mensaje principal: el de mayor prioridad del lado ganador.
+     Si el plan es esperar por disputa, se construye uno propio. */
+  let principal;
+  if (disputado) {
+    const arriba = msgs.filter((m) => m.tipo === 'venta')[0];
+    const abajo = msgs.filter((m) => m.tipo === 'compra')[0];
+    principal = {
+      tipo: 'aviso', p: N.precio, prioridad: 99, esPlan: true,
+      titulo: elegir(['Señales enfrentadas', 'El mercado no se decide', 'Sin dirección clara']),
+      txt: elegir([
+        `He encontrado argumentos para ambos lados: ${abajo ? abajo.titulo.toLowerCase() : 'compra'} por abajo y ${arriba ? arriba.titulo.toLowerCase() : 'venta'} por arriba. Cuando la estructura se contradice, lo probable es que el precio siga indeciso.`,
+        `Hay señales enfrentadas en este marco temporal. Ni los compradores ni los vendedores tienen el control claro ahora mismo.`,
+        `La lectura está dividida: ${Math.round(votoC)} de peso alcista frente a ${Math.round(votoV)} bajista. Demasiado parejo para operar con ventaja.`
+      ]),
+      hacer: elegir([
+        'No opere este par ahora. Espere a que una de las dos fuerzas se imponga con un cierre claro, o cambie a otro marco temporal donde la lectura sea limpia.',
+        'Cuando las señales se contradicen, lo rentable es no estar dentro. Vuelva cuando haya una dirección definida.',
+        'Suba a un marco temporal mayor para ver quién manda de verdad, o busque otro par con estructura clara.'
+      ]),
+      detalle: [
+        `Peso alcista: ${Math.round(votoC)}`,
+        `Peso bajista: ${Math.round(votoV)}`,
+        `Diferencia insuficiente para dar una dirección`,
+        `Lecturas analizadas: ${msgs.length}`,
+        `Recomendación: esperar definición o cambiar de par`
+      ]
+    };
+  } else {
+    principal = msgs.find((m) => m.tipo === lado) || msgs[0];
+    principal = { ...principal, esPlan: true, prioridad: 99 };
+    /* Se le añade la confianza al detalle: el usuario ve cuánto
+       respaldo tiene el plan. */
+    principal.detalle = [
+      `Confianza del plan: ${Math.round(conf * 100)}% del peso total`,
+      ...(principal.detalle || [])
+    ];
+  }
+
+  /* Las demás lecturas pasan a contexto: apoyan o matizan, pero ya
+     no compiten como veredictos. */
+  const apoyo = msgs
+    .filter((m) => m !== principal && m.titulo !== principal.titulo)
+    .slice(0, 2)
+    .map((m) => ({ ...m, esApoyo: true, tipo: m.tipo === lado ? m.tipo : 'contexto' }));
+
+  return [principal, ...apoyo];
 }
 
 /** Varias formas de decir lo mismo, para que no suene repetitivo.
@@ -1212,7 +1320,7 @@ function pintarEstado() {
 
   v.innerHTML = `
     <span class="nv-v-tag ${m.cls}">${m.ic} ${m.txt}</span>
-    <span class="nv-v-tx">${esc(principal.titulo)}</span>
+    <span class="nv-v-tx">${esc(T(principal.titulo))}</span>
     ${horizonte ? `<span class="nv-v-hz">Horizonte: ${horizonte}</span>` : ''}
     <span class="nv-v-pt">${(N.mensajes || []).length} ${(N.mensajes || []).length === 1 ? 'lectura' : 'lecturas'}</span>`;
 }
@@ -1663,36 +1771,34 @@ function burbujas() {
   const firma = N.mensajes.map((m) => m.titulo + '|' + m.txt).join('~');
   const rehacer = caja.dataset.firma !== firma;
 
-  const usados = [];
-  const pos = N.mensajes.map((m) => {
+  /* ══════════════════════════════════════════════════════════
+     COLOCACIÓN ORDENADA
+
+     [CORREGIDO] Antes cada tarjeta buscaba su hueco por su cuenta
+     y salían líneas verticales absurdas y tarjetas cortadas por el
+     borde.
+
+     Ahora hay franjas fijas: la principal arriba a la izquierda,
+     las de apoyo en fila debajo. Siempre en el mismo sitio, con
+     números para saber el orden. La curva las une a su punto sin
+     que nada se cruce.
+     ══════════════════════════════════════════════════════════ */
+  const anchoTar = Math.min(300, Math.max(210, x1 * 0.26));
+  const filaX = 18 + anchoTar / 2;              // columna izquierda
+  const pos = N.mensajes.map((m, idx) => {
     /* El punto: donde ocurre lo que se cuenta */
     let px = x1 * 0.6;
     if (m.marca && m.marca.iRef != null) px = xDe(m.marca.iRef);
     else if (m.iAncla != null) px = xDe(m.iAncla);
-    px = Math.max(24, Math.min(x1 - 24, px));
+    px = Math.max(20, Math.min(x1 - 20, px));
     const dentro = m.p >= pMin && m.p <= pMax;
-    const py = dentro ? Math.max(16, Math.min(y1 - 16, Y(m.p))) : y1 * 0.4;
+    const py = dentro ? Math.max(14, Math.min(y1 - 14, Y(m.p))) : y1 * 0.4;
 
-    /* La tarjeta: en el hueco más cercano, arriba o abajo */
-    const libre = zonaLibre(px);
-    const espArriba = libre.arriba;
-    const espAbajo = y1 - libre.abajo;
-    let ty, dir;
-    if (espArriba > espAbajo && espArriba > 70) { ty = Math.max(26, libre.arriba - 46); dir = 'arriba'; }
-    else if (espAbajo > 70) { ty = Math.min(y1 - 40, libre.abajo + 46); dir = 'abajo'; }
-    else { ty = py < y1 / 2 ? y1 - 56 : 40; dir = py < y1 / 2 ? 'abajo' : 'arriba'; }
-
-    /* Desplazar en X si choca con otra tarjeta */
-    let tx = px;
-    let intentos = 0;
-    while (usados.some((u) => Math.abs(u.tx - tx) < 150 && Math.abs(u.ty - ty) < 60) && intentos < 8) {
-      tx += 160; intentos++;
-      if (tx > x1 - 80) { tx = 80 + (intentos * 40); ty += (dir === 'arriba' ? 54 : -54); }
-    }
-    tx = Math.max(70, Math.min(x1 - 70, tx));
-    usados.push({ tx, ty });
-
-    return { px, py, tx, ty, dir, dentro };
+    /* La tarjeta va en su franja: siempre en el mismo sitio, así
+       el usuario sabe dónde mirar y nada se solapa. */
+    const alto = 40;
+    const ty = 34 + idx * (alto + 12);
+    return { px, py, tx: filaX, ty: Math.min(ty, y1 - 40), dentro, orden: idx + 1 };
   });
 
   if (!rehacer) {
@@ -1704,11 +1810,12 @@ function burbujas() {
   }
 
   caja.dataset.firma = firma;
-  const ic = { compra: '▲', venta: '▼', vigilar: '◆', aviso: '✱', tendencia: '➜', noticia: '◈' };
-  const etq = { compra: 'COMPRA', venta: 'VENTA', vigilar: 'OJO', aviso: 'ESPERA', tendencia: 'TENDENCIA', noticia: 'NOTICIA' };
+  const ic = { compra: '▲', venta: '▼', vigilar: '◆', aviso: '✱', tendencia: '➜', contexto: '·' };
+  const etq = { compra: 'COMPRA', venta: 'VENTA', vigilar: 'VIGILAR', aviso: 'ESPERA',
+                tendencia: 'TENDENCIA', contexto: 'CONTEXTO' };
 
   caja.innerHTML = N.mensajes.map((m, idx) => `
-    <div class="nv-m t-${m.tipo}" data-nvm="${idx}">
+    <div class="nv-m t-${m.tipo} ${m.esPlan ? 'plan' : 'apoyo'}" data-nvm="${idx}">
       <!-- El punto latiendo donde pasa la cosa -->
       <span class="nv-pin"></span>
       <!-- La línea curva que lleva a la tarjeta -->
@@ -1716,20 +1823,21 @@ function burbujas() {
       <!-- La tarjeta, en zona limpia -->
       <div class="nv-tar">
         <button class="nv-chip" type="button">
+          <span class="nv-num">${idx + 1}</span>
           <img class="nv-chip-ava" src="assets/img/jesus-avatar.webp" alt="">
-          <span class="nv-chip-tx">${ic[m.tipo] || '✱'} ${etq[m.tipo] || ''}</span>
+          <span class="nv-chip-tx">${ic[m.tipo] || '✱'} ${esc(T(etq[m.tipo] || ''))}</span>
         </button>
         <div class="nv-panel-m">
           <div class="nv-pm-cab">
             <img class="nv-pm-ava" src="assets/img/jesus-avatar.webp" alt="">
-            <div class="nv-pm-quien"><b>Jesús</b><span>${esc(m.titulo)}</span></div>
+            <div class="nv-pm-quien"><b>Jesús</b><span>${esc(T(m.titulo))}</span></div>
             <button class="nv-pm-x" type="button" aria-label="Cerrar">✕</button>
           </div>
-          <div class="nv-pm-tx" data-escribir="${esc(m.txt)}"></div>
-          <div class="nv-pm-hacer">${esc(m.hacer)}</div>
-          <button class="nv-pm-mas" type="button">Por qué lo digo ▾</button>
+          <div class="nv-pm-tx" data-escribir="${esc(T(m.txt))}"></div>
+          <div class="nv-pm-hacer">${esc(T(m.hacer))}</div>
+          <button class="nv-pm-mas" type="button">${esc(T('Por qué lo digo'))} ▾</button>
           <div class="nv-pm-det">
-            ${(m.detalle || []).map((x) => `<div class="nv-pm-li">${esc(x)}</div>`).join('')}
+            ${(m.detalle || []).map((x) => `<div class="nv-pm-li">${esc(T(x))}</div>`).join('')}
           </div>
         </div>
       </div>
@@ -2267,6 +2375,18 @@ function estilos() {
   #nv-overlay .nv-tar{position:absolute;transform:translate(-50%,-50%);pointer-events:auto}
 
   /* El chip: pequeño, con el avatar */
+  /* El número de orden: la 1 es el plan, las demás contexto */
+  #nv-overlay .nv-num{width:19px;height:19px;flex:0 0 auto;border-radius:6px;
+    display:grid;place-items:center;font-family:var(--display,sans-serif);
+    font-weight:800;font-size:11px;background:rgba(255,255,255,.1);color:#b7bdc6}
+  #nv-overlay .nv-m.plan .nv-num{background:linear-gradient(180deg,#f7db8d,#E8B84B);color:#3a2800}
+  #nv-overlay .nv-m.plan .nv-chip{border-width:2px;box-shadow:0 4px 16px rgba(0,0,0,.6)}
+  #nv-overlay .nv-m.apoyo .nv-chip{opacity:.82;transform:scale(.94)}
+  #nv-overlay .nv-m.apoyo .nv-hilo path{opacity:.32}
+  #nv-overlay .t-contexto .nv-chip{border-color:#5c6672}
+  #nv-overlay .t-contexto .nv-chip-tx{color:#9aa5b1}
+  #nv-overlay .t-contexto{color:#7d8794}
+
   #nv-overlay .nv-chip{display:flex;align-items:center;gap:6px;padding:3px 9px 3px 3px;
     border-radius:20px;cursor:pointer;white-space:nowrap;
     background:rgba(13,17,23,.94);border:1.5px solid #3a424c;
@@ -2290,16 +2410,15 @@ function estilos() {
   #nv-overlay .nv-m.fuera .nv-chip{opacity:.6}
 
   /* El panel desplegado */
-  #nv-overlay .nv-panel-m{display:none;position:absolute;top:calc(100% + 11px);
-    left:50%;transform:translateX(-50%);
-    width:min(310px, 76vw);padding:12px 13px;border-radius:14px;
+  #nv-overlay .nv-panel-m{display:none;position:absolute;top:0;
+    left:calc(100% + 12px);transform:none;
+    width:min(320px, 74vw);padding:12px 13px;border-radius:14px;
     background:linear-gradient(165deg,rgba(20,26,35,.985),rgba(11,15,22,.985));
     border:1px solid #3a424c;box-shadow:0 14px 40px rgba(0,0,0,.72);
     animation:nvAbrePanel .22s ease both}
 
   #nv-overlay .nv-m.abierto .nv-panel-m{display:block}
-  @keyframes nvAbrePanel{from{opacity:0;transform:translateX(-50%) translateY(-6px) scale(.97)}
-                         to{opacity:1;transform:translateX(-50%)}}
+  @keyframes nvAbrePanel{from{opacity:0;transform:translateX(-8px) scale(.97)}to{opacity:1;transform:none}}
   #nv-overlay .t-compra .nv-panel-m{border-color:rgba(46,232,106,.5)}
   #nv-overlay .t-venta .nv-panel-m{border-color:rgba(246,70,93,.5)}
   #nv-overlay .t-aviso .nv-panel-m{border-color:rgba(232,184,75,.45)}
@@ -2391,12 +2510,13 @@ function estilos() {
     #nv-overlay .nv-cf-tx{display:none}
     #nv-overlay .nv-cf-s{display:block}
     #nv-overlay .nv-precio{font-size:15px}
-    /* [CORREGIDO] En móvil el panel salía por el borde. Ahora se
-       fija al ancho de la pantalla, centrado, sin depender del chip. */
-    #nv-overlay .nv-m.abierto .nv-panel-m{position:fixed;
-      left:8px;right:8px;width:auto;max-width:none;transform:none;
-      top:auto;bottom:14px;max-height:52vh;overflow-y:auto}
-    #nv-overlay .lado-der .nv-panel-m,#nv-overlay .lado-izq .nv-panel-m{left:8px;right:8px}
+    /* [CORREGIDO] El panel se cortaba por abajo. Ahora va fijo a la
+       pantalla, pegado abajo con su propio scroll: siempre entero. */
+    #nv-overlay .nv-m.abierto .nv-panel-m{position:fixed !important;
+      left:8px !important;right:8px !important;width:auto !important;
+      max-width:none !important;transform:none !important;
+      top:auto !important;bottom:10px !important;
+      max-height:46vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
     #nv-overlay .nv-chip-tx{font-size:9px}
     #nv-overlay .nv-chip-ava{width:20px;height:20px}
     #nv-overlay .nv-pm-quien span{font-size:12.5px}
