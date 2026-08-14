@@ -136,7 +136,7 @@ function abrirMenu(cx, cy, cfg, ev) {
            va grande y arriba a la derecha. -->
       <div class="od-m-pct">
         <b>${dist >= 0 ? '+' : ''}${dist.toFixed(1)}%</b>
-        <span>${esc(T(vender ? 'ganancia' : 'descuento'))}</span>
+        <span>${esc(T(vender ? 'Ganancia' : 'Descuento'))}</span>
       </div>
     </div>
     <button class="od-m-b" type="button">${esc(T('Establecer posición'))}</button>`;
@@ -178,7 +178,7 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
            vender son buenas noticias. -->
       <div class="od-pct-grande">
         <b>${dist >= 0 ? '+' : ''}${dist.toFixed(1)}%</b>
-        <span>${esc(T(vender ? 'de ganancia' : 'de descuento'))}</span>
+        <span>${esc(T(vender ? 'De ganancia' : 'De descuento'))}</span>
       </div>
     </div>
 
@@ -188,7 +188,7 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
     </div>
 
     <!-- Cuánto -->
-    <div class="od-campo">
+    <div class="od-campo od-cantidad">
       <label>${esc(T(vender ? 'Cantidad a vender' : 'Cantidad a comprar'))}</label>
       <div class="od-inp-fila">
         <input class="od-inp" id="od-cant" type="text" inputmode="decimal"
@@ -282,8 +282,12 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
       _tokens = { mon, monQuote: tk.MONEDAS.USDT };
 
       if (!cuenta) { sinSaldo(T('Conecta tu wallet para poder operar.')); return; }
-      if (!mon || !mon.address) {
-        sinSaldo(T('Esta moneda no está disponible en BNB Chain todavía.'));
+      /* [CORREGIDO] BNB tiene `address: null` porque es la moneda
+         NATIVA de la red, no un token. Exigir dirección hacía que
+         fallara justo con la moneda principal. `saldoParaMostrar`
+         ya distingue entre nativa y token. */
+      if (!mon) {
+        sinSaldo(T('Esta moneda no se puede operar todavía desde aquí.'));
         return;
       }
 
@@ -313,9 +317,20 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
   }
 
   const refrescar = () => {
-    const cant = parseFloat(String(inp.value).replace(',', '.')) || 0;
-    /* Un aviso no mueve dinero: no hace falta saldo para ponerlo. */
+    let cant = parseFloat(String(inp.value).replace(',', '.')) || 0;
+    /* Nunca por encima de lo que hay: evita firmas que van a fallar */
+    if (saldo > 0 && cant > saldo) { cant = saldo; inp.value = recorta(saldo); }
+    /* Un aviso no mueve dinero: no hace falta saldo ni cantidad. */
     ok.disabled = modo === 'aviso' ? false : (!(cant > 0) || ok.classList.contains('bloqueado'));
+    if (modo === 'aviso') {
+      res.innerHTML = `
+        <div class="od-r-fila"><span>${esc(T('Te avisaremos cuando'))} ${esc(par)}</span><b>${
+          esc(T(vender ? 'suba a' : 'baje a'))} ${fmt(precio)}</b></div>
+        <div class="od-r-fila"><span>${esc(T('Desde el precio actual'))}</span><b>${
+          dist >= 0 ? '+' : ''}${dist.toFixed(2)}%</b></div>`;
+      res.classList.add('lleno');
+      return;
+    }
     if (cant > 0) {
       const total = vender ? cant * precio : cant / precio;
       res.innerHTML = `
@@ -334,11 +349,21 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
     refrescar();
   });
   rango.addEventListener('input', () => {
-    if (saldo > 0) { inp.value = (saldo * (rango.value / 100)).toFixed(6); refrescar(); }
+    if (saldo > 0) { inp.value = recorta(saldo * (rango.value / 100)); refrescar(); }
   });
+
+  /* [CORREGIDO] Los porcentajes daban cifras mayores que el saldo
+     y con ocho decimales ilegibles. Ahora nunca pasan del saldo y
+     se muestran con los decimales justos. */
+  function recorta(v) {
+    const x = Math.min(v, saldo);
+    if (x >= 1000) return x.toFixed(2);
+    if (x >= 1) return x.toFixed(4);
+    return x.toFixed(6);
+  }
   d.querySelectorAll('[data-pct]').forEach((b) => b.onclick = () => {
     rango.value = b.dataset.pct;
-    if (saldo > 0) { inp.value = (saldo * (b.dataset.pct / 100)).toFixed(6); refrescar(); }
+    if (saldo > 0) { inp.value = recorta(saldo * (b.dataset.pct / 100)); refrescar(); }
     d.querySelectorAll('[data-pct]').forEach((x) => x.classList.toggle('on', x === b));
   });
   d.querySelectorAll('[data-modo]').forEach((b) => b.onclick = () => {
@@ -350,6 +375,9 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
       ? T('Activar aviso')
       : T(vender ? 'Poner orden de venta' : 'Poner orden de compra');
     ok.classList.toggle('aviso', modo === 'aviso');
+    /* Un aviso no mueve dinero: sobra la cantidad y el stop. La
+       ficha se encoge y deja solo lo que importa. */
+    d.classList.toggle('solo-aviso', modo === 'aviso');
     refrescar();
   });
   $('od-sl-t').onclick = () => d.querySelector('.od-opcional').classList.toggle('abierto');
@@ -366,15 +394,16 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
 
   ok.onclick = async () => {
     const cant = parseFloat(String(inp.value).replace(',', '.')) || 0;
-    if (!(cant > 0)) return;
-    const sl = parseFloat(String($('od-slp').value).replace(',', '.')) || 0;
+    if (modo !== 'aviso' && !(cant > 0)) return;
+    const elSl = $('od-slp');
+    const sl = elSl ? (parseFloat(String(elSl.value).replace(',', '.')) || 0) : 0;
     ok.disabled = true;
     ok.textContent = T('Confirma en tu wallet…');
     try {
       if (modo === 'aviso') {
         guardarAviso({
-          par, simbolo: cfg.simbolo ? cfg.simbolo() : '', precio, cant, vender,
-          sl, cuando: Date.now()
+          par, simbolo: cfg.simbolo ? cfg.simbolo() : '', precio,
+          cant: cant || 0, vender, sl: 0, cuando: Date.now()
         });
         exito(d, T('Aviso puesto'), T('Te avisaremos cuando el precio llegue a') + ' ' + fmt(precio));
       } else {
@@ -420,15 +449,20 @@ async function ponerOrdenReal({ cfg, precio, cant, vender, sl }) {
   const base = tk.MONEDAS[par] || Object.values(tk.MONEDAS).find((m) => m.simbolo === par);
   const quote = tk.MONEDAS.USDT;
 
-  if (!base || !base.address) {
-    throw new Error(T('Esta moneda no está disponible en BNB Chain todavía.'));
+  if (!base) {
+    throw new Error(T('Esta moneda no se puede operar todavía desde aquí.'));
   }
+  /* Para operar hace falta un token ERC-20: la BNB nativa se
+     enruta por su versión envuelta (WBNB), que es lo que entiende
+     el router. */
+  const WBNB = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
+  const dirBase = base.address || WBNB;
 
   const info = {
-    base: base.address,
+    base: dirBase,
     quote: quote.address,
-    pathCompra: [quote.address, base.address],
-    pathVenta: [base.address, quote.address]
+    pathCompra: [quote.address, dirBase],
+    pathVenta: [dirBase, quote.address]
   };
   const dec = base.decimals ?? 18;
   const decQ = quote.decimals ?? 18;
@@ -592,9 +626,9 @@ function estilos() {
   /* El porcentaje, grande arriba a la derecha */
   .od-m-pct{flex:0 0 auto;text-align:right}
   .od-m-pct b{display:block;font-family:var(--display,sans-serif);font-weight:800;
-    font-size:19px;line-height:1;color:#2ee86a}
-  .od-m-pct span{display:block;font-family:var(--sans,sans-serif);font-size:9px;
-    color:#3ee88a;margin-top:1px}
+    font-size:25px;line-height:1;color:#2ee86a !important}
+  .od-m-pct span{display:block;font-family:var(--sans,sans-serif);font-size:10px;
+    font-weight:600;color:#3ee88a;margin-top:2px}
   .od-m-ic{font-size:14px}
   .od-menu.comprar .od-m-ic{color:#2ee86a}
   .od-menu.vender .od-m-ic{color:#f6465d}
@@ -625,7 +659,7 @@ function estilos() {
   /* El porcentaje: el dato que decide, bien visible */
   .od-pct-grande{margin-left:auto;text-align:right;flex:0 0 auto}
   .od-pct-grande b{display:block;font-family:var(--display,sans-serif);font-weight:800;
-    font-size:23px;line-height:1;color:#2ee86a}
+    font-size:25px;line-height:1;color:#2ee86a !important}
   .od-pct-grande span{display:block;font-family:var(--sans,sans-serif);font-size:10px;
     color:#3ee88a;margin-top:2px}
   .od-dist{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;margin-bottom:13px}
@@ -706,6 +740,10 @@ function estilos() {
   .od-error{margin-bottom:9px;padding:9px 11px;border-radius:9px;
     background:rgba(246,70,93,.12);border:1px solid rgba(246,70,93,.35);
     font-family:var(--sans,sans-serif);font-size:11.5px;color:#ff6b7a}
+
+  /* En modo aviso sobran la cantidad y el stop */
+  .od-ficha.solo-aviso .od-cantidad,
+  .od-ficha.solo-aviso .od-opcional{display:none}
 
   .od-fin{text-align:center;padding:14px 4px}
   .od-fin-ic{width:52px;height:52px;margin:0 auto 12px;border-radius:50%;

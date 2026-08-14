@@ -1501,6 +1501,8 @@ let _reloj = null;
 let _yaTrazado = false;
 let _planFijo = null;
 let _cerrarFichas = null;    // para cerrar órdenes abiertas al cambiar de par
+let _soloOperables = false;  // filtro del selector de monedas
+let _operables = null;       // las que tienen contrato en BNB Chain
 
 async function recargar() {
   clearInterval(_reloj);
@@ -2540,6 +2542,11 @@ function menuPares() {
   const m = document.createElement('div');
   m.id = 'nv-picker';
   m.innerHTML = `<input class="nv-buscar" id="nv-buscar" placeholder="Buscar…" autocomplete="off">
+    <!-- Filtro: solo las que se pueden comprar y vender desde aquí -->
+    <button class="nv-filtro ${_soloOperables ? 'on' : ''}" id="nv-filtro" type="button">
+      <span class="nv-fl-ic">${_soloOperables ? '✓' : '○'}</span>
+      ${esc(T('Solo las que puedo operar'))}
+    </button>
     <div class="nv-lista-mon">
       ${['cripto', 'divisa', 'materia'].map((gr) => {
         const lista = PARES.filter((p) => (p.grupo || 'cripto') === gr);
@@ -2576,6 +2583,42 @@ function menuPares() {
       g.style.display = hay ? '' : 'none';
     });
   };
+  /* El filtro deja solo las monedas con contrato en BNB Chain:
+     las demás se pueden analizar, pero no operar desde el gráfico. */
+  const aplicarFiltro = async () => {
+    if (!_operables) {
+      try {
+        const tk = await import('./tokens.js?v=126');
+        _operables = new Set(Object.values(tk.MONEDAS).map((x) => x.simbolo));
+      } catch (_) { _operables = new Set(); }
+    }
+    m.querySelectorAll('[data-np]').forEach((x) => {
+      const puede = _operables.has(x.dataset.np);
+      x.classList.toggle('no-operable', !puede);
+      if (_soloOperables && !puede) x.style.display = 'none';
+      else if (!x.dataset.busca || !$('nv-buscar').value) x.style.display = '';
+    });
+    m.querySelectorAll('.nv-grupo').forEach((g) => {
+      let hay = false, sig = g.nextElementSibling;
+      while (sig && !sig.classList.contains('nv-grupo')) {
+        if (sig.style.display !== 'none') { hay = true; break; }
+        sig = sig.nextElementSibling;
+      }
+      g.style.display = hay ? '' : 'none';
+    });
+  };
+
+  $('nv-filtro').onclick = (e) => {
+    e.stopPropagation();
+    _soloOperables = !_soloOperables;
+    const b = $('nv-filtro');
+    b.classList.toggle('on', _soloOperables);
+    b.querySelector('.nv-fl-ic').textContent = _soloOperables ? '✓' : '○';
+    if (!_soloOperables) m.querySelectorAll('[data-np]').forEach((x) => { x.style.display = ''; });
+    aplicarFiltro();
+  };
+  aplicarFiltro();
+
   setTimeout(() => { try { $('nv-buscar').focus(); } catch (_) {} }, 60);
 
   m.querySelectorAll('[data-np]').forEach((b) => b.onclick = () => {
@@ -3079,6 +3122,18 @@ function estilos() {
     font-family:var(--sans,sans-serif);font-size:13px;min-height:38px}
   #nv-picker .nv-buscar:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
   #nv-picker .nv-lista-mon{overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+  #nv-picker .nv-filtro{display:flex;align-items:center;gap:8px;width:100%;min-height:36px;
+    padding:0 11px;margin-bottom:6px;border-radius:9px;cursor:pointer;
+    background:rgba(255,255,255,.04);border:1px solid #2b3139;color:#8b96a3;
+    font-family:var(--sans,sans-serif);font-size:12px;text-align:left}
+  #nv-picker .nv-filtro:hover{border-color:var(--gold-soft,#C9A84B)}
+  #nv-picker .nv-filtro.on{background:rgba(232,184,75,.14);border-color:var(--gold,#E8B84B);
+    color:var(--gold,#E8B84B);font-weight:600}
+  #nv-picker .nv-fl-ic{font-size:12px;flex:0 0 auto}
+  #nv-picker .nv-op.no-operable b{color:#5c6672}
+  #nv-picker .nv-op.no-operable:after{content:'solo análisis';margin-left:auto;
+    font-family:var(--mono,monospace);font-size:8px;color:#4a525c;flex:0 0 auto}
+
   #nv-picker .nv-grupo{font-family:var(--mono,monospace);font-size:8.5px;color:var(--gold,#E8B84B);
     text-transform:uppercase;letter-spacing:1.3px;padding:9px 11px 4px;position:sticky;top:0;
     background:linear-gradient(180deg,#1b2027,#1b2027 70%,transparent)}
