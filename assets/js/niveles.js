@@ -137,16 +137,32 @@ async function traerVelas(simbolo, tf, n = 300) {
    toda la estructura, y es cálculo puro sobre datos reales.
    ══════════════════════════════════════════════════════════════ */
 function pivotes(velas, lado = 3) {
+  /* [CORREGIDO] La comparación era estricta (`>=`), así que en una
+     tendencia sostenida —donde cada máximo supera al anterior— NO
+     salía ningún pivote. Cero pivotes = cero niveles = el mensaje
+     de relleno "el precio está en el medio".
+
+     Ahora un pivote es un giro LOCAL: el extremo de su ventana
+     inmediata, comparando solo con los vecinos más cercanos. Es
+     como lo lee un trader: un punto donde el precio se dio la
+     vuelta, aunque después siguiera subiendo. */
   const altos = [], bajos = [];
   for (let i = lado; i < velas.length - lado; i++) {
+    const v = velas[i];
     let esAlto = true, esBajo = true;
     for (let j = i - lado; j <= i + lado; j++) {
       if (j === i) continue;
-      if (velas[j].h >= velas[i].h) esAlto = false;
-      if (velas[j].l <= velas[i].l) esBajo = false;
+      if (velas[j].h > v.h) esAlto = false;
+      if (velas[j].l < v.l) esBajo = false;
     }
-    if (esAlto) altos.push({ i, p: velas[i].h, t: velas[i].t });
-    if (esBajo) bajos.push({ i, p: velas[i].l, t: velas[i].t });
+    /* Y tiene que ser un giro de verdad: el precio venía de un lado
+       y se fue al otro, no un empate. */
+    if (esAlto && velas[i - 1].h < v.h && velas[i + 1].h < v.h) {
+      altos.push({ i, p: v.h, t: v.t });
+    }
+    if (esBajo && velas[i - 1].l > v.l && velas[i + 1].l > v.l) {
+      bajos.push({ i, p: v.l, t: v.t });
+    }
   }
   return { altos, bajos };
 }
@@ -160,7 +176,16 @@ function pivotes(velas, lado = 3) {
    ══════════════════════════════════════════════════════════════ */
 function tendencia(velas, piv) {
   const ua = piv.altos.slice(-3), ub = piv.bajos.slice(-3);
-  if (ua.length < 2 || ub.length < 2) return { dir: 'indefinida', fuerza: 0 };
+  /* Si no hay pivotes suficientes, se mira el movimiento neto: es
+     mejor que devolver "indefinida" y quedarse sin lectura. */
+  if (ua.length < 2 || ub.length < 2) {
+    const n0 = Math.min(50, velas.length);
+    const tr = velas.slice(-n0);
+    const mv = ((tr[tr.length - 1].c - tr[0].c) / tr[0].c) * 100;
+    if (mv > 1.5) return { dir: 'alcista', fuerza: Math.min(100, mv * 10), mov: mv };
+    if (mv < -1.5) return { dir: 'bajista', fuerza: Math.min(100, -mv * 10), mov: mv };
+    return { dir: 'lateral', fuerza: 0, mov: mv };
+  }
 
   const altosSuben = ua[ua.length - 1].p > ua[ua.length - 2].p;
   const bajosSuben = ub[ub.length - 1].p > ub[ub.length - 2].p;
@@ -215,6 +240,19 @@ function detectarRango(velas) {
    superan el filtro.
    ══════════════════════════════════════════════════════════════ */
 function calcularNiveles(velas, piv, precio) {
+  /* [CORREGIDO] Se usaban TODOS los pivotes de las 300 velas. En una
+     tendencia sostenida, los antiguos quedan a un 30% del precio y
+     el filtro de distancia los tiraba todos: por eso salía "sin
+     soportes ni resistencias" y con ello el mensaje de relleno.
+
+     Ahora se miran solo los pivotes de la parte reciente, que es lo
+     que de verdad opera alguien. */
+  const desde = Math.max(0, velas.length - 120);
+  piv = {
+    altos: piv.altos.filter((x) => x.i >= desde),
+    bajos: piv.bajos.filter((x) => x.i >= desde)
+  };
+
   const tolerancia = precio * 0.004;     // 0,4%: dos pivotes a esa distancia son el mismo nivel
   const grupos = [];
 
@@ -233,16 +271,17 @@ function calcularNiveles(velas, piv, precio) {
 
   /* Volumen negociado cerca de cada nivel: un nivel con volumen
      tiene defensa real; uno sin volumen es casualidad. */
-  const volTotal = velas.reduce((a, v) => a + v.v, 0);
+  const tramo = velas.slice(desde);
+  const volTotal = tramo.reduce((a, v) => a + v.v, 0);
   grupos.forEach((g) => {
     let vol = 0;
-    velas.forEach((v) => {
+    tramo.forEach((v) => {
       if (v.l <= g.p + tolerancia && v.h >= g.p - tolerancia) vol += v.v;
     });
     g.vol = vol;
     g.volPct = volTotal > 0 ? (vol / volTotal) * 100 : 0;
     g.dist = ((g.p - precio) / precio) * 100;
-    g.frescura = velas.length > 0 ? g.ultimo / velas.length : 0;
+    g.frescura = velas.length > desde ? (g.ultimo - desde) / (velas.length - desde) : 0;
 
     /* La fuerza combina lo que de verdad importa:
          · cuántas veces aguantó
@@ -259,8 +298,24 @@ function calcularNiveles(velas, piv, precio) {
        · lo tocó al menos 2 veces (una es casualidad)
        · tiene fuerza suficiente
        · está a distancia operable (ni encima ni a un 15%) */
-  return grupos
-    .filter((g) => g.toques >= 2 && g.fuerza >= 45 && Math.abs(g.dist) > 0.15 && Math.abs(g.dist) < 12)
+  /* [CORREGIDO] El filtro pedía 2 toques Y fuerza ≥45 a la vez, y
+     casi nada pasaba: por eso salía siempre "el precio está en el
+     medio", que es el mensaje de relleno.
+
+     Ahora vale con una de las dos condiciones fuertes, y el rango
+     de distancia es más amplio. Se sigue exigiendo calidad, pero
+     sin dejar el mercado entero fuera. */
+  const validos = grupos.filter((g) =>
+    Math.abs(g.dist) > 0.08 && Math.abs(g.dist) < 18 &&
+    (g.toques >= 3 || (g.toques >= 2 && g.fuerza >= 38) || g.fuerza >= 60)
+  );
+
+  /* Si aun así no pasa nada, se relaja al mínimo antes que mentir
+     con un "no hay nada": mejor un nivel flojo bien etiquetado. */
+  const lista = validos.length ? validos
+    : grupos.filter((g) => g.toques >= 2 && Math.abs(g.dist) > 0.08);
+
+  return lista
     .sort((a, b) => b.fuerza - a.fuerza)
     .slice(0, 6)
     .sort((a, b) => b.p - a.p);
@@ -310,8 +365,12 @@ function detectarImpulso(velas) {
       /* Es impulso si: recorre bastante más que una vela normal,
          la mayoría de velas van a favor, y el movimiento es
          significativo en porcentaje. */
+      /* [CORREGIDO] Pedía 70% de velas a favor Y un 1,2% de
+         recorrido: un crash o un tramo alcista normal no pasaban.
+         Ahora se admite desde 60% de pureza y 0,6% de recorrido,
+         que sigue siendo un movimiento con intención. */
       const fuerza = Math.abs(mov) / (rMed * largo);
-      if (pureza >= 0.7 && fuerza > 0.55 && pct > 1.2) {
+      if (pureza >= 0.6 && fuerza > 0.4 && pct > 0.6) {
         const puntos = pct * pureza * fuerza;
         if (!mejor || puntos > mejor.puntos) {
           mejor = {
@@ -362,8 +421,9 @@ function detectarImpulso(velas) {
   mejor.retrocesoReal = vuelta;
   mejor.distZona = distZona;
   mejor.zonaMedia = zonaMedia;
-  mejor.enZona = !mejor.invalidado && Math.abs(distZona) < 1.2;
-  mejor.acercandose = !mejor.invalidado && Math.abs(distZona) < 3.5 && vuelta > 45 && vuelta <= 100;
+  /* Márgenes más realistas: el precio raramente clava el nivel */
+  mejor.enZona = !mejor.invalidado && Math.abs(distZona) < 1.8;
+  mejor.acercandose = !mejor.invalidado && Math.abs(distZona) < 5 && vuelta > 35 && vuelta <= 100;
   mejor.velasDesde = despues.length;
 
   /* Un impulso viejo ya no dice nada: si han pasado más velas que
@@ -1130,7 +1190,9 @@ function analizar() {
     const alcista = N.tendencia.dir === 'alcista';
     const stop = sCerca.p * 0.994;
 
-    if (d < 2.5) {
+    /* Antes solo hablaba si el nivel estaba a menos del 2,5%: en la
+       práctica casi nunca, y por eso salía el mensaje de relleno. */
+    if (d < 6) {
       msgs.push({
         tipo: alcista ? 'compra' : 'vigilar',
         p: sCerca.p,
@@ -1169,7 +1231,7 @@ function analizar() {
   if (rCerca && !N.rango) {
     const d = Math.abs(rCerca.dist);
     const bajista = N.tendencia.dir === 'bajista';
-    if (d < 2.5) {
+    if (d < 6) {
       msgs.push({
         tipo: bajista ? 'venta' : 'vigilar',
         p: rCerca.p,
@@ -1204,10 +1266,14 @@ function analizar() {
   }
 
   /* ── SITUACIÓN 4: precio en tierra de nadie ── */
+  /* [CORREGIDO] Este mensaje de relleno acababa siendo el principal
+     aunque hubiera lecturas reales. Ahora solo se añade si de verdad
+     no hay ninguna otra, y con prioridad mínima. */
   if (!msgs.length) {
     const haciaS = sCerca ? Math.abs(sCerca.dist) : null;
     const haciaR = rCerca ? Math.abs(rCerca.dist) : null;
     msgs.push({
+      prioridad: 1,
       tipo: 'aviso',
       p: N.precio,
       titulo: elegir(['Sin entrada clara', 'El precio está en el medio', 'Nada que hacer ahora']),
@@ -1321,9 +1387,11 @@ function unificar(msgs) {
   else if (dirT === 'bajista') { votoV *= 1.6; votoC *= 0.5; }
 
   // Se recalcula con el sesgo aplicado
+  /* Una señal de compra o venta pesa más que un "espera": esperar
+     no es una postura, es la ausencia de una. */
   const tot2 = votoC + votoV + votoE || 1;
-  if (votoC > votoV && votoC > votoE) { lado = 'compra'; conf = votoC / tot2; }
-  else if (votoV > votoC && votoV > votoE) { lado = 'venta'; conf = votoV / tot2; }
+  if (votoC > votoV && votoC > 0) { lado = 'compra'; conf = votoC / tot2; }
+  else if (votoV > votoC && votoV > 0) { lado = 'venta'; conf = votoV / tot2; }
   else { lado = 'esperar'; conf = votoE / tot2; }
 
   /* Empate solo si NO hay tendencia definida y los pesos están
@@ -1367,7 +1435,14 @@ function unificar(msgs) {
       ]
     };
   } else {
-    principal = msgs.find((m) => m.tipo === lado) || msgs[0];
+    /* Se busca el de mayor prioridad del lado ganador. Si el lado es
+       "esperar", se prefiere cualquier lectura con contenido real
+       antes que el relleno. */
+    const delLado = msgs.filter((m) => m.tipo === lado)
+      .sort((a, b) => (b.prioridad || 0) - (a.prioridad || 0));
+    const conFondo = msgs.filter((m) => (m.prioridad || 0) >= 5)
+      .sort((a, b) => (b.prioridad || 0) - (a.prioridad || 0));
+    principal = delLado[0] || conFondo[0] || msgs[0];
     principal = { ...principal, esPlan: true, prioridad: 99 };
 
     /* El plan completo: entrada, stop y objetivos escalonados.
