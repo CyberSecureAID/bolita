@@ -160,9 +160,20 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
         <b>${esc(T(vender ? 'Orden de venta' : 'Orden de compra'))}</b>
         <span>${esc(par)} · ${fmt(precio)}</span>
       </div>
+
+      <!-- El porcentaje es el dato que decide: va grande y en verde,
+           porque tanto el descuento al comprar como la ganancia al
+           vender son buenas noticias. -->
+      <div class="od-pct-grande">
+        <b>${dist >= 0 ? '+' : ''}${dist.toFixed(1)}%</b>
+        <span>${esc(T(vender ? 'de ganancia' : 'de descuento'))}</span>
+      </div>
     </div>
 
-    <div class="od-dist">${dist >= 0 ? '+' : ''}${dist.toFixed(2)}% ${esc(T('desde el precio actual'))} · ${fmt(actual)}</div>
+    <div class="od-dist">
+      ${esc(T('Precio ahora'))}: ${fmt(actual)}
+      <span class="od-saldo">${esc(T('Leyendo tu saldo…'))}</span>
+    </div>
 
     <!-- Cuánto -->
     <div class="od-campo">
@@ -193,8 +204,9 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
       </div>
     </div>
 
-    <!-- Protección, opcional -->
-    <div class="od-campo od-opcional">
+    <!-- Protección: solo tiene sentido al comprar. Si vendes, ya
+         estás saliendo: no hay nada que proteger. -->
+    ${!vender ? `<div class="od-campo od-opcional">
       <button class="od-toggle" id="od-sl-t" type="button">
         <span>${esc(T('Añadir stop de protección'))}</span>
         <i>${esc(T('opcional'))}</i>
@@ -205,9 +217,9 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
                  placeholder="${fmt(vender ? precio * 1.03 : precio * 0.97)}" autocomplete="off">
           <span class="od-unidad">USDT</span>
         </div>
-        <div class="od-nota">${esc(T('Si el precio va en tu contra hasta aquí, se cierra la posición.'))}</div>
+        <div class="od-nota">${esc(T('Opcional. Si tras comprar el precio cae hasta aquí, se vende para limitar la pérdida.'))}</div>
       </div>
-    </div>
+    </div>` : ''}
 
     <div class="od-resumen" id="od-res"></div>
 
@@ -223,23 +235,63 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
   const inp = $('od-cant'), rango = $('od-rango'), ok = $('od-ok'), res = $('od-res');
   let modo = 'real';
   let saldo = 0;
+  let _tokens = null;
 
-  /* El saldo disponible, del contrato. Sin él no se puede calcular
-     el porcentaje, así que se pide en cuanto se abre. */
+  /* ══════════════════════════════════════════════════════════
+     EL SALDO REAL
+
+     Se lee de la wallet a través de `tokens.js`, que ya tiene el
+     mapa de direcciones y decimales de las 31 monedas.
+
+     Para vender hace falta la moneda; para comprar, USDT. Si no
+     hay saldo, se dice claramente en vez de dejar la ficha muerta.
+     ══════════════════════════════════════════════════════════ */
   (async () => {
     try {
+      const tk = await import('./tokens.js?v=126');
       const gb = await import('./gridbot.js?v=126');
       const w = await import('./wallet.js?v=126');
-      const cuenta = w.cuenta ? w.cuenta() : null;
-      if (!cuenta) return;
-      // Aquí se leería el saldo real del token correspondiente
-      saldo = 0;
-    } catch (_) {}
+      const cuenta = (w.cuenta && w.cuenta()) || (w.getCuenta && w.getCuenta()) || null;
+
+      const simb = vender ? par : 'USDT';
+      const mon = tk.MONEDAS[simb] || Object.values(tk.MONEDAS).find((m) => m.simbolo === simb);
+      _tokens = { mon, monQuote: tk.MONEDAS.USDT };
+
+      if (!cuenta) { sinSaldo(T('Conecta tu wallet para poder operar.')); return; }
+      if (!mon || !mon.address) {
+        sinSaldo(T('Esta moneda no está disponible en BNB Chain todavía.'));
+        return;
+      }
+
+      const bruto = await gb.saldoParaMostrar(mon.address, cuenta);
+      saldo = Number(bruto) || 0;
+
+      if (!(saldo > 0)) {
+        sinSaldo(vender
+          ? `${T('Para vender')} ${par} ${T('primero tienes que comprarlo. No tienes saldo en tu wallet.')}`
+          : `${T('Necesitas USDT en BNB Chain para comprar.')} ${T('Tu saldo es 0.')}`);
+        return;
+      }
+
+      const et = d.querySelector('.od-saldo');
+      if (et) et.innerHTML = `${esc(T('Disponible'))}: <b>${saldo < 1 ? saldo.toFixed(6) : saldo.toFixed(2)} ${esc(simb)}</b>`;
+    } catch (er) {
+      sinSaldo(T('No se pudo leer tu saldo. Revisa la conexión de tu wallet.'));
+    }
   })();
+
+  /** Cuando no hay con qué operar, se dice y se bloquea. */
+  function sinSaldo(motivo) {
+    const et = d.querySelector('.od-saldo');
+    if (et) { et.className = 'od-saldo alerta'; et.textContent = motivo; }
+    ok.disabled = true;
+    ok.classList.add('bloqueado');
+  }
 
   const refrescar = () => {
     const cant = parseFloat(String(inp.value).replace(',', '.')) || 0;
-    ok.disabled = !(cant > 0);
+    /* Un aviso no mueve dinero: no hace falta saldo para ponerlo. */
+    ok.disabled = modo === 'aviso' ? false : (!(cant > 0) || ok.classList.contains('bloqueado'));
     if (cant > 0) {
       const total = vender ? cant * precio : cant / precio;
       res.innerHTML = `
@@ -268,6 +320,12 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
   d.querySelectorAll('[data-modo]').forEach((b) => b.onclick = () => {
     modo = b.dataset.modo;
     d.querySelectorAll('[data-modo]').forEach((x) => x.classList.toggle('on', x === b));
+    /* El botón dice lo que va a pasar: no es lo mismo poner una
+       orden que activar un aviso. */
+    ok.textContent = modo === 'aviso'
+      ? T('Activar aviso')
+      : T(vender ? 'Poner orden de venta' : 'Poner orden de compra');
+    ok.classList.toggle('aviso', modo === 'aviso');
     refrescar();
   });
   $('od-sl-t').onclick = () => d.querySelector('.od-opcional').classList.toggle('abierto');
@@ -313,16 +371,26 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
    ══════════════════════════════════════════════════════════════ */
 async function ponerOrdenReal({ cfg, precio, cant, vender, sl }) {
   const gb = await import('./gridbot.js?v=126');
-  const tk = await import('./tokens.js?v=126').catch(() => null);
+  const tk = await import('./tokens.js?v=126');
 
-  const sim = cfg.simbolo ? cfg.simbolo() : '';
-  const info = cfg.tokens ? cfg.tokens() : null;
-  if (!info || !info.base || !info.quote) {
-    throw new Error('No se pudo identificar el par en la blockchain');
+  /* Las direcciones salen de `tokens.js`, que ya tiene el mapa de
+     las 31 monedas con su dirección y decimales en BNB Chain. */
+  const par = cfg.par ? cfg.par() : '';
+  const base = tk.MONEDAS[par] || Object.values(tk.MONEDAS).find((m) => m.simbolo === par);
+  const quote = tk.MONEDAS.USDT;
+
+  if (!base || !base.address) {
+    throw new Error(T('Esta moneda no está disponible en BNB Chain todavía.'));
   }
 
-  const dec = info.decBase ?? 18;
-  const decQ = info.decQuote ?? 18;
+  const info = {
+    base: base.address,
+    quote: quote.address,
+    pathCompra: [quote.address, base.address],
+    pathVenta: [base.address, quote.address]
+  };
+  const dec = base.decimals ?? 18;
+  const decQ = quote.decimals ?? 18;
   const unidad = (v, d) => BigInt(Math.round(v * Math.pow(10, Math.min(d, 12)))) *
                            (10n ** BigInt(Math.max(0, d - 12)));
 
@@ -335,8 +403,8 @@ async function ponerOrdenReal({ cfg, precio, cant, vender, sl }) {
 
   return gb.crearRejilla({
     base: info.base, quote: info.quote,
-    pathCompra: info.pathCompra || [info.quote, info.base],
-    pathVenta: info.pathVenta || [info.base, info.quote],
+    pathCompra: info.pathCompra,
+    pathVenta: info.pathVenta,
     ordenQuote: vender ? 0n : unidad(cant, decQ),
     ordenBase: vender ? unidad(cant, dec) : 0n,
     niveles: [nivel],
@@ -506,7 +574,18 @@ function estilos() {
     font-size:15px;color:#eaecef;line-height:1.2}
   .od-tit span{display:block;font-family:var(--mono,monospace);font-size:13px;
     color:var(--gold,#E8B84B);font-weight:700;margin-top:1px}
+  /* El porcentaje: el dato que decide, bien visible */
+  .od-pct-grande{margin-left:auto;text-align:right;flex:0 0 auto}
+  .od-pct-grande b{display:block;font-family:var(--display,sans-serif);font-weight:800;
+    font-size:23px;line-height:1;color:#2ee86a}
+  .od-pct-grande span{display:block;font-family:var(--sans,sans-serif);font-size:10px;
+    color:#3ee88a;margin-top:2px}
   .od-dist{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;margin-bottom:13px}
+  .od-saldo{display:block;margin-top:5px;font-family:var(--mono,monospace);font-size:10.5px;color:#8b96a3}
+  .od-saldo b{color:#eaecef}
+  .od-saldo.alerta{padding:8px 10px;margin-top:7px;border-radius:8px;
+    background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.3);
+    font-family:var(--sans,sans-serif);font-size:11px;color:var(--gold,#E8B84B);line-height:1.45}
 
   .od-campo{margin-bottom:13px}
   .od-campo label{display:block;font-family:var(--mono,monospace);font-size:9px;
@@ -523,7 +602,7 @@ function estilos() {
   .od-inp[type=number]{-moz-appearance:textfield}
   .od-unidad{font-family:var(--mono,monospace);font-size:11px;color:#7d8794;flex:0 0 auto}
 
-  .od-rango{width:100%;margin:11px 0 7px;height:4px;border-radius:3px;
+  .od-rango{width:100%;margin:13px 0 14px;height:4px;border-radius:3px;
     -webkit-appearance:none;appearance:none;background:#2b3139;cursor:pointer}
   .od-rango::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;
     border-radius:50%;background:var(--gold,#E8B84B);cursor:pointer;
@@ -569,6 +648,8 @@ function estilos() {
     color:#04210f;box-shadow:0 4px 0 #157a44}
   .od-ficha.vender .od-confirmar{background:linear-gradient(180deg,#ff8a95,#e03546);
     color:#2a0509;box-shadow:0 4px 0 #8f1f2b}
+  .od-confirmar.aviso{background:linear-gradient(180deg,#f7db8d,#E8B84B 50%,#c79426) !important;
+    color:#3a2800 !important;box-shadow:0 4px 0 #8f6a1a !important}
   .od-confirmar:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
   .od-aviso{margin-top:9px;text-align:center;font-family:var(--sans,sans-serif);
     font-size:10px;color:#5c6672;line-height:1.4}
