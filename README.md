@@ -427,3 +427,396 @@ WBNB/USDT: 6 niveles · 3 esperan comprar (falta 1.20% de bajada)
            · 3 esperan vender (falta 0.85% de subida)
 WBNB/USDT: ACUMULADOR — falta 12.05% para vender todo
 ```
+
+---
+---
+
+# PARTE II — CRIPTOCUBA OFICIAL
+
+> Todo lo que sigue se añadió después de la primera versión de este
+> documento. **No sustituye nada de lo anterior**: las secciones 1 a 13
+> siguen vigentes tal cual. Esta parte cubre el proyecto tal como está
+> hoy, con el dominio propio, las herramientas de análisis y el modelo
+> de suscripción.
+
+---
+
+## 14. QUÉ ES EL PROYECTO AHORA
+
+Lo que empezó como una plataforma de bots es hoy **dos negocios que
+comparten el mismo contrato**:
+
+**Bots de trading** — cuadrículas, acumulador, DCA y Cash Out. Ya
+descritos en las secciones 1 a 13.
+
+**Herramientas de análisis (Pro)** — una suite de análisis técnico por
+suscripción, dentro de la sección Liquidity. Es la parte en desarrollo
+activo y la que se enseña a inversores.
+
+- **Dominio en producción:** https://criptocubaoficial.com
+- **Red:** BNB Smart Chain (sin cambios)
+- **Idioma:** inglés por defecto; español y portugués a elección del
+  usuario desde su perfil
+
+### El público objetivo
+
+Personas que quieren operar en los mercados y **no saben leer una
+gráfica**, o que sí saben pero quieren que alguien les confirme lo que
+están viendo. No son analistas profesionales: son gente que necesita
+que le digan **qué hacer, dónde y por qué**.
+
+De ahí sale la regla que gobierna todas las decisiones de diseño:
+
+> **Si no se explica solo, no sirve.** Si hay que enseñar a alguien a
+> leerlo, no vale. Si se encuentra gratis en TradingView, no es premium.
+
+---
+
+## 15. LA SECCIÓN LIQUIDITY — TRES HERRAMIENTAS
+
+Se entra desde el botón **Liquidity** de la portada. Dentro hay una
+portada propia con tres tarjetas. **Al cerrar cualquiera de las tres se
+vuelve a esa portada**, no a la página principal.
+
+### 15.1 Liquidity Pools (`liquidity.js`)
+
+Mapa de calor de liquidaciones. Muestra dónde se acumulan las
+posiciones apalancadas que serían liquidadas si el precio llegara ahí.
+Esas zonas actúan como imanes: el precio tiende a buscarlas.
+
+Es el mismo dato por el que **CoinGlass cobra suscripción**.
+
+### 15.2 Radar Institucional (`muros.js`)
+
+Antes se llamaba "Muros Reales". Lee el libro de órdenes en tiempo real
+y detecta las órdenes grandes que aguantan el precio, distinguiendo las
+reales de las que se retiran cuando el precio se acerca.
+
+Veredictos: *Orden blindada / firme / falsa*.
+
+### 15.3 Smart Levels (`niveles.js`)
+
+**La herramienta principal y la más trabajada.** Analiza la estructura
+del mercado sobre velas reales de Binance y da un plan de operación
+completo.
+
+**El motor de análisis:**
+
+| Función | Qué detecta |
+|---|---|
+| `pivotes()` | Giros del precio. Con respaldo por tramos para tendencias fuertes |
+| `tendencia()` | Dirección por estructura de máximos y mínimos |
+| `detectarRango()` | Lateralidad |
+| `calcularNiveles()` | Soportes y resistencias con sus toques y volumen |
+| `detectarImpulso()` | El último tramo con dirección y su zona de origen |
+| `detectarEstructuras()` | BOS, CHoCH, order blocks, barridos de stops |
+| `detectarDobles()` | Doble suelo y doble techo con línea de cuello |
+| `calcularATR()` | Volatilidad real, para colocar el stop |
+| `calcularTendencia()` | Línea de tendencia por mínimos cuadrados |
+
+**El plan de operación** (lo que pide un profesional):
+
+```
+Entry     66,476
+Stop      66,986   −0.77%
+Target 1  65,967   1R  · asegura
+Target 2  65,458   2R  · el principal
+Target 3  64,949   3R  · si acompaña
+Riesgo/beneficio 1:2 · Volatilidad media 424.3
+```
+
+El stop nunca se coloca a menos de **1,2 veces el ATR**: si está dentro
+del ruido normal del mercado, lo barren sin que la idea falle.
+
+**El asistente:** tres tarjetas numeradas en la banda superior, con el
+avatar de Jesús. Ninguna se abre sola; la flecha late para avisar de
+que hay algo que leer. Cada una tiene "Por qué lo digo" y "Señálame
+dónde está" (que traza una curva hasta el nivel).
+
+**Regla de unificación:** las lecturas se ponderan y sale **un solo
+plan**. La tendencia manda: lo que va a favor cuenta entero, lo que va
+en contra la mitad. Solo se declara empate si no hay tendencia
+definida.
+
+---
+
+## 16. ÓRDENES DESDE EL GRÁFICO (`orden.js`)
+
+**La funcionalidad que no tiene nadie más.** El usuario hace clic
+derecho (o mantiene pulsado 500 ms en móvil) en cualquier punto del
+gráfico y pone una orden a ese precio exacto.
+
+- Por **encima** del precio actual → vender (ficha roja)
+- Por **debajo** → comprar (ficha verde)
+- El porcentaje de descuento o ganancia sale grande y en verde
+
+**Dos modos, a elección del usuario:**
+
+**Orden automática** — se crea en el contrato con `crearRejilla` de un
+solo nivel. El keeper la vigila y la ejecuta sola. Consume gas.
+
+**Solo avisarme** — se guarda en el navegador, vigila el precio cada 30
+segundos y avisa con notificación del sistema. No cuesta gas.
+
+**No hizo falta desplegar ningún contrato nuevo.** Una rejilla de un
+solo nivel **es** una orden limit: espera un precio, ejecuta, y el
+keeper la vigila. Se reutiliza lo que ya está probado en producción.
+
+**Los cuatro pasos obligatorios** (esto costó varias sesiones
+descubrirlo):
+
+1. Comprobar suscripción activa
+2. Comprobar gas
+3. Envolver BNB a WBNB si se vende BNB
+4. **Aprobar el token** — sin esto la transacción revierte siempre
+5. Crear la orden
+
+Funciona en **las tres secciones**. Las órdenes se dibujan con franja
+rayada y su botón de cancelar. Cancelar una orden real pide firma
+(toca el contrato); cancelar una alerta no (es local).
+
+---
+
+## 17. CONTRATO NUEVO: CriptoCubaPro.sol
+
+**Estado: escrito, sin desplegar.**
+
+Controla el acceso a las herramientas Pro. Mismo patrón que el resto:
+proxy UUPS con OpenZeppelin 4.9.6.
+
+| Aspecto | Detalle |
+|---|---|
+| Dueños | Tres (`duenios[0,1,2]`), con suspensión y relevo |
+| Pago | BNB (oráculo Chainlink `0x0567F2...`) o USDT (`0x55d398...`) |
+| Planes | 7 días $3 · 30 días $10 · 90 días $20 — modificables |
+| Función clave | `tieneAcceso(wallet)` — lo que consulta la web |
+| Regalos | `regalar()`, `regalarVarios()`, `revocar()` |
+| Seguridad | `pausar()`, `retirar()`, hueco de 45 slots para futuro |
+
+**Para desplegarlo:** compilar en Remix, desplegar como proxy UUPS, y
+poner la dirección en la constante `PRO` de `liquidity.js`.
+
+Archivo: `CriptoCubaPro.sol`
+
+---
+
+## 18. LA ECONOMÍA
+
+### 18.1 El coste real por operación (aclarado)
+
+Durante mucho tiempo el perfil mostraba "1,76 USD por operación" y eso
+puso en duda la rentabilidad del sistema entero. **Era un error de
+etiqueta, no del contrato.**
+
+`gasMinOp()` **no es el coste de una operación**: es el **saldo mínimo**
+que el contrato exige para dejar operar al bot — un colchón de
+seguridad.
+
+**El coste real, medido con datos propios:**
+
+| | |
+|---|---|
+| Gas inicial | 0.004 BNB |
+| Gas tras una operación | 0.00394 BNB |
+| **Consumo real** | **0.00006 BNB ≈ 3,6 centavos** |
+
+Lo mismo que un swap en PancakeSwap. Con 0.004 BNB caben unas **65
+operaciones**, no una. La economía de los bots está intacta.
+
+Corregido en `perfil.js`: ahora calcula el coste dividiendo el gas
+gastado entre las operaciones hechas, y dice de dónde sale el dato
+("según tu consumo real" o "estimado para BNB Chain").
+
+### 18.2 Precio de la suscripción
+
+Los planes actuales (3, 10 y 20 dólares) están **por debajo del
+mercado**. La competencia cobra:
+
+| Servicio | Precio |
+|---|---|
+| TradingView Premium | $199,95/mes (plan Ultimate) |
+| ChartPrime | $49–149/mes |
+| Indicadores premium sueltos | $20–100/mes |
+| CoinGlass, Glassnode | plan de pago para lo que aquí ya está |
+
+**Conversación pendiente:** subir el precio o mantenerlo bajo como
+estrategia de entrada.
+
+---
+
+## 19. DÓNDE ESTAMOS Y QUÉ FALTA
+
+### 19.1 Lo que funciona hoy
+
+- Las tres herramientas de Liquidity, con datos reales de Binance
+- Smart Levels con plan de operación completo y las tres tarjetas
+- Órdenes desde el gráfico en las tres secciones, con cancelación
+- 47 monedas agrupadas (criptomonedas, divisas, materias primas)
+- Filtro "Solo las que puedo operar"
+- Sistema de idiomas: inglés por defecto, español y portugués
+- Bot de Telegram apuntando al dominio nuevo
+- Imagen para compartir con cabecera, análisis y marca
+
+### 19.2 Lo que queremos lograr
+
+**El objetivo declarado:** que un trader profesional —de los que operan
+para bancos— vea Smart Levels y diga *"esto promete"*.
+
+Para eso hace falta **una lista de indicadores extraordinarios** en el
+menú de herramientas, que se activan y desactivan de uno en uno. No
+indicadores básicos: cosas que no se encuentren gratis.
+
+**Requisitos que debe cumplir cualquier herramienta nueva:**
+
+1. Que se explique sola, sin manual
+2. Que use datos reales y verificables — **cero placeholder**
+3. Que sea estéticamente atractiva (dorado y negro, la identidad)
+4. Que no se encuentre gratis en TradingView
+5. Que sirva para ganar dinero, no para "mostrar un dato"
+
+**En desarrollo:** un detector de cambio de ciclo. Alertas `LONG`
+(verde, texto negro, pico arriba) y `SHORT` (rojo intenso, texto
+amarillo, pico abajo) en la vela exacta del giro. Con filtro de
+lateralidad real, sin operar fines de semana, y un medidor de
+probabilidad en la esquina que diga cuánto falta para la próxima señal.
+
+### 19.3 Pendientes concretos
+
+| Tarea | Estado |
+|---|---|
+| Desplegar `CriptoCubaPro.sol` y conectar la constante `PRO` | Bloqueante para cobrar |
+| Detector de ciclos con Heikin Ashi + ADX | Diseñado, sin aplicar |
+| Medidor de probabilidad de señal | Diseñado, sin aplicar |
+| Imagen `serv-tres.webp` para Smart Levels | Marcador provisional |
+| Limpiar archivos muertos del repo | Acordado |
+| Revisar precio de suscripción | Conversación pendiente |
+| Noticias por moneda en el asistente | Idea, sin empezar |
+
+---
+
+## 20. IDEAS DESCARTADAS (y por qué)
+
+Para no volver a proponerlas:
+
+| Idea | Motivo del descarte |
+|---|---|
+| Termómetro de mercado | No aportaba nada accionable |
+| Footprint | Demasiado complejo de leer |
+| Perfil de volumen | Gratis en cualquier sitio |
+| VWAP anclado | *"Una banda de Bollinger abierta"* — no convence |
+| Divergencia institucional (largos/cortos) | *"Una tripita abajo"* — no se entiende su utilidad |
+| Gamma Exposure (GEX) | Un trader con 10 años nunca lo había oído |
+| Confluencia entre herramientas | No interesó |
+| Calculadora de posición | Ya existe en otros sitios |
+
+**El patrón:** todo lo que sea "mostrar un dato más" se rechaza. Solo
+pasa lo que dice **qué hacer**.
+
+---
+
+## 21. REGLAS DE TRABAJO (ampliación de la sección 6)
+
+Estas se suman a las que ya están en la sección 6.
+
+### 21.1 Sobre el código
+
+- **Nunca reemplazos masivos** sobre archivos grandes. `niveles.js`
+  pasa de 3.000 líneas: un `replace` global puede llevarse funciones
+  enteras sin avisar. **Editar bloque a bloque, verificando cada corte.**
+- **Las versiones de módulo importan.** Todo el proyecto importa
+  `wallet.js?v=125`. Si un archivo pide `?v=126`, el navegador carga
+  **dos instancias distintas** con estados separados. Esto causó el bug
+  de "conecta tu wallet" con la wallet conectada.
+- **Auditoría Playwright obligatoria** en 320, 390 y 430 px antes de
+  entregar. Se comprueba: elementos que se salen, paneles cortados,
+  botones inalcanzables y errores JS.
+- **Comprobar que las funciones clave siguen vivas** después de editar:
+  `unificar`, `analizar`, la barra de botones.
+
+### 21.2 Sobre la interfaz
+
+- Las **tachuelas siempre por encima** de cualquier línea. Se guardan
+  en una cola y se pintan al final.
+- **Bordes dorados**, no blancos. La identidad es dorada y negra.
+- El arrastre del gráfico se agrupa **por fotograma**
+  (`requestAnimationFrame`), no por píxel, o va en cámara lenta.
+- En móvil, los paneles se anclan abajo con scroll propio y `dvh`
+  (no `vh`, que no cuenta la barra del navegador).
+
+---
+
+## 22. ERRORES COMETIDOS EN EL DESARROLLO
+
+Documentados para no repetirlos.
+
+### 22.1 Romper el archivo con expresiones automáticas
+
+**Ocurrió dos veces.** Al eliminar una herramienta con expresiones
+regulares sobre `niveles.js`, se borraron funciones que sí se usaban
+(`unificar`, la barra de botones). El archivo compilaba sin errores
+pero **el análisis no mostraba nada**.
+
+**Solución:** restaurar desde el repo o desde la última entrega buena,
+y hacer los cortes uno a uno verificando que existen las marcas de
+inicio y fin.
+
+### 22.2 Proponer herramientas que no encajan
+
+Se propusieron seis herramientas seguidas y **todas fueron
+rechazadas**. El error fue investigar *"qué indicadores premium
+existen"* en vez de *"qué necesita alguien que no sabe leer una
+gráfica"*.
+
+### 22.3 Arreglar en un solo sitio
+
+Varias correcciones se aplicaron solo a Smart Levels cuando el problema
+estaba en las tres secciones. **Ahora hay un dibujante común** para las
+órdenes: se arregla en un sitio y sirve para todas.
+
+### 22.4 Datos sin sentido por fórmulas mal planteadas
+
+- *"Retroceso del 130%"* — se usaba `Math.abs`, así que si el precio
+  atravesaba la zona de origen el porcentaje crecía sin tope. Un
+  retroceso mayor del 100% significa **estructura rota**, y ahora se
+  dice así.
+- *"El precio está en el medio"* en 8 de 10 escenarios — la detección de
+  pivotes usaba comparación estricta y en tendencias sostenidas
+  devolvía **cero pivotes**. Sin pivotes no hay niveles y salía el
+  mensaje de relleno.
+
+**Lección:** probar el motor contra escenarios sintéticos (tendencia
+limpia, crash, pump, lateral, doble suelo) antes de dar nada por bueno.
+
+---
+
+## 23. ARCHIVOS NUEVOS Y MODIFICADOS
+
+| Archivo | Estado |
+|---|---|
+| `assets/js/niveles.js` | **Nuevo** — Smart Levels, el más grande |
+| `assets/js/orden.js` | **Nuevo** — órdenes desde el gráfico |
+| `assets/js/muros.js` | Modificado — Radar Institucional |
+| `assets/js/liquidity.js` | Modificado — portada y Liquidity Pools |
+| `assets/js/idioma.js` | Modificado — 1.200+ entradas en inglés |
+| `assets/js/perfil.js` | Modificado — coste por operación corregido |
+| `CriptoCubaPro.sol` | **Nuevo** — sin desplegar |
+| `assets/js/termometro.js` | **Eliminado** |
+| `assets/js/footprint.js` | **Eliminado** |
+
+---
+
+## 24. CÓMO RETOMAR EL TRABAJO
+
+Si esta es una conversación nueva, con leer este documento hay
+contexto suficiente. El orden recomendado:
+
+1. **Leer las secciones 14 a 16** para entender qué son las tres
+   herramientas y cómo funcionan las órdenes desde el gráfico.
+2. **Leer la sección 20** antes de proponer cualquier herramienta
+   nueva, para no repetir una idea ya descartada.
+3. **Leer las secciones 21 y 22** antes de tocar `niveles.js`.
+4. **Preguntar en qué punto está** el despliegue de `CriptoCubaPro.sol`,
+   porque es lo que bloquea el cobro.
+
+**Lo más urgente ahora mismo:** terminar el detector de ciclos con el
+medidor de probabilidad, aplicándolo **sin romper el archivo**.
