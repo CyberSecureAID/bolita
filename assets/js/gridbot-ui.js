@@ -3866,10 +3866,13 @@ async function tarjeta(cuenta, clave, par, R) {
      de la variable `objetivo` que ya se calcula del contrato unas líneas
      más arriba. Por eso salía un guion aunque el dato existiera. */
   const _objOk = objetivo > 0 && precioFmt(objetivo) !== '—';
+  /* Si la orden se puso desde la gráfica (clic derecho), se identifica como
+     tal en vez de mostrarse como un Cash Out configurado a mano. */
+  const _subObj = par.desdeGrafico ? 'orden desde gráfico' : 'precio de venta';
   const _boxObjetivo = `<div class="pio-box"><div class="k">Objetivo</div>` +
     (_objOk
       ? `<div class="v" style="font-size:14px">${precioFmt(objetivo)}</div>
-         <div class="v2" style="color:var(--ink-3)">precio de venta</div>`
+         <div class="v2" style="color:var(--ink-3)">${_subObj}</div>`
       : `<div class="v" style="font-size:14px;color:var(--ink-3)">sin fijar</div>
          <div class="v2" style="color:var(--ink-3)">vende manualmente</div>`) +
     `</div>`;

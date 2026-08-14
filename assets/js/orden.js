@@ -29,6 +29,11 @@ const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const CLAVE_AVISOS = 'cco-ordenes-aviso';
+/* Órdenes REALES puestas desde el gráfico. Antes vivían solo en memoria
+   (_puestas), así que la marca desaparecía al cambiar de moneda o
+   recargar, aunque el bot siguiera vivo en el contrato. Ahora se guardan
+   aquí, igual que los avisos, y se vuelven a pintar al reentrar al activo. */
+const CLAVE_ORDENES = 'cco-ordenes-grafico';
 
 /* ══════════════════════════════════════════════════════════════
    EQUIVALENCIAS DE SÍMBOLO
@@ -100,14 +105,37 @@ const _puestas = [];
 let _ultimoBotId = 0;                 // de la última orden creada
 let _ultimoPar = { base: '', quote: '' };
 
+/* ── Persistencia de las órdenes del gráfico ── */
+function leerOrdenesGuardadas() {
+  try { return JSON.parse(localStorage.getItem(CLAVE_ORDENES) || '[]'); } catch (_) { return []; }
+}
+function guardarOrdenGrafico(o) {
+  try {
+    const l = leerOrdenesGuardadas().filter((x) => x.id !== o.id);
+    l.push(o);
+    localStorage.setItem(CLAVE_ORDENES, JSON.stringify(l.slice(-60)));
+  } catch (_) {}
+}
+function quitarOrdenGrafico(id) {
+  try {
+    localStorage.setItem(CLAVE_ORDENES, JSON.stringify(leerOrdenesGuardadas().filter((x) => x.id !== id)));
+  } catch (_) {}
+}
+/* Al cargar el módulo se recuperan las órdenes reales guardadas para que
+   se vuelvan a pintar en cuanto se abra su gráfico. */
+leerOrdenesGuardadas().forEach((o) => {
+  if (!_puestas.some((p) => p.id === o.id)) _puestas.push(o);
+});
+
 export function ordenesPuestas() {
   const alertas = leerAvisos().map((a) => ({ ...a, modo: 'aviso' }));
   return [..._puestas.filter((x) => x.modo !== 'aviso'), ...alertas];
 }
 
-/** Cancela una alerta por su identificador. */
+/** Cancela una alerta o una orden real por su identificador. */
 export function cancelar(id) {
   quitarAviso(id);
+  quitarOrdenGrafico(id);
   const i = _puestas.findIndex((x) => x.id === id);
   if (i >= 0) _puestas.splice(i, 1);
 }
@@ -527,14 +555,19 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
       }
       /* Se guarda para pintarla en el gráfico con su propia marca,
          distinta de las señales del asistente. */
-      _puestas.push({
+      const registro = {
         precio, cant, vender, modo,
         par, simbolo: cfg.simbolo ? cfg.simbolo() : '',
         botId: _ultimoBotId,          // para poder cancelarla en el contrato
         base: _ultimoPar.base, quote: _ultimoPar.quote,
         id: 'ord-' + _ultimoBotId,
         cuando: Date.now()
-      });
+      };
+      _puestas.push(registro);
+      /* Las órdenes REALES (no los avisos) se persisten para que la marca
+         no desaparezca al cambiar de moneda o recargar. El bot ya vive en
+         el contrato; esto solo recuerda dónde pintarla. */
+      if (modo !== 'aviso') guardarOrdenGrafico(registro);
       if (cfg.alPoner) cfg.alPoner({ precio, cant, vender, modo });
       if (cfg.repintar) cfg.repintar();
     } catch (er) {
@@ -701,6 +734,29 @@ async function ponerOrdenReal({ cfg, precio, cant, vender, sl, alPaso }) {
   try {
     const KEEPER = 'https://bolita-keeper-bot.yamicelanvivesqui.workers.dev';
     fetch(`${KEEPER}/registrar?u=${cuenta}`, { mode: 'cors' }).catch(() => {});
+  } catch (_) {}
+
+  /* ── Metadato local del bot, igual que hacen los bots normales ──
+     Sin esto, la página de "Mis bots" no sabía el objetivo (lo lee de
+     'bot-pares') y mostraba "sin fijar", aunque el objetivo SÍ está en el
+     contrato. Se guarda el precio objetivo real (el del clic) y una marca
+     `desdeGrafico` para poder identificarla como orden puesta desde la
+     gráfica, no como un Cash Out configurado a mano. */
+  try {
+    const clave = gb.claveBot(cuenta, dirBase, quote.address, _ultimoBotId);
+    const store = JSON.parse(localStorage.getItem('bot-pares') || '{}');
+    store[clave] = {
+      base: dirBase, quote: quote.address,
+      targetPrice: precio,
+      entry: (cfg.precioActual ? cfg.precioActual() : 0) || 0,
+      tipo: vender ? 'cash' : 'dca',
+      desdeGrafico: true,
+      creadoLocal: Date.now(),
+      botId: _ultimoBotId
+    };
+    localStorage.setItem('bot-pares', JSON.stringify(store));
+    const cer = JSON.parse(localStorage.getItem('bot-cerradas') || '{}');
+    delete cer[clave]; localStorage.setItem('bot-cerradas', JSON.stringify(cer));
   } catch (_) {}
 }
 

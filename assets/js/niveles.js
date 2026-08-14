@@ -1019,32 +1019,43 @@ function marea(velas, atr) {
   const volU = vmU > 0 && velas[iU].v >= vmU;
   const anchoU = banda(iU);
   const fuerzaU = aU.adx >= MAR.UMBRAL_ADX && anchoU >= MAR.ANCHO_MIN;
-  const diLong = aU.diMas >= aU.diMenos;
-  const diShort = aU.diMenos >= aU.diMas;
 
   let runLen = 1;
   for (let k = iU - 1; k >= 0; k--) { if (ha[k].color === colorAhora) runLen++; else break; }
   let runPrev = 0;
   { let k = iU - runLen; if (k >= 0) { const cc = ha[k].color; for (; k >= 0 && ha[k].color === cc; k--) runPrev++; } }
 
+  /* Coherencia con la GENERACIÓN DE SEÑALES (validas):
+     - una señal LONG solo nace tras un GIRO FRESCO a verde (dentro de la
+       ventana de confirmación), no por estar verde a media tendencia;
+     - la ruptura se mide contra la estructura MÁS el margen de ¼ ATR,
+       igual que el motor;
+     - la fuerza es ADX+banda, SIN exigir cruce de DI (el motor tampoco lo
+       exige, porque el DI cruza tarde en los giros en V).
+     Así el recuadro, la línea de objetivo y la tachuela cuentan lo mismo. */
+  const flipLong = colorAhora === 1 && runLen <= MAR.CONF;
+  const flipShort = colorAhora === -1 && runLen <= MAR.CONF;
+  const nivLong = estHi + margen;      // el precio que hay que superar para gatillar LONG
+  const nivShort = estLo - margen;     // el precio que hay que perder para gatillar SHORT
+
   const long = {
     cicloPrevio: colorAhora === -1 ? runLen >= MAR.MIN_CICLO : runPrev >= MAR.MIN_CICLO,
-    giroHA: colorAhora === 1,
-    fuerza: fuerzaU && diLong,
+    giroHA: flipLong,
+    fuerza: fuerzaU,
     volumen: volU,
-    ruptura: precio > estHi
+    ruptura: precio > nivLong
   };
   const short = {
     cicloPrevio: colorAhora === 1 ? runLen >= MAR.MIN_CICLO : runPrev >= MAR.MIN_CICLO,
-    giroHA: colorAhora === -1,
-    fuerza: fuerzaU && diShort,
+    giroHA: flipShort,
+    fuerza: fuerzaU,
     volumen: volU,
-    ruptura: precio < estLo
+    ruptura: precio < nivShort
   };
   const pctDe = (o) => Math.round((Object.values(o).filter(Boolean).length / 5) * 100);
   const cumplidosDe = (o) => Object.values(o).filter(Boolean).length;
-  const faltaLong = precio > estHi ? 0 : ((estHi - precio) / precio) * 100;
-  const faltaShort = precio < estLo ? 0 : ((precio - estLo) / precio) * 100;
+  const faltaLong = precio > nivLong ? 0 : ((nivLong - precio) / precio) * 100;
+  const faltaShort = precio < nivShort ? 0 : ((precio - nivShort) / precio) * 100;
   const volRel = vmU > 0 ? velas[iU].v / vmU : 0;
 
   return {
@@ -1061,8 +1072,8 @@ function marea(velas, atr) {
     panel: {
       adx: aU.adx, diMas: aU.diMas, diMenos: aU.diMenos,
       volRel, runLen, color: colorAhora, ancho: anchoU,
-      long:  { pct: pctDe(long),  cumplidos: cumplidosDe(long),  met: long,  falta: faltaLong,  nivel: estHi },
-      short: { pct: pctDe(short), cumplidos: cumplidosDe(short), met: short, falta: faltaShort, nivel: estLo }
+      long:  { pct: pctDe(long),  cumplidos: cumplidosDe(long),  met: long,  falta: faltaLong,  nivel: nivLong },
+      short: { pct: pctDe(short), cumplidos: cumplidosDe(short), met: short, falta: faltaShort, nivel: nivShort }
     }
   };
 }
@@ -2417,35 +2428,56 @@ function dibujar() {
        cumplida) y si el nivel entra en la parte visible. En fin de
        semana no se marca: no va a saltar nada. */
     if (!MA.finde) {
-      // rectángulo aproximado del panel, para no solapar la pastilla
+      // banda vertical que ocupa el panel (arriba-derecha), para no pisarlo
+      const enPanel = (yy) => yy > 4 && yy < 12 + 250;
       const PWp = Math.min(218, Math.max(150, x1 - 16));
       const pxp = Math.max(8, x1 - PWp - 10);
-      const panelBanda = (yy, w) => (8 + w > pxp - 6) && yy > 4 && yy < 12 + 250;
       const objetivo = (dato, alc) => {
         if (!dato || dato.falta <= 0) return;
         const nv = dato.nivel;
         if (nv < pMin || nv > pMax) return;
         const yN = Y(nv);
         const col = alc ? '#2ee86a' : '#FF0000';
-        // línea punteada de lado a lado del área de velas
+        const rgb = alc ? '46,232,106' : '255,60,80';
+
         g.save();
-        g.setLineDash([5, 5]);
-        g.strokeStyle = alc ? 'rgba(46,232,106,.5)' : 'rgba(255,60,80,.5)';
-        g.lineWidth = 1.3;
-        g.beginPath(); g.moveTo(2, yN); g.lineTo(x1 - 2, yN); g.stroke();
+        // 1) halo suave, para que la línea "respire" sin ensuciar
+        g.strokeStyle = `rgba(${rgb},.10)`; g.lineWidth = 7;
+        g.beginPath(); g.moveTo(2, yN); g.lineTo(x1 - 3, yN); g.stroke();
+        // 2) línea punteada con degradado: tenue a la izquierda, intensa
+        //    hacia el eje de precio (guía la mirada al nivel exacto)
+        const gl = g.createLinearGradient(2, 0, x1, 0);
+        gl.addColorStop(0, `rgba(${rgb},.12)`);
+        gl.addColorStop(0.7, `rgba(${rgb},.55)`);
+        gl.addColorStop(1, `rgba(${rgb},.95)`);
+        g.strokeStyle = gl; g.lineWidth = 1.9; g.setLineDash([7, 5]);
+        g.beginPath(); g.moveTo(2, yN); g.lineTo(x1 - 4, yN); g.stroke();
+        g.setLineDash([]);
+        // 3) marcador triangular en el extremo derecho, apuntando en el
+        //    sentido de la operación (arriba LONG, abajo SHORT)
+        g.fillStyle = col; g.shadowColor = col; g.shadowBlur = 8;
+        const tx = x1 - 4;
+        g.beginPath();
+        if (alc) { g.moveTo(tx, yN - 6); g.lineTo(tx - 9, yN); g.lineTo(tx, yN); }
+        else { g.moveTo(tx, yN + 6); g.lineTo(tx - 9, yN); g.lineTo(tx, yN); }
+        g.closePath(); g.fill();
         g.restore();
-        // pastilla con el dato (por la cola, encima de todo); se omite si
-        // pisaría el panel (el dato ya está dentro del panel de todas formas)
+
+        // 4) pastilla a la DERECHA (pegada al eje); texto AMARILLO en SHORT,
+        //    VERDE en LONG. La pastilla LONG va sobre la línea; la SHORT,
+        //    debajo, reforzando el sentido de cada una.
         const flecha = alc ? '▲' : '▼';
         const txt = `${flecha} PRÓX. ${alc ? 'LONG' : 'SHORT'} · ${fmt(nv)}`;
         g.font = 'bold 9px ui-monospace,monospace';
         const wE = g.measureText(txt).width + 16;
-        const yPill = Math.max(2, Math.min(y1 - 20, yN - 9));
-        if (panelBanda(yPill, wE)) return;   // colisiona con el panel: solo la línea
+        const yPill = Math.max(2, Math.min(y1 - 20, alc ? yN - 22 : yN + 4));
+        if (enPanel(yPill)) return;              // no pisar el panel
+        const xPill = Math.max(pxp + 4, x1 - 12 - wE);
         etiquetas.push({
-          txt, x: 8, y: yPill, w: wE, h: 18,
-          fondo: alc ? 'rgba(6,33,15,.95)' : 'rgba(42,5,9,.95)',
-          tinta: col, borde: alc ? 'rgba(46,232,106,.85)' : 'rgba(255,60,80,.85)',
+          txt, x: xPill, y: yPill, w: wE, h: 18,
+          fondo: alc ? 'rgba(6,33,15,.96)' : 'rgba(42,5,9,.96)',
+          tinta: alc ? '#2ee86a' : '#FFD400',    // SHORT en amarillo, LONG en verde
+          borde: alc ? 'rgba(46,232,106,.9)' : 'rgba(255,60,80,.9)',
           font: 'bold 9px ui-monospace,monospace', pad: 8
         });
       };
@@ -3643,24 +3675,40 @@ async function abrirWidget() {
   }
   if (_widgetVivo) return;
   try {
-    const pip = await window.documentPictureInPicture.requestWindow({ width: 360, height: 460 });
+    // proporción horizontal ~16:9 (incluye la cabecera)
+    const pip = await window.documentPictureInPicture.requestWindow({ width: 480, height: 292 });
     const doc = pip.document;
-    doc.body.style.cssText = 'margin:0;background:#0b0f16;overflow:hidden';
-    const cabecera = doc.createElement('div');
-    cabecera.style.cssText = 'font:600 11px ui-monospace,monospace;color:#E8B84B;padding:6px 10px;border-bottom:1px solid rgba(232,184,75,.3)';
-    cabecera.textContent = '◈ ' + _par + ' · ' + _tf.toUpperCase() + ' · Marea';
-    doc.body.appendChild(cabecera);
+    doc.body.style.cssText = 'margin:0;background:#05070b;overflow:hidden;font-family:ui-monospace,monospace';
+
+    // tarjeta redondeada con borde dorado; las esquinas de la ventana (que
+    // el sistema fuerza rectangulares) quedan en negro y no se notan
+    const card = doc.createElement('div');
+    card.style.cssText = 'position:absolute;inset:8px;border-radius:16px;overflow:hidden;' +
+      'background:#0b0f16;border:1px solid rgba(232,184,75,.35);' +
+      'box-shadow:0 12px 34px rgba(0,0,0,.6);display:flex;flex-direction:column';
+    doc.body.appendChild(card);
+
+    const head = doc.createElement('div');
+    head.style.cssText = 'flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;' +
+      'padding:7px 12px;font:600 11px ui-monospace,monospace;color:#E8B84B;' +
+      'border-bottom:1px solid rgba(232,184,75,.22)';
+    head.innerHTML = '<span>◈ ' + esc(_par) + ' · ' + esc(_tf.toUpperCase()) + '</span>' +
+      '<span id="wprice" style="color:#eaecef;font-weight:700"></span>';
+    card.appendChild(head);
+
+    const wrap = doc.createElement('div');
+    wrap.style.cssText = 'position:relative;flex:1 1 auto;overflow:hidden';
+    card.appendChild(wrap);
     const c = doc.createElement('canvas');
-    c.style.cssText = 'display:block;width:100vw;height:calc(100vh - 28px)';
-    doc.body.appendChild(c);
+    c.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
+    wrap.appendChild(c);
     const cc = c.getContext('2d');
 
     _widgetVivo = true;
     const pintar = () => {
       if (!_widgetVivo) return;
       try {
-        const w = doc.documentElement.clientWidth;
-        const h = doc.documentElement.clientHeight - 28;
+        const w = wrap.clientWidth, h = wrap.clientHeight;
         const dpr = pip.devicePixelRatio || 1;
         if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
           c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
@@ -3669,18 +3717,21 @@ async function abrirWidget() {
         cc.fillStyle = '#0b0f16'; cc.fillRect(0, 0, w, h);
         const src = $('nv-cv');
         if (src && src.width) {
+          // MINIATURA proporcional (contain): la gráfica entera, a escala,
+          // centrada; nunca un recorte
           const ar = src.width / src.height, arD = w / h;
           let dw = w, dh = h;
           if (ar > arD) dh = w / ar; else dw = h * ar;
+          cc.imageSmoothingEnabled = true; cc.imageSmoothingQuality = 'high';
           cc.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
         }
-        cabecera.textContent = '◈ ' + _par + ' · ' + _tf.toUpperCase() + ' · ' + fmt(N.precio || 0);
+        const pr = doc.getElementById('wprice'); if (pr) pr.textContent = fmt(N.precio || 0);
       } catch (_) {}
       (pip.requestAnimationFrame ? pip.requestAnimationFrame(pintar) : setTimeout(pintar, 120));
     };
     pintar();
     pip.addEventListener('pagehide', () => { _widgetVivo = false; });
-    avisoMarea('Ventana flotante abierta · quedará por encima de tus ventanas');
+    avisoMarea('Ventana flotante abierta · queda por encima de tus ventanas');
   } catch (_) {
     _widgetVivo = false;
     avisoMarea('No se pudo abrir la ventana flotante');
