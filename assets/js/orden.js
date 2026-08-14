@@ -293,6 +293,14 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
   colocar(d, cx, cy, true);
   d.addEventListener('click', (e) => e.stopPropagation());
 
+  /* Si la ficha crece (al escribir aparece el resumen), se recoloca
+     para que el botón nunca quede fuera de la pantalla. */
+  try {
+    const vigilante = new ResizeObserver(() => colocar(d, cx, cy, true));
+    vigilante.observe(d);
+    d._obs = vigilante;
+  } catch (_) {}
+
   const inp = $('od-cant'), rango = $('od-rango'), ok = $('od-ok'), res = $('od-res');
 
   /* Cifras legibles: nunca por encima del saldo y con los decimales
@@ -470,7 +478,7 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
     const elSl = $('od-slp');
     const sl = elSl ? (parseFloat(String(elSl.value).replace(',', '.')) || 0) : 0;
     ok.disabled = true;
-    ok.textContent = T('Confirma en tu wallet…');
+    ok.textContent = T('Preparando…');
     try {
       if (modo === 'aviso') {
         const id = guardarAviso({
@@ -480,7 +488,10 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
         if (cfg.repintar) cfg.repintar();
         exito(d, T('Aviso puesto'), T('Te avisaremos cuando el precio llegue a') + ' ' + fmt(precio));
       } else {
-        await ponerOrdenReal({ cfg, precio, cant, vender, sl });
+        await ponerOrdenReal({
+          cfg, precio, cant, vender, sl,
+          alPaso: (t) => { ok.textContent = t; }
+        });
         exito(d, T('Orden puesta'), T('Se ejecutará sola cuando el precio llegue a') + ' ' + fmt(precio));
       }
       /* Se guarda para pintarla en el gráfico con su propia marca,
@@ -512,63 +523,131 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
    keeper la vigila y la ejecuta al llegar el precio. Se reutiliza
    lo que ya está desplegado.
    ══════════════════════════════════════════════════════════════ */
-async function ponerOrdenReal({ cfg, precio, cant, vender, sl }) {
+async function ponerOrdenReal({ cfg, precio, cant, vender, sl, alPaso }) {
   const gb = await import('./gridbot.js?v=126');
   const tk = await import('./tokens.js?v=126');
+  const w  = await import('./wallet.js?v=126');
 
-  /* Las direcciones salen de `tokens.js`, que ya tiene el mapa de
-     las 31 monedas con su dirección y decimales en BNB Chain. */
+  /* ══════════════════════════════════════════════════════════
+     [REESCRITO] Antes se montaba la configuración a mano y la
+     transacción fallaba siempre.
+
+     El motivo: crear una orden en el contrato necesita CUATRO
+     pasos, y solo se hacía el último.
+
+       1. Suscripción activa
+       2. Envolver BNB a WBNB si se va a vender BNB
+       3. APROBAR el token — sin esto la transacción revierte
+       4. Crear la orden
+
+     Ahora se usa la misma maquinaria que los bots que ya
+     funcionan: `construirConfigCashOut` para vender (que es
+     literalmente una orden limit de venta) y `construirConfigDCA`
+     para comprar. Nada montado a mano.
+     ══════════════════════════════════════════════════════════ */
   const par = cfg.par ? cfg.par() : '';
   const base = buscarMoneda(tk.MONEDAS, par);
   const quote = tk.MONEDAS.USDT;
+  if (!base) throw new Error(T('Esta moneda no se puede operar todavía desde aquí.'));
 
-  if (!base) {
-    throw new Error(T('Esta moneda no se puede operar todavía desde aquí.'));
-  }
-  /* Para operar hace falta un token ERC-20: la BNB nativa se
-     enruta por su versión envuelta (WBNB), que es lo que entiende
-     el router. */
+  const cuenta = (w.cuentaActual && w.cuentaActual()) || null;
+  if (!cuenta) throw new Error(T('Conecta tu wallet para poder operar.'));
+
   const WBNB = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
   const dirBase = base.address || WBNB;
+  const decBase = base.decimals ?? 18;
+  const decQuote = quote.decimals ?? 18;
+  const paso = (t) => { if (alPaso) alPaso(t); };
 
-  const info = {
-    base: dirBase,
-    quote: quote.address,
-    pathCompra: [quote.address, dirBase],
-    pathVenta: [dirBase, quote.address]
+  /* ── 1. La suscripción tiene que estar activa ── */
+  paso(T('Comprobando tu suscripción…'));
+  const activo = await gb.estaActivo(cuenta).catch(() => false);
+  if (!activo) {
+    throw new Error(T('Necesitas la suscripción activa para poner órdenes. Actívala desde tu perfil.'));
+  }
+
+  const p = {
+    base: dirBase, quote: quote.address,
+    decBase, decQuote,
+    slippageBps: 50
   };
-  const dec = base.decimals ?? 18;
-  const decQ = quote.decimals ?? 18;
-  const unidad = (v, d) => BigInt(Math.round(v * Math.pow(10, Math.min(d, 12)))) *
-                           (10n ** BigInt(Math.max(0, d - 12)));
 
-  /* Un solo nivel, con el mínimo de salida calculado al precio que
-     pidió el usuario. Eso es lo que hace que sea una orden limit:
-     no se ejecuta a peor precio. */
-  const nivel = vender
-    ? { minOutCompra: 0n, minOutVenta: unidad(cant * precio * 0.995, decQ), estado: 1 }
-    : { minOutCompra: unidad((cant / precio) * 0.995, dec), minOutVenta: 0n, estado: 1 };
+  if (vender) {
+    /* ── VENDER: es un Cash Out de un solo objetivo ── */
+    paso(T('Preparando la orden con el precio real…'));
+    const conf = await gb.construirConfigCashOut({
+      ...p,
+      cantidadBase: cant,
+      targetPrice: precio
+    });
+    conf.botId = Date.now();
 
-  return gb.crearRejilla({
-    base: info.base, quote: info.quote,
-    pathCompra: info.pathCompra,
-    pathVenta: info.pathVenta,
-    ordenQuote: vender ? 0n : unidad(cant, decQ),
-    ordenBase: vender ? unidad(cant, dec) : 0n,
-    niveles: [nivel],
-    slippageBps: 50,
-    cooldownSeg: 0,
-    tpUnitOut: 0n,
-    slUnitOut: sl > 0 ? unidad(sl, decQ) : 0n,
-    feeTier: 500,
-    modo: 0,
-    objetivoBps: 0, factorBps: 0,
-    compraInicialQuote: 0n,
-    margenBps: 0,
-    botId: 0n,
-    intervalo: 0n,
-    comprasMax: 1
-  });
+    /* ── 2. Si se vende BNB, hay que envolverlo primero ── */
+    if (gb.esBNB(dirBase)) {
+      const wb = await gb.balanceToken(dirBase, cuenta);
+      const wbH = Number(gb.fmt(wb, decBase));
+      if (cant > wbH + 1e-12) {
+        paso(T('Convirtiendo tu BNB a WBNB… firma en tu wallet.'));
+        await gb.envolverBNB(unidades(gb, (cant - wbH) * 1.001, decBase));
+      }
+    }
+
+    /* ── 3. El permiso: sin esto la transacción revierte ── */
+    const necesita = unidades(gb, cant * 3, decBase);
+    const permiso = await gb.allowance(dirBase, cuenta);
+    if (permiso < necesita) {
+      paso(T('Dando permiso para vender… firma en tu wallet.'));
+      await gb.aprobarToken(dirBase, necesita);
+    }
+
+    /* ── 4. Crear la orden ── */
+    paso(T('Creando tu orden… firma en tu wallet.'));
+    await gb.crearRejilla(conf);
+  } else {
+    /* ── COMPRAR: una compra programada de una sola vez ── */
+    paso(T('Preparando la orden con el precio real…'));
+    const conf = await gb.construirConfigDCA({
+      ...p,
+      montoQuote: cant,
+      intervalo: 60,
+      comprasMax: 1
+    });
+    conf.botId = Date.now();
+    /* El precio objetivo va en el mínimo de salida: así solo entra
+       si el precio es el que pidió el usuario o mejor. */
+    conf.niveles = [{
+      minOutCompra: unidades(gb, (cant / precio) * 0.995, decBase),
+      minOutVenta: 0n,
+      estado: 0
+    }];
+
+    const necesita = unidades(gb, cant * 3, decQuote);
+    const permiso = await gb.allowance(quote.address, cuenta);
+    if (permiso < necesita) {
+      paso(T('Dando permiso para usar tu USDT… firma en tu wallet.'));
+      await gb.aprobarToken(quote.address, necesita);
+    }
+
+    paso(T('Creando tu orden… firma en tu wallet.'));
+    await gb.crearRejilla(conf);
+  }
+
+  /* Se avisa al vigilante para que empiece a mirar el precio. */
+  try {
+    const av = await import('./worker.js?v=126').catch(() => null);
+    if (av && av.avisarKeeper) av.avisarKeeper(cuenta);
+  } catch (_) {}
+}
+
+/** Pasa una cantidad humana a las unidades del token. */
+function unidades(gb, valor, dec) {
+  try {
+    if (gb.aBI) return gb.aBI(valor, dec);
+  } catch (_) {}
+  const s = Number(valor).toFixed(Math.min(dec, 18));
+  const [ent, frac = ''] = s.split('.');
+  const rell = (frac + '0'.repeat(dec)).slice(0, dec);
+  return BigInt(ent + rell);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -755,6 +834,18 @@ function redondeadoOd(g, x, y, w, h, r) {
 export function clicCancelar(cv, dameZonas, repintar) {
   if (cv.dataset.odCancel) return;
   cv.dataset.odCancel = '1';
+
+  /* La manita al pasar por encima de la X: si no cambia el cursor,
+     nadie sabe que ahí se puede pulsar. */
+  cv.addEventListener('mousemove', (e) => {
+    const r = cv.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    const encima = (dameZonas() || []).some((q) =>
+      x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h);
+    if (encima) cv.style.cursor = 'pointer';
+    else if (cv.style.cursor === 'pointer') cv.style.cursor = 'crosshair';
+  });
+
   const mirar = (cx, cy) => {
     const r = cv.getBoundingClientRect();
     const x = cx - r.left, y = cy - r.top;
@@ -799,14 +890,21 @@ export function pedirCancelar(orden, alCancelar) {
    UTILIDADES
    ══════════════════════════════════════════════════════════════ */
 function colocar(el, cx, cy, grande) {
+  const m = 10;
   const w = el.offsetWidth || (grande ? 320 : 210);
   const h = el.offsetHeight || (grande ? 420 : 130);
-  const m = 10;
   let x = cx + 8, y = cy + 8;
-  if (x + w > window.innerWidth - m) x = Math.max(m, cx - w - 8);
-  if (y + h > window.innerHeight - m) y = Math.max(m, window.innerHeight - h - m);
-  el.style.left = Math.max(m, x) + 'px';
-  el.style.top = Math.max(m, y) + 'px';
+
+  if (x + w > window.innerWidth - m) x = cx - w - 8;
+  x = Math.max(m, Math.min(x, window.innerWidth - w - m));
+
+  /* Nunca por debajo del borde: el botón de confirmar tiene que
+     verse siempre, que es lo que el usuario va a pulsar. */
+  if (y + h > window.innerHeight - m) y = window.innerHeight - h - m;
+  y = Math.max(m, y);
+
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
 }
 
 function cerrarTodo() {
@@ -876,8 +974,12 @@ function estilos() {
   .od-menu.vender .od-m-b{background:linear-gradient(180deg,#ff8a95,#e03546);color:#2a0509}
 
   /* La ficha */
-  .od-ficha{width:min(330px, calc(100vw - 20px));max-height:calc(100vh - 24px);
-    overflow-y:auto;padding:15px}
+  /* [CORREGIDO] Al escribir la cantidad aparecía el resumen y la
+     ficha crecía hasta salirse por abajo, ocultando el botón.
+     Ahora se ancla al borde inferior con su propio scroll. */
+  .od-ficha{width:min(330px, calc(100vw - 20px));
+    max-height:min(78vh, calc(100vh - 24px));
+    overflow-y:auto;overscroll-behavior:contain;padding:15px}
   /* [CORREGIDO] En las ventas el porcentaje se montaba encima de la
      X y se comía el clic. Ahora la X va por encima de todo y el
      porcentaje deja su sitio libre. */
@@ -1042,7 +1144,15 @@ function estilos() {
     /* En el móvil la ficha va abajo, a lo ancho */
     .od-ficha{position:fixed !important;left:8px !important;right:8px !important;
       top:auto !important;bottom:10px !important;width:auto !important;
-      max-height:min(78dvh, 620px)}
+      max-height:min(76dvh, 600px);
+      display:flex;flex-direction:column;padding-bottom:0}
+    /* [CORREGIDO] El botón quedaba bajo el borde al crecer la ficha.
+       Ahora el contenido hace scroll y el botón se queda pegado
+       abajo, siempre visible. */
+    .od-ficha .od-confirmar{position:sticky;bottom:0;flex:0 0 auto;
+      margin-top:auto;z-index:5}
+    .od-ficha .od-aviso{flex:0 0 auto;padding-bottom:13px;
+      background:rgba(11,15,22,.96)}
     .od-menu{width:196px}
   }`;
   document.head.appendChild(s);
