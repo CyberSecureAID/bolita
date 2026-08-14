@@ -1951,6 +1951,9 @@ export async function abrirNiveles() {
 
 
         <div class="nv-der">
+          <button class="nv-ico" id="nv-widget" title="Ventana flotante" style="display:none">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="15" rx="2"/><rect x="12" y="11" width="7" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
+          </button>
           <button class="nv-ico" id="nv-foto" title="Compartir">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
           </button>
@@ -1997,6 +2000,13 @@ export async function abrirNiveles() {
   $('nv-ayuda').onclick = () => ayuda();
   $('nv-herr').onclick = (e) => { e.stopPropagation(); menuHerramientas(); };
   $('nv-foto').onclick = () => guardarImagen();
+  /* El modo ventana flotante solo existe en navegadores de escritorio
+     que admiten Document Picture-in-Picture (Chrome/Edge). Si no está,
+     el botón no se muestra. */
+  if ('documentPictureInPicture' in window) {
+    const bw = $('nv-widget');
+    if (bw) { bw.style.display = ''; bw.onclick = () => abrirWidget(); }
+  }
   $('nv-sel').onclick = (e) => { e.stopPropagation(); menuPares(); };
 
   d.querySelectorAll('[data-ntf]').forEach((b) => b.onclick = () => {
@@ -2396,6 +2406,52 @@ function dibujar() {
       if (x < 10 || x > x1 - 10) return;
       tachuelas.push({ x, y: Y(sg.precio), alc: sg.dir === 'compra' });
     });
+
+    /* ── El OBJETIVO de la próxima alerta, marcado en la gráfica ──
+       Hasta dónde tiene que llegar el precio para que salte cada señal:
+       una línea fina punteada al nivel que hay que superar (LONG, por
+       arriba) o perder (SHORT, por abajo), con una pastilla que dice el
+       precio exacto y cuánto falta. Así la persona sabe qué esperar y
+       puede poner ahí su alerta de precio. Solo se marca si de verdad
+       falta camino (si el nivel ya está roto, esa condición ya está
+       cumplida) y si el nivel entra en la parte visible. En fin de
+       semana no se marca: no va a saltar nada. */
+    if (!MA.finde) {
+      // rectángulo aproximado del panel, para no solapar la pastilla
+      const PWp = Math.min(218, Math.max(150, x1 - 16));
+      const pxp = Math.max(8, x1 - PWp - 10);
+      const panelBanda = (yy, w) => (8 + w > pxp - 6) && yy > 4 && yy < 12 + 250;
+      const objetivo = (dato, alc) => {
+        if (!dato || dato.falta <= 0) return;
+        const nv = dato.nivel;
+        if (nv < pMin || nv > pMax) return;
+        const yN = Y(nv);
+        const col = alc ? '#2ee86a' : '#FF0000';
+        // línea punteada de lado a lado del área de velas
+        g.save();
+        g.setLineDash([5, 5]);
+        g.strokeStyle = alc ? 'rgba(46,232,106,.5)' : 'rgba(255,60,80,.5)';
+        g.lineWidth = 1.3;
+        g.beginPath(); g.moveTo(2, yN); g.lineTo(x1 - 2, yN); g.stroke();
+        g.restore();
+        // pastilla con el dato (por la cola, encima de todo); se omite si
+        // pisaría el panel (el dato ya está dentro del panel de todas formas)
+        const flecha = alc ? '▲' : '▼';
+        const txt = `${flecha} PRÓX. ${alc ? 'LONG' : 'SHORT'} · ${fmt(nv)}`;
+        g.font = 'bold 9px ui-monospace,monospace';
+        const wE = g.measureText(txt).width + 16;
+        const yPill = Math.max(2, Math.min(y1 - 20, yN - 9));
+        if (panelBanda(yPill, wE)) return;   // colisiona con el panel: solo la línea
+        etiquetas.push({
+          txt, x: 8, y: yPill, w: wE, h: 18,
+          fondo: alc ? 'rgba(6,33,15,.95)' : 'rgba(42,5,9,.95)',
+          tinta: col, borde: alc ? 'rgba(46,232,106,.85)' : 'rgba(255,60,80,.85)',
+          font: 'bold 9px ui-monospace,monospace', pad: 8
+        });
+      };
+      objetivo(MA.panel.long, true);
+      objetivo(MA.panel.short, false);
+    }
   }
 
   /* ══ EL CANAL DEL RANGO ══
@@ -2854,7 +2910,6 @@ function panelMarea(g, MA, x1, W) {
   const dom = P.long.pct >= P.short.pct ? 'long' : 'short';
   const D = dom === 'long' ? P.long : P.short;
   const colDom = dom === 'long' ? verde : rojo;
-  const activo = !MA.finde && !MA.lateral;
 
   // Chip de estado
   let chip, chipCol, chipTinta;
@@ -2926,30 +2981,21 @@ function panelMarea(g, MA, x1, W) {
     g.beginPath();
     g.arc(cx, cy, RING - 4, a0, a1);
     g.lineWidth = 6; g.lineCap = 'round';
-    const encendido = activo && i < score;
+    const encendido = i < score;        // siempre según la confluencia real
     g.strokeStyle = encendido ? colDom : 'rgba(255,255,255,.09)';
     if (encendido) { g.shadowColor = colDom; g.shadowBlur = 8; } else { g.shadowBlur = 0; }
     g.stroke();
   }
   g.shadowBlur = 0; g.lineCap = 'butt';
-  // Centro del anillo: N/5 y la palabra
+  // Centro del anillo: solo el número de confluencia
   g.textAlign = 'center';
-  if (activo) {
-    g.fillStyle = '#eaecef';
-    g.font = 'bold 19px ui-monospace,monospace';
-    g.fillText(String(score), cx, cy + 2);
-    g.fillStyle = '#7d8794';
-    g.font = '8px ui-monospace,monospace';
-    g.fillText('de 5', cx, cy + 14);
-  } else {
-    g.fillStyle = '#5a636e';
-    g.font = 'bold 15px ui-monospace,monospace';
-    g.fillText('—', cx, cy + 3);
-  }
-  // Etiqueta bajo el anillo
+  g.fillStyle = score > 0 ? '#f2f4f6' : '#5a636e';
+  g.font = 'bold 22px ui-monospace,monospace';
+  g.fillText(String(score), cx, cy + 6);
+  // Etiqueta bajo el anillo: la dirección con más confluencia
   g.font = 'bold 8px ui-monospace,monospace';
-  g.fillStyle = activo ? colDom : '#6b7480';
-  g.fillText(activo ? (dom === 'long' ? 'CONFLUENCIA ▲' : 'CONFLUENCIA ▼') : 'EN PAUSA', cx, cy + RING + 8);
+  g.fillStyle = colDom;
+  g.fillText(dom === 'long' ? 'CONFLUENCIA ▲' : 'CONFLUENCIA ▼', cx, cy + RING + 8);
 
   // ── Sensores de los indicadores internos ──
   const sx = cx + RING + 12;
@@ -2966,19 +3012,19 @@ function panelMarea(g, MA, x1, W) {
   g.textAlign = 'left';
   sensores.forEach((s, i) => {
     const yy = yRing + i * sh + sh / 2;
-    // lucecita
-    const on = activo && s.ok;
+    // lucecita: encendida en dorado si el confirmador se cumple
+    const on = s.ok;
     g.beginPath(); g.arc(sx + 4, yy, 3.2, 0, Math.PI * 2);
     if (on) { g.fillStyle = oro; g.shadowColor = oro; g.shadowBlur = 7; }
     else { g.fillStyle = apagado; g.shadowBlur = 0; }
     g.fill(); g.shadowBlur = 0;
     // etiqueta
     g.font = 'bold 8.5px ui-monospace,monospace';
-    g.fillStyle = on ? '#eaecef' : '#6b7480';
+    g.fillStyle = on ? '#eaecef' : '#7d8794';
     g.fillText(s.et, sx + 12, yy + 3);
     // valor a la derecha
     g.textAlign = 'right';
-    g.fillStyle = on ? '#aeb6bf' : '#5a636e';
+    g.fillStyle = on ? '#aeb6bf' : '#6b7480';
     g.font = '8.5px ui-monospace,monospace';
     g.fillText(s.val, px + PW - pad, yy + 3);
     g.textAlign = 'left';
@@ -2991,23 +3037,20 @@ function panelMarea(g, MA, x1, W) {
     g.fillStyle = color;
     g.fillText(etq, cx0, y + 9);
     g.textAlign = 'right';
-    g.fillStyle = activo ? '#eaecef' : '#6b7480';
+    g.fillStyle = '#eaecef';
     g.fillText(dato.pct + '%', px + PW - pad, y + 9);
     g.textAlign = 'left';
     y += 14;
-    // barra con degradado
+    // barra con degradado — siempre con su color
     const bh = 6;
     g.fillStyle = 'rgba(255,255,255,.07)';
     redondeado(g, cx0, y, anchoInt, bh, 3); g.fill();
     const rell = Math.max(0, Math.min(1, dato.pct / 100)) * anchoInt;
-    if (rell > 2 && activo) {
+    if (rell > 2) {
       const gb = g.createLinearGradient(cx0, 0, cx0 + rell, 0);
       gb.addColorStop(0, alc ? 'rgba(46,232,106,.55)' : 'rgba(255,60,80,.55)');
       gb.addColorStop(1, color);
       g.fillStyle = gb;
-      redondeado(g, cx0, y, rell, bh, 3); g.fill();
-    } else if (rell > 2) {
-      g.fillStyle = 'rgba(255,255,255,.14)';
       redondeado(g, cx0, y, rell, bh, 3); g.fill();
     }
     y += bh + 5;
@@ -3369,6 +3412,8 @@ function menuHerramientas() {
   const HERRAS = [
     { h: 'marea', on: !!N.verMarea, nombre: 'Marea', tag: 'cambio de ciclo',
       desc: 'Marca dónde la marea del mercado cambia de manos, de compradores a vendedores. Solo avisa cuando el giro pasa varios filtros a la vez; el resto del tiempo calla.' },
+    { h: 'alertas', on: !!N.alertas, nombre: 'Alertas', tag: (N.alertas && N.alertaPar) ? N.alertaPar : _par,
+      desc: 'Te envía una notificación push (con sonido, en el móvil y en la computadora) cada vez que Marea dispara una señal LONG o SHORT en ' + _par + '. La alerta queda fijada a este par. Funciona mientras esta página siga abierta, aunque esté en segundo plano.' },
     { h: 'limpia', on: !!N.limpia, nombre: 'Gráfica limpia', tag: '',
       desc: 'Apaga todo el análisis automático (niveles, estructuras, tendencia y sus etiquetas) para dejar ver solo lo que tú elijas.' }
   ];
@@ -3409,6 +3454,7 @@ function menuHerramientas() {
     const b = e.target.closest('[data-h]');
     if (!b) return;
     const cual = b.dataset.h;
+    if (cual === 'alertas') { toggleAlertas(b); return; }
     if (cual === 'marea') N.verMarea = !N.verMarea;
     else if (cual === 'limpia') N.limpia = !N.limpia;
     b.classList.toggle('on');
@@ -3418,6 +3464,227 @@ function menuHerramientas() {
   setTimeout(() => document.addEventListener('click', () => {
     const x = document.getElementById('nv-herr-menu'); if (x) x.remove();
   }, { once: true }), 10);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ALERTAS DE MAREA — notificación push con sonido
+
+   Cuando el usuario las enciende, la herramienta vigila EN SEGUNDO
+   PLANO el par fijado (aunque esté mirando otro) y, en cuanto Marea
+   dispara una señal nueva, lanza una notificación del sistema con
+   sonido: en el móvil y en la computadora.
+
+   Límite honesto: una web solo puede notificar mientras la página
+   siga viva (abierta, aunque esté en segundo plano). Para recibir
+   avisos con la app cerrada del todo haría falta un servidor de push,
+   que no forma parte de esta herramienta.
+   ══════════════════════════════════════════════════════════════ */
+let _alertaInt = null;
+let _audioCtx = null;
+
+function desbloquearAudio() {
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  } catch (_) {}
+}
+
+function sonarAlerta(alc) {
+  try {
+    desbloquearAudio();
+    if (!_audioCtx) return;
+    const t0 = _audioCtx.currentTime;
+    // dos tonos: ascendente y claro para LONG, descendente y grave para SHORT
+    const notas = alc ? [660, 990] : [494, 330];
+    notas.forEach((f, i) => {
+      const o = _audioCtx.createOscillator(), gg = _audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const t = t0 + i * 0.19;
+      gg.gain.setValueAtTime(0.0001, t);
+      gg.gain.exponentialRampToValueAtTime(0.3, t + 0.02);
+      gg.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
+      o.connect(gg); gg.connect(_audioCtx.destination);
+      o.start(t); o.stop(t + 0.19);
+    });
+  } catch (_) {}
+}
+
+async function notificar(titulo, cuerpo) {
+  const opts = { body: cuerpo, tag: 'marea', renotify: true, requireInteraction: false };
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+    /* En el móvil (Android/Chrome) el constructor Notification NO
+       funciona: hay que usar el service worker si lo hay. En escritorio
+       vale el constructor directo. */
+    if ('serviceWorker' in navigator) {
+      try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg && reg.showNotification) { await reg.showNotification(titulo, opts); return true; }
+      } catch (_) {}
+    }
+    const n = new Notification(titulo, opts);
+    setTimeout(() => { try { n.close(); } catch (_) {} }, 12000);
+    return true;
+  } catch (_) { return false; }
+}
+
+function notificarSenal(alc, par, precio) {
+  const dir = alc ? 'LONG' : 'SHORT';
+  const flecha = alc ? '🟢 ▲' : '🔴 ▼';
+  // notificación del sistema (suena y aparece aunque estés en otra app/ventana)
+  notificar(
+    `${flecha} ${dir} · ${par}`,
+    `Marea detectó un cambio de ciclo ${alc ? 'al alza' : 'a la baja'} en ${fmt(precio)}. Indicador: Marea · Par: ${par}.`
+  );
+  // sonido siempre (mientras la página viva)
+  sonarAlerta(alc);
+  // y un aviso visible dentro de la app, por si está en primer plano
+  avisoMarea(`${dir} en ${par} · ${fmt(precio)}`);
+}
+
+/* Aviso breve en pantalla (no hay uno en el proyecto, así que uno mínimo) */
+function avisoMarea(msg) {
+  const prev = document.getElementById('nv-aviso-al'); if (prev) prev.remove();
+  const a = document.createElement('div');
+  a.id = 'nv-aviso-al';
+  a.textContent = msg;
+  a.style.cssText = 'position:fixed;z-index:9999;left:50%;top:18px;transform:translateX(-50%);' +
+    'background:#1b2027;color:#eaecef;border:1px solid #C9A84B;border-radius:10px;' +
+    'padding:10px 14px;font:600 12px/1.3 ui-monospace,monospace;max-width:82vw;text-align:center;' +
+    'box-shadow:0 10px 30px rgba(0,0,0,.6)';
+  document.body.appendChild(a);
+  setTimeout(() => a.remove(), 4200);
+}
+
+async function sondearMarea() {
+  if (!N.alertas) return;
+  try {
+    const v = await traerVelas(N.alertaPar, N.alertaTf, 300);
+    const r = marea(v, calcularATR(v));
+    if (!r || !r.ultima) return;
+    const sg = r.ultima;
+    /* Una señal es NUEVA si su vela es posterior a la última que ya
+       avisamos. No se mira "cuántas velas hace": una señal recién
+       confirmada ancla su tachuela unas velas atrás (la confirmación
+       tarda), así que exigir que fuera de las últimas 1-2 velas se
+       comería casi todos los avisos. Al activar las alertas se marca la
+       señal vigente como ya vista, de modo que solo avisa de las que
+       aparezcan de ahí en adelante. */
+    if (sg.t > (N.alertaUltimaTs || 0)) {
+      N.alertaUltimaTs = sg.t;
+      notificarSenal(sg.dir === 'compra', N.alertaPar, sg.precio);
+    }
+  } catch (_) { /* sin red: se reintenta en el próximo ciclo */ }
+}
+
+function arrancarSondeo() {
+  pararSondeo();
+  _alertaInt = setInterval(sondearMarea, 60000);   // cada minuto
+}
+function pararSondeo() { if (_alertaInt) { clearInterval(_alertaInt); _alertaInt = null; } }
+
+async function toggleAlertas(boton) {
+  // Apagar
+  if (N.alertas) {
+    N.alertas = false; pararSondeo();
+    boton.classList.remove('on');
+    avisoMarea('Alertas de Marea desactivadas');
+    return;
+  }
+  // Encender
+  if (!('Notification' in window)) {
+    avisoMarea('Este navegador no admite notificaciones');
+    return;
+  }
+  let permiso = Notification.permission;
+  if (permiso === 'default') {
+    try { permiso = await Notification.requestPermission(); } catch (_) { permiso = 'denied'; }
+  }
+  if (permiso !== 'granted') {
+    avisoMarea('Necesito permiso de notificaciones para avisarte');
+    return;
+  }
+  desbloquearAudio();                         // el gesto del toque desbloquea el sonido
+  N.alertas = true;
+  N.alertaPar = _par;
+  N.alertaTf = _tf;
+  // marca la señal vigente como "ya vista" para no avisar de una vieja al
+  // arrancar; si no hay ninguna, 0 (así la primera que aparezca sí avisa)
+  N.alertaUltimaTs = (N.marea && N.marea.ultima) ? N.marea.ultima.t : 0;
+  boton.classList.add('on');
+  // actualiza la etiqueta del par en la fila
+  const fila = boton.closest('.nv-hm-fila');
+  const tag = fila && fila.querySelector('.nv-hm-tx em');
+  if (tag) tag.textContent = N.alertaPar;
+  arrancarSondeo();
+  notificar('Alertas activadas', `Te avisaré de cada señal de Marea en ${N.alertaPar}.`);
+  sonarAlerta(true);
+  avisoMarea(`Alertas activadas para ${N.alertaPar}. Sonarán aquí y en tu sistema.`);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MODO VENTANA FLOTANTE (widget de escritorio)
+
+   Abre una ventana pequeña, SIEMPRE ENCIMA de las demás ventanas del
+   escritorio, que refleja la gráfica en vivo. Sirve para tener el
+   precio y las señales de Marea a la vista mientras se trabaja en otra
+   cosa. Usa Document Picture-in-Picture (Chrome/Edge de escritorio).
+
+   Aclaración honesta: una web NO puede ponerse por encima de las demás
+   APPS del teléfono (eso solo lo hace una app nativa con permiso de
+   superposición). En móvil, para no perderse una señal están las
+   Alertas, que notifican con sonido.
+   ══════════════════════════════════════════════════════════════ */
+let _widgetVivo = false;
+async function abrirWidget() {
+  if (!('documentPictureInPicture' in window)) {
+    avisoMarea('La ventana flotante está disponible en Chrome o Edge de escritorio');
+    return;
+  }
+  if (_widgetVivo) return;
+  try {
+    const pip = await window.documentPictureInPicture.requestWindow({ width: 360, height: 460 });
+    const doc = pip.document;
+    doc.body.style.cssText = 'margin:0;background:#0b0f16;overflow:hidden';
+    const cabecera = doc.createElement('div');
+    cabecera.style.cssText = 'font:600 11px ui-monospace,monospace;color:#E8B84B;padding:6px 10px;border-bottom:1px solid rgba(232,184,75,.3)';
+    cabecera.textContent = '◈ ' + _par + ' · ' + _tf.toUpperCase() + ' · Marea';
+    doc.body.appendChild(cabecera);
+    const c = doc.createElement('canvas');
+    c.style.cssText = 'display:block;width:100vw;height:calc(100vh - 28px)';
+    doc.body.appendChild(c);
+    const cc = c.getContext('2d');
+
+    _widgetVivo = true;
+    const pintar = () => {
+      if (!_widgetVivo) return;
+      try {
+        const w = doc.documentElement.clientWidth;
+        const h = doc.documentElement.clientHeight - 28;
+        const dpr = pip.devicePixelRatio || 1;
+        if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+          c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+          cc.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        cc.fillStyle = '#0b0f16'; cc.fillRect(0, 0, w, h);
+        const src = $('nv-cv');
+        if (src && src.width) {
+          const ar = src.width / src.height, arD = w / h;
+          let dw = w, dh = h;
+          if (ar > arD) dh = w / ar; else dw = h * ar;
+          cc.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
+        }
+        cabecera.textContent = '◈ ' + _par + ' · ' + _tf.toUpperCase() + ' · ' + fmt(N.precio || 0);
+      } catch (_) {}
+      (pip.requestAnimationFrame ? pip.requestAnimationFrame(pintar) : setTimeout(pintar, 120));
+    };
+    pintar();
+    pip.addEventListener('pagehide', () => { _widgetVivo = false; });
+    avisoMarea('Ventana flotante abierta · quedará por encima de tus ventanas');
+  } catch (_) {
+    _widgetVivo = false;
+    avisoMarea('No se pudo abrir la ventana flotante');
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
