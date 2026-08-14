@@ -253,6 +253,13 @@ Cloudflare (5 $/mes, 50× más capacidad).
 6. **Funciones nuevas → módulo nuevo.** No engordar `gridbot-ui.js`.
 7. **Comentarios en el código: en español, explicando el PORQUÉ**, no el qué.
 8. **Antes de entregar:** probar con Playwright que la página sigue funcionando.
+9. **⛔ NO TOCAR el MAPA DE CALOR de Liquidity Pools (`liquidity.js`).** La
+   distribución de colores del mapa (los escalones azul→verde→amarillo→rojo, el
+   suavizado de los tonos intermedios y la ubicación de los rojos como muros de
+   liquidación) quedó **aprobada y perfecta**. No se modifica la lógica de
+   `calor()`, `ESCALONES`, el suavizado (`suave`) ni el cálculo de intensidad.
+   Sí se pueden tocar elementos **encima** del mapa (tachuelas, perfil, escala),
+   pero **el mapa de calor en sí es intocable**.
 
 ---
 
@@ -485,6 +492,12 @@ posiciones apalancadas que serían liquidadas si el precio llegara ahí.
 Esas zonas actúan como imanes: el precio tiende a buscarlas.
 
 Es el mismo dato por el que **CoinGlass cobra suscripción**.
+
+> **⛔ MAPA DE CALOR CONGELADO.** La distribución del mapa (colores por
+> escalones, suavizado de tonos intermedios y ubicación de los rojos) quedó
+> aprobada y **no se toca**. Ver regla 9 de la sección 6. Lo que va *encima*
+> del mapa (tachuelas de alta liquidez, perfil de volumen, escala) sí se
+> puede ajustar.
 
 ### 15.2 Radar Institucional (`muros.js`)
 
