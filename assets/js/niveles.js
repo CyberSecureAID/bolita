@@ -1992,15 +1992,37 @@ function dibujar() {
     /* La etiqueta: dice qué hacer, no qué es. Esto es lo que
        convierte la línea en una decisión. */
     /* La etiqueta va ENCIMA de la línea, no cruzada por ella. */
+    /* [MEJORADO] Las etiquetas se confundían con el rojo de las
+       velas. Ahora llevan sombra y borde claro: se despegan del
+       fondo sin recurrir a neones. */
     const txt = (esS ? 'COMPRA ' : 'VENDE ') + fmt(n.p) + '  ·  ' + n.toques + (n.toques === 1 ? ' toque' : ' toques');
-    g.font = 'bold 11px ui-monospace,monospace';
-    const w = g.measureText(txt).width + 20;
-    const yEt = y - 15;                      // desplazada arriba
+    g.font = 'bold 11.5px ui-monospace,monospace';
+    const w = g.measureText(txt).width + 24;
+    const yEt = y - 16;
+    const alt = 23;
+
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,.75)';
+    g.shadowBlur = 9;
+    g.shadowOffsetY = 2;
     g.fillStyle = col;
-    redondeado(g, 10, yEt - 10, w, 20, 6); g.fill();
+    redondeado(g, 10, yEt - alt / 2, w, alt, 7); g.fill();
+    g.restore();
+
+    // Borde claro: la separa de las velas del mismo color
+    g.strokeStyle = 'rgba(255,255,255,.5)';
+    g.lineWidth = 1.3;
+    redondeado(g, 10, yEt - alt / 2, w, alt, 7); g.stroke();
+
+    /* Una marca de fuerza a la izquierda: más gruesa, nivel más
+       fiable. Es información, no adorno. */
+    const marca = Math.max(2, (n.fuerza / 100) * 4);
+    g.fillStyle = 'rgba(255,255,255,.85)';
+    g.fillRect(14, yEt - alt / 2 + 5, marca, alt - 10);
+
     g.fillStyle = esS ? '#04210f' : '#2a0509';
     g.textAlign = 'left';
-    g.fillText(txt, 20, yEt + 4);
+    g.fillText(txt, 14 + marca + 6, yEt + 4);
   });
 
   /* ══ LAS VELAS ══ */
@@ -2266,9 +2288,14 @@ function dibujar() {
        nace en el izquierdo y muere en el derecho. Nada más. */
     g.strokeStyle = col + 'cc';
     g.setLineDash([5, 4]); g.lineWidth = 1.6;
+    /* [CORREGIDO] La línea quedaba desfasada porque idxVis apunta al
+       CENTRO de la vela. Se extiende medio paso a cada lado para que
+       toque los dos picos de verdad. */
+    const xIz = Math.max(0, x1p - paso / 2);
+    const xDe = Math.min(x1, x2p + paso / 2);
     g.beginPath();
-    g.moveTo(Math.max(0, x1p), yC);
-    g.lineTo(Math.min(x1, x2p), yC);
+    g.moveTo(xIz, yC);
+    g.lineTo(xDe, yC);
     g.stroke();
     g.setLineDash([]);
 
@@ -2276,8 +2303,8 @@ function dibujar() {
     g.strokeStyle = col + '77';
     g.lineWidth = 1.2;
     g.beginPath();
-    g.moveTo(Math.max(0, x1p), yN);
-    g.lineTo(Math.min(x1, x2p), yN);
+    g.moveTo(xIz, yN);
+    g.lineTo(xDe, yN);
     g.stroke();
 
     const et = (suelo ? 'DOBLE SUELO' : 'DOBLE TECHO') + (d.confirmado ? ' ✓' : '');
@@ -2353,23 +2380,31 @@ function dibujar() {
       g.strokeRect(Math.max(0, xR - paso / 2), yTop, x1 - Math.max(0, xR - paso / 2), alto);
       g.setLineDash([]);
 
-      /* "BARRIDO" no lo entiende nadie. Se llama por lo que es. */
+      /* [CORREGIDO] La etiqueta buscaba hueco por su cuenta y
+         acababa en sitios distintos cada vez: parecía que bailaba.
+
+         Ahora va SIEMPRE pegada dentro de su rectángulo, arriba a
+         la izquierda de la zona. Si la zona es muy fina, se pone
+         justo encima. Nombres cortos, que los largos no cabían. */
       const et = e.tipo === 'ob'
-        ? (e.dir === 'alcista' ? 'ZONA DE COMPRA INSTITUCIONAL' : 'ZONA DE VENTA INSTITUCIONAL')
-        : (e.dir === 'alcista' ? 'CAZA DE STOPS ABAJO' : 'CAZA DE STOPS ARRIBA');
+        ? (e.dir === 'alcista' ? 'DEMANDA INSTITUCIONAL' : 'OFERTA INSTITUCIONAL')
+        : (e.dir === 'alcista' ? 'STOPS BARRIDOS ABAJO' : 'STOPS BARRIDOS ARRIBA');
       g.font = 'bold 9px ui-monospace,monospace';
-      const w = g.measureText(et).width + 12;
-      /* Desplazada a la derecha, dentro de su rectángulo: pegada al
-         borde izquierdo siempre caía sobre las velas. */
-      const xEt = Math.max(2, Math.min(x1 - w - 4, xR + paso * 2.5));
-      const h3 = hueco(xEt, yTop - 16, w, 15);
-      if (h3) {
-        g.fillStyle = col;
-        redondeado(g, h3.x, h3.y, w, 15, 4); g.fill();
-        g.fillStyle = e.dir === 'alcista' ? '#04210f' : '#2a0509';
-        g.textAlign = 'left';
-        g.fillText(et, h3.x + 6, h3.y + 11);
-      }
+      const w = g.measureText(et).width + 13;
+      const xEt = Math.max(3, Math.min(x1 - w - 4, Math.max(0, xR - paso / 2) + 4));
+      /* Dentro si cabe, encima si no: posición fija, sin saltos. */
+      const yEt2 = alto >= 22 ? yTop + 3 : yTop - 17;
+
+      g.save();
+      g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 7; g.shadowOffsetY = 1.5;
+      g.fillStyle = col;
+      redondeado(g, xEt, yEt2, w, 16, 5); g.fill();
+      g.restore();
+      g.strokeStyle = 'rgba(255,255,255,.42)'; g.lineWidth = 1.1;
+      redondeado(g, xEt, yEt2, w, 16, 5); g.stroke();
+      g.fillStyle = e.dir === 'alcista' ? '#04210f' : '#2a0509';
+      g.textAlign = 'left';
+      g.fillText(et, xEt + 7, yEt2 + 11);
 
       /* El volumen negociado dentro, a la DERECHA de la zona para
          no taparle las velas. Dice quién mandó ahí dentro. */
@@ -2642,13 +2677,14 @@ function burbujas() {
         </div>
 
         <!-- Herramientas que el usuario puede pedir -->
-        ${idx === 0 && N.fibo ? `
+        ${idx === 0 ? `
         <div class="nv-herr">
           <div class="nv-herr-t">${esc(T('Herramientas profesionales'))}</div>
           <div class="nv-herr-rej">
-            <button class="nv-herr-b ${N.verFibo ? 'on' : ''}" type="button" data-fib="1">
+            <button class="nv-herr-b ${N.verFibo ? 'on' : ''} ${!N.fibo ? 'no-hay' : ''}"
+                    type="button" data-fib="1" ${!N.fibo ? 'disabled' : ''}>
               <b>${esc(T('Fibonacci'))}</b>
-              <span>${esc(T('Zona premium de entrada'))}</span>
+              <span>${N.fibo ? esc(T('Zona premium de entrada')) : esc(T('Necesita un impulso claro'))}</span>
             </button>
             <button class="nv-herr-b ${N.verVWAP ? 'on' : ''}" type="button" data-vwap="1">
               <b>${esc(T('VWAP anclado'))}</b>
