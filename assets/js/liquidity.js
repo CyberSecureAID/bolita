@@ -1438,27 +1438,13 @@ function dibujar() {
      partido en compra y venta. Nada de placeholders.
      ══════════════════════════════════════════════════════════════ */
   V.tachuelas = [];
-  if (zonasLiq.length) {
+  /* Las tachuelas se ESCONDEN cuando el perfil de volumen está activo
+     (comparten la misma banda derecha) y reaparecen al apagarlo. */
+  if (zonasLiq.length && !V.verPerfil) {
     const fmtVol = (n) => n >= 1e9 ? (n / 1e9).toFixed(1) + 'B'
       : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M'
       : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toString();
-
-    // cuerpo redondeado con colita de globo en la esquina inferior izquierda
-    const cuerpoTach = (x, y, w, h, r) => {
-      g.beginPath();
-      g.moveTo(x + r, y);
-      g.lineTo(x + w - r, y);
-      g.arcTo(x + w, y, x + w, y + r, r);
-      g.lineTo(x + w, y + h - r);
-      g.arcTo(x + w, y + h, x + w - r, y + h, r);
-      g.lineTo(x + r + 6, y + h);
-      g.lineTo(x - 3, y + h + 8);          // punta de la cola
-      g.lineTo(x + r - 1, y + h);
-      g.arcTo(x, y + h, x, y + h - r, r);
-      g.lineTo(x, y + r);
-      g.arcTo(x, y, x + r, y, r);
-      g.closePath();
-    };
+    const precioAhora = ult.c;
 
     zonasLiq.forEach((z, idx) => {
       const yN = Y(z.precio);
@@ -1469,83 +1455,108 @@ function dibujar() {
         if (v.h >= z.pLow && v.l <= z.pHigh) { if (v.c >= v.o) volC += v.v; else volV += v.v; }
       }
 
-      const w = 104, h = 22, r = 7;
-      const x = x1 - w - 8;
-      const y = Math.max(4, Math.min(y1 - h - 10, yN - h / 2));
+      /* Color por posición: las de DEBAJO del precio (soportes) en VERDE,
+         las de ENCIMA (resistencias) en ROJO. Colores vivos y prominentes. */
+      const alcista = z.precio < precioAhora;
+      const col = alcista ? '#2ee86a' : '#ff3b52';
+      const cRGB = alcista ? '46,232,106' : '255,59,82';
 
-      // flecha + guía tenue apuntando al nivel exacto (hacia la izquierda)
-      g.strokeStyle = 'rgba(255,70,90,.35)'; g.lineWidth = 1; g.setLineDash([2, 3]);
-      g.beginPath(); g.moveTo(xVelas + 4, yN); g.lineTo(x - 6, yN); g.stroke();
+      const w = 96, h = 22, r = 8;
+      // Pegadas al ÁREA ROJA que señalan (lado izquierdo de la banda, donde
+      // acaban las barras), no al extremo derecho.
+      const x = Math.max(6, Math.min(x1 - w - 4, xVelas + 8));
+      const y = Math.max(4, Math.min(y1 - h - 6, yN - h / 2));
+
+      // guía + flecha que conecta la tachuela con el nivel rojo (a la izq.)
+      g.strokeStyle = `rgba(${cRGB},.55)`; g.lineWidth = 1.3; g.setLineDash([2, 3]);
+      g.beginPath(); g.moveTo(xVelas - 22, yN); g.lineTo(x - 2, yN); g.stroke();
       g.setLineDash([]);
-      g.fillStyle = '#ff465a';
-      g.beginPath(); g.moveTo(x - 6, yN); g.lineTo(x - 1, yN - 4); g.lineTo(x - 1, yN + 4); g.closePath(); g.fill();
+      g.fillStyle = col;
+      g.beginPath(); g.moveTo(xVelas - 28, yN); g.lineTo(xVelas - 21, yN - 5); g.lineTo(xVelas - 21, yN + 5); g.closePath(); g.fill();
 
-      // cuerpo
+      // cuerpo redondeado (SIN colita), con borde vivo y leve resplandor
       g.save();
-      g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 8; g.shadowOffsetY = 2;
-      g.fillStyle = 'rgba(19,23,30,.97)';
-      cuerpoTach(x, y, w, h, r); g.fill();
+      g.shadowColor = `rgba(${cRGB},.5)`; g.shadowBlur = 9;
+      g.fillStyle = `rgba(${cRGB},.12)`;
+      redondeadoLq(g, x, y, w, h, r); g.fill();
       g.restore();
-      g.strokeStyle = 'rgba(255,70,90,.8)'; g.lineWidth = 1.2;
-      cuerpoTach(x, y, w, h, r); g.stroke();
+      g.fillStyle = 'rgba(14,18,25,.9)';
+      redondeadoLq(g, x, y, w, h, r); g.fill();
+      g.strokeStyle = col; g.lineWidth = 1.6;
+      redondeadoLq(g, x, y, w, h, r); g.stroke();
 
-      // puntico latente (dot + anillo)
+      // puntico latente (dot + anillo) del color de la tachuela
       const dx = x + 13, dy = y + h / 2;
-      g.fillStyle = '#ff465a'; g.beginPath(); g.arc(dx, dy, 3, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = 'rgba(255,70,90,.45)'; g.lineWidth = 1.4;
+      g.fillStyle = col; g.beginPath(); g.arc(dx, dy, 3, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = `rgba(${cRGB},.5)`; g.lineWidth = 1.4;
       g.beginPath(); g.arc(dx, dy, 6.2, 0, Math.PI * 2); g.stroke();
 
       // precio
-      g.fillStyle = '#eaecef'; g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'left';
+      g.fillStyle = '#eef1f4'; g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'left';
       g.fillText(fmt(z.precio), x + 24, y + h / 2 + 3.5);
 
-      // chevron desplegable (▾ / ▴)
+      // chevron desplegable, del MISMO color de la tachuela
       const abierta = V.tachAbierta === idx;
       const cx = x + w - 13, cy = y + h / 2;
-      g.strokeStyle = '#E8B84B'; g.lineWidth = 1.6; g.lineCap = 'round';
+      g.strokeStyle = col; g.lineWidth = 1.8; g.lineCap = 'round';
       g.beginPath();
       if (abierta) { g.moveTo(cx - 4, cy + 2); g.lineTo(cx, cy - 2); g.lineTo(cx + 4, cy + 2); }
       else { g.moveTo(cx - 4, cy - 2); g.lineTo(cx, cy + 2); g.lineTo(cx + 4, cy - 2); }
       g.stroke(); g.lineCap = 'butt';
 
-      // hitbox (incluye la colita)
-      V.tachuelas.push({ x, y, w, h: h + 8, idx });
+      V.tachuelas.push({ x, y, w, h, idx });
 
-      // ── DESPLEGABLE ──
+      // ── DESPLEGABLE ── se abre a la IZQUIERDA (dentro de la gráfica), no
+      //    hacia abajo, para no tapar las tachuelas de más abajo.
       if (abierta) {
         const volT = volC + volV || 1;
-        const pw = 216, lineas = 3;
-        const ph = 92;
-        const py = Math.max(4, Math.min(y1 - ph - 4, y + h + 10));
-        const pxL = x1 - pw - 8;
+        const pw = 224, ph = 116;
+        const pxL = Math.max(6, x - pw - 12);
+        const py = Math.max(4, Math.min(y1 - ph - 4, yN - ph / 2));
+
+        // conector desde la tachuela al panel
+        g.strokeStyle = `rgba(${cRGB},.5)`; g.lineWidth = 1.2;
+        g.beginPath(); g.moveTo(x, y + h / 2); g.lineTo(pxL + pw, py + ph / 2); g.stroke();
+
         g.save();
-        g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 12; g.shadowOffsetY = 3;
-        g.fillStyle = 'rgba(15,19,26,.98)';
-        redondeadoLq(g, pxL, py, pw, ph, 10); g.fill();
+        g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 14; g.shadowOffsetY = 3;
+        g.fillStyle = 'rgba(15,19,26,.99)';
+        redondeadoLq(g, pxL, py, pw, ph, 12); g.fill();
         g.restore();
-        g.strokeStyle = 'rgba(232,184,75,.4)'; g.lineWidth = 1;
-        redondeadoLq(g, pxL, py, pw, ph, 10); g.stroke();
+        g.strokeStyle = `rgba(${cRGB},.55)`; g.lineWidth = 1.2;
+        redondeadoLq(g, pxL, py, pw, ph, 12); g.stroke();
 
+        const tx = pxL + 13;
         g.textAlign = 'left';
-        g.fillStyle = '#E8B84B'; g.font = 'bold 10px ui-monospace,monospace';
-        g.fillText('ZONA DE ALTA LIQUIDEZ', pxL + 12, py + 16);
-        g.fillStyle = '#c4ccd4'; g.font = '9px ui-monospace,monospace';
-        g.fillText('Alta probabilidad de reacción del', pxL + 12, py + 30);
-        g.fillText('precio al alcanzar ' + fmt(z.precio) + '.', pxL + 12, py + 41);
+        g.fillStyle = col; g.font = 'bold 10px ui-monospace,monospace';
+        g.fillText((alcista ? '▲ SOPORTE' : '▼ RESISTENCIA') + ' · ALTA LIQUIDEZ', tx, py + 17);
 
-        // datos reales: muros + volumen negociado compra/venta
+        g.fillStyle = '#d3dae1'; g.font = '9px ui-monospace,monospace';
+        g.fillText('Aquí se juntan muchas órdenes. El precio', tx, py + 32);
+        g.fillText('suele frenar o rebotar al tocar ' + fmt(z.precio) + '.', tx, py + 43);
+        g.fillStyle = '#9aa4af';
+        g.fillText(alcista ? 'Zona para vigilar rebotes o poner tu stop.'
+                           : 'Zona para tomar ganancias o cuidar la subida.', tx, py + 56);
+
+        // Volumen negociado — con etiquetas claras
         g.fillStyle = '#8b95a1'; g.font = '8.5px ui-monospace,monospace';
-        g.fillText('Muros acumulados: ' + z.filas + '  ·  vol. negociado', pxL + 12, py + 55);
-        // barra compra/venta
-        const bx = pxL + 12, by = py + 62, bw = pw - 24, bh = 8;
+        g.fillText('Volumen ya negociado aquí (' + z.filas + ' muros):', tx, py + 72);
+        const bx = tx, by = py + 78, bw = pw - 26, bh = 9;
         const wc = bw * (volC / volT);
-        g.fillStyle = 'rgba(46,232,106,.9)'; g.fillRect(bx, by, wc, bh);
-        g.fillStyle = 'rgba(255,70,90,.9)'; g.fillRect(bx + wc, by, bw - wc, bh);
-        g.fillStyle = '#2ee86a'; g.font = 'bold 9px ui-monospace,monospace';
-        g.fillText('C ' + fmtVol(volC), bx, by + bh + 12);
-        g.textAlign = 'right';
-        g.fillStyle = '#ff6b7a'; g.fillText('V ' + fmtVol(volV), bx + bw, by + bh + 12);
-        g.textAlign = 'left';
+        g.fillStyle = 'rgba(46,232,106,.95)'; g.fillRect(bx, by, wc, bh);
+        g.fillStyle = 'rgba(255,70,90,.95)'; g.fillRect(bx + wc, by, bw - wc, bh);
+        g.strokeStyle = 'rgba(255,255,255,.15)'; g.lineWidth = 1; g.strokeRect(bx, by, bw, bh);
+        g.font = 'bold 9px ui-monospace,monospace';
+        g.fillStyle = '#2ee86a'; g.textAlign = 'left';
+        g.fillText('Compras ' + fmtVol(volC), bx, by + bh + 12);
+        g.fillStyle = '#ff6b7a'; g.textAlign = 'right';
+        g.fillText('Ventas ' + fmtVol(volV), bx + bw, by + bh + 12);
+        // veredicto en lenguaje llano
+        const dom = volC > volV * 1.25 ? ['Dominan los compradores', '#2ee86a']
+          : volV > volC * 1.25 ? ['Dominan los vendedores', '#ff6b7a']
+          : ['Compras y ventas equilibradas', '#c4ccd4'];
+        g.textAlign = 'left'; g.fillStyle = dom[1]; g.font = '8.5px ui-monospace,monospace';
+        g.fillText(dom[0], tx, py + ph - 8);
       }
     });
   }
