@@ -166,7 +166,20 @@ function abrirMenu(cx, cy, cfg, ev) {
   const y = cy - r.top;
   const precio = cfg.precioEn(y);
   const actual = cfg.precioActual();
-  if (!(precio > 0) || !(actual > 0)) return;
+  /* Si el gráfico aún no tiene datos, se dice en vez de no hacer
+     nada: el usuario pensaba que el clic derecho estaba roto. */
+  if (!(precio > 0) || !(actual > 0)) {
+    const t = document.createElement('div');
+    t.className = 'od-toast';
+    t.innerHTML = `<span class="od-t-ic">◔</span>
+      <div><b>${esc(T('Un momento'))}</b>
+      <span>${esc(T('El gráfico todavía se está cargando. Inténtalo en unos segundos.'))}</span></div>
+      <button type="button" class="od-t-x">✕</button>`;
+    document.body.appendChild(t);
+    t.querySelector('.od-t-x').onclick = () => t.remove();
+    setTimeout(() => { if (t.parentNode) t.remove(); }, 4000);
+    return;
+  }
 
   /* Encima del precio actual = vender. Debajo = comprar. */
   const vender = precio > actual;

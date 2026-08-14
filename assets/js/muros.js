@@ -631,7 +631,14 @@ function dibujar() {
           const { pMin, pMax, y1 } = M._geo;
           return pMin + (pMax - pMin) * ((y1 - y) / y1);
         },
-        precioActual: () => M.precio,
+        precioActual: () => {
+          /* El precio del libro puede tardar en llegar. Si aún no
+             está, se usa el cierre de la última vela: así el menú
+             de órdenes funciona desde el primer momento. */
+          if (M.precio > 0) return M.precio;
+          const v = M.velas || [];
+          return v.length ? v[v.length - 1].c : 0;
+        },
         par: () => _par,
         simbolo: () => (PARES.find((p) => p.id === _par) || {}).s || '',
         repintar: () => pintar()
@@ -652,6 +659,9 @@ function dibujar() {
   g.fillRect(0, 0, W, H);
 
   const esp = $('mu-esperando');
+  /* En cuanto hay velas se aparta del todo, aunque el libro siga
+     acumulando tomas: el gráfico ya se puede usar. */
+  if (esp && M.velas.length && !M.cargando) esp.style.display = 'none';
   if (M.cargando || !M.velas.length) {
     if (esp) {
       esp.style.display = '';
@@ -1566,7 +1576,11 @@ function estilos() {
   #mu-overlay .mu-marca{position:absolute;left:14px;bottom:30px;height:38px;width:auto;opacity:.75;pointer-events:none;filter:drop-shadow(0 2px 8px rgba(0,0,0,.95))}
 
   /* Pantalla de espera */
-  #mu-overlay .mu-esperando{position:absolute;inset:0;display:flex;flex-direction:column;
+  /* [CORREGIDO] Esta capa tapaba el lienzo y se comía el clic
+     derecho: por eso no salía el menú de órdenes en el Radar.
+     Mientras informa no necesita recibir clics. */
+  #mu-overlay .mu-esperando{pointer-events:none;
+    position:absolute;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:12px;text-align:center;padding:30px;
     background:rgba(8,11,16,.96)}
   #mu-overlay .mu-spin{width:38px;height:38px;border-radius:50%;
