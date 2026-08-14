@@ -1042,8 +1042,10 @@ function marea(velas, atr) {
     ruptura: precio < estLo
   };
   const pctDe = (o) => Math.round((Object.values(o).filter(Boolean).length / 5) * 100);
+  const cumplidosDe = (o) => Object.values(o).filter(Boolean).length;
   const faltaLong = precio > estHi ? 0 : ((estHi - precio) / precio) * 100;
   const faltaShort = precio < estLo ? 0 : ((precio - estLo) / precio) * 100;
+  const volRel = vmU > 0 ? velas[iU].v / vmU : 0;
 
   return {
     colorAhora, runLen, anchoAhora: anchoU,
@@ -1057,9 +1059,10 @@ function marea(velas, atr) {
     motivoLateral: aU.adx < MAR.UMBRAL_ADX ? 'adx' : (anchoU < MAR.ANCHO_MIN ? 'banda' : null),
     finde: esFinde(velas[iU].t),
     panel: {
-      adx: aU.adx,
-      long:  { pct: pctDe(long),  met: long,  falta: faltaLong,  nivel: estHi },
-      short: { pct: pctDe(short), met: short, falta: faltaShort, nivel: estLo }
+      adx: aU.adx, diMas: aU.diMas, diMenos: aU.diMenos,
+      volRel, runLen, color: colorAhora, ancho: anchoU,
+      long:  { pct: pctDe(long),  cumplidos: cumplidosDe(long),  met: long,  falta: faltaLong,  nivel: estHi },
+      short: { pct: pctDe(short), cumplidos: cumplidosDe(short), met: short, falta: faltaShort, nivel: estLo }
     }
   };
 }
@@ -2378,8 +2381,8 @@ function dibujar() {
      El detector de cambio de ciclo. Ya NO dibuja ningún canal ni
      ninguna línea que siga al precio: eso era un SuperTrend disfrazado.
      Solo deja las TACHUELAS del giro (a la cola, para que queden por
-     encima de todo) y una etiqueta de estado. El resto de la lectura
-     (Heikin Ashi, ADX…) es interno y no se ve. */
+     encima de todo). El estado (lado, lateral, finde) lo cuenta el
+     panel de confluencia, así que aquí no se repite ninguna etiqueta. */
   if (N.marea && N.verMarea) {
     const MA = N.marea;
     const primG = Math.max(0, fin - ancho);
@@ -2393,21 +2396,6 @@ function dibujar() {
       if (x < 10 || x > x1 - 10) return;
       tachuelas.push({ x, y: Y(sg.precio), alc: sg.dir === 'compra' });
     });
-
-    /* El estado, arriba: qué está haciendo la herramienta */
-    let et, col, tinta;
-    if (MA.finde) { et = 'MAREA · FIN DE SEMANA, NO OPERO'; col = '#8b96a3'; tinta = '#0b0f16'; }
-    else if (MA.lateral) {
-      et = MA.motivoLateral === 'banda' ? 'MAREA · SIN RECORRIDO, ESPERO'
-                                        : 'MAREA · MERCADO LATERAL, ESPERO';
-      col = '#C9A84B'; tinta = '#2a1c00';
-    }
-    else if (MA.colorAhora === 1) { et = 'MAREA · LADO COMPRADOR'; col = '#2ee86a'; tinta = '#04210f'; }
-    else { et = 'MAREA · LADO VENDEDOR'; col = '#FF0000'; tinta = '#FFD400'; }
-    g.font = 'bold 10px ui-monospace,monospace';
-    const wE = g.measureText(et).width + 20;
-    etiquetas.push({ txt: et, x: 10, y: 10, w: wE, h: 21,
-                     fondo: col, tinta, borde: 'rgba(232,184,75,.9)' });
   }
 
   /* ══ EL CANAL DEL RANGO ══
@@ -2838,110 +2826,208 @@ function redondeado(g, x, y, w, h, r) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   EL PANEL DE PROBABILIDAD DE MAREA
+   EL PANEL DE MAREA — tablero de confluencia
 
-   Va dentro de la gráfica, arriba a la derecha. Para alguien que no
-   sabe leer una gráfica, es lo que le dice si conviene estar atento o
-   si puede irse: cuántos requisitos de cada señal están ya cumplidos,
-   y cuánto tiene que moverse el precio para dispararla.
+   Va dentro de la gráfica, arriba a la derecha. No es una raya de
+   colores: es un instrumento. Reúne en un sitio la lectura de los
+   indicadores internos (Heikin Ashi, ADX/DI, volumen, estructura y
+   ciclo) y enseña cuántos coinciden ahora mismo — la CONFLUENCIA — más
+   cuánto le falta al precio para disparar cada señal.
 
-   El porcentaje NO es una predicción. Es cuántos de los cinco
-   confirmadores de la señal se cumplen ahora mismo. Se dice así, con
-   todas las letras, en el pie del panel.
+   El anillo y los porcentajes NO son una predicción: son cuántos de
+   los cinco confirmadores se cumplen. Se dice así en el pie.
    ══════════════════════════════════════════════════════════════ */
 function panelMarea(g, MA, x1, W) {
   const P = MA.panel;
-  const PW = 208;                         // ancho del panel
-  const px = Math.max(8, x1 - PW - 12);   // pegado al borde derecho, dentro
-  let py = 12;
-  const pad = 12;
+  const oro = '#E8B84B', oroSuave = 'rgba(232,184,75,.55)';
+  const verde = '#2ee86a', rojo = '#FF0000';
+  const apagado = '#39414b';
 
-  // Altura según el estado (finde/lateral llevan una línea de aviso)
-  const avisando = MA.finde || MA.lateral;
-  const PH = 150 + (avisando ? 20 : 0);
+  const PW = Math.min(218, Math.max(150, x1 - 16));
+  const px = Math.max(8, x1 - PW - 10);
+  const py = 12;
+  const pad = 13;
+  const cx0 = px + pad;                 // margen izquierdo del contenido
+  const anchoInt = PW - pad * 2;
 
-  // Fondo: negro con borde dorado. La identidad manda.
+  // Dirección dominante (la de más confluencia) y su estado
+  const dom = P.long.pct >= P.short.pct ? 'long' : 'short';
+  const D = dom === 'long' ? P.long : P.short;
+  const colDom = dom === 'long' ? verde : rojo;
+  const activo = !MA.finde && !MA.lateral;
+
+  // Chip de estado
+  let chip, chipCol, chipTinta;
+  if (MA.finde) { chip = 'FIN DE SEMANA'; chipCol = '#8b96a3'; chipTinta = '#0b0f16'; }
+  else if (MA.lateral) { chip = MA.motivoLateral === 'banda' ? 'SIN RECORRIDO' : 'LATERAL'; chipCol = '#C9A84B'; chipTinta = '#2a1c00'; }
+  else if (P.color === 1) { chip = 'LADO COMPRADOR'; chipCol = verde; chipTinta = '#04210f'; }
+  else { chip = 'LADO VENDEDOR'; chipCol = rojo; chipTinta = '#FFD400'; }
+
+  // Alto dinámico
+  const yHead = py + pad + 4;
+  const yRing = yHead + 20;
+  const RING = 30;                      // radio del anillo
+  const ringB = yRing + RING * 2 + 16;  // fin del bloque de confluencia
+  const yBars = ringB + 4;
+  const PH = (yBars - py) + 2 * 40 + 22;   // 40 por barra (pct+barra+falta) + zona de pie
+
+  // ── Fondo: negro con un degradado sutil y borde dorado ──
   g.save();
-  g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 16; g.shadowOffsetY = 4;
-  g.fillStyle = 'rgba(13,17,23,.94)';
-  redondeado(g, px, py, PW, PH, 12); g.fill();
+  g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 18; g.shadowOffsetY = 5;
+  const grad = g.createLinearGradient(0, py, 0, py + PH);
+  grad.addColorStop(0, 'rgba(22,27,34,.96)');
+  grad.addColorStop(1, 'rgba(11,14,20,.96)');
+  g.fillStyle = grad;
+  redondeado(g, px, py, PW, PH, 13); g.fill();
   g.restore();
-  g.strokeStyle = 'rgba(232,184,75,.55)'; g.lineWidth = 1.2;
-  redondeado(g, px, py, PW, PH, 12); g.stroke();
+  g.strokeStyle = oroSuave; g.lineWidth = 1.2;
+  redondeado(g, px, py, PW, PH, 13); g.stroke();
 
-  let y = py + pad;
+  // Marcas de esquina tipo instrumento (look "caro")
+  g.strokeStyle = oro; g.lineWidth = 1.4;
+  const mc = 9, off = 6;
+  const esquina = (ex, ey, dx, dy) => {
+    g.beginPath();
+    g.moveTo(ex + dx * off, ey + dy * off + dy * mc);
+    g.lineTo(ex + dx * off, ey + dy * off);
+    g.lineTo(ex + dx * off + dx * mc, ey + dy * off);
+    g.stroke();
+  };
+  esquina(px, py, 1, 1); esquina(px + PW, py, -1, 1);
+  esquina(px, py + PH, 1, -1); esquina(px + PW, py + PH, -1, -1);
 
-  // Cabecera
+  // ── Cabecera: marca + chip de estado ──
   g.textAlign = 'left';
-  g.font = 'bold 9px ui-monospace,monospace';
-  g.fillStyle = '#E8B84B';
-  g.fillText('MAREA · PRÓXIMA SEÑAL', px + pad, y + 8);
-  y += 20;
+  g.font = 'bold 11px ui-monospace,monospace';
+  g.fillStyle = oro;
+  g.fillText('◈ MAREA', cx0, yHead);
+  // chip a la derecha
+  g.font = 'bold 8px ui-monospace,monospace';
+  const cw = g.measureText(chip).width + 12;
+  const chx = px + PW - pad - cw, chy = yHead - 10;
+  g.fillStyle = chipCol;
+  redondeado(g, chx, chy, cw, 15, 4); g.fill();
+  g.fillStyle = chipTinta;
+  g.fillText(chip, chx + 6, chy + 10.5);
 
-  // Estado (ADX / lateral / finde)
-  g.font = '9px ui-monospace,monospace';
-  if (MA.finde) {
-    g.fillStyle = '#8b96a3';
-    g.fillText('Fin de semana · no opero', px + pad, y + 6);
-    y += 20;
-  } else if (MA.lateral) {
-    g.fillStyle = '#C9A84B';
-    const txt = MA.motivoLateral === 'banda'
-      ? `Sin recorrido · banda ${MA.anchoAhora.toFixed(1)}% (desde 2%)`
-      : `Lateral · ADX ${P.adx.toFixed(0)} (desde 20)`;
-    g.fillText(txt, px + pad, y + 6);
-    y += 20;
-  } else {
-    g.fillStyle = '#7d8794';
-    g.fillText(`ADX ${P.adx.toFixed(0)} · hay tendencia real`, px + pad, y + 6);
-    y += 16;
+  // Línea divisoria fina
+  g.strokeStyle = 'rgba(232,184,75,.22)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(cx0, yHead + 8); g.lineTo(px + PW - pad, yHead + 8); g.stroke();
+
+  // ── Anillo de CONFLUENCIA (5 segmentos) ──
+  const cx = cx0 + RING + 2;
+  const cy = yRing + RING;
+  const score = D.cumplidos;            // 0..5 de la dirección dominante
+  const seg = (Math.PI * 2) / 5;
+  const gap = 0.16;
+  for (let i = 0; i < 5; i++) {
+    const a0 = -Math.PI / 2 + i * seg + gap / 2;
+    const a1 = -Math.PI / 2 + (i + 1) * seg - gap / 2;
+    g.beginPath();
+    g.arc(cx, cy, RING - 4, a0, a1);
+    g.lineWidth = 6; g.lineCap = 'round';
+    const encendido = activo && i < score;
+    g.strokeStyle = encendido ? colDom : 'rgba(255,255,255,.09)';
+    if (encendido) { g.shadowColor = colDom; g.shadowBlur = 8; } else { g.shadowBlur = 0; }
+    g.stroke();
   }
-
-  // Una fila por lado
-  const fila = (etq, dato, color, alc) => {
-    const bw = PW - pad * 2;
-    // etiqueta + porcentaje
-    g.font = 'bold 11px ui-monospace,monospace';
-    g.fillStyle = color;
-    g.fillText(etq, px + pad, y + 9);
-    g.textAlign = 'right';
+  g.shadowBlur = 0; g.lineCap = 'butt';
+  // Centro del anillo: N/5 y la palabra
+  g.textAlign = 'center';
+  if (activo) {
     g.fillStyle = '#eaecef';
-    g.fillText(dato.pct + '%', px + pad + bw, y + 9);
+    g.font = 'bold 19px ui-monospace,monospace';
+    g.fillText(String(score), cx, cy + 2);
+    g.fillStyle = '#7d8794';
+    g.font = '8px ui-monospace,monospace';
+    g.fillText('de 5', cx, cy + 14);
+  } else {
+    g.fillStyle = '#5a636e';
+    g.font = 'bold 15px ui-monospace,monospace';
+    g.fillText('—', cx, cy + 3);
+  }
+  // Etiqueta bajo el anillo
+  g.font = 'bold 8px ui-monospace,monospace';
+  g.fillStyle = activo ? colDom : '#6b7480';
+  g.fillText(activo ? (dom === 'long' ? 'CONFLUENCIA ▲' : 'CONFLUENCIA ▼') : 'EN PAUSA', cx, cy + RING + 8);
+
+  // ── Sensores de los indicadores internos ──
+  const sx = cx + RING + 12;
+  const sw = px + PW - pad - sx;
+  const met = D.met;
+  const sensores = [
+    { et: 'HA',  ok: met.giroHA,     val: (P.color === 1 ? 'verde' : 'roja') + ' ×' + P.runLen },
+    { et: 'ADX', ok: met.fuerza,     val: P.adx.toFixed(0) + (P.diMas >= P.diMenos ? ' ▲' : ' ▼') },
+    { et: 'VOL', ok: met.volumen,    val: (P.volRel > 0 ? P.volRel.toFixed(1) : '0.0') + '×' },
+    { et: 'EST', ok: met.ruptura,    val: met.ruptura ? 'rota' : 'intacta' },
+    { et: 'CIC', ok: met.cicloPrevio, val: 'ciclo ×' + P.runLen }
+  ];
+  const sh = ((RING * 2) - 2) / 5;      // reparte la altura del anillo
+  g.textAlign = 'left';
+  sensores.forEach((s, i) => {
+    const yy = yRing + i * sh + sh / 2;
+    // lucecita
+    const on = activo && s.ok;
+    g.beginPath(); g.arc(sx + 4, yy, 3.2, 0, Math.PI * 2);
+    if (on) { g.fillStyle = oro; g.shadowColor = oro; g.shadowBlur = 7; }
+    else { g.fillStyle = apagado; g.shadowBlur = 0; }
+    g.fill(); g.shadowBlur = 0;
+    // etiqueta
+    g.font = 'bold 8.5px ui-monospace,monospace';
+    g.fillStyle = on ? '#eaecef' : '#6b7480';
+    g.fillText(s.et, sx + 12, yy + 3);
+    // valor a la derecha
+    g.textAlign = 'right';
+    g.fillStyle = on ? '#aeb6bf' : '#5a636e';
+    g.font = '8.5px ui-monospace,monospace';
+    g.fillText(s.val, px + PW - pad, yy + 3);
     g.textAlign = 'left';
-    y += 15;
-    // barra de progreso
-    const bh = 7;
-    g.fillStyle = 'rgba(255,255,255,.08)';
-    redondeado(g, px + pad, y, bw, bh, 3.5); g.fill();
-    const rell = Math.max(0, Math.min(1, dato.pct / 100)) * bw;
-    if (rell > 2) {
-      g.fillStyle = color;
-      redondeado(g, px + pad, y, rell, bh, 3.5); g.fill();
+  });
+
+  // ── Barras LONG / SHORT ──
+  let y = yBars;
+  const fila = (etq, dato, color, alc) => {
+    g.font = 'bold 10px ui-monospace,monospace';
+    g.fillStyle = color;
+    g.fillText(etq, cx0, y + 9);
+    g.textAlign = 'right';
+    g.fillStyle = activo ? '#eaecef' : '#6b7480';
+    g.fillText(dato.pct + '%', px + PW - pad, y + 9);
+    g.textAlign = 'left';
+    y += 14;
+    // barra con degradado
+    const bh = 6;
+    g.fillStyle = 'rgba(255,255,255,.07)';
+    redondeado(g, cx0, y, anchoInt, bh, 3); g.fill();
+    const rell = Math.max(0, Math.min(1, dato.pct / 100)) * anchoInt;
+    if (rell > 2 && activo) {
+      const gb = g.createLinearGradient(cx0, 0, cx0 + rell, 0);
+      gb.addColorStop(0, alc ? 'rgba(46,232,106,.55)' : 'rgba(255,60,80,.55)');
+      gb.addColorStop(1, color);
+      g.fillStyle = gb;
+      redondeado(g, cx0, y, rell, bh, 3); g.fill();
+    } else if (rell > 2) {
+      g.fillStyle = 'rgba(255,255,255,.14)';
+      redondeado(g, cx0, y, rell, bh, 3); g.fill();
     }
-    y += bh + 6;
+    y += bh + 5;
     // cuánto falta
     g.font = '8.5px ui-monospace,monospace';
     g.fillStyle = '#7d8794';
     let txt;
-    if (MA.finde) {
-      txt = 'en pausa hasta el lunes';
-    } else if (dato.falta <= 0) {
-      txt = alc ? 'nivel ya superado' : 'nivel ya perdido';
-    } else {
-      const signo = alc ? '+' : '−';
-      txt = `${alc ? 'supera' : 'pierde'} ${fmt(dato.nivel)} (${signo}${dato.falta.toFixed(2)}%)`;
-    }
-    g.fillText(txt, px + pad, y + 6);
-    y += 20;
+    if (MA.finde) txt = 'en pausa hasta el lunes';
+    else if (dato.falta <= 0) txt = alc ? 'nivel ya superado' : 'nivel ya perdido';
+    else txt = `${alc ? 'supera' : 'pierde'} ${fmt(dato.nivel)} (${alc ? '+' : '−'}${dato.falta.toFixed(2)}%)`;
+    g.fillText(txt, cx0, y + 6);
+    y += 15;
   };
+  fila('LONG', P.long, verde, true);
+  fila('SHORT', P.short, rojo, false);
 
-  fila('LONG', P.long, '#2ee86a', true);
-  fila('SHORT', P.short, '#FF0000', false);
-
-  // Pie: el porcentaje no es una predicción
-  g.font = '8px ui-monospace,monospace';
+  // ── Pie ──
+  g.font = '7px ui-monospace,monospace';
   g.fillStyle = '#4a525c';
-  g.fillText('% = requisitos cumplidos, no predicción', px + pad, py + PH - 8);
+  g.fillText('confluencia de requisitos, no predicción', cx0, py + PH - 9);
 }
 
 /* ══════════════════════════════════════════════════════════════
