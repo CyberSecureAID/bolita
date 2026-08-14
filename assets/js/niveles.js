@@ -164,6 +164,40 @@ function pivotes(velas, lado = 3) {
       bajos.push({ i, p: v.l, t: v.t });
     }
   }
+  /* ══════════════════════════════════════════════════════════
+     RESPALDO PARA TENDENCIAS FUERTES
+
+     Cuando el precio sube (o baja) sin descanso, no hay máximos
+     locales: cada vela supera a la anterior. Matemáticamente no
+     puede haber pivotes, y el análisis se queda mudo.
+
+     Un trader en ese caso mira otra cosa: los extremos por tramos.
+     Se parte el histórico en bloques y se toma el máximo y el
+     mínimo de cada uno. Son referencias reales, calculadas sobre
+     las velas, no inventadas.
+     ══════════════════════════════════════════════════════════ */
+  if (altos.length < 2 || bajos.length < 2) {
+    const bloques = 8;
+    const paso = Math.max(6, Math.floor(velas.length / bloques));
+    for (let ini = 0; ini + paso <= velas.length; ini += paso) {
+      const tramo = velas.slice(ini, ini + paso);
+      let iA = 0, iB = 0;
+      tramo.forEach((v, k) => {
+        if (v.h > tramo[iA].h) iA = k;
+        if (v.l < tramo[iB].l) iB = k;
+      });
+      const gA = ini + iA, gB = ini + iB;
+      if (!altos.some((x) => Math.abs(x.i - gA) < 3)) {
+        altos.push({ i: gA, p: velas[gA].h, t: velas[gA].t, porTramo: true });
+      }
+      if (!bajos.some((x) => Math.abs(x.i - gB) < 3)) {
+        bajos.push({ i: gB, p: velas[gB].l, t: velas[gB].t, porTramo: true });
+      }
+    }
+    altos.sort((a, b) => a.i - b.i);
+    bajos.sort((a, b) => a.i - b.i);
+  }
+
   return { altos, bajos };
 }
 
