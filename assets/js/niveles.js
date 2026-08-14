@@ -219,7 +219,261 @@ function calcularNiveles(velas, piv, precio) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   5. LA LECTURA — qué decirle al usuario
+   5. IMPULSO Y RETESTEO — el escenario de libro
+
+   Es lo que busca cualquier trader con estructura:
+
+     1. Un IMPULSO fuerte en una dirección (velas grandes seguidas)
+     2. Un RETROCESO que devuelve el precio hacia el origen
+     3. El precio LLEGA a esa zona de origen → entrada a favor
+
+   La zona de origen del impulso es donde entró el dinero que lo
+   provocó. Cuando el precio vuelve ahí, suele defenderse otra vez.
+   ══════════════════════════════════════════════════════════════ */
+function detectarImpulso(velas) {
+  if (velas.length < 30) return null;
+
+  /* Se busca el tramo más fuerte de las últimas 60 velas: una
+     secuencia de velas en la misma dirección con recorrido real. */
+  const n = Math.min(60, velas.length);
+  const tramo = velas.slice(-n);
+
+  // Medida de referencia: el recorrido típico de una vela
+  const rangos = tramo.map((v) => v.h - v.l).sort((a, b) => a - b);
+  const rMed = rangos[Math.floor(rangos.length / 2)] || 1;
+
+  let mejor = null;
+
+  for (let i = 0; i < tramo.length - 5; i++) {
+    for (let largo = 3; largo <= 10 && i + largo < tramo.length; largo++) {
+      const sub = tramo.slice(i, i + largo);
+      const ini = sub[0].o;
+      const fin = sub[sub.length - 1].c;
+      const mov = fin - ini;
+      const pct = Math.abs(mov / ini) * 100;
+
+      // Cuántas velas van en la dirección del movimiento
+      const aFavor = sub.filter((v) => (mov > 0 ? v.c > v.o : v.c < v.o)).length;
+      const pureza = aFavor / largo;
+
+      /* Es impulso si: recorre bastante más que una vela normal,
+         la mayoría de velas van a favor, y el movimiento es
+         significativo en porcentaje. */
+      const fuerza = Math.abs(mov) / (rMed * largo);
+      if (pureza >= 0.7 && fuerza > 0.55 && pct > 1.2) {
+        const puntos = pct * pureza * fuerza;
+        if (!mejor || puntos > mejor.puntos) {
+          mejor = {
+            puntos, pct,
+            dir: mov > 0 ? 'alcista' : 'bajista',
+            iniIdx: velas.length - n + i,
+            finIdx: velas.length - n + i + largo - 1,
+            // La zona de origen: donde arrancó el impulso
+            zonaAlta: Math.max(sub[0].o, sub[0].c, sub[0].h * 0.999),
+            zonaBaja: Math.min(sub[0].o, sub[0].c, sub[0].l * 1.001),
+            precioFin: fin,
+            velas: largo
+          };
+        }
+      }
+    }
+  }
+  if (!mejor) return null;
+
+  /* ¿Hubo retroceso después? Se mira lo que pasó desde que acabó. */
+  const despues = velas.slice(mejor.finIdx + 1);
+  if (!despues.length) return null;
+
+  const precioAhora = velas[velas.length - 1].c;
+  const zonaMedia = (mejor.zonaAlta + mejor.zonaBaja) / 2;
+  const distZona = ((precioAhora - zonaMedia) / precioAhora) * 100;
+
+  /* Cuánto ha retrocedido: 0% = sigue en el extremo, 100% = volvió
+     del todo al origen. Lo interesante está entre el 50% y el 100%. */
+  const recorrido = Math.abs(mejor.precioFin - zonaMedia);
+  const vuelta = recorrido > 0
+    ? (Math.abs(precioAhora - mejor.precioFin) / recorrido) * 100
+    : 0;
+
+  mejor.retroceso = Math.min(150, vuelta);
+  mejor.distZona = distZona;
+  mejor.zonaMedia = zonaMedia;
+  mejor.enZona = Math.abs(distZona) < 1.2;
+  mejor.acercandose = Math.abs(distZona) < 3.5 && vuelta > 45;
+  mejor.velasDesde = despues.length;
+
+  return mejor;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   6. LAS ESTRUCTURAS — lo que un trader profesional busca
+
+   Cuatro patrones reconocidos en el análisis de estructura, cada
+   uno calculado sobre las velas reales y DIBUJADO en la gráfica
+   para que el usuario vea de qué se le habla.
+
+     · BOS   (Break of Structure) — el precio cierra más allá del
+             último máximo o mínimo: la tendencia continúa.
+     · CHoCH (Change of Character) — el primer giro contra la
+             tendencia: puede estar cambiando el ciclo.
+     · Order Block — la última vela contraria antes del impulso.
+             Ahí es donde entró el dinero institucional.
+     · Barrido de liquidez — el precio se pasa de un extremo,
+             recoge los stops y vuelve. Trampa clásica.
+
+   REGLA: solo cuenta el CIERRE del cuerpo, no las mechas. Una
+   mecha que atraviesa un nivel es un barrido, no una ruptura.
+   ══════════════════════════════════════════════════════════════ */
+function detectarEstructuras(velas, piv) {
+  const out = [];
+  if (velas.length < 30 || !piv.altos.length || !piv.bajos.length) return out;
+
+  const ult = velas.length - 1;
+  const reciente = (i) => ult - i <= 25;     // solo lo de ahora, no historia vieja
+
+  /* ── BOS: ruptura de estructura ──
+     El precio cierra por encima del último máximo relevante (alcista)
+     o por debajo del último mínimo (bajista). */
+  const ultAlto = piv.altos[piv.altos.length - 1];
+  const ultBajo = piv.bajos[piv.bajos.length - 1];
+
+  if (ultAlto) {
+    for (let i = ultAlto.i + 1; i < velas.length; i++) {
+      if (velas[i].c > ultAlto.p && reciente(i)) {
+        out.push({
+          tipo: 'bos', dir: 'alcista',
+          nivel: ultAlto.p, iRef: ultAlto.i, iRot: i,
+          nombre: 'Ruptura de estructura al alza',
+          corto: 'BOS alcista'
+        });
+        break;
+      }
+    }
+  }
+  if (ultBajo) {
+    for (let i = ultBajo.i + 1; i < velas.length; i++) {
+      if (velas[i].c < ultBajo.p && reciente(i)) {
+        out.push({
+          tipo: 'bos', dir: 'bajista',
+          nivel: ultBajo.p, iRef: ultBajo.i, iRot: i,
+          nombre: 'Ruptura de estructura a la baja',
+          corto: 'BOS bajista'
+        });
+        break;
+      }
+    }
+  }
+
+  /* ── CHoCH: cambio de carácter ──
+     Veníamos haciendo mínimos crecientes y de pronto se pierde uno,
+     o al revés. Es el primer aviso de que el ciclo puede girar. */
+  const ba = piv.bajos.slice(-3), aa = piv.altos.slice(-3);
+  if (ba.length >= 2 && ba[1].p > ba[0].p) {
+    // veníamos al alza: ¿se ha perdido el último mínimo?
+    const ref = ba[ba.length - 1];
+    for (let i = ref.i + 1; i < velas.length; i++) {
+      if (velas[i].c < ref.p && reciente(i)) {
+        out.push({
+          tipo: 'choch', dir: 'bajista',
+          nivel: ref.p, iRef: ref.i, iRot: i,
+          nombre: 'Cambio de carácter a bajista',
+          corto: 'CHoCH bajista'
+        });
+        break;
+      }
+    }
+  }
+  if (aa.length >= 2 && aa[1].p < aa[0].p) {
+    const ref = aa[aa.length - 1];
+    for (let i = ref.i + 1; i < velas.length; i++) {
+      if (velas[i].c > ref.p && reciente(i)) {
+        out.push({
+          tipo: 'choch', dir: 'alcista',
+          nivel: ref.p, iRef: ref.i, iRot: i,
+          nombre: 'Cambio de carácter a alcista',
+          corto: 'CHoCH alcista'
+        });
+        break;
+      }
+    }
+  }
+
+  /* ── BARRIDO DE LIQUIDEZ ──
+     La mecha atraviesa un extremo previo pero el cuerpo cierra de
+     vuelta: han recogido los stops y han devuelto el precio. */
+  const mirar = velas.slice(-14);
+  const base = velas.length - 14;
+  mirar.forEach((v, k) => {
+    const i = base + k;
+    if (i < 8) return;
+    const previas = velas.slice(Math.max(0, i - 20), i);
+    if (previas.length < 8) return;
+    const maxPrev = Math.max(...previas.map((x) => x.h));
+    const minPrev = Math.min(...previas.map((x) => x.l));
+
+    if (v.h > maxPrev && v.c < maxPrev && (v.h - Math.max(v.o, v.c)) > (v.h - v.l) * 0.42) {
+      out.push({
+        tipo: 'barrido', dir: 'bajista',
+        nivel: v.h, iRef: i, iRot: i,
+        zonaA: v.h, zonaB: maxPrev,
+        nombre: 'Barrido de liquidez arriba',
+        corto: 'Barrido alcista'
+      });
+    }
+    if (v.l < minPrev && v.c > minPrev && (Math.min(v.o, v.c) - v.l) > (v.h - v.l) * 0.42) {
+      out.push({
+        tipo: 'barrido', dir: 'alcista',
+        nivel: v.l, iRef: i, iRot: i,
+        zonaA: minPrev, zonaB: v.l,
+        nombre: 'Barrido de liquidez abajo',
+        corto: 'Barrido bajista'
+      });
+    }
+  });
+
+  /* ── ORDER BLOCK ──
+     La última vela contraria antes de un impulso fuerte. Es donde
+     cargaron las órdenes que provocaron el movimiento. */
+  const rangos = velas.slice(-60).map((v) => v.h - v.l).sort((a, b) => a - b);
+  const rMed = rangos[Math.floor(rangos.length / 2)] || 1;
+
+  for (let i = velas.length - 3; i > Math.max(8, velas.length - 30); i--) {
+    const v = velas[i];
+    const cuerpo = Math.abs(v.c - v.o);
+    if (cuerpo < rMed * 1.4) continue;          // no es impulso
+    const alcista = v.c > v.o;
+
+    // La vela contraria justo antes
+    for (let j = i - 1; j >= Math.max(0, i - 4); j--) {
+      const p = velas[j];
+      const contraria = alcista ? p.c < p.o : p.c > p.o;
+      if (contraria) {
+        out.push({
+          tipo: 'ob', dir: alcista ? 'alcista' : 'bajista',
+          nivel: (p.o + p.c) / 2,
+          zonaA: Math.max(p.o, p.c), zonaB: Math.min(p.o, p.c),
+          iRef: j, iRot: i,
+          nombre: alcista ? 'Zona de demanda institucional' : 'Zona de oferta institucional',
+          corto: alcista ? 'Order block alcista' : 'Order block bajista'
+        });
+        break;
+      }
+    }
+    break;   // solo el más reciente
+  }
+
+  /* Solo lo reciente y sin duplicar: lo que pasa AHORA. */
+  const vistos = new Set();
+  return out.filter((e) => {
+    const k = e.tipo + e.dir;
+    if (vistos.has(k)) return false;
+    vistos.add(k);
+    return true;
+  }).slice(0, 4);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   7. LA LECTURA — qué decirle al usuario
 
    Aquí no se inventa nada: cada frase sale de un dato calculado.
    Y hay varias formas de decir lo mismo, para que no suene a
@@ -232,6 +486,8 @@ function analizar() {
   const piv = pivotes(v);
   N.tendencia = tendencia(v, piv);
   N.rango = detectarRango(v);
+  N.impulso = detectarImpulso(v);
+  N.estructuras = detectarEstructuras(v, piv);
   N.precio = v[v.length - 1].c;
   N.niveles = calcularNiveles(v, piv, N.precio);
 
@@ -247,6 +503,182 @@ function analizar() {
   }
 
   const msgs = [];
+
+  /* ══ EL ESCENARIO DE LIBRO: impulso + retesteo ══
+     Va primero porque es el más operable. Un impulso fuerte deja
+     una zona de origen; cuando el precio vuelve ahí, quien lo
+     provocó suele defenderla otra vez. */
+  const imp = N.impulso;
+  if (imp && (imp.enZona || imp.acercandose)) {
+    const alcista = imp.dir === 'alcista';
+    const zA = imp.zonaAlta, zB = imp.zonaBaja;
+    const stop = alcista ? zB * 0.993 : zA * 1.007;
+    const objetivo = imp.precioFin;
+    const riesgo = Math.abs(N.precio - stop);
+    const premio = Math.abs(objetivo - N.precio);
+    const rr = riesgo > 0 ? premio / riesgo : 0;
+
+    msgs.push({
+      tipo: alcista ? 'compra' : 'venta',
+      p: imp.zonaMedia,
+      prioridad: 10,
+      titulo: imp.enZona
+        ? elegir([
+            alcista ? 'Retesteo en zona de compra' : 'Retesteo en zona de venta',
+            alcista ? 'El precio volvió al origen alcista' : 'El precio volvió al origen bajista',
+            'Retesteo del impulso'
+          ])
+        : elegir([
+            'El precio se acerca a la zona',
+            alcista ? 'Retroceso hacia el origen alcista' : 'Retroceso hacia el origen bajista',
+            'Prepárese: retesteo en camino'
+          ]),
+      txt: imp.enZona
+        ? elegir([
+            `Hubo un impulso ${alcista ? 'alcista' : 'bajista'} del ${imp.pct.toFixed(1)}% en ${imp.velas} velas, y el precio ha vuelto a la zona donde nació (${fmt(zB)}–${fmt(zA)}). Está dentro de ella ahora mismo.`,
+            `El precio ha retrocedido un ${Math.round(imp.retroceso)}% del impulso ${alcista ? 'alcista' : 'bajista'} y está tocando su zona de origen. Ahí es donde entró el dinero que lo movió.`,
+            `Impulso ${alcista ? 'alcista' : 'bajista'} de ${imp.pct.toFixed(1)}% y retesteo completo: el precio está en ${fmt(zB)}–${fmt(zA)}, justo donde arrancó el movimiento.`
+          ])
+        : elegir([
+            `Hubo un impulso ${alcista ? 'alcista' : 'bajista'} del ${imp.pct.toFixed(1)}% y el precio está retrocediendo hacia su origen. Queda un ${Math.abs(imp.distZona).toFixed(1)}% para llegar a ${fmt(zB)}–${fmt(zA)}.`,
+            `El precio ha devuelto un ${Math.round(imp.retroceso)}% del impulso. La zona de origen está a un ${Math.abs(imp.distZona).toFixed(1)}%.`,
+            `Retroceso en marcha hacia ${fmt(zB)}–${fmt(zA)}, la zona que originó el último impulso ${alcista ? 'alcista' : 'bajista'}.`
+          ]),
+      hacer: imp.enZona
+        ? elegir([
+            `${alcista ? 'Compra' : 'Venta'} en esta zona con stop ${alcista ? 'debajo de' : 'encima de'} ${fmt(stop)}. Objetivo el máximo del impulso: ${fmt(objetivo)}. Relación riesgo/beneficio ${rr.toFixed(1)}:1.`,
+            `Entrada a favor del impulso. Stop en ${fmt(stop)}, objetivo ${fmt(objetivo)}. Si pierde la zona, la estructura se rompe y hay que salir.`,
+            `Es la entrada que busca un trader de estructura: stop ajustado en ${fmt(stop)} y recorrido hasta ${fmt(objetivo)}. Riesgo/beneficio de ${rr.toFixed(1)} a 1.`
+          ])
+        : elegir([
+            `Todavía no ha llegado. Ponga alerta en ${fmt(imp.zonaMedia)} y espere a que el precio entre en la zona antes de operar.`,
+            `Prepare la entrada pero no la ejecute aún: espere a que toque ${fmt(zB)}–${fmt(zA)} y reaccione ahí.`,
+            `Falta un ${Math.abs(imp.distZona).toFixed(1)}%. Entrar antes de tiempo es lo que estropea esta operación.`
+          ]),
+      detalle: [
+        `Impulso ${alcista ? 'alcista' : 'bajista'} de ${imp.pct.toFixed(2)}% en ${imp.velas} velas`,
+        `Zona de origen: ${fmt(zB)} – ${fmt(zA)}`,
+        `Retroceso actual: ${Math.round(imp.retroceso)}% del movimiento`,
+        `Stop sugerido: ${fmt(stop)}`,
+        `Objetivo: ${fmt(objetivo)} · Riesgo/beneficio ${rr.toFixed(1)}:1`,
+        `Han pasado ${imp.velasDesde} velas desde que terminó el impulso`,
+        `Vigencia: mientras el precio no cierre ${alcista ? 'por debajo de' : 'por encima de'} ${fmt(stop)}`
+      ]
+    });
+  }
+
+  /* ══ MENSAJES DE ESTRUCTURA ══
+     Cada patrón detectado tiene su lectura y su recomendación, con
+     varias formas de decirlo. Todo sale de datos, nada inventado. */
+  (N.estructuras || []).forEach((e) => {
+    const alc = e.dir === 'alcista';
+
+    if (e.tipo === 'bos') {
+      msgs.push({
+        tipo: alc ? 'compra' : 'venta', p: e.nivel, prioridad: 8, marca: e,
+        titulo: elegir([e.nombre, alc ? 'Estructura rota al alza' : 'Estructura rota a la baja',
+                        alc ? 'Continuación alcista confirmada' : 'Continuación bajista confirmada']),
+        txt: elegir([
+          `El precio cerró ${alc ? 'por encima' : 'por debajo'} de ${fmt(e.nivel)}, rompiendo el último ${alc ? 'máximo' : 'mínimo'} de estructura. La tendencia ${alc ? 'alcista' : 'bajista'} continúa.`,
+          `Ruptura confirmada en ${fmt(e.nivel)}: el cierre superó ese nivel, no fue solo una mecha. Eso valida la continuación.`,
+          `${alc ? 'Los compradores' : 'Los vendedores'} rompieron ${fmt(e.nivel)} con cierre de cuerpo. La estructura sigue ${alc ? 'al alza' : 'a la baja'}.`
+        ]),
+        hacer: elegir([
+          `Tras una ruptura, lo que funciona es esperar el retroceso a ${fmt(e.nivel)}: ese nivel roto suele convertirse en ${alc ? 'soporte' : 'resistencia'}.`,
+          `No persiga el movimiento. Espere a que el precio vuelva a ${fmt(e.nivel)} y reaccione ahí: es la entrada con menos riesgo.`,
+          `Opere a favor de la ruptura, pero en el retroceso. Entrar ahora es entrar en el peor precio del movimiento.`
+        ]),
+        detalle: [
+          `Nivel roto: ${fmt(e.nivel)}`,
+          `Ruptura confirmada por cierre de cuerpo, no por mecha`,
+          `Tipo: ruptura de estructura (BOS) ${alc ? 'alcista' : 'bajista'}`,
+          `Lo que suele pasar: el nivel roto pasa a ser ${alc ? 'soporte' : 'resistencia'}`,
+          `Vigencia: hasta que el precio cierre de vuelta al otro lado`
+        ]
+      });
+    }
+
+    if (e.tipo === 'choch') {
+      msgs.push({
+        tipo: 'vigilar', p: e.nivel, prioridad: 9, marca: e,
+        titulo: elegir([e.nombre, 'Posible giro del ciclo', 'El mercado cambia de carácter']),
+        txt: elegir([
+          `El precio cerró ${alc ? 'por encima' : 'por debajo'} de ${fmt(e.nivel)}, rompiendo la estructura anterior por primera vez en sentido contrario. Es el primer aviso de giro.`,
+          `Cambio de carácter en ${fmt(e.nivel)}: se ha roto el patrón que traía el mercado. Puede estar girando.`,
+          `Primera señal de agotamiento: ${fmt(e.nivel)} cedió y eso rompe la secuencia que venía cumpliéndose.`
+        ]),
+        hacer: elegir([
+          `Un cambio de carácter es un aviso, no una entrada. Espere a que el precio retroceda a una zona ${alc ? 'de demanda' : 'de oferta'} y reaccione ahí.`,
+          `No entre solo por esto. Marque el nivel y espere confirmación: la primera ruptura suele fallar sin retroceso.`,
+          `Reduzca exposición en la dirección anterior. El ciclo puede estar cambiando, pero aún no está confirmado.`
+        ]),
+        detalle: [
+          `Nivel de referencia: ${fmt(e.nivel)}`,
+          `Tipo: cambio de carácter (CHoCH) ${alc ? 'alcista' : 'bajista'}`,
+          `Es el PRIMER giro contra la tendencia, no una confirmación`,
+          `Lo correcto: esperar retroceso a zona institucional antes de entrar`,
+          `Se invalida si el precio recupera el lado anterior`
+        ]
+      });
+    }
+
+    if (e.tipo === 'ob') {
+      const dist = ((e.nivel - N.precio) / N.precio) * 100;
+      msgs.push({
+        tipo: alc ? 'compra' : 'venta', p: e.nivel, prioridad: Math.abs(dist) < 2 ? 9 : 6, marca: e,
+        titulo: elegir([e.nombre, alc ? 'Zona donde compró el dinero grande' : 'Zona donde vendió el dinero grande',
+                        alc ? 'Order block alcista' : 'Order block bajista']),
+        txt: elegir([
+          `Antes del último impulso hubo una vela ${alc ? 'bajista' : 'alcista'} en ${fmt(e.zonaB)}–${fmt(e.zonaA)}: ahí es donde se cargaron las órdenes que movieron el precio. Está a un ${Math.abs(dist).toFixed(1)}%.`,
+          `La zona ${fmt(e.zonaB)}–${fmt(e.zonaA)} originó el impulso. Es donde entró el volumen institucional, y suele defenderse cuando el precio vuelve.`,
+          `Zona institucional marcada en ${fmt(e.zonaB)}–${fmt(e.zonaA)}. El precio salió de ahí con fuerza, y por eso importa.`
+        ]),
+        hacer: Math.abs(dist) < 2
+          ? elegir([
+              `El precio está en la zona. Entrada ${alc ? 'larga' : 'corta'} con stop ${alc ? 'debajo de' : 'encima de'} ${fmt(alc ? e.zonaB * 0.994 : e.zonaA * 1.006)}.`,
+              `Es el momento: reacción en zona institucional. Stop ajustado justo al otro lado del bloque.`,
+              `Zona activa ahora mismo. Si el precio reacciona aquí, es la entrada; si la atraviesa con cierre, se invalida.`
+            ])
+          : elegir([
+              `Ponga alerta en ${fmt(e.nivel)}. Cuando el precio llegue a la zona, ahí se decide.`,
+              `Aún no ha llegado: falta un ${Math.abs(dist).toFixed(1)}%. Prepare la entrada pero no la ejecute.`,
+              `Marque esta zona y espere. Entrar antes de que el precio la toque es adelantarse sin motivo.`
+            ]),
+        detalle: [
+          `Zona: ${fmt(e.zonaB)} – ${fmt(e.zonaA)}`,
+          `Es la última vela ${alc ? 'bajista' : 'alcista'} antes del impulso`,
+          `Distancia al precio: ${Math.abs(dist).toFixed(2)}%`,
+          `Se invalida si el precio cierra al otro lado de la zona`,
+          `Concepto: order block, donde cargó el volumen institucional`
+        ]
+      });
+    }
+
+    if (e.tipo === 'barrido') {
+      msgs.push({
+        tipo: alc ? 'compra' : 'venta', p: e.nivel, prioridad: 7, marca: e,
+        titulo: elegir([e.nombre, 'Trampa de liquidez', alc ? 'Cazaron stops abajo' : 'Cazaron stops arriba']),
+        txt: elegir([
+          `El precio se pasó de ${fmt(e.nivel)} con la mecha pero cerró de vuelta. Han recogido los stops de quien estaba ${alc ? 'largo' : 'corto'} y han devuelto el precio.`,
+          `Barrido en ${fmt(e.nivel)}: la mecha atravesó el extremo pero el cuerpo cerró dentro. Es una trampa clásica.`,
+          `Movimiento falso en ${fmt(e.nivel)}. Se llevaron la liquidez que había ahí y el precio volvió.`
+        ]),
+        hacer: elegir([
+          `Tras un barrido, el precio suele irse ${alc ? 'al alza' : 'a la baja'}. Entrada a favor con stop ${alc ? 'debajo de' : 'encima de'} ${fmt(e.nivel)}.`,
+          `Opere en contra del barrido: quien puso los stops ahí ya está fuera. Stop al otro lado de la mecha.`,
+          `Es de las señales más fiables cuando coincide con una zona institucional. Stop ajustado tras el extremo de la mecha.`
+        ]),
+        detalle: [
+          `Extremo barrido: ${fmt(e.nivel)}`,
+          `La mecha superó el nivel pero el cuerpo cerró de vuelta`,
+          `Significa que se ejecutaron stops y el precio se devolvió`,
+          `Stop sugerido: al otro lado del extremo de la mecha`,
+          `Concepto: barrido de liquidez (liquidity sweep)`
+        ]
+      });
+    }
+  });
+
   const soportes = N.niveles.filter((x) => x.tipo === 'soporte' && x.p < N.precio);
   const resist = N.niveles.filter((x) => x.tipo === 'resistencia' && x.p > N.precio);
   const sCerca = soportes[0];
@@ -421,7 +853,8 @@ function analizar() {
     });
   }
 
-  N.mensajes = msgs;
+  msgs.sort((a, b) => (b.prioridad || 0) - (a.prioridad || 0));
+  N.mensajes = msgs.slice(0, 3);
 }
 
 /** Varias formas de decir lo mismo, para que no suene repetitivo.
@@ -491,6 +924,10 @@ export async function abrirNiveles() {
           <button class="nv-ico" id="nv-x" aria-label="Cerrar">✕</button>
         </div>
       </header>
+
+      <!-- El veredicto de un vistazo: para quien no sabe leer
+           una gráfica, esto es lo único que necesita mirar. -->
+      <div class="nv-veredicto" id="nv-veredicto"></div>
 
       <div class="nv-graf" id="nv-graf">
         <canvas class="nv-cv" id="nv-cv"></canvas>
@@ -567,12 +1004,41 @@ async function recargar() {
 }
 
 function pintarEstado() {
-  const e = $('nv-estado'); if (!e) return;
+  const e = $('nv-estado');
   const t = N.tendencia || { dir: 'indefinida' };
-  const cls = t.dir === 'alcista' ? 'sube' : t.dir === 'bajista' ? 'baja' : 'lat';
-  const txt = N.rango ? 'En rango' : nombreTend(t.dir);
-  e.innerHTML = `<span class="nv-pill ${cls}">${esc(txt.charAt(0).toUpperCase() + txt.slice(1))}</span>
-    <span class="nv-precio">${fmt(N.precio)}</span>`;
+  if (e) {
+    const cls = t.dir === 'alcista' ? 'sube' : t.dir === 'bajista' ? 'baja' : 'lat';
+    const txt = N.rango ? 'En rango' : nombreTend(t.dir);
+    e.innerHTML = `<span class="nv-pill ${cls}">${esc(txt.charAt(0).toUpperCase() + txt.slice(1))}</span>
+      <span class="nv-precio">${fmt(N.precio)}</span>`;
+  }
+
+  /* ══ EL VEREDICTO ══
+     Una línea que resume qué hacer. Para quien no sabe leer una
+     gráfica, esto es lo único que tiene que mirar. */
+  const v = $('nv-veredicto'); if (!v) return;
+  const principal = (N.mensajes || [])[0];
+  if (!principal) { v.innerHTML = ''; return; }
+
+  const mapa = {
+    compra: { cls: 'comprar', txt: 'COMPRAR', ic: '▲' },
+    venta:  { cls: 'vender',  txt: 'VENDER',  ic: '▼' },
+    vigilar:{ cls: 'esperar', txt: 'VIGILAR', ic: '◆' },
+    aviso:  { cls: 'esperar', txt: 'ESPERAR', ic: '✱' },
+    tendencia:{ cls: 'esperar', txt: 'CONTEXTO', ic: '➜' }
+  };
+  const m = mapa[principal.tipo] || mapa.aviso;
+
+  /* El horizonte sale del marco temporal: no se inventa. */
+  const horizonte = {
+    '15m': 'horas', '1h': 'de 1 a 3 días', '4h': 'de 3 a 10 días', '1d': 'semanas'
+  }[_tf] || '';
+
+  v.innerHTML = `
+    <span class="nv-v-tag ${m.cls}">${m.ic} ${m.txt}</span>
+    <span class="nv-v-tx">${esc(principal.titulo)}</span>
+    ${horizonte ? `<span class="nv-v-hz">Horizonte: ${horizonte}</span>` : ''}
+    <span class="nv-v-pt">${(N.mensajes || []).length} ${(N.mensajes || []).length === 1 ? 'lectura' : 'lecturas'}</span>`;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -620,12 +1086,21 @@ function dibujar() {
   const mDer = 84, mAba = 26;
   const x1 = W - mDer, y1 = H - mAba;
 
+  /* [CORREGIDO] Las velas llegaban pegadas al borde derecho y no se
+     podían despegar. Ahora se reserva un hueco a la derecha, como en
+     TradingView, y el desplazamiento puede ser negativo para empujar
+     el gráfico más allá de la última vela. */
   const total = N.velas.length;
   const ancho = Math.max(20, Math.min(total, N.vista.ancho));
-  const desp = Math.min(N.vista.desde, Math.max(0, total - ancho));
+  const desp = Math.max(-Math.floor(ancho * 0.6),
+                        Math.min(N.vista.desde, Math.max(0, total - 20)));
+  N.vista.desde = desp;
   const fin = total - desp;
-  const vis = N.velas.slice(Math.max(0, fin - ancho), fin);
+  const vis = N.velas.slice(Math.max(0, fin - ancho), Math.min(total, fin));
   if (!vis.length) return;
+
+  /* Cuántas posiciones vacías quedan a la derecha (hueco de respiro) */
+  const huecoDer = Math.max(0, ancho - vis.length + (desp < 0 ? -desp : 0));
 
   /* Rango vertical: velas y niveles, con el zoom del usuario */
   let alto = -Infinity, bajo = Infinity;
@@ -695,7 +1170,7 @@ function dibujar() {
   });
 
   /* ══ LAS VELAS ══ */
-  const paso = x1 / vis.length;
+  const paso = x1 / ancho;
   const cuerpo = Math.max(1.4, paso * 0.66);
   vis.forEach((v, i) => {
     const x = i * paso + paso / 2;
@@ -706,6 +1181,80 @@ function dibujar() {
     g.beginPath(); g.moveTo(x, Y(v.h)); g.lineTo(x, Y(v.l)); g.stroke();
     const yA = Y(Math.max(v.o, v.c)), yB = Y(Math.min(v.o, v.c));
     g.fillRect(x - cuerpo / 2, yA, cuerpo, Math.max(1.2, yB - yA));
+  });
+
+  /* ══ LAS ESTRUCTURAS DIBUJADAS ══
+     Aquí es donde el usuario VE de lo que se le habla: la ruptura,
+     la zona institucional, el barrido. No hay que creerse nada. */
+  const idxVis = (i) => {
+    const primero = Math.max(0, fin - ancho);
+    return (i - primero) * paso + paso / 2;
+  };
+
+  (N.estructuras || []).forEach((e) => {
+    const primero = Math.max(0, fin - ancho);
+    if (e.iRef < primero - 2 || e.iRef > fin) return;
+    const col = e.dir === 'alcista' ? '#2ee86a' : '#f6465d';
+    const xR = idxVis(e.iRef), xT = idxVis(e.iRot);
+
+    if (e.tipo === 'bos' || e.tipo === 'choch') {
+      /* La línea del nivel roto, desde donde nació hasta donde
+         se rompió, y una marca en el punto de ruptura. */
+      const y = Y(e.nivel);
+      if (y < -20 || y > y1 + 20) return;
+      g.strokeStyle = col;
+      g.setLineDash(e.tipo === 'choch' ? [7, 4] : []);
+      g.lineWidth = 1.8;
+      g.globalAlpha = 0.85;
+      g.beginPath(); g.moveTo(Math.max(0, xR), y); g.lineTo(Math.min(x1, xT + paso), y); g.stroke();
+      g.setLineDash([]); g.globalAlpha = 1;
+
+      // Flecha en el punto de ruptura
+      const yRot = Y(velaEn(e.iRot) ? velaEn(e.iRot).c : e.nivel);
+      g.fillStyle = col;
+      g.beginPath();
+      const sube = e.dir === 'alcista';
+      g.moveTo(xT, y + (sube ? -9 : 9));
+      g.lineTo(xT - 5, y + (sube ? 1 : -1));
+      g.lineTo(xT + 5, y + (sube ? 1 : -1));
+      g.closePath(); g.fill();
+
+      // La etiqueta
+      const et = e.tipo === 'bos' ? 'BOS' : 'CHoCH';
+      g.font = 'bold 9px ui-monospace,monospace';
+      const w = g.measureText(et).width + 12;
+      g.fillStyle = col;
+      redondeado(g, xT - w / 2, y + (sube ? -26 : 14), w, 15, 4); g.fill();
+      g.fillStyle = sube ? '#04210f' : '#2a0509';
+      g.textAlign = 'center';
+      g.fillText(et, xT, y + (sube ? -15 : 25));
+      g.textAlign = 'left';
+    }
+
+    if (e.tipo === 'ob' || e.tipo === 'barrido') {
+      /* La zona: un rectángulo que se extiende hacia la derecha,
+         porque sigue vigente hasta que el precio la visite. */
+      const yA = Y(e.zonaA), yB = Y(e.zonaB);
+      if (yB < -30 || yA > y1 + 30) return;
+      const alto = Math.max(4, Math.abs(yB - yA));
+      const yTop = Math.min(yA, yB);
+
+      g.fillStyle = col + '26';
+      g.fillRect(Math.max(0, xR - paso / 2), yTop, x1 - Math.max(0, xR - paso / 2), alto);
+      g.strokeStyle = col + '99';
+      g.setLineDash([5, 4]); g.lineWidth = 1;
+      g.strokeRect(Math.max(0, xR - paso / 2), yTop, x1 - Math.max(0, xR - paso / 2), alto);
+      g.setLineDash([]);
+
+      const et = e.tipo === 'ob' ? (e.dir === 'alcista' ? 'DEMANDA' : 'OFERTA') : 'BARRIDO';
+      g.font = 'bold 9px ui-monospace,monospace';
+      const w = g.measureText(et).width + 12;
+      g.fillStyle = col;
+      redondeado(g, Math.max(2, xR - paso / 2), yTop - 16, w, 15, 4); g.fill();
+      g.fillStyle = e.dir === 'alcista' ? '#04210f' : '#2a0509';
+      g.textAlign = 'left';
+      g.fillText(et, Math.max(2, xR - paso / 2) + 6, yTop - 5);
+    }
   });
 
   /* ── El precio actual ── */
@@ -764,6 +1313,8 @@ function dibujar() {
   });
   g.textAlign = 'left';
 }
+
+function velaEn(i) { return N.velas[i] || null; }
 
 function redondeado(g, x, y, w, h, r) {
   g.beginPath();
@@ -952,7 +1503,9 @@ function gestos(cv) {
     const paso = (cv.clientWidth - 84) / N.vista.ancho;
     const d = Math.round((e.clientX - ax) / Math.max(1, paso));
     if (d !== 0) {
-      N.vista.desde = Math.max(0, Math.min(Math.max(0, N.velas.length - 20), N.vista.desde + d));
+      const tope = Math.max(0, N.velas.length - 20);
+      const suelo = -Math.floor(N.vista.ancho * 0.6);   // hueco a la derecha
+      N.vista.desde = Math.max(suelo, Math.min(tope, N.vista.desde + d));
       ax = e.clientX; cambio = true;
     }
     // Vertical: desplazar el rango de precios
@@ -981,7 +1534,9 @@ function gestos(cv) {
       const paso = (cv.clientWidth - 84) / N.vista.ancho;
       const d = Math.round((e.touches[0].clientX - tx) / Math.max(1, paso));
       if (d !== 0) {
-        N.vista.desde = Math.max(0, Math.min(Math.max(0, N.velas.length - 20), N.vista.desde + d));
+        const tope = Math.max(0, N.velas.length - 20);
+        const suelo = -Math.floor(N.vista.ancho * 0.6);
+        N.vista.desde = Math.max(suelo, Math.min(tope, N.vista.desde + d));
         tx = e.touches[0].clientX; refrescar();
       }
     } else if (e.touches.length === 2 && d0 > 0) {
@@ -1282,6 +1837,21 @@ function estilos() {
   #nv-overlay .nv-comof{width:auto;padding:0 14px;border-color:rgba(232,184,75,.4);color:var(--gold,#E8B84B)}
   #nv-overlay .nv-cf-tx{font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;white-space:nowrap}
   #nv-overlay .nv-cf-s{display:none}
+
+  /* ── La barra de veredicto ── */
+  #nv-overlay .nv-veredicto{display:flex;align-items:center;gap:11px;flex:0 0 auto;flex-wrap:wrap;
+    padding:9px 14px;background:#0d1219;border-bottom:1px solid #1a1f28}
+  #nv-overlay .nv-veredicto:empty{display:none}
+  #nv-overlay .nv-v-tag{font-family:var(--mono,monospace);font-size:11px;font-weight:800;
+    letter-spacing:1.2px;padding:5px 12px;border-radius:8px}
+  #nv-overlay .nv-v-tag.comprar{background:linear-gradient(180deg,#4dffa0,#1fc96e);color:#04210f}
+  #nv-overlay .nv-v-tag.vender{background:linear-gradient(180deg,#ff8a95,#e03546);color:#2a0509}
+  #nv-overlay .nv-v-tag.esperar{background:rgba(232,184,75,.18);color:var(--gold,#E8B84B);
+    border:1px solid rgba(232,184,75,.4)}
+  #nv-overlay .nv-v-tx{flex:1;min-width:0;font-family:var(--display,sans-serif);font-weight:700;
+    font-size:14px;color:#eaecef;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #nv-overlay .nv-v-hz,#nv-overlay .nv-v-pt{font-family:var(--mono,monospace);font-size:9.5px;
+    color:#5c6672;white-space:nowrap;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.04)}
 
   /* ── La gráfica ocupa todo ── */
   #nv-overlay .nv-graf{flex:1;min-height:0;position:relative;background:#0b0f16}
