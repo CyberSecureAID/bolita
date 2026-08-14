@@ -766,6 +766,105 @@ function detectarDobles(velas, piv, precio) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   VWAP ANCLADO CON BANDAS
+
+   El precio medio ponderado por volumen desde un punto concreto.
+   Las mesas institucionales lo usan como referencia de "precio
+   justo": si están comprando por debajo del VWAP, van ganando.
+
+   Las bandas de desviación marcan hasta dónde es razonable que se
+   aleje. Fuera de ±2σ, el precio suele volver.
+
+   Se ancla al inicio del último impulso, que es lo que hace un
+   profesional: no al inicio de sesión sin más.
+   ══════════════════════════════════════════════════════════════ */
+function calcularVWAP(velas, desdeIdx) {
+  const ini = Math.max(0, desdeIdx ?? Math.max(0, velas.length - 60));
+  const tramo = velas.slice(ini);
+  if (tramo.length < 5) return null;
+
+  let sumaPV = 0, sumaV = 0;
+  const puntos = [];
+  tramo.forEach((v, k) => {
+    const tipico = (v.h + v.l + v.c) / 3;
+    sumaPV += tipico * v.v;
+    sumaV += v.v;
+    const vwap = sumaV > 0 ? sumaPV / sumaV : tipico;
+    puntos.push({ i: ini + k, p: vwap, tipico, v: v.v });
+  });
+
+  /* La desviación, ponderada por volumen igual que el VWAP */
+  let sumaVar = 0, sumaV2 = 0;
+  puntos.forEach((pt) => {
+    sumaVar += Math.pow(pt.tipico - pt.p, 2) * pt.v;
+    sumaV2 += pt.v;
+  });
+  const sigma = sumaV2 > 0 ? Math.sqrt(sumaVar / sumaV2) : 0;
+
+  const ultimo = puntos[puntos.length - 1];
+  const precio = tramo[tramo.length - 1].c;
+
+  return {
+    puntos, sigma, ini,
+    valor: ultimo.p,
+    b1a: ultimo.p + sigma, b1b: ultimo.p - sigma,
+    b2a: ultimo.p + sigma * 2, b2b: ultimo.p - sigma * 2,
+    /* Dónde está el precio respecto al valor justo */
+    desvio: sigma > 0 ? (precio - ultimo.p) / sigma : 0,
+    porEncima: precio > ultimo.p
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PERFIL DE VOLUMEN
+
+   Cuánto se negoció en cada nivel de precio. El nivel con más
+   volumen (POC) es donde el mercado está de acuerdo, y el precio
+   tiende a volver ahí. El área de valor recoge el 70% del volumen:
+   fuera de ella, el precio está "caro" o "barato".
+
+   En TradingView esto requiere plan de pago.
+   ══════════════════════════════════════════════════════════════ */
+function calcularPerfil(velas, cuantos = 40) {
+  const tramo = velas.slice(-120);
+  if (tramo.length < 10) return null;
+
+  const alto = Math.max(...tramo.map((v) => v.h));
+  const bajo = Math.min(...tramo.map((v) => v.l));
+  const paso = (alto - bajo) / cuantos;
+  if (!(paso > 0)) return null;
+
+  const filas = new Array(cuantos).fill(0);
+  tramo.forEach((v) => {
+    /* El volumen se reparte entre los niveles que tocó la vela */
+    const iA = Math.max(0, Math.min(cuantos - 1, Math.floor((v.l - bajo) / paso)));
+    const iB = Math.max(0, Math.min(cuantos - 1, Math.floor((v.h - bajo) / paso)));
+    const cuantas = (iB - iA) + 1;
+    for (let k = iA; k <= iB; k++) filas[k] += v.v / cuantas;
+  });
+
+  const total = filas.reduce((a, b) => a + b, 0);
+  let iPoc = 0;
+  filas.forEach((x, k) => { if (x > filas[iPoc]) iPoc = k; });
+
+  /* El área de valor: se crece desde el POC hasta cubrir el 70% */
+  let acum = filas[iPoc], lo = iPoc, hi = iPoc;
+  while (acum < total * 0.7 && (lo > 0 || hi < cuantos - 1)) {
+    const abajo = lo > 0 ? filas[lo - 1] : -1;
+    const arriba = hi < cuantos - 1 ? filas[hi + 1] : -1;
+    if (arriba >= abajo) { hi++; acum += filas[hi]; }
+    else { lo--; acum += filas[lo]; }
+  }
+
+  return {
+    filas, bajo, paso, max: filas[iPoc], total,
+    poc: bajo + (iPoc + 0.5) * paso,
+    vaAlto: bajo + (hi + 1) * paso,
+    vaBajo: bajo + lo * paso
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
    9. ATR — la volatilidad real
 
    El recorrido medio de una vela. Sirve para poner el stop donde
@@ -900,6 +999,8 @@ function analizar() {
   N.linea = calcularTendencia(v, piv, N.tendencia);
   N.dobles = detectarDobles(v, piv, N.precio);
   N.atr = calcularATR(v);
+  N.vwap = calcularVWAP(v, N.impulso ? N.impulso.iniIdx : null);
+  N.perfil = calcularPerfil(v);
   N.fibo = calcularFibo(v, N.impulso);
   N.precio = v[v.length - 1].c;
   N.niveles = calcularNiveles(v, piv, N.precio);
@@ -1995,6 +2096,88 @@ function dibujar() {
     }
   }
 
+  /* ══ VWAP ANCLADO CON BANDAS ══
+     La referencia de precio justo que usan las mesas. */
+  if (N.vwap && N.verVWAP) {
+    const V = N.vwap;
+    const pts = V.puntos.filter((pt) => pt.i >= Math.max(0, fin - ancho));
+    if (pts.length > 1) {
+      // Las bandas, como una nube
+      [[V.sigma * 2, 'rgba(77,159,255,.05)'], [V.sigma, 'rgba(77,159,255,.08)']].forEach(([sg, col]) => {
+        g.fillStyle = col;
+        g.beginPath();
+        pts.forEach((pt, k) => {
+          const x = idxVis(pt.i), y = Y(pt.p + sg);
+          k === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+        });
+        for (let k = pts.length - 1; k >= 0; k--) {
+          g.lineTo(idxVis(pts[k].i), Y(pts[k].p - sg));
+        }
+        g.closePath(); g.fill();
+      });
+
+      // La línea central
+      g.strokeStyle = '#4d9fff';
+      g.lineWidth = 1.8;
+      g.beginPath();
+      pts.forEach((pt, k) => {
+        const x = idxVis(pt.i), y = Y(pt.p);
+        k === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+      });
+      g.stroke();
+
+      const yV = Y(V.valor);
+      if (yV > 10 && yV < y1 - 10) {
+        const et = 'VWAP ' + fmt(V.valor);
+        g.font = 'bold 9px ui-monospace,monospace';
+        const w = g.measureText(et).width + 14;
+        const h = hueco(x1 - w - 90, yV - 8, w, 16);
+        if (h) {
+          g.fillStyle = '#4d9fff';
+          redondeado(g, h.x, h.y, w, 16, 4); g.fill();
+          g.fillStyle = '#04122a';
+          g.textAlign = 'left';
+          g.fillText(et, h.x + 7, h.y + 11);
+        }
+      }
+    }
+  }
+
+  /* ══ PERFIL DE VOLUMEN ══
+     Dónde se ha negociado de verdad. En TradingView es de pago. */
+  if (N.perfil && N.verPerfil) {
+    const P = N.perfil;
+    const anchoMax = x1 * 0.22;
+    P.filas.forEach((vol, k) => {
+      if (vol <= 0) return;
+      const p = P.bajo + (k + 0.5) * P.paso;
+      if (p < pMin || p > pMax) return;
+      const y = Y(p);
+      const alt = Math.max(1.5, Math.abs(Y(p + P.paso) - y) - 1);
+      const w = (vol / P.max) * anchoMax;
+      const dentroVA = p >= P.vaBajo && p <= P.vaAlto;
+      g.fillStyle = dentroVA ? 'rgba(232,184,75,.26)' : 'rgba(139,150,163,.14)';
+      g.fillRect(0, y - alt / 2, w, alt);
+    });
+
+    // El POC: donde más se negoció
+    const yP2 = Y(P.poc);
+    if (yP2 > 0 && yP2 < y1) {
+      g.strokeStyle = '#E8B84B';
+      g.lineWidth = 1.8;
+      g.setLineDash([]);
+      g.beginPath(); g.moveTo(0, yP2); g.lineTo(anchoMax * 1.15, yP2); g.stroke();
+      g.font = 'bold 9px ui-monospace,monospace';
+      const et = 'POC ' + fmt(P.poc);
+      const w = g.measureText(et).width + 12;
+      g.fillStyle = '#E8B84B';
+      redondeado(g, anchoMax * 1.15 + 4, yP2 - 8, w, 16, 4); g.fill();
+      g.fillStyle = '#2a1c00';
+      g.textAlign = 'left';
+      g.fillText(et, anchoMax * 1.15 + 10, yP2 + 3.5);
+    }
+  }
+
   /* ══ FIBONACCI SOBRE EL IMPULSO ══
      Se traza como la tendencia: apareciendo delante del usuario.
      La zona 0,618-0,786 es la que usan las mesas para recargar. */
@@ -2078,12 +2261,24 @@ function dibujar() {
     const x1p = idxVis(d.p1.i), x2p = idxVis(d.p2.i);
     const yN = Y(d.nivel), yC = Y(d.cuello);
 
-    /* La línea del cuello arranca donde empieza el patrón, no a
-       mitad de camino. */
-    g.strokeStyle = col + 'aa';
-    g.setLineDash([5, 4]); g.lineWidth = 1.4;
-    g.beginPath(); g.moveTo(Math.max(0, x1p), yC); g.lineTo(x1, yC); g.stroke();
+    /* [CORREGIDO] La línea se estiraba hasta el borde derecho y
+       quedaba fea. Un doble techo lo forman DOS picos: la línea
+       nace en el izquierdo y muere en el derecho. Nada más. */
+    g.strokeStyle = col + 'cc';
+    g.setLineDash([5, 4]); g.lineWidth = 1.6;
+    g.beginPath();
+    g.moveTo(Math.max(0, x1p), yC);
+    g.lineTo(Math.min(x1, x2p), yC);
+    g.stroke();
     g.setLineDash([]);
+
+    /* Y la línea que une los dos extremos, para que se vea el patrón */
+    g.strokeStyle = col + '77';
+    g.lineWidth = 1.2;
+    g.beginPath();
+    g.moveTo(Math.max(0, x1p), yN);
+    g.lineTo(Math.min(x1, x2p), yN);
+    g.stroke();
 
     const et = (suelo ? 'DOBLE SUELO' : 'DOBLE TECHO') + (d.confirmado ? ' ✓' : '');
     g.font = 'bold 9px ui-monospace,monospace';
@@ -2449,10 +2644,21 @@ function burbujas() {
         <!-- Herramientas que el usuario puede pedir -->
         ${idx === 0 && N.fibo ? `
         <div class="nv-herr">
-          <div class="nv-herr-t">${esc(T('Herramientas'))}</div>
-          <button class="nv-herr-b ${N.verFibo ? 'on' : ''}" type="button" data-fib="1">
-            ${esc(T('Trazar Fibonacci'))}
-          </button>
+          <div class="nv-herr-t">${esc(T('Herramientas profesionales'))}</div>
+          <div class="nv-herr-rej">
+            <button class="nv-herr-b ${N.verFibo ? 'on' : ''}" type="button" data-fib="1">
+              <b>${esc(T('Fibonacci'))}</b>
+              <span>${esc(T('Zona premium de entrada'))}</span>
+            </button>
+            <button class="nv-herr-b ${N.verVWAP ? 'on' : ''}" type="button" data-vwap="1">
+              <b>${esc(T('VWAP anclado'))}</b>
+              <span>${esc(T('El precio justo institucional'))}</span>
+            </button>
+            <button class="nv-herr-b ${N.verPerfil ? 'on' : ''}" type="button" data-perfil="1">
+              <b>${esc(T('Perfil de volumen'))}</b>
+              <span>${esc(T('Dónde se negoció de verdad'))}</span>
+            </button>
+          </div>
         </div>` : ''}
         <div class="nv-pm-det">
           ${(m.detalle || []).map((x) => `<div class="nv-pm-li">${esc(T(x))}</div>`).join('')}
@@ -2478,6 +2684,23 @@ function burbujas() {
       mas.textContent = el.classList.contains('con-detalle')
         ? T('Ocultar') + ' ▴' : T('Por qué lo digo') + ' ▾';
     };
+    const vw = el.querySelector('[data-vwap]');
+    if (vw) vw.onclick = (e) => {
+      e.stopPropagation();
+      N.verVWAP = !N.verVWAP;
+      vw.classList.toggle('on', N.verVWAP);
+      if (N.verVWAP) el.classList.remove('abierto');
+      dibujar();
+    };
+    const pf = el.querySelector('[data-perfil]');
+    if (pf) pf.onclick = (e) => {
+      e.stopPropagation();
+      N.verPerfil = !N.verPerfil;
+      pf.classList.toggle('on', N.verPerfil);
+      if (N.verPerfil) el.classList.remove('abierto');
+      dibujar();
+    };
+
     const fib = el.querySelector('[data-fib]');
     if (fib) fib.onclick = (e) => {
       e.stopPropagation();
@@ -3255,11 +3478,15 @@ function estilos() {
   #nv-overlay .nv-herr{margin-top:9px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07)}
   #nv-overlay .nv-herr-t{font-family:var(--mono,monospace);font-size:8.5px;color:#5c6672;
     text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px}
-  #nv-overlay .nv-herr-b{width:100%;min-height:34px;border-radius:8px;cursor:pointer;
-    background:rgba(255,255,255,.04);border:1px solid #2b3139;color:#b7bdc6;
-    font-family:var(--mono,monospace);font-size:10px;letter-spacing:.5px}
-  #nv-overlay .nv-herr-b.on{background:rgba(232,184,75,.16);border-color:var(--gold,#E8B84B);
-    color:var(--gold,#E8B84B);font-weight:700}
+  #nv-overlay .nv-herr-rej{display:flex;flex-direction:column;gap:5px}
+  #nv-overlay .nv-herr-b{width:100%;padding:8px 11px;border-radius:9px;cursor:pointer;
+    text-align:left;background:rgba(255,255,255,.04);border:1px solid #2b3139}
+  #nv-overlay .nv-herr-b b{display:block;font-family:var(--display,sans-serif);
+    font-weight:700;font-size:12px;color:#eaecef;margin-bottom:1px}
+  #nv-overlay .nv-herr-b span{display:block;font-family:var(--sans,sans-serif);
+    font-size:10px;color:#7d8794;line-height:1.3}
+  #nv-overlay .nv-herr-b.on{background:rgba(232,184,75,.14);border-color:var(--gold,#E8B84B)}
+  #nv-overlay .nv-herr-b.on b{color:var(--gold,#E8B84B)}
 
   #nv-overlay .nv-pm-det{display:none;margin-top:9px}
   #nv-overlay .nv-cap.con-detalle .nv-pm-det{display:block}
