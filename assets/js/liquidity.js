@@ -661,7 +661,15 @@ async function portada() {
     if (!sv || !sv.listo) return;
     const a = await tieneAccesoPro();
     if (!a.ok) { avisoSinAcceso(); return; }
-    cerrar();
+    /* [CORREGIDO] Antes se destruía la portada, así que al cerrar la
+       herramienta se salía de Liquidity entero. Ahora solo se oculta
+       y vuelve cuando el usuario cierra la herramienta. */
+    d.style.display = 'none';
+    window.__lqpVolver = () => {
+      const p = $('lqp-overlay');
+      if (p) p.style.display = '';
+      else portada();
+    };
     if (sv.id === 'pools') { abrirPools(); return; }
     if (sv.id === 'libro') {
       try {
@@ -757,6 +765,8 @@ async function abrirPools() {
     cerrarMenus();
     clearInterval(_vivo);
     const e = $('lq-overlay'); if (e) e.remove();
+    /* Al cerrar se vuelve a la portada de Liquidity, no se sale. */
+    try { if (window.__lqpVolver) window.__lqpVolver(); } catch (_) {}
   };
   d.querySelector('.lq-bg').onclick = cerrar;
   d.querySelector('.lq-x').onclick = cerrar;

@@ -456,6 +456,8 @@ export async function abrirMuros() {
     clearInterval(_reloj); clearInterval(_relojVelas);
     document.querySelectorAll('#mu-picker').forEach((x) => x.remove());
     const e = $('mu-overlay'); if (e) e.remove();
+    /* Al cerrar se vuelve a la portada de Liquidity, no se sale. */
+    try { if (window.__lqpVolver) window.__lqpVolver(); } catch (_) {}
   };
   d.querySelector('.mu-bg').onclick = cerrar;
   $('mu-x').onclick = cerrar;

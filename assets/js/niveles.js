@@ -1470,6 +1470,8 @@ export async function abrirNiveles() {
     clearInterval(_reloj);
     document.querySelectorAll('#nv-picker').forEach((x) => x.remove());
     const e = $('nv-overlay'); if (e) e.remove();
+    /* Al cerrar se vuelve a la portada de Liquidity, no se sale. */
+    try { if (window.__lqpVolver) window.__lqpVolver(); } catch (_) {}
   };
   d.querySelector('.nv-bg').onclick = cerrar;
   $('nv-x').onclick = cerrar;
@@ -1481,6 +1483,7 @@ export async function abrirNiveles() {
     _tf = b.dataset.ntf;
     d.querySelectorAll('[data-ntf]').forEach((x) => x.classList.toggle('on', x.dataset.ntf === _tf));
     N.vista.desde = 0;
+    try { if (_cerrarFichas) _cerrarFichas(); } catch (_) {}
     recargar();
   });
 
@@ -1497,6 +1500,7 @@ export async function abrirNiveles() {
 let _reloj = null;
 let _yaTrazado = false;
 let _planFijo = null;
+let _cerrarFichas = null;    // para cerrar órdenes abiertas al cambiar de par
 
 async function recargar() {
   clearInterval(_reloj);
@@ -1624,8 +1628,11 @@ function dibujar() {
         },
         precioActual: () => N.precio,
         par: () => _par,
-        simbolo: () => (PARES.find((p) => p.id === _par) || {}).s || ''
+        simbolo: () => (PARES.find((p) => p.id === _par) || {}).s || '',
+        repintar: () => { N.misOrdenes = od.ordenesPuestas(); dibujar(); }
       });
+      N.misOrdenes = od.ordenesPuestas();
+      _cerrarFichas = od.cerrarFichas;
     }).catch(() => {});
   }
   const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -2097,6 +2104,39 @@ function dibujar() {
     }
   }
 
+  /* ══ TUS ÓRDENES ══
+     Marca propia, deliberadamente distinta de las señales del
+     asistente: es TU posición, no una sugerencia. */
+  if (N.misOrdenes && N.misOrdenes.length) {
+    const sim = (PARES.find((p) => p.id === _par) || {}).s || '';
+    N.misOrdenes.filter((o) => o.simbolo === sim).forEach((o) => {
+      if (o.precio < pMin || o.precio > pMax) return;
+      const y = Y(o.precio);
+      const col = o.vender ? '#f6465d' : '#2ee86a';
+
+      // Línea sólida y gruesa, con banda
+      g.fillStyle = col + '12';
+      g.fillRect(0, y - 11, x1, 22);
+      g.strokeStyle = col;
+      g.lineWidth = 2.2;
+      g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
+
+      // La etiqueta: con icono de orden, no de señal
+      const et = `${o.modo === 'aviso' ? '🔔' : '◆'} ${o.vender ? 'VENTA' : 'COMPRA'}  ${fmt(o.precio)}`;
+      g.font = 'bold 11px ui-monospace,monospace';
+      const w = g.measureText(et).width + 22;
+      const xE = x1 - w - 10;
+      g.fillStyle = col;
+      redondeado(g, xE, y - 12, w, 24, 7); g.fill();
+      // Borde claro para separarla de todo lo demás
+      g.strokeStyle = '#ffffff55'; g.lineWidth = 1.2;
+      redondeado(g, xE, y - 12, w, 24, 7); g.stroke();
+      g.fillStyle = o.vender ? '#2a0509' : '#04210f';
+      g.textAlign = 'left';
+      g.fillText(et, xE + 11, y + 4);
+    });
+  }
+
   /* ── El precio actual ── */
   const yP = Y(N.precio);
   g.strokeStyle = 'rgba(232,184,75,.8)';
@@ -2544,6 +2584,8 @@ function menuPares() {
     const lg = anc.querySelector('.nv-logo');
     if (lg) { lg.dataset.cg = (PARES.find((x) => x.id === _par) || {}).cg || ''; lg.classList.remove('con'); lg.style.backgroundImage = ''; }
     m.remove();
+    /* Una ficha de otra moneda no puede quedarse abierta. */
+    try { if (_cerrarFichas) _cerrarFichas(); } catch (_) {}
     N.vista.desde = 0; N.vista.zoomY = 1;
     ponerLogos();
     recargar();

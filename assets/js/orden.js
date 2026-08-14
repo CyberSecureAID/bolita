@@ -57,6 +57,13 @@ const fmt = (p) => {
        simbolo: () => 'BTCUSDT'
      })
    ══════════════════════════════════════════════════════════════ */
+/* Las órdenes puestas, para dibujarlas sobre el gráfico. */
+const _puestas = [];
+export const ordenesPuestas = () => _puestas;
+
+/** Cierra cualquier ficha abierta: al cambiar de moneda o marco. */
+export function cerrarFichas() { cerrarTodo(); }
+
 export function conectar(cfg) {
   if (!cfg || !cfg.canvas) return;
   const cv = cfg.canvas;
@@ -121,12 +128,17 @@ function abrirMenu(cx, cy, cfg, ev) {
   d.innerHTML = `
     <div class="od-m-cab">
       <span class="od-m-ic">${vender ? '▼' : '▲'}</span>
-      <div>
+      <div class="od-m-tx">
         <b>${esc(T(vender ? 'Vender aquí' : 'Comprar aquí'))}</b>
         <span>${fmt(precio)}</span>
       </div>
+      <!-- El porcentaje es lo que el usuario busca al hacer clic:
+           va grande y arriba a la derecha. -->
+      <div class="od-m-pct">
+        <b>${dist >= 0 ? '+' : ''}${dist.toFixed(1)}%</b>
+        <span>${esc(T(vender ? 'ganancia' : 'descuento'))}</span>
+      </div>
     </div>
-    <div class="od-m-dist">${dist >= 0 ? '+' : ''}${dist.toFixed(2)}% ${esc(T('desde el precio actual'))}</div>
     <button class="od-m-b" type="button">${esc(T('Establecer posición'))}</button>`;
   document.body.appendChild(d);
   colocar(d, cx, cy);
@@ -208,8 +220,8 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
          estás saliendo: no hay nada que proteger. -->
     ${!vender ? `<div class="od-campo od-opcional">
       <button class="od-toggle" id="od-sl-t" type="button">
-        <span>${esc(T('Añadir stop de protección'))}</span>
-        <i>${esc(T('opcional'))}</i>
+        <span>${esc(T('Añadir stop'))} <em>(${esc(T('opcional'))})</em></span>
+        <i class="od-fl">▾</i>
       </button>
       <div class="od-sl" id="od-sl">
         <div class="od-inp-fila">
@@ -251,7 +263,19 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
       const tk = await import('./tokens.js?v=126');
       const gb = await import('./gridbot.js?v=126');
       const w = await import('./wallet.js?v=126');
-      const cuenta = (w.cuenta && w.cuenta()) || (w.getCuenta && w.getCuenta()) || null;
+      /* [CORREGIDO] Se llamaba a `w.cuenta()`, que no existe: la
+         función es `cuentaActual()`. Por eso siempre decía que la
+         wallet estaba desconectada aunque estuviera conectada. */
+      /* Primero el estado del módulo; si aún no se ha poblado, se
+         pregunta directamente al proveedor. Así no se dice "conecta
+         tu wallet" a alguien que la tiene conectada. */
+      let cuenta = (w.cuentaActual && w.cuentaActual()) || null;
+      if (!cuenta && window.ethereum) {
+        try {
+          const cs = await window.ethereum.request({ method: 'eth_accounts' });
+          if (cs && cs.length) cuenta = cs[0];
+        } catch (_) {}
+      }
 
       const simb = vender ? par : 'USDT';
       const mon = tk.MONEDAS[simb] || Object.values(tk.MONEDAS).find((m) => m.simbolo === simb);
@@ -268,8 +292,8 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
 
       if (!(saldo > 0)) {
         sinSaldo(vender
-          ? `${T('Para vender')} ${par} ${T('primero tienes que comprarlo. No tienes saldo en tu wallet.')}`
-          : `${T('Necesitas USDT en BNB Chain para comprar.')} ${T('Tu saldo es 0.')}`);
+          ? `${T('No tienes')} ${par} ${T('en tu wallet, así que no hay nada que vender. Primero tendrías que comprarlo.')}`
+          : `${T('No tienes USDT en BNB Chain. Necesitas USDT para poder comprar.')}`);
         return;
       }
 
@@ -329,7 +353,16 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
     refrescar();
   });
   $('od-sl-t').onclick = () => d.querySelector('.od-opcional').classList.toggle('abierto');
-  d.querySelector('.od-x').onclick = cerrarTodo;
+  /* [CORREGIDO] La X no cerraba porque el clic se paraba antes de
+     llegar. Ahora cierra su propia ficha directamente. */
+  const cerrarEsta = (ev) => {
+    if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+    d.remove();
+  };
+  d.querySelector('.od-x').addEventListener('click', cerrarEsta);
+  /* Y si se cambia de moneda o de marco, la ficha se va sola: no
+     tiene sentido dejar una orden de BTC abierta mirando BNB. */
+  d._cerrar = cerrarEsta;
 
   ok.onclick = async () => {
     const cant = parseFloat(String(inp.value).replace(',', '.')) || 0;
@@ -348,7 +381,15 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
         await ponerOrdenReal({ cfg, precio, cant, vender, sl });
         exito(d, T('Orden puesta'), T('Se ejecutará sola cuando el precio llegue a') + ' ' + fmt(precio));
       }
+      /* Se guarda para pintarla en el gráfico con su propia marca,
+         distinta de las señales del asistente. */
+      _puestas.push({
+        precio, cant, vender, modo,
+        par, simbolo: cfg.simbolo ? cfg.simbolo() : '',
+        cuando: Date.now()
+      });
       if (cfg.alPoner) cfg.alPoner({ precio, cant, vender, modo });
+      if (cfg.repintar) cfg.repintar();
     } catch (er) {
       ok.disabled = false;
       ok.textContent = T(vender ? 'Poner orden de venta' : 'Poner orden de compra');
@@ -545,8 +586,15 @@ function estilos() {
   .od-menu.vender,.od-ficha.vender{border-color:rgba(246,70,93,.55)}
 
   /* El menú del clic derecho */
-  .od-menu{width:214px;padding:11px}
-  .od-m-cab{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+  .od-menu{width:236px;padding:12px}
+  .od-m-cab{display:flex;align-items:flex-start;gap:9px;margin-bottom:10px}
+  .od-m-tx{flex:1;min-width:0}
+  /* El porcentaje, grande arriba a la derecha */
+  .od-m-pct{flex:0 0 auto;text-align:right}
+  .od-m-pct b{display:block;font-family:var(--display,sans-serif);font-weight:800;
+    font-size:19px;line-height:1;color:#2ee86a}
+  .od-m-pct span{display:block;font-family:var(--sans,sans-serif);font-size:9px;
+    color:#3ee88a;margin-top:1px}
   .od-m-ic{font-size:14px}
   .od-menu.comprar .od-m-ic{color:#2ee86a}
   .od-menu.vender .od-m-ic{color:#f6465d}
@@ -554,7 +602,7 @@ function estilos() {
     font-size:13px;color:#eaecef;line-height:1.2}
   .od-m-cab span{display:block;font-family:var(--mono,monospace);font-size:13px;
     color:var(--gold,#E8B84B);font-weight:700}
-  .od-m-dist{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;margin-bottom:9px}
+
   .od-m-b{width:100%;min-height:38px;border-radius:9px;cursor:pointer;
     font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;border:none}
   .od-menu.comprar .od-m-b{background:linear-gradient(180deg,#4dffa0,#1fc96e);color:#04210f}
@@ -629,7 +677,9 @@ function estilos() {
     min-height:38px;padding:0 12px;border-radius:9px;cursor:pointer;
     background:rgba(255,255,255,.03);border:1px solid #2b3139;color:#b7bdc6;
     font-family:var(--sans,sans-serif);font-size:12px}
-  .od-toggle i{font-style:normal;font-family:var(--mono,monospace);font-size:9px;color:#5c6672}
+  .od-toggle span em{font-style:normal;color:#7d8794;font-size:11px}
+  .od-toggle .od-fl{font-style:normal;font-size:10px;color:#5c6672;transition:transform .2s}
+  .od-opcional.abierto .od-fl{transform:rotate(180deg)}
   .od-sl{display:none;margin-top:8px}
   .od-opcional.abierto .od-sl{display:block}
   .od-nota{margin-top:6px;font-family:var(--sans,sans-serif);font-size:10.5px;
