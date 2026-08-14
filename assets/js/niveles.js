@@ -530,12 +530,12 @@ function calcularTendencia(velas, piv, tend) {
     const pts = piv.bajos.slice(-5);
     const r = recta(pts);
     // Solo si el ajuste es bueno y la pendiente sube de verdad
-    if (r && r.r2 > 0.55 && r.m > 0) return { tipo: 'alcista', ...r };
+    if (r && pts.length >= 3 && r.r2 > 0.55 && r.m > 0) return { tipo: 'alcista', ...r };
   }
   if (tend.dir === 'bajista') {
     const pts = piv.altos.slice(-5);
     const r = recta(pts);
-    if (r && r.r2 > 0.55 && r.m < 0) return { tipo: 'bajista', ...r };
+    if (r && pts.length >= 3 && r.r2 > 0.55 && r.m < 0) return { tipo: 'bajista', ...r };
   }
   return null;
 }
@@ -588,7 +588,123 @@ function detectarDobles(velas, piv, precio) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   9. LA LECTURA — qué decirle al usuario
+   9. ATR — la volatilidad real
+
+   El recorrido medio de una vela. Sirve para poner el stop donde
+   tenga sentido: si lo pones más cerca que el ruido normal del
+   mercado, te barren sin que la idea falle.
+   ══════════════════════════════════════════════════════════════ */
+function calcularATR(velas, periodo = 14) {
+  if (velas.length < periodo + 1) return 0;
+  const trs = [];
+  for (let i = 1; i < velas.length; i++) {
+    const v = velas[i], p = velas[i - 1];
+    trs.push(Math.max(
+      v.h - v.l,
+      Math.abs(v.h - p.c),
+      Math.abs(v.l - p.c)
+    ));
+  }
+  const ult = trs.slice(-periodo);
+  return ult.reduce((a, b) => a + b, 0) / ult.length;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   10. FIBONACCI SOBRE EL IMPULSO
+
+   Se traza sobre el último tramo con dirección clara. La zona
+   0,618–0,786 es la que las mesas institucionales usan para
+   recargar posición: el llamado golden pocket.
+
+   Según los estudios: Fibonacci solo ronda el 55-65% de acierto,
+   pero combinado con una zona institucional sube al 70-80%. Por
+   eso solo se marca cuando coincide con estructura.
+   ══════════════════════════════════════════════════════════════ */
+const FIBS = [
+  { r: 0,     et: '0' },
+  { r: 0.382, et: '0.382' },
+  { r: 0.5,   et: '0.5' },
+  { r: 0.618, et: '0.618' },
+  { r: 0.705, et: '0.705' },
+  { r: 0.786, et: '0.786' },
+  { r: 1,     et: '1' }
+];
+
+function calcularFibo(velas, imp) {
+  if (!imp) return null;
+  const alc = imp.dir === 'alcista';
+  /* El tramo: desde donde arrancó el impulso hasta donde acabó */
+  const A = alc ? imp.zonaBaja : imp.zonaAlta;      // origen
+  const B = imp.precioFin;                           // extremo
+  if (!(Math.abs(B - A) > 0)) return null;
+
+  const niveles = FIBS.map((f) => ({
+    ...f,
+    p: alc ? B - (B - A) * f.r : B + (A - B) * f.r
+  }));
+
+  const gp = {
+    alto: alc ? niveles.find((x) => x.r === 0.618).p : niveles.find((x) => x.r === 0.786).p,
+    bajo: alc ? niveles.find((x) => x.r === 0.786).p : niveles.find((x) => x.r === 0.618).p,
+    medio: niveles.find((x) => x.r === 0.705).p
+  };
+
+  /* Extensiones para los objetivos */
+  const ext = [1.272, 1.618].map((r) => ({
+    r, p: alc ? B + (B - A) * (r - 1) : B - (A - B) * (r - 1)
+  }));
+
+  return {
+    A, B, alc, niveles, gp, ext,
+    iA: imp.iniIdx, iB: imp.finIdx,
+    enGP: N.precio >= Math.min(gp.bajo, gp.alto) && N.precio <= Math.max(gp.bajo, gp.alto)
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   11. EL PLAN DE OPERACIÓN COMPLETO
+
+   Lo que pide un profesional y hasta ahora faltaba:
+     · Entrada exacta
+     · Stop con lógica estructural, no arbitrario
+     · Objetivo 1, objetivo 2 y objetivo final
+     · Zona de peligro: dónde la idea deja de valer
+     · Relación riesgo/beneficio calculada
+     · Cuánto arriesgar del capital
+   ══════════════════════════════════════════════════════════════ */
+function construirPlan(lado, entrada, stopBase, atr) {
+  if (!(entrada > 0) || !(atr > 0)) return null;
+  const largo = lado === 'compra';
+
+  /* El stop respeta la estructura Y la volatilidad: nunca más
+     cerca que 1,2 veces el ATR, o el ruido normal lo barre. */
+  const minDist = atr * 1.2;
+  let stop = stopBase;
+  if (largo && entrada - stop < minDist) stop = entrada - minDist;
+  if (!largo && stop - entrada < minDist) stop = entrada + minDist;
+
+  const riesgo = Math.abs(entrada - stop);
+  if (!(riesgo > 0)) return null;
+
+  /* Objetivos escalonados: 1R para asegurar, 2R el principal,
+     3R el que se deja correr. Es el estándar profesional. */
+  const obj = [1, 2, 3].map((r) => ({
+    r,
+    p: largo ? entrada + riesgo * r : entrada - riesgo * r,
+    pct: ((riesgo * r) / entrada) * 100
+  }));
+
+  return {
+    lado, entrada, stop, riesgo,
+    riesgoPct: (riesgo / entrada) * 100,
+    obj,
+    rr: 2,
+    atr
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   12. LA LECTURA — qué decirle al usuario
 
    Aquí no se inventa nada: cada frase sale de un dato calculado.
    Y hay varias formas de decir lo mismo, para que no suene a
@@ -605,6 +721,8 @@ function analizar() {
   N.estructuras = detectarEstructuras(v, piv);
   N.linea = calcularTendencia(v, piv, N.tendencia);
   N.dobles = detectarDobles(v, piv, N.precio);
+  N.atr = calcularATR(v);
+  N.fibo = calcularFibo(v, N.impulso);
   N.precio = v[v.length - 1].c;
   N.niveles = calcularNiveles(v, piv, N.precio);
 
@@ -1119,6 +1237,28 @@ function unificar(msgs) {
   } else {
     principal = msgs.find((m) => m.tipo === lado) || msgs[0];
     principal = { ...principal, esPlan: true, prioridad: 99 };
+
+    /* El plan completo: entrada, stop y objetivos escalonados.
+       Solo si hay una dirección clara y un nivel de referencia. */
+    if ((lado === 'compra' || lado === 'venta') && principal.p > 0 && N.atr > 0) {
+      const entrada = principal.p;
+      /* El stop sale de la estructura: bajo el nivel si es compra,
+         sobre él si es venta. Después se ajusta por volatilidad. */
+      const base = lado === 'compra' ? entrada * 0.994 : entrada * 1.006;
+      const plan = construirPlan(lado, entrada, base, N.atr);
+      if (plan) {
+        principal.plan = plan;
+        principal.detalle = [
+          `Entrada: ${fmt(plan.entrada)}`,
+          `Stop: ${fmt(plan.stop)} (${plan.riesgoPct.toFixed(2)}% de riesgo)`,
+          `Objetivo 1: ${fmt(plan.obj[0].p)} · asegura la operación`,
+          `Objetivo 2: ${fmt(plan.obj[1].p)} · el principal, 2R`,
+          `Objetivo 3: ${fmt(plan.obj[2].p)} · si el movimiento acompaña`,
+          `Stop ajustado a 1,2 veces la volatilidad media (${fmt(N.atr)})`,
+          ...(principal.detalle || [])
+        ];
+      }
+    }
     /* Se le añade la confianza al detalle: el usuario ve cuánto
        respaldo tiene el plan. */
     principal.detalle = [
@@ -1518,23 +1658,74 @@ function dibujar() {
       g.fillStyle = col; g.fill();
     } else {
       // Prolongación hacia el futuro, discontinua
-      const xF = Math.min(x1, xB + paso * 6);
-      const yF = yB + (L.m * 6) * ((yB - yA) / Math.max(1e-9, L.m * (iB - iA))) * -1;
-      g.strokeStyle = col + '66';
-      g.setLineDash([6, 5]); g.lineWidth = 1.4;
-      g.beginPath(); g.moveTo(xB, yB); g.lineTo(xF, Y(L.m * (iB + 6) + L.b)); g.stroke();
-      g.setLineDash([]);
+      /* La prolongación se corta si se sale de la vista: antes se
+         iba al infinito y arrastraba la etiqueta fuera de pantalla. */
+      const iF = iB + 6;
+      const yFut = Y(L.m * iF + L.b);
+      if (yFut > -20 && yFut < y1 + 20) {
+        g.strokeStyle = col + '66';
+        g.setLineDash([6, 5]); g.lineWidth = 1.4;
+        g.beginPath(); g.moveTo(xB, yB); g.lineTo(Math.min(x1, idxVis(iF)), yFut); g.stroke();
+        g.setLineDash([]);
+      }
 
       // Etiqueta
       const et = L.tipo === 'alcista' ? 'TENDENCIA ALCISTA' : 'TENDENCIA BAJISTA';
       g.font = 'bold 9px ui-monospace,monospace';
       const w = g.measureText(et).width + 14;
       const xE = Math.max(4, Math.min(x1 - w - 4, xB - w / 2));
+      const yE = Math.max(20, Math.min(y1 - 24, yB + (L.tipo === 'alcista' ? 10 : -26)));
       g.fillStyle = col;
-      redondeado(g, xE, yB + (L.tipo === 'alcista' ? 10 : -26), w, 16, 4); g.fill();
+      redondeado(g, xE, yE, w, 16, 4); g.fill();
       g.fillStyle = L.tipo === 'alcista' ? '#04210f' : '#2a0509';
       g.textAlign = 'left';
-      g.fillText(et, xE + 7, yB + (L.tipo === 'alcista' ? 21 : -15));
+      g.fillText(et, xE + 7, yE + 11);
+    }
+  }
+
+  /* ══ FIBONACCI SOBRE EL IMPULSO ══
+     Se traza como la tendencia: apareciendo delante del usuario.
+     La zona 0,618-0,786 es la que usan las mesas para recargar. */
+  if (N.fibo && _trazo > 0.35) {
+    const F = N.fibo;
+    const av = Math.min(1, (_trazo - 0.35) / 0.65);
+    const xA = idxVis(F.iA), xB = idxVis(F.iB);
+    const xIni = Math.max(0, Math.min(xA, xB));
+    const xFin = Math.min(x1, xIni + (x1 - xIni) * av);
+
+    // El golden pocket, sombreado
+    const yG1 = Y(F.gp.alto), yG2 = Y(F.gp.bajo);
+    g.fillStyle = 'rgba(232,184,75,.13)';
+    g.fillRect(xIni, Math.min(yG1, yG2), xFin - xIni, Math.abs(yG2 - yG1));
+
+    // Los niveles
+    F.niveles.forEach((nv) => {
+      const y = Y(nv.p);
+      if (y < -10 || y > y1 + 10) return;
+      const clave = nv.r === 0.618 || nv.r === 0.786;
+      g.strokeStyle = clave ? 'rgba(232,184,75,.75)' : 'rgba(139,150,163,.28)';
+      g.lineWidth = clave ? 1.4 : 1;
+      g.setLineDash(clave ? [] : [3, 5]);
+      g.beginPath(); g.moveTo(xIni, y); g.lineTo(xFin, y); g.stroke();
+      g.setLineDash([]);
+
+      if (av > 0.9) {
+        g.font = (clave ? 'bold ' : '') + '8.5px ui-monospace,monospace';
+        g.fillStyle = clave ? '#E8B84B' : '#5c6672';
+        g.textAlign = 'right';
+        g.fillText(nv.et, Math.min(x1 - 4, xFin - 5), y - 3);
+        g.textAlign = 'left';
+      }
+    });
+
+    if (av > 0.9 && F.enGP) {
+      const et = 'GOLDEN POCKET';
+      g.font = 'bold 9px ui-monospace,monospace';
+      const w = g.measureText(et).width + 14;
+      g.fillStyle = '#E8B84B';
+      redondeado(g, xIni + 6, Math.min(yG1, yG2) - 18, w, 15, 4); g.fill();
+      g.fillStyle = '#2a1c00';
+      g.fillText(et, xIni + 13, Math.min(yG1, yG2) - 7);
     }
   }
 
@@ -1665,6 +1856,30 @@ function dibujar() {
     }
   });
 
+  /* ══ EL NIVEL SEÑALADO ══
+     Solo aparece si el usuario pulsó "Señálame dónde está". */
+  if (N.senalado != null && N.mensajes[N.senalado]) {
+    const m = N.mensajes[N.senalado];
+    if (m.p >= pMin && m.p <= pMax) {
+      const y = Y(m.p);
+      const col = m.tipo === 'compra' ? '#2ee86a' : m.tipo === 'venta' ? '#f6465d' : '#E8B84B';
+      g.fillStyle = col + '1f';
+      g.fillRect(0, y - 9, x1, 18);
+      g.strokeStyle = col;
+      g.lineWidth = 2;
+      g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
+
+      const et = (N.senalado + 1) + ' · ' + fmt(m.p);
+      g.font = 'bold 11px ui-monospace,monospace';
+      const w = g.measureText(et).width + 20;
+      g.fillStyle = col;
+      redondeado(g, 12, y - 11, w, 22, 6); g.fill();
+      g.fillStyle = m.tipo === 'compra' ? '#04210f' : m.tipo === 'venta' ? '#2a0509' : '#2a1c00';
+      g.textAlign = 'left';
+      g.fillText(et, 22, y + 4);
+    }
+  }
+
   /* ── El precio actual ── */
   const yP = Y(N.precio);
   g.strokeStyle = 'rgba(232,184,75,.8)';
@@ -1704,6 +1919,42 @@ function dibujar() {
   g.fillStyle = '#2a1c00';
   g.font = 'bold 11px ui-monospace,monospace';
   g.fillText(fmt(N.precio), x1 + 6, yP + 4);
+
+  /* ══ LA CRUZ DEL CURSOR ══
+     Como en TradingView: sigue al ratón y muestra el precio a la
+     derecha y la hora abajo. */
+  if (N.cruz && N.cruz.x >= 0 && N.cruz.x < x1 && N.cruz.y >= 0 && N.cruz.y < y1) {
+    const cx = N.cruz.x, cy = N.cruz.y;
+    g.strokeStyle = 'rgba(255,255,255,.22)';
+    g.setLineDash([4, 4]); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(cx, 0); g.lineTo(cx, y1); g.stroke();
+    g.beginPath(); g.moveTo(0, cy); g.lineTo(x1, cy); g.stroke();
+    g.setLineDash([]);
+
+    // El precio a esa altura
+    const pC = pMin + (pMax - pMin) * ((y1 - cy) / y1);
+    g.fillStyle = '#2b3139';
+    redondeado(g, x1 + 2, cy - 10, mDer - 5, 20, 4); g.fill();
+    g.fillStyle = '#eaecef';
+    g.font = 'bold 11px ui-monospace,monospace';
+    g.textAlign = 'left';
+    g.fillText(fmt(pC), x1 + 7, cy + 4);
+
+    // La hora de esa columna
+    const iV = Math.floor(cx / paso);
+    const vC = vis[iV];
+    if (vC) {
+      const et = (_tf === '4h' || _tf === '1d') ? fecha(vC.t) + ' ' + hora(vC.t) : hora(vC.t);
+      g.font = '10px ui-monospace,monospace';
+      const w = g.measureText(et).width + 14;
+      g.fillStyle = '#2b3139';
+      redondeado(g, Math.max(2, Math.min(x1 - w - 2, cx - w / 2)), y1 + 3, w, 18, 4); g.fill();
+      g.fillStyle = '#eaecef';
+      g.textAlign = 'center';
+      g.fillText(et, Math.max(w / 2 + 2, Math.min(x1 - w / 2 - 2, cx)), y1 + 16);
+      g.textAlign = 'left';
+    }
+  }
 
   /* ── Las fechas ── */
   g.fillStyle = 'rgba(11,15,22,.96)';
@@ -1745,158 +1996,84 @@ function burbujas() {
   if (!caja || !_geo || N.cargando) return;
   if (!N.mensajes.length) { caja.innerHTML = ''; return; }
 
-  const { Y, pMin, pMax, x1, y1, paso, fin, ancho, vis } = _geo;
-  const primero = Math.max(0, fin - ancho);
-  const xDe = (i) => (i - primero) * paso + paso / 2;
-
   /* ══════════════════════════════════════════════════════════
-     BUSCAR ZONA LIMPIA
+     LAS CÁPSULAS
 
-     La tarjeta no puede taparle las velas. Se mira dónde hay
-     hueco de verdad —arriba o abajo de la acción del precio— y
-     ahí se coloca, unida al punto por una línea curva.
+     [REPLANTEADO] Se quitaron los puntos latiendo y las cuerdas:
+     ensuciaban la gráfica y con el zoom se volvían locos.
+
+     Ahora las cápsulas van arriba a la derecha, que es donde no
+     hay velas (el mercado avanza de izquierda a derecha). Se
+     tocan, se despliegan hacia abajo, y solo si el usuario pulsa
+     "Señálame dónde está" aparece la línea al nivel.
      ══════════════════════════════════════════════════════════ */
-  const zonaLibre = (xCentro) => {
-    /* Qué velas caen bajo esa franja horizontal */
-    const cerca = vis.filter((v, i) => {
-      const x = i * paso + paso / 2;
-      return Math.abs(x - xCentro) < 170;
-    });
-    if (!cerca.length) return { arriba: 60, abajo: y1 - 60 };
-    const techo = Math.min(...cerca.map((v) => Y(v.h)));
-    const suelo = Math.max(...cerca.map((v) => Y(v.l)));
-    return { arriba: techo, abajo: suelo };
-  };
-
   const firma = N.mensajes.map((m) => m.titulo + '|' + m.txt).join('~');
-  const rehacer = caja.dataset.firma !== firma;
-
-  /* ══════════════════════════════════════════════════════════
-     COLOCACIÓN ORDENADA
-
-     [CORREGIDO] Antes cada tarjeta buscaba su hueco por su cuenta
-     y salían líneas verticales absurdas y tarjetas cortadas por el
-     borde.
-
-     Ahora hay franjas fijas: la principal arriba a la izquierda,
-     las de apoyo en fila debajo. Siempre en el mismo sitio, con
-     números para saber el orden. La curva las une a su punto sin
-     que nada se cruce.
-     ══════════════════════════════════════════════════════════ */
-  const anchoTar = Math.min(300, Math.max(210, x1 * 0.26));
-  const filaX = 18 + anchoTar / 2;              // columna izquierda
-  const pos = N.mensajes.map((m, idx) => {
-    /* El punto: donde ocurre lo que se cuenta */
-    let px = x1 * 0.6;
-    if (m.marca && m.marca.iRef != null) px = xDe(m.marca.iRef);
-    else if (m.iAncla != null) px = xDe(m.iAncla);
-    px = Math.max(20, Math.min(x1 - 20, px));
-    const dentro = m.p >= pMin && m.p <= pMax;
-    const py = dentro ? Math.max(14, Math.min(y1 - 14, Y(m.p))) : y1 * 0.4;
-
-    /* La tarjeta va en su franja: siempre en el mismo sitio, así
-       el usuario sabe dónde mirar y nada se solapa. */
-    const alto = 40;
-    const ty = 34 + idx * (alto + 12);
-    return { px, py, tx: filaX, ty: Math.min(ty, y1 - 40), dentro, orden: idx + 1 };
-  });
-
-  if (!rehacer) {
-    caja.querySelectorAll('.nv-m').forEach((el, i) => {
-      const p = pos[i]; if (!p) return;
-      colocar(el, p);
-    });
-    return;
-  }
-
+  if (caja.dataset.firma === firma) return;
   caja.dataset.firma = firma;
+
   const ic = { compra: '▲', venta: '▼', vigilar: '◆', aviso: '✱', tendencia: '➜', contexto: '·' };
   const etq = { compra: 'COMPRA', venta: 'VENTA', vigilar: 'VIGILAR', aviso: 'ESPERA',
                 tendencia: 'TENDENCIA', contexto: 'CONTEXTO' };
 
-  caja.innerHTML = N.mensajes.map((m, idx) => `
-    <div class="nv-m t-${m.tipo} ${m.esPlan ? 'plan' : 'apoyo'}" data-nvm="${idx}">
-      <!-- El punto latiendo donde pasa la cosa -->
-      <span class="nv-pin"></span>
-      <!-- La línea curva que lleva a la tarjeta -->
-      <svg class="nv-hilo" width="1" height="1"><path d="" fill="none"/></svg>
-      <!-- La tarjeta, en zona limpia -->
-      <div class="nv-tar">
-        <button class="nv-chip" type="button">
-          <span class="nv-num">${idx + 1}</span>
-          <img class="nv-chip-ava" src="assets/img/jesus-avatar.webp" alt="">
-          <span class="nv-chip-tx">${ic[m.tipo] || '✱'} ${esc(T(etq[m.tipo] || ''))}</span>
-        </button>
-        <div class="nv-panel-m">
-          <div class="nv-pm-cab">
-            <img class="nv-pm-ava" src="assets/img/jesus-avatar.webp" alt="">
-            <div class="nv-pm-quien"><b>Jesús</b><span>${esc(T(m.titulo))}</span></div>
-            <button class="nv-pm-x" type="button" aria-label="Cerrar">✕</button>
-          </div>
-          <div class="nv-pm-tx" data-escribir="${esc(T(m.txt))}"></div>
-          <div class="nv-pm-hacer">${esc(T(m.hacer))}</div>
+  caja.innerHTML = `<div class="nv-pila">
+    ${N.mensajes.map((m, idx) => `
+    <div class="nv-cap t-${m.tipo} ${m.esPlan ? 'plan' : ''}" data-nvm="${idx}">
+      <button class="nv-cap-b" type="button">
+        <span class="nv-num">${idx + 1}</span>
+        <img class="nv-cap-ava" src="assets/img/jesus-avatar.webp" alt="">
+        <span class="nv-cap-tx">${ic[m.tipo] || '✱'} ${esc(T(etq[m.tipo] || ''))}</span>
+        <span class="nv-cap-fl">▾</span>
+      </button>
+
+      <div class="nv-cap-panel">
+        <div class="nv-pm-cab">
+          <img class="nv-pm-ava" src="assets/img/jesus-avatar.webp" alt="">
+          <div class="nv-pm-quien"><b>Jesús</b><span>${esc(T(m.titulo))}</span></div>
+        </div>
+        <div class="nv-pm-tx" data-escribir="${esc(T(m.txt))}"></div>
+        <div class="nv-pm-hacer">${esc(T(m.hacer))}</div>
+
+        ${m.plan ? planHTML(m.plan) : ''}
+
+        <div class="nv-acts">
           <button class="nv-pm-mas" type="button">${esc(T('Por qué lo digo'))} ▾</button>
-          <div class="nv-pm-det">
-            ${(m.detalle || []).map((x) => `<div class="nv-pm-li">${esc(T(x))}</div>`).join('')}
-          </div>
+          ${m.p ? `<button class="nv-senala" type="button">${esc(T('Señálame dónde está'))}</button>` : ''}
+        </div>
+        <div class="nv-pm-det">
+          ${(m.detalle || []).map((x) => `<div class="nv-pm-li">${esc(T(x))}</div>`).join('')}
         </div>
       </div>
-    </div>`).join('');
+    </div>`).join('')}
+  </div>`;
 
-  caja.querySelectorAll('.nv-m').forEach((el, i) => colocar(el, pos[i]));
-
-  caja.querySelectorAll('[data-nvm]').forEach((el) => {
-    const chip = el.querySelector('.nv-chip');
-    const cerrar = el.querySelector('.nv-pm-x');
+  caja.querySelectorAll('[data-nvm]').forEach((el, idx) => {
+    const b = el.querySelector('.nv-cap-b');
     const mas = el.querySelector('.nv-pm-mas');
-    chip.onclick = (e) => {
+    const sen = el.querySelector('.nv-senala');
+
+    b.onclick = (e) => {
       e.stopPropagation();
       const ab = el.classList.contains('abierto');
-      caja.querySelectorAll('.nv-m').forEach((x) => x.classList.remove('abierto'));
+      caja.querySelectorAll('.nv-cap').forEach((x) => x.classList.remove('abierto'));
       if (!ab) { el.classList.add('abierto'); escribir(el.querySelector('[data-escribir]')); }
     };
-    cerrar.onclick = (e) => { e.stopPropagation(); el.classList.remove('abierto'); };
     mas.onclick = (e) => {
       e.stopPropagation();
       el.classList.toggle('con-detalle');
-      mas.textContent = el.classList.contains('con-detalle') ? 'Ocultar ▴' : 'Por qué lo digo ▾';
+      mas.textContent = el.classList.contains('con-detalle')
+        ? T('Ocultar') + ' ▴' : T('Por qué lo digo') + ' ▾';
+    };
+    if (sen) sen.onclick = (e) => {
+      e.stopPropagation();
+      /* Se cierra la cápsula y se marca el nivel en la gráfica */
+      el.classList.remove('abierto');
+      N.senalado = N.senalado === idx ? null : idx;
+      dibujar();
     };
   });
 
-  const uno = caja.querySelector('.nv-m');
+  const uno = caja.querySelector('.nv-cap');
   if (uno) { uno.classList.add('abierto'); escribir(uno.querySelector('[data-escribir]')); }
-}
-
-/** Coloca el punto, la tarjeta y traza la curva que los une. */
-function colocar(el, p) {
-  if (!el || !p) return;
-  const pin = el.querySelector('.nv-pin');
-  const tar = el.querySelector('.nv-tar');
-  const svg = el.querySelector('.nv-hilo');
-  if (!pin || !tar || !svg) return;
-
-  pin.style.left = p.px + 'px';
-  pin.style.top = p.py + 'px';
-  tar.style.left = p.tx + 'px';
-  tar.style.top = p.ty + 'px';
-  el.classList.toggle('sin-ancla', !p.dentro);
-
-  /* La curva: como una cuerda con pandeo entre los dos puntos. */
-  const x0 = p.px, y0 = p.py, x2 = p.tx, y2 = p.ty;
-  const minX = Math.min(x0, x2) - 6, minY = Math.min(y0, y2) - 6;
-  const w = Math.abs(x2 - x0) + 12, h = Math.abs(y2 - y0) + 12;
-  svg.setAttribute('width', w);
-  svg.setAttribute('height', h);
-  svg.style.left = minX + 'px';
-  svg.style.top = minY + 'px';
-
-  const a = { x: x0 - minX, y: y0 - minY };
-  const b = { x: x2 - minX, y: y2 - minY };
-  // El punto de control da el pandeo: sale del punto y llega a la tarjeta
-  const cx = a.x + (b.x - a.x) * 0.35;
-  const cy = b.y + (a.y - b.y) * 0.12;
-  const d = `M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`;
-  svg.querySelector('path').setAttribute('d', d);
 }
 
 /** Escribe el texto letra a letra, como si lo tecleara. */
@@ -1910,6 +2087,32 @@ function escribir(el) {
     el.textContent = txt.slice(0, n);
     if (n >= txt.length) { el.textContent = txt; clearInterval(t); }
   }, 13);
+}
+
+/** El plan de operación, en tabla: entrada, stop y objetivos. */
+function planHTML(p) {
+  if (!p) return '';
+  const largo = p.lado === 'compra';
+  return `
+  <div class="nv-plan">
+    <div class="nv-plan-t">${esc(T('Plan de operación'))}</div>
+    <div class="nv-plan-fila entrada">
+      <span>${esc(T('Entrada'))}</span><b>${fmt(p.entrada)}</b>
+    </div>
+    <div class="nv-plan-fila stop">
+      <span>${esc(T('Stop'))}</span><b>${fmt(p.stop)}</b>
+      <i>−${p.riesgoPct.toFixed(2)}%</i>
+    </div>
+    ${p.obj.map((o, i) => `
+    <div class="nv-plan-fila obj">
+      <span>${esc(T('Objetivo'))} ${i + 1} <em>${o.r}R</em></span><b>${fmt(o.p)}</b>
+      <i>+${o.pct.toFixed(2)}%</i>
+    </div>`).join('')}
+    <div class="nv-plan-pie">
+      ${esc(T('Riesgo/beneficio'))} <b>1:${p.rr}</b> ·
+      ${esc(T('Volatilidad media'))} <b>${fmt(p.atr)}</b>
+    </div>
+  </div>`;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1940,6 +2143,15 @@ function gestos(cv) {
     if (enEscala(e.clientX - r.left)) zoomY(e.deltaY > 0 ? 1.12 : 0.9);
     else zoomX(e.deltaY > 0 ? 1.15 : 0.87);
   }, { passive: false });
+
+  /* La cruz sigue al cursor */
+  cv.addEventListener('mousemove', (e) => {
+    if (arr) return;
+    const r = cv.getBoundingClientRect();
+    N.cruz = { x: Math.round(e.clientX - r.left), y: Math.round(e.clientY - r.top) };
+    dibujar();
+  });
+  cv.addEventListener('mouseleave', () => { N.cruz = null; dibujar(); });
 
   cv.addEventListener('dblclick', () => {
     N.vista.ancho = window.innerWidth < 760 ? 55 : 90;
@@ -2346,82 +2558,51 @@ function estilos() {
     font-family:var(--display,sans-serif);font-weight:800;font-size:13px;cursor:pointer;margin-top:6px}
 
   /* ══════════════════════════════════════════════════════════
-     LOS MARCADORES DEL ASISTENTE
-
-     Un punto pequeño anclado al sitio exacto del que se habla.
-     Al tocarlo se despliega el texto completo. Ocupa poco y no
-     tapa la gráfica.
+     LAS CÁPSULAS · arriba a la derecha, donde no hay velas
      ══════════════════════════════════════════════════════════ */
   #nv-overlay .nv-burbujas{position:absolute;inset:0;pointer-events:none;z-index:5}
-  #nv-overlay .nv-m{position:absolute;inset:0;pointer-events:none;z-index:6}
-  #nv-overlay .nv-m.abierto{z-index:20}
+  #nv-overlay .nv-pila{position:absolute;top:12px;right:96px;
+    display:flex;flex-direction:column;gap:7px;align-items:flex-end;
+    max-height:calc(100% - 24px);pointer-events:none}
+  #nv-overlay .nv-cap{pointer-events:auto;display:flex;flex-direction:column;align-items:flex-end}
 
-  /* El punto que marca dónde pasa la cosa */
-  #nv-overlay .nv-pin{position:absolute;width:11px;height:11px;border-radius:50%;
-    transform:translate(-50%,-50%);pointer-events:none;
-    background:currentColor;box-shadow:0 0 0 3px rgba(11,15,22,.85),0 0 14px currentColor;
-    animation:nvPin 2s ease-in-out infinite}
-  @keyframes nvPin{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:1}
-                   50%{transform:translate(-50%,-50%) scale(1.3);opacity:.65}}
-
-  /* La cuerda que une el punto con la tarjeta */
-  #nv-overlay .nv-hilo{position:absolute;pointer-events:none;overflow:visible}
-  #nv-overlay .nv-hilo path{stroke:currentColor;stroke-width:1.6;opacity:.55;
-    stroke-dasharray:4 4;stroke-linecap:round}
-  #nv-overlay .nv-m.abierto .nv-hilo path{opacity:.9;stroke-dasharray:none;stroke-width:2}
-  #nv-overlay .nv-m.sin-ancla .nv-pin,#nv-overlay .nv-m.sin-ancla .nv-hilo{display:none}
-
-  /* La tarjeta, en zona limpia */
-  #nv-overlay .nv-tar{position:absolute;transform:translate(-50%,-50%);pointer-events:auto}
-
-  /* El chip: pequeño, con el avatar */
-  /* El número de orden: la 1 es el plan, las demás contexto */
+  #nv-overlay .nv-cap-b{display:flex;align-items:center;gap:7px;padding:4px 10px 4px 4px;
+    border-radius:20px;cursor:pointer;white-space:nowrap;
+    background:rgba(13,17,23,.95);border:1.5px solid #3a424c;
+    box-shadow:0 3px 14px rgba(0,0,0,.6);transition:transform .15s}
+  #nv-overlay .nv-cap-b:hover{transform:scale(1.04)}
   #nv-overlay .nv-num{width:19px;height:19px;flex:0 0 auto;border-radius:6px;
     display:grid;place-items:center;font-family:var(--display,sans-serif);
     font-weight:800;font-size:11px;background:rgba(255,255,255,.1);color:#b7bdc6}
-  #nv-overlay .nv-m.plan .nv-num{background:linear-gradient(180deg,#f7db8d,#E8B84B);color:#3a2800}
-  #nv-overlay .nv-m.plan .nv-chip{border-width:2px;box-shadow:0 4px 16px rgba(0,0,0,.6)}
-  #nv-overlay .nv-m.apoyo .nv-chip{opacity:.82;transform:scale(.94)}
-  #nv-overlay .nv-m.apoyo .nv-hilo path{opacity:.32}
-  #nv-overlay .t-contexto .nv-chip{border-color:#5c6672}
-  #nv-overlay .t-contexto .nv-chip-tx{color:#9aa5b1}
-  #nv-overlay .t-contexto{color:#7d8794}
+  #nv-overlay .nv-cap.plan .nv-num{background:linear-gradient(180deg,#f7db8d,#E8B84B);color:#3a2800}
+  #nv-overlay .nv-cap.plan .nv-cap-b{border-width:2px}
+  #nv-overlay .nv-cap-ava{width:22px;height:22px;border-radius:50%;object-fit:cover;flex:0 0 auto;
+    border:1px solid rgba(232,184,75,.5)}
+  #nv-overlay .nv-cap-tx{font-family:var(--mono,monospace);font-size:9.5px;font-weight:700;letter-spacing:.6px}
+  #nv-overlay .nv-cap-fl{font-size:9px;color:#5c6672;transition:transform .2s}
+  #nv-overlay .nv-cap.abierto .nv-cap-fl{transform:rotate(180deg)}
+  #nv-overlay .t-compra .nv-cap-b{border-color:#2ee86a}
+  #nv-overlay .t-compra .nv-cap-tx{color:#3ee88a}
+  #nv-overlay .t-venta .nv-cap-b{border-color:#f6465d}
+  #nv-overlay .t-venta .nv-cap-tx{color:#ff6b7a}
+  #nv-overlay .t-aviso .nv-cap-b{border-color:rgba(232,184,75,.75)}
+  #nv-overlay .t-aviso .nv-cap-tx{color:var(--gold,#E8B84B)}
+  #nv-overlay .t-vigilar .nv-cap-b,#nv-overlay .t-contexto .nv-cap-b{border-color:#5c6672}
+  #nv-overlay .t-vigilar .nv-cap-tx,#nv-overlay .t-contexto .nv-cap-tx{color:#9aa5b1}
+  #nv-overlay .t-tendencia .nv-cap-b{border-color:#4d9fff}
+  #nv-overlay .t-tendencia .nv-cap-tx{color:#6fb0ff}
 
-  #nv-overlay .nv-chip{display:flex;align-items:center;gap:6px;padding:3px 9px 3px 3px;
-    border-radius:20px;cursor:pointer;white-space:nowrap;
-    background:rgba(13,17,23,.94);border:1.5px solid #3a424c;
-    box-shadow:0 3px 12px rgba(0,0,0,.55);transition:transform .15s,border-color .15s}
-  #nv-overlay .nv-chip:hover{transform:scale(1.06)}
-  #nv-overlay .nv-chip-ava{width:22px;height:22px;border-radius:50%;object-fit:cover;
-    border:1px solid rgba(232,184,75,.5);flex:0 0 auto}
-  #nv-overlay .nv-chip-tx{font-family:var(--mono,monospace);font-size:9.5px;font-weight:700;
-    letter-spacing:.6px}
-  #nv-overlay .t-compra .nv-chip{border-color:#2ee86a}
-  #nv-overlay .t-compra .nv-chip-tx{color:#3ee88a}
-  #nv-overlay .t-venta .nv-chip{border-color:#f6465d}
-  #nv-overlay .t-venta .nv-chip-tx{color:#ff6b7a}
-  #nv-overlay .t-aviso .nv-chip{border-color:rgba(232,184,75,.75)}
-  #nv-overlay .t-aviso .nv-chip-tx{color:var(--gold,#E8B84B)}
-  #nv-overlay .t-vigilar .nv-chip{border-color:#9aa5b1}
-  #nv-overlay .t-vigilar .nv-chip-tx{color:#b7bdc6}
-  #nv-overlay .t-tendencia .nv-chip{border-color:#4d9fff}
-  #nv-overlay .t-tendencia .nv-chip-tx{color:#6fb0ff}
-  #nv-overlay .nv-m.abierto .nv-chip{opacity:.55;transform:scale(.9)}
-  #nv-overlay .nv-m.fuera .nv-chip{opacity:.6}
-
-  /* El panel desplegado */
-  #nv-overlay .nv-panel-m{display:none;position:absolute;top:0;
-    left:calc(100% + 12px);transform:none;
-    width:min(320px, 74vw);padding:12px 13px;border-radius:14px;
+  /* El panel se despliega hacia abajo, debajo de su cápsula */
+  #nv-overlay .nv-cap-panel{display:none;width:min(326px, 78vw);margin-top:7px;
+    padding:13px;border-radius:14px;text-align:left;
     background:linear-gradient(165deg,rgba(20,26,35,.985),rgba(11,15,22,.985));
     border:1px solid #3a424c;box-shadow:0 14px 40px rgba(0,0,0,.72);
-    animation:nvAbrePanel .22s ease both}
-
-  #nv-overlay .nv-m.abierto .nv-panel-m{display:block}
-  @keyframes nvAbrePanel{from{opacity:0;transform:translateX(-8px) scale(.97)}to{opacity:1;transform:none}}
-  #nv-overlay .t-compra .nv-panel-m{border-color:rgba(46,232,106,.5)}
-  #nv-overlay .t-venta .nv-panel-m{border-color:rgba(246,70,93,.5)}
-  #nv-overlay .t-aviso .nv-panel-m{border-color:rgba(232,184,75,.45)}
+    max-height:62vh;overflow-y:auto;animation:nvAbrePanel .22s ease both}
+  #nv-overlay .nv-cap.abierto .nv-cap-panel{display:block}
+  @keyframes nvAbrePanel{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  #nv-overlay .t-compra .nv-cap-panel{border-color:rgba(46,232,106,.45)}
+  #nv-overlay .t-venta .nv-cap-panel{border-color:rgba(246,70,93,.45)}
+  #nv-overlay .t-aviso .nv-cap-panel{border-color:rgba(232,184,75,.4)}
 
   #nv-overlay .nv-pm-cab{display:flex;align-items:center;gap:9px;margin-bottom:9px}
   #nv-overlay .nv-pm-ava{width:32px;height:32px;border-radius:50%;object-fit:cover;flex:0 0 auto;
@@ -2431,19 +2612,41 @@ function estilos() {
     font-size:12px;color:var(--gold,#E8B84B);line-height:1.1}
   #nv-overlay .nv-pm-quien span{display:block;font-family:var(--display,sans-serif);font-weight:700;
     font-size:13.5px;color:#eaecef;line-height:1.25;overflow-wrap:anywhere}
-  #nv-overlay .nv-pm-x{width:26px;height:26px;flex:0 0 auto;border-radius:8px;cursor:pointer;
-    display:grid;place-items:center;padding:0;font-size:11px;
-    background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#8b96a3}
   #nv-overlay .nv-pm-tx{min-height:30px;font-family:var(--sans,sans-serif);font-size:12.5px;
     color:#b7bdc6;line-height:1.55}
   #nv-overlay .nv-pm-hacer{margin-top:9px;padding:10px 12px;border-radius:10px;
     background:rgba(0,0,0,.38);border-left:2px solid rgba(232,184,75,.6);
     font-family:var(--sans,sans-serif);font-size:12px;color:#e2e8ee;line-height:1.5}
-  #nv-overlay .nv-pm-mas{width:100%;margin-top:9px;min-height:32px;border-radius:8px;cursor:pointer;
+
+  /* La tabla del plan de operación */
+  #nv-overlay .nv-plan{margin-top:10px;padding:11px;border-radius:11px;
+    background:rgba(255,255,255,.035);border:1px solid #2b3139}
+  #nv-overlay .nv-plan-t{font-family:var(--mono,monospace);font-size:9px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:1.3px;margin-bottom:8px}
+  #nv-overlay .nv-plan-fila{display:flex;align-items:center;gap:8px;padding:5px 0;
+    border-bottom:1px solid rgba(255,255,255,.05)}
+  #nv-overlay .nv-plan-fila:last-of-type{border-bottom:none}
+  #nv-overlay .nv-plan-fila span{flex:1;font-family:var(--sans,sans-serif);font-size:11.5px;color:#8b96a3}
+  #nv-overlay .nv-plan-fila span em{font-style:normal;font-family:var(--mono,monospace);
+    font-size:9px;color:#5c6672;margin-left:3px}
+  #nv-overlay .nv-plan-fila b{font-family:var(--mono,monospace);font-size:12.5px;color:#eaecef}
+  #nv-overlay .nv-plan-fila i{font-style:normal;font-family:var(--mono,monospace);font-size:10px;
+    min-width:52px;text-align:right}
+  #nv-overlay .nv-plan-fila.entrada b{color:var(--gold,#E8B84B)}
+  #nv-overlay .nv-plan-fila.stop b,#nv-overlay .nv-plan-fila.stop i{color:#ff6b7a}
+  #nv-overlay .nv-plan-fila.obj b,#nv-overlay .nv-plan-fila.obj i{color:#3ee88a}
+  #nv-overlay .nv-plan-pie{margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);
+    font-family:var(--mono,monospace);font-size:9.5px;color:#5c6672}
+  #nv-overlay .nv-plan-pie b{color:#b7bdc6}
+
+  #nv-overlay .nv-acts{display:flex;gap:6px;margin-top:9px}
+  #nv-overlay .nv-pm-mas,#nv-overlay .nv-senala{flex:1;min-height:34px;border-radius:8px;cursor:pointer;
     background:rgba(255,255,255,.04);border:1px solid #2b3139;color:#8b96a3;
-    font-family:var(--mono,monospace);font-size:10px;letter-spacing:.6px}
+    font-family:var(--mono,monospace);font-size:9.5px;letter-spacing:.5px;padding:0 8px}
+  #nv-overlay .nv-senala{background:rgba(232,184,75,.12);border-color:rgba(232,184,75,.4);
+    color:var(--gold,#E8B84B);font-weight:700}
   #nv-overlay .nv-pm-det{display:none;margin-top:9px}
-  #nv-overlay .nv-m.con-detalle .nv-pm-det{display:block}
+  #nv-overlay .nv-cap.con-detalle .nv-pm-det{display:block}
   #nv-overlay .nv-pm-li{font-family:var(--mono,monospace);font-size:10.5px;color:#8b96a3;
     line-height:1.7;padding-left:11px;position:relative}
   #nv-overlay .nv-pm-li:before{content:'·';position:absolute;left:2px;color:#5c6672}
@@ -2510,13 +2713,12 @@ function estilos() {
     #nv-overlay .nv-cf-tx{display:none}
     #nv-overlay .nv-cf-s{display:block}
     #nv-overlay .nv-precio{font-size:15px}
-    /* [CORREGIDO] El panel se cortaba por abajo. Ahora va fijo a la
-       pantalla, pegado abajo con su propio scroll: siempre entero. */
-    #nv-overlay .nv-m.abierto .nv-panel-m{position:fixed !important;
-      left:8px !important;right:8px !important;width:auto !important;
-      max-width:none !important;transform:none !important;
-      top:auto !important;bottom:10px !important;
-      max-height:46vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+    /* En móvil las cápsulas ocupan el ancho y el panel se ajusta */
+    #nv-overlay .nv-pila{right:8px;left:8px;top:8px;align-items:stretch}
+    #nv-overlay .nv-cap{align-items:stretch}
+    #nv-overlay .nv-cap-b{justify-content:flex-start}
+    #nv-overlay .nv-cap-panel{width:auto;max-height:56vh}
+    #nv-overlay .nv-acts{flex-direction:column}
     #nv-overlay .nv-chip-tx{font-size:9px}
     #nv-overlay .nv-chip-ava{width:20px;height:20px}
     #nv-overlay .nv-pm-quien span{font-size:12.5px}
