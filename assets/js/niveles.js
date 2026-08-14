@@ -2567,7 +2567,7 @@ function menuPares() {
   const aplicarFiltro = async () => {
     if (!_operables) {
       try {
-        const tk = await import('./tokens.js?v=126');
+        const tk = await import('./tokens.js?v=125');
         _operables = new Set(Object.values(tk.MONEDAS).map((x) => x.simbolo));
       } catch (_) { _operables = new Set(); }
     }

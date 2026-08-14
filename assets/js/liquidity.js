@@ -11,7 +11,7 @@
 //   #0037ff  bloque bajista      (azul)
 
 import * as ethers from './vendor/ethers-6.13.4.min.js?v=126';
-import * as wallet from './wallet.js?v=126';
+import * as wallet from './wallet.js?v=125';
 
 /* ══════════════════════════════════════════════════════════════
    SUSCRIPCIÓN A LAS HERRAMIENTAS PRO

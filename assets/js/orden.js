@@ -340,9 +340,9 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
      ══════════════════════════════════════════════════════════ */
   (async () => {
     try {
-      const tk = await import('./tokens.js?v=126');
-      const gb = await import('./gridbot.js?v=126');
-      const w = await import('./wallet.js?v=126');
+      const tk = await import('./tokens.js?v=125');
+      const gb = await import('./gridbot.js?v=125');
+      const w = await import('./wallet.js?v=125');
       /* [CORREGIDO] Se llamaba a `w.cuenta()`, que no existe: la
          función es `cuentaActual()`. Por eso siempre decía que la
          wallet estaba desconectada aunque estuviera conectada. */
@@ -561,9 +561,9 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
    lo que ya está desplegado.
    ══════════════════════════════════════════════════════════════ */
 async function ponerOrdenReal({ cfg, precio, cant, vender, sl, alPaso }) {
-  const gb = await import('./gridbot.js?v=126');
-  const tk = await import('./tokens.js?v=126');
-  const w  = await import('./wallet.js?v=126');
+  const gb = await import('./gridbot.js?v=125');
+  const tk = await import('./tokens.js?v=125');
+  const w  = await import('./wallet.js?v=125');
 
   /* ══════════════════════════════════════════════════════════
      [REESCRITO] Antes se montaba la configuración a mano y la
@@ -725,7 +725,7 @@ export const avisos = () => leerAvisos();
 /** ¿Se puede operar esta moneda desde el gráfico? */
 export async function sePuedeOperar(simb) {
   try {
-    const tk = await import('./tokens.js?v=126');
+    const tk = await import('./tokens.js?v=125');
     return !!buscarMoneda(tk.MONEDAS, simb);
   } catch (_) { return false; }
 }
@@ -733,7 +733,7 @@ export async function sePuedeOperar(simb) {
 /** Todos los símbolos operables, con sus equivalencias. */
 export async function simbolosOperables() {
   try {
-    const tk = await import('./tokens.js?v=126');
+    const tk = await import('./tokens.js?v=125');
     const out = new Set();
     Object.values(tk.MONEDAS).forEach((m) => out.add(String(m.simbolo).toUpperCase()));
     Object.keys(tk.MONEDAS).forEach((k) => out.add(k.toUpperCase()));
