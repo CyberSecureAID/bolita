@@ -527,13 +527,15 @@ function calcularTendencia(velas, piv, tend) {
   };
 
   if (tend.dir === 'alcista') {
-    const pts = piv.bajos.slice(-5);
+    /* Se usan más pivotes para que la línea abarque un tramo mayor:
+       una recta sobre 6 puntos dice mucho más que sobre 3. */
+    const pts = piv.bajos.slice(-6);
     const r = recta(pts);
     // Solo si el ajuste es bueno y la pendiente sube de verdad
     if (r && pts.length >= 3 && r.r2 > 0.55 && r.m > 0) return { tipo: 'alcista', ...r };
   }
   if (tend.dir === 'bajista') {
-    const pts = piv.altos.slice(-5);
+    const pts = piv.altos.slice(-6);
     const r = recta(pts);
     if (r && pts.length >= 3 && r.r2 > 0.55 && r.m < 0) return { tipo: 'bajista', ...r };
   }
@@ -1334,6 +1336,10 @@ export async function abrirNiveles() {
 
         <div class="nv-estado" id="nv-estado"></div>
 
+        <!-- Las cápsulas del asistente viven en la barra, no sobre
+             la gráfica: así no tapan nada y siempre están a mano. -->
+        <div class="nv-caps" id="nv-caps"></div>
+
         <div class="nv-der">
           <button class="nv-ico" id="nv-foto" title="Compartir">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
@@ -1660,7 +1666,7 @@ function dibujar() {
       // Prolongación hacia el futuro, discontinua
       /* La prolongación se corta si se sale de la vista: antes se
          iba al infinito y arrastraba la etiqueta fuera de pantalla. */
-      const iF = iB + 6;
+      const iF = iB + 3;
       const yFut = Y(L.m * iF + L.b);
       if (yFut > -20 && yFut < y1 + 20) {
         g.strokeStyle = col + '66';
@@ -1693,9 +1699,9 @@ function dibujar() {
     const xIni = Math.max(0, Math.min(xA, xB));
     const xFin = Math.min(x1, xIni + (x1 - xIni) * av);
 
-    // El golden pocket, sombreado
+    // El golden pocket, sombreado suave para no tapar velas
     const yG1 = Y(F.gp.alto), yG2 = Y(F.gp.bajo);
-    g.fillStyle = 'rgba(232,184,75,.13)';
+    g.fillStyle = 'rgba(232,184,75,.07)';
     g.fillRect(xIni, Math.min(yG1, yG2), xFin - xIni, Math.abs(yG2 - yG1));
 
     // Los niveles
@@ -1739,7 +1745,8 @@ function dibujar() {
     g.beginPath(); g.moveTo(0, yA); g.lineTo(xT, yA); g.stroke();
     g.beginPath(); g.moveTo(0, yB); g.lineTo(xT, yB); g.stroke();
     if (_trazo >= 1) {
-      g.fillStyle = 'rgba(232,184,75,.06)';
+      /* La banda tapaba las velas. Solo un borde suave. */
+      g.fillStyle = 'rgba(232,184,75,.02)';
       g.fillRect(0, yA, x1, yB - yA);
       ['TECHO DEL RANGO', 'SUELO DEL RANGO'].forEach((et, k) => {
         const y = k === 0 ? yA : yB;
@@ -1763,13 +1770,6 @@ function dibujar() {
     const x1p = idxVis(d.p1.i), x2p = idxVis(d.p2.i);
     const yN = Y(d.nivel), yC = Y(d.cuello);
 
-    // Los dos extremos
-    [x1p, x2p].forEach((xx) => {
-      if (xx < 0 || xx > x1) return;
-      g.beginPath(); g.arc(xx, yN, 5, 0, Math.PI * 2);
-      g.fillStyle = col; g.fill();
-      g.strokeStyle = '#0b0f16'; g.lineWidth = 1.5; g.stroke();
-    });
     // La línea del cuello
     g.strokeStyle = col + 'aa';
     g.setLineDash([5, 4]); g.lineWidth = 1.4;
@@ -1856,18 +1856,50 @@ function dibujar() {
     }
   });
 
-  /* ══ EL NIVEL SEÑALADO ══
-     Solo aparece si el usuario pulsó "Señálame dónde está". */
+  /* ══ LA SOGUITA ══
+     Solo cuando el usuario pulsa "Señálame dónde está". Sale de
+     arriba (donde está su cápsula) y baja curvándose hasta el
+     punto exacto, con la punta marcada. */
   if (N.senalado != null && N.mensajes[N.senalado]) {
     const m = N.mensajes[N.senalado];
     if (m.p >= pMin && m.p <= pMax) {
       const y = Y(m.p);
       const col = m.tipo === 'compra' ? '#2ee86a' : m.tipo === 'venta' ? '#f6465d' : '#E8B84B';
-      g.fillStyle = col + '1f';
-      g.fillRect(0, y - 9, x1, 18);
+
+      /* Dónde ocurre: si la señal viene de una estructura, en su
+         vela; si no, hacia el centro. */
+      let xFin = x1 * 0.55;
+      if (m.marca && m.marca.iRef != null) xFin = idxVis(m.marca.iRef);
+      else if (m.iAncla != null) xFin = idxVis(m.iAncla);
+      xFin = Math.max(30, Math.min(x1 - 20, xFin));
+
+      // El origen: arriba, donde vive la cápsula del asistente
+      const xIni = Math.min(x1 - 40, x1 * 0.5 + N.senalado * 40);
+      const yIni = 8;
+
+      // La cuerda con pandeo
       g.strokeStyle = col;
-      g.lineWidth = 2;
+      g.lineWidth = 1.8;
+      g.globalAlpha = 0.85;
+      g.setLineDash([5, 4]);
+      g.beginPath();
+      g.moveTo(xIni, yIni);
+      g.quadraticCurveTo(xIni + (xFin - xIni) * 0.15, y - (y - yIni) * 0.22, xFin, y);
+      g.stroke();
+      g.setLineDash([]);
+      g.globalAlpha = 1;
+
+      // La banda del nivel y su línea
+      g.fillStyle = col + '1c';
+      g.fillRect(0, y - 8, x1, 16);
+      g.strokeStyle = col;
+      g.lineWidth = 1.8;
       g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
+
+      // La punta, en el punto exacto
+      g.beginPath(); g.arc(xFin, y, 6, 0, Math.PI * 2);
+      g.fillStyle = col; g.fill();
+      g.strokeStyle = '#0b0f16'; g.lineWidth = 2; g.stroke();
 
       const et = (N.senalado + 1) + ' · ' + fmt(m.p);
       g.font = 'bold 11px ui-monospace,monospace';
@@ -1992,7 +2024,7 @@ function redondeado(g, x, y, w, h, r) {
    se estira, ellas siguen a su nivel. Nunca se despegan.
    ══════════════════════════════════════════════════════════════ */
 function burbujas() {
-  const caja = $('nv-burbujas');
+  const caja = $('nv-caps');
   if (!caja || !_geo || N.cargando) return;
   if (!N.mensajes.length) { caja.innerHTML = ''; return; }
 
@@ -2015,8 +2047,7 @@ function burbujas() {
   const etq = { compra: 'COMPRA', venta: 'VENTA', vigilar: 'VIGILAR', aviso: 'ESPERA',
                 tendencia: 'TENDENCIA', contexto: 'CONTEXTO' };
 
-  caja.innerHTML = `<div class="nv-pila">
-    ${N.mensajes.map((m, idx) => `
+  caja.innerHTML = `${N.mensajes.map((m, idx) => `
     <div class="nv-cap t-${m.tipo} ${m.esPlan ? 'plan' : ''}" data-nvm="${idx}">
       <button class="nv-cap-b" type="button">
         <span class="nv-num">${idx + 1}</span>
@@ -2043,8 +2074,7 @@ function burbujas() {
           ${(m.detalle || []).map((x) => `<div class="nv-pm-li">${esc(T(x))}</div>`).join('')}
         </div>
       </div>
-    </div>`).join('')}
-  </div>`;
+    </div>`).join('')}`;
 
   caja.querySelectorAll('[data-nvm]').forEach((el, idx) => {
     const b = el.querySelector('.nv-cap-b');
@@ -2560,11 +2590,10 @@ function estilos() {
   /* ══════════════════════════════════════════════════════════
      LAS CÁPSULAS · arriba a la derecha, donde no hay velas
      ══════════════════════════════════════════════════════════ */
-  #nv-overlay .nv-burbujas{position:absolute;inset:0;pointer-events:none;z-index:5}
-  #nv-overlay .nv-pila{position:absolute;top:12px;right:96px;
-    display:flex;flex-direction:column;gap:7px;align-items:flex-end;
-    max-height:calc(100% - 24px);pointer-events:none}
-  #nv-overlay .nv-cap{pointer-events:auto;display:flex;flex-direction:column;align-items:flex-end}
+  #nv-overlay .nv-burbujas{display:none}
+  /* Las cápsulas viven en la barra superior, en horizontal */
+  #nv-overlay .nv-caps{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+  #nv-overlay .nv-cap{position:relative}
 
   #nv-overlay .nv-cap-b{display:flex;align-items:center;gap:7px;padding:4px 10px 4px 4px;
     border-radius:20px;cursor:pointer;white-space:nowrap;
@@ -2592,12 +2621,13 @@ function estilos() {
   #nv-overlay .t-tendencia .nv-cap-b{border-color:#4d9fff}
   #nv-overlay .t-tendencia .nv-cap-tx{color:#6fb0ff}
 
-  /* El panel se despliega hacia abajo, debajo de su cápsula */
-  #nv-overlay .nv-cap-panel{display:none;width:min(326px, 78vw);margin-top:7px;
+  /* El panel cuelga de su cápsula, sobre la gráfica */
+  #nv-overlay .nv-cap-panel{display:none;position:absolute;top:calc(100% + 9px);left:0;
+    z-index:40;width:min(330px, calc(100vw - 24px));
     padding:13px;border-radius:14px;text-align:left;
     background:linear-gradient(165deg,rgba(20,26,35,.985),rgba(11,15,22,.985));
     border:1px solid #3a424c;box-shadow:0 14px 40px rgba(0,0,0,.72);
-    max-height:62vh;overflow-y:auto;animation:nvAbrePanel .22s ease both}
+    max-height:min(62vh, 460px);overflow-y:auto;animation:nvAbrePanel .22s ease both}
   #nv-overlay .nv-cap.abierto .nv-cap-panel{display:block}
   @keyframes nvAbrePanel{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
   #nv-overlay .t-compra .nv-cap-panel{border-color:rgba(46,232,106,.45)}
@@ -2713,12 +2743,32 @@ function estilos() {
     #nv-overlay .nv-cf-tx{display:none}
     #nv-overlay .nv-cf-s{display:block}
     #nv-overlay .nv-precio{font-size:15px}
-    /* En móvil las cápsulas ocupan el ancho y el panel se ajusta */
-    #nv-overlay .nv-pila{right:8px;left:8px;top:8px;align-items:stretch}
-    #nv-overlay .nv-cap{align-items:stretch}
-    #nv-overlay .nv-cap-b{justify-content:flex-start}
-    #nv-overlay .nv-cap-panel{width:auto;max-height:56vh}
+    /* ══ MÓVIL ══
+       Las cápsulas se reducen a un círculo con su número y un punto
+       rojo latiendo, para que se vea que hay que tocarlas. */
+    #nv-overlay .nv-cap-b{width:34px;height:34px;padding:0;border-radius:50%;
+      justify-content:center;position:relative}
+    #nv-overlay .nv-cap-ava,#nv-overlay .nv-cap-tx,#nv-overlay .nv-cap-fl{display:none}
+    #nv-overlay .nv-num{width:auto;height:auto;background:none !important;
+      font-size:14px;color:inherit !important}
+    #nv-overlay .nv-cap.plan .nv-num{color:var(--gold,#E8B84B) !important}
+    #nv-overlay .nv-cap-b:after{content:'';position:absolute;top:1px;right:1px;
+      width:8px;height:8px;border-radius:50%;background:#ff3b30;
+      border:1.5px solid #0b0f16;animation:nvLate 1.9s ease-in-out infinite}
+    @keyframes nvLate{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.82)}}
+    #nv-overlay .nv-cap.abierto .nv-cap-b:after{display:none}
+    /* El panel, a pantalla casi completa */
+    /* [CORREGIDO] El panel se cortaba: el max-height en vh no cuenta
+       la barra del navegador móvil. Se ancla arriba Y abajo, así
+       ocupa exactamente lo que hay disponible. */
+    #nv-overlay .nv-cap-panel{position:fixed;top:112px;bottom:12px;
+      left:8px;right:8px;width:auto;max-height:none;height:auto}
     #nv-overlay .nv-acts{flex-direction:column}
+    /* La barra superior, ordenada en dos filas */
+    #nv-overlay .nv-cab{flex-wrap:wrap;row-gap:7px;padding:8px 10px}
+    #nv-overlay .nv-estado{order:3;width:100%}
+    #nv-overlay .nv-caps{order:4;margin-left:auto}
+    #nv-overlay .nv-der{order:2;margin-left:auto}
     #nv-overlay .nv-chip-tx{font-size:9px}
     #nv-overlay .nv-chip-ava{width:20px;height:20px}
     #nv-overlay .nv-pm-quien span{font-size:12.5px}
