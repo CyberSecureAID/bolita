@@ -16,6 +16,9 @@ function desde(ts) {
   return d.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+/* Consumo real del usuario, para el coste por operación. */
+const _gasReal = { gastado: 0, ops: 0 };
+
 function estilos() {
   if ($('perfil-css')) return;
   const s = document.createElement('style');
@@ -133,6 +136,10 @@ function estilos() {
     #perfil-overlay .tx-l{display:none}
     #perfil-overlay .tx-s{display:inline}
     #perfil-overlay .pf-sect{text-align:center;margin-top:22px;margin-bottom:10px}
+  /* De dónde sale el dato: real o estimado */
+  #perfil-overlay .pf-fuente{display:block;margin-top:2px;font-style:normal;
+    font-family:var(--mono,monospace);font-size:9px;color:#5c6672;letter-spacing:.3px}
+
   #perfil-overlay .pf-note{font-size:11px;line-height:1.5;text-align:center;padding:0 4px}
     #perfil-overlay .pf-setname{font-size:12.5px}
   }
@@ -468,17 +475,40 @@ async function cargarDatos(cuenta) {
       : `<span class="pf-pill pf-off">Inactiva</span>`;
     if ($('pf-precio')) $('pf-precio').textContent = precio > 0n ? `${num(Number(gb.fmtBNB(precio)), 5)} BNB ≈ $1` : '—';
     if ($('pf-gas')) $('pf-gas').textContent = `${num(Number(gb.fmtBNB(gasWei)), 5)} BNB`;   // 5 decimales: con 4, 0.00396 se veía como 0.0040
-    // Cuánto cuesta cada compra o venta que hace el bot
-    gb.gasMinOp().then((minOp) => {
-      const bnb = Number(gb.fmtBNB(minOp));
-      if (!$('pf-costeop') || !(bnb > 0)) return;
-      const usd = precio > 0n ? bnb / Number(gb.fmtBNB(precio)) : 0;
-      $('pf-costeop').innerHTML = `≈ <b>${num(bnb, 5)} BNB</b>${usd > 0 ? ` · unos ${num(usd, 2)} USD` : ''}`;
-      const ops = Math.floor(Number(gb.fmtBNB(gasWei)) / bnb);
-      if ($('pf-opsrest')) $('pf-opsrest').textContent = ops > 0
-        ? `Con tu gas actual te alcanza para unas ${ops} operaciones más`
+    /* ══════════════════════════════════════════════════════════
+       [CORREGIDO] EL COSTE POR OPERACIÓN
+
+       Antes se mostraba `gasMinOp()` del contrato, pero ESO NO ES
+       EL COSTE: es el saldo mínimo exigido para dejar operar al
+       bot, un colchón de seguridad. Enseñarlo como coste hacía
+       creer que cada compra costaba más de un dólar, cuando en
+       realidad cuesta unos céntimos.
+
+       El coste real se calcula con datos propios: el gas que se ha
+       gastado de verdad dividido entre las operaciones hechas.
+       Mientras no haya operaciones, se usa una estimación de red
+       (una transacción en BNB Chain ronda las 150.000 unidades de
+       gas), no el umbral del contrato.
+       ══════════════════════════════════════════════════════════ */
+    const pintarCoste = (bnbOp, fuente) => {
+      if (!$('pf-costeop') || !(bnbOp > 0)) return;
+      const usd = precio > 0n ? bnbOp / Number(gb.fmtBNB(precio)) : 0;
+      $('pf-costeop').innerHTML = `≈ <b>${num(bnbOp, 6)} BNB</b>` +
+        (usd > 0 ? ` · unos ${usd < 0.01 ? '$' + usd.toFixed(3) : num(usd, 2) + ' USD'}` : '') +
+        `<i class="pf-fuente">${fuente}</i>`;
+      const quedan = Math.floor(Number(gb.fmtBNB(gasWei)) / bnbOp);
+      if ($('pf-opsrest')) $('pf-opsrest').textContent = quedan > 0
+        ? `Con tu gas actual te alcanza para unas ${quedan.toLocaleString('es')} operaciones más`
         : 'Recarga gas para que tus bots sigan operando';
-    }).catch(() => {});
+    };
+
+    /* Primero se intenta con el consumo real del usuario. */
+    if (_gasReal.gastado > 0 && _gasReal.ops > 0) {
+      pintarCoste(_gasReal.gastado / _gasReal.ops, 'según tu consumo real');
+    } else {
+      // Estimación de red: 150.000 gas a 1 gwei en BNB Chain
+      pintarCoste(0.00015, 'estimado para BNB Chain');
+    }
   }).catch(() => {});
 
   // 2) Bots: todo en paralelo (antes iba uno detrás de otro).
@@ -558,5 +588,15 @@ async function cargarDatos(cuenta) {
   if ($('pf-cv')) $('pf-cv').textContent = `${compras} / ${ventas}`;
   if ($('pf-desde')) $('pf-desde').textContent = desde(creadaMin);
   if ($('pf-gasg')) $('pf-gasg').textContent = `${num(gasGas, 4)} BNB`;
+  /* Se guarda para calcular el coste real por operación. */
+  _gasReal.gastado = gasGas;
+  _gasReal.ops = ops;
+  if (gasGas > 0 && ops > 0) {
+    const porOp = gasGas / ops;
+    const el = $('pf-costeop');
+    if (el) {
+      el.innerHTML = `≈ <b>${num(porOp, 6)} BNB</b><i class="pf-fuente">según tu consumo real</i>`;
+    }
+  }
   for (let i = 0; i < 4; i++) { const e = $('pf-t' + i); if (e) e.textContent = String(porTipo[i]); }
 }
