@@ -1143,7 +1143,7 @@ function analizar() {
   /* ══ MENSAJES DE ESTRUCTURA ══
      Cada patrón detectado tiene su lectura y su recomendación, con
      varias formas de decirlo. Todo sale de datos, nada inventado. */
-  (N.estructuras || []).forEach((e) => {
+  if (!N.limpia) (N.estructuras || []).forEach((e) => {
     const alc = e.dir === 'alcista';
 
     if (e.tipo === 'bos') {
@@ -1287,7 +1287,7 @@ function analizar() {
   }
 
   /* ══ DOBLE SUELO / DOBLE TECHO ══ */
-  (N.dobles || []).forEach((d) => {
+  if (!N.limpia) (N.dobles || []).forEach((d) => {
     const suelo = d.tipo === 'dobleSuelo';
     msgs.push({
       tipo: suelo ? 'compra' : 'venta', p: d.nivel, prioridad: d.confirmado ? 9 : 6,
@@ -1950,6 +1950,11 @@ function dibujar() {
   g.fillStyle = '#0b0f16';
   g.fillRect(0, 0, W, H);
 
+  /* [NUEVA REGLA] Las etiquetas se guardan aquí y se pintan AL
+     FINAL, por encima de todas las líneas. Antes cualquier línea
+     trazada después las tapaba y el texto era ilegible. */
+  const etiquetas = [];
+
   const esp = $('nv-esperando');
   if (N.error) {
     if (esp) {
@@ -2012,7 +2017,7 @@ function dibujar() {
 
   /* ══ LOS NIVELES ══
      Lo primero que se dibuja, para que las velas queden encima. */
-  N.niveles.forEach((n) => {
+  if (!N.limpia) N.niveles.forEach((n) => {
     if (n.p < pMin || n.p > pMax) return;
     const y = Y(n.p);
     /* [CORREGIDO] El tipo se decide por la POSICIÓN respecto al
@@ -2046,29 +2051,13 @@ function dibujar() {
     const w = g.measureText(txt).width + 24;
     const yEt = y - 16;
     const alt = 23;
-
-    g.save();
-    g.shadowColor = 'rgba(0,0,0,.75)';
-    g.shadowBlur = 9;
-    g.shadowOffsetY = 2;
-    g.fillStyle = col;
-    redondeado(g, 10, yEt - alt / 2, w, alt, 7); g.fill();
-    g.restore();
-
-    /* Borde dorado: es el color de la marca y contrasta con el rojo
-       y el verde sin ensuciar. */
-    g.strokeStyle = 'rgba(232,184,75,.9)';
-    g.lineWidth = 1.4;
-    redondeado(g, 10, yEt - alt / 2, w, alt, 7); g.stroke();
-
-    /* Marca de fuerza: cuanto más gruesa, más fiable el nivel. */
-    const marca = Math.max(2, (n.fuerza / 100) * 4);
-    g.fillStyle = 'rgba(232,184,75,.95)';
-    g.fillRect(14, yEt - alt / 2 + 5, marca, alt - 10);
-
-    g.fillStyle = esS ? '#04210f' : '#2a0509';
-    g.textAlign = 'left';
-    g.fillText(txt, 14 + marca + 6, yEt + 4);
+    /* A la cola: se pinta al final, por encima de toda línea. */
+    etiquetas.push({
+      txt, x: 10, y: yEt - alt / 2, w, h: alt, r: 7,
+      fondo: col, tinta: esS ? '#04210f' : '#2a0509',
+      borde: 'rgba(232,184,75,.9)',
+      font: 'bold 11.5px ui-monospace,monospace', pad: 12
+    });
   });
 
   /* ══ LAS VELAS ══ */
@@ -2110,7 +2099,7 @@ function dibujar() {
   /* ══ LA LÍNEA DE TENDENCIA ══
      Se traza delante del usuario cuando abre: da la sensación de
      que alguien está dibujando el análisis en directo. */
-  if (N.linea && _trazo > 0) {
+  if (N.linea && _trazo > 0 && !N.limpia) {
     const L = N.linea;
     const iA = L.pts[0].i, iB = Math.max(L.pts[L.pts.length - 1].i, fin - 1);
     const xA = idxVis(iA), xB = idxVis(iB);
@@ -2171,17 +2160,9 @@ function dibujar() {
     const G = N.gex;
     const anchoBarra = x1 * 0.16;
 
-    /* Las barras por strike: verde arriba (frena subidas), rojo
-       abajo (acelera caídas). */
-    G.strikes.forEach((st) => {
-      if (st.strike < pMin || st.strike > pMax) return;
-      const y = Y(st.strike);
-      const w = (Math.abs(st.gex) / G.maxAbs) * anchoBarra;
-      if (w < 1) return;
-      const pos = st.gex >= 0;
-      g.fillStyle = pos ? 'rgba(46,232,106,.3)' : 'rgba(246,70,93,.3)';
-      g.fillRect(x1 - w, y - 3, w, 6);
-    });
+    /* [SIMPLIFICADO] Las barras por strike parecían un perfil de
+       volumen y solo añadían ruido. Lo que importa son los cuatro
+       niveles, no la distribución completa. */
 
     /* El muro principal: donde el precio se frena */
     if (G.muro >= pMin && G.muro <= pMax) {
@@ -2190,7 +2171,7 @@ function dibujar() {
       g.lineWidth = 2.4;
       g.setLineDash([]);
       g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
-      etiquetaGex(g, 'MURO DE GAMMA  ' + fmt(G.muro), x1, y, '#2ee86a', '#04210f', hueco);
+      etiquetaGex(g, 'MURO DE GAMMA  ' + fmt(G.muro), x1, y, '#2ee86a', '#04210f', hueco, etiquetas);
     }
 
     /* El suelo: donde se acelera */
@@ -2199,7 +2180,7 @@ function dibujar() {
       g.strokeStyle = '#f6465d';
       g.lineWidth = 2.4;
       g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
-      etiquetaGex(g, 'SUELO DE GAMMA  ' + fmt(G.suelo), x1, y, '#f6465d', '#2a0509', hueco);
+      etiquetaGex(g, 'SUELO DE GAMMA  ' + fmt(G.suelo), x1, y, '#f6465d', '#2a0509', hueco, etiquetas);
     }
 
     /* El gamma flip: la frontera entre los dos regímenes */
@@ -2210,7 +2191,7 @@ function dibujar() {
       g.setLineDash([8, 5]);
       g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
       g.setLineDash([]);
-      etiquetaGex(g, 'GAMMA FLIP  ' + fmt(G.flip), x1, y, '#E8B84B', '#2a1c00', hueco);
+      etiquetaGex(g, 'GAMMA FLIP  ' + fmt(G.flip), x1, y, '#E8B84B', '#2a1c00', hueco, etiquetas);
     }
 
     /* Max pain: el imán del vencimiento */
@@ -2221,30 +2202,24 @@ function dibujar() {
       g.setLineDash([3, 5]);
       g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
       g.setLineDash([]);
-      etiquetaGex(g, 'MAX PAIN  ' + fmt(G.maxPain), x1, y, 'rgba(90,100,112,.95)', '#eaecef', hueco);
+      etiquetaGex(g, 'MAX PAIN  ' + fmt(G.maxPain), x1, y, '#C9A84B', '#2a1c00', hueco, etiquetas);
     }
 
-    /* El régimen: lo que de verdad cambia cómo operas */
+    /* El régimen, arriba a la izquierda y en dorado como la marca */
     const et = G.regimen === 'comprimido'
       ? 'VOLATILIDAD COMPRIMIDA' : 'VOLATILIDAD AMPLIFICADA';
-    const colR = G.regimen === 'comprimido' ? '#4d9fff' : '#ff9500';
     g.font = 'bold 10px ui-monospace,monospace';
-    const wR = g.measureText(et).width + 18;
-    g.save();
-    g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 8;
-    g.fillStyle = colR;
-    redondeado(g, 10, 10, wR, 20, 6); g.fill();
-    g.restore();
-    g.strokeStyle = 'rgba(232,184,75,.85)'; g.lineWidth = 1.2;
-    redondeado(g, 10, 10, wR, 20, 6); g.stroke();
-    g.fillStyle = '#04122a';
-    g.textAlign = 'left';
-    g.fillText(et, 19, 24);
+    const wR = g.measureText(et).width + 20;
+    etiquetas.push({
+      txt: et, x: 10, y: 10, w: wR, h: 21,
+      fondo: G.regimen === 'comprimido' ? '#C9A84B' : '#ff9500',
+      tinta: '#2a1c00', borde: 'rgba(232,184,75,.9)'
+    });
   }
 
   /* ══ EL CANAL DEL RANGO ══
      Si el precio va lateral, se marcan las dos horizontales. */
-  if (N.rango && _trazo > 0) {
+  if (N.rango && _trazo > 0 && !N.limpia) {
     const yA = Y(N.rango.alto), yB = Y(N.rango.bajo);
     const xT = x1 * _trazo;
     g.strokeStyle = 'rgba(232,184,75,.85)';
@@ -2389,16 +2364,12 @@ function dibujar() {
       /* Dentro si cabe, encima si no: posición fija, sin saltos. */
       const yEt2 = alto >= 22 ? yTop + 3 : yTop - 17;
 
-      g.save();
-      g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 7; g.shadowOffsetY = 1.5;
-      g.fillStyle = col;
-      redondeado(g, xEt, yEt2, w, 16, 5); g.fill();
-      g.restore();
-      g.strokeStyle = 'rgba(232,184,75,.85)'; g.lineWidth = 1.2;
-      redondeado(g, xEt, yEt2, w, 16, 5); g.stroke();
-      g.fillStyle = e.dir === 'alcista' ? '#04210f' : '#2a0509';
-      g.textAlign = 'left';
-      g.fillText(et, xEt + 7, yEt2 + 11);
+      etiquetas.push({
+        txt: et, x: xEt, y: yEt2, w, h: 16, r: 5,
+        fondo: col, tinta: e.dir === 'alcista' ? '#04210f' : '#2a0509',
+        borde: 'rgba(232,184,75,.85)',
+        font: 'bold 9px ui-monospace,monospace', pad: 7
+      });
 
       /* El volumen negociado dentro, a la DERECHA de la zona para
          no taparle las velas. Dice quién mandó ahí dentro. */
@@ -2570,6 +2541,24 @@ function dibujar() {
     }
   }
 
+  /* ══ LAS ETIQUETAS, AL FINAL ══
+     Se pintan aquí para que ninguna línea las tape. */
+  etiquetas.forEach((et) => {
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 8; g.shadowOffsetY = 2;
+    g.fillStyle = et.fondo;
+    redondeado(g, et.x, et.y, et.w, et.h, et.r || 6); g.fill();
+    g.restore();
+    if (et.borde) {
+      g.strokeStyle = et.borde; g.lineWidth = 1.3;
+      redondeado(g, et.x, et.y, et.w, et.h, et.r || 6); g.stroke();
+    }
+    g.fillStyle = et.tinta;
+    g.font = et.font || 'bold 10px ui-monospace,monospace';
+    g.textAlign = 'left';
+    g.fillText(et.txt, et.x + (et.pad || 10), et.y + et.h / 2 + 3.6);
+  });
+
   /* ── Las fechas ── */
   g.fillStyle = 'rgba(11,15,22,.96)';
   g.fillRect(0, y1, W, mAba);
@@ -2590,21 +2579,14 @@ function dibujar() {
 function velaEn(i) { return N.velas[i] || null; }
 
 /** Etiqueta de un nivel de gamma, pegada a la derecha. */
-function etiquetaGex(g, txt, x1, y, fondo, tinta, hueco) {
+function etiquetaGex(g, txt, x1, y, fondo, tinta, hueco, cola) {
   g.font = 'bold 10px ui-monospace,monospace';
   const w = g.measureText(txt).width + 20;
   const h = hueco(x1 - w - 10, y - 10, w, 20);
   if (!h) return;
-  g.save();
-  g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 7; g.shadowOffsetY = 1.5;
-  g.fillStyle = fondo;
-  redondeado(g, h.x, h.y, w, 20, 6); g.fill();
-  g.restore();
-  g.strokeStyle = 'rgba(232,184,75,.85)'; g.lineWidth = 1.2;
-  redondeado(g, h.x, h.y, w, 20, 6); g.stroke();
-  g.fillStyle = tinta;
-  g.textAlign = 'left';
-  g.fillText(txt, h.x + 10, h.y + 14);
+  /* Se encola: se pinta al final, encima de todas las líneas. */
+  cola.push({ txt, x: h.x, y: h.y, w, h: 20, fondo, tinta,
+              borde: 'rgba(232,184,75,.85)' });
 }
 
 function redondeado(g, x, y, w, h, r) {
@@ -2819,7 +2801,20 @@ function planHTML(p) {
    · Doble clic: vuelve al encuadre inicial
    ══════════════════════════════════════════════════════════════ */
 function gestos(cv) {
-  const refrescar = () => { dibujar(); burbujas(); };
+  /* [CORREGIDO] El arrastre iba en cámara lenta porque redibujaba
+     TODO en cada píxel de movimiento. Ahora se agrupa por
+     fotograma: el navegador dibuja cuando puede, no cuando se lo
+     pedimos. Es lo que hace TradingView. */
+  let pendiente = false;
+  const refrescar = () => {
+    if (pendiente) return;
+    pendiente = true;
+    requestAnimationFrame(() => {
+      pendiente = false;
+      dibujar();
+      burbujas();
+    });
+  };
 
   const zoomX = (f) => {
     N.vista.ancho = Math.max(20, Math.min(300, Math.round(N.vista.ancho * f)));
@@ -2941,6 +2936,14 @@ function menuHerramientas() {
   m.id = 'nv-herr-menu';
   m.innerHTML = `
     <div class="nv-hm-t">${esc(T('Herramientas profesionales'))}</div>
+    <button class="nv-hm-b ${N.limpia ? 'on' : ''}" data-h="limpia" type="button">
+      <span class="nv-hm-luz"></span>
+      <div class="nv-hm-tx">
+        <b>${esc(T('Gráfica limpia'))}</b>
+        <span>${esc(T('Apaga niveles, estructuras y tendencia para ver solo lo que elijas'))}</span>
+      </div>
+    </button>
+
     <button class="nv-hm-b ${N.verGex ? 'on' : ''} ${hayOpciones ? '' : 'bloq'}"
             data-h="gex" type="button">
       <span class="nv-hm-luz"></span>
@@ -2958,6 +2961,12 @@ function menuHerramientas() {
   m.style.top = (r.bottom + 8) + 'px';
 
   m.addEventListener('click', (e) => e.stopPropagation());
+  m.querySelector('[data-h=limpia]').onclick = () => {
+    N.limpia = !N.limpia;
+    m.querySelector('[data-h=limpia]').classList.toggle('on', N.limpia);
+    dibujar(); burbujas();
+  };
+
   m.querySelector('[data-h=gex]').onclick = () => {
     /* Si la moneda no tiene opciones, se explica en vez de callar */
     if (!hayOpciones) { avisoSinOpciones(); return; }
