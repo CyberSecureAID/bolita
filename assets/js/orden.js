@@ -858,7 +858,7 @@ export function pintar(g, opciones) {
     g.fillStyle = col;
     redondeadoOd(g, xE, y - 13, w, 26, 8); g.fill();
     g.restore();
-    g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1.4;
+    g.strokeStyle = 'rgba(232,184,75,.85)'; g.lineWidth = 1.4;
     redondeadoOd(g, xE, y - 13, w, 26, 8); g.stroke();
 
     g.fillStyle = esAlerta ? '#2a1c00' : (o.vender ? '#2a0509' : '#04210f');

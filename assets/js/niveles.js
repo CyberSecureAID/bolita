@@ -778,42 +778,6 @@ function detectarDobles(velas, piv, precio) {
    Se ancla al inicio del último impulso, que es lo que hace un
    profesional: no al inicio de sesión sin más.
    ══════════════════════════════════════════════════════════════ */
-function calcularVWAP(velas, desdeIdx) {
-  const ini = Math.max(0, desdeIdx ?? Math.max(0, velas.length - 60));
-  const tramo = velas.slice(ini);
-  if (tramo.length < 5) return null;
-
-  let sumaPV = 0, sumaV = 0;
-  const puntos = [];
-  tramo.forEach((v, k) => {
-    const tipico = (v.h + v.l + v.c) / 3;
-    sumaPV += tipico * v.v;
-    sumaV += v.v;
-    const vwap = sumaV > 0 ? sumaPV / sumaV : tipico;
-    puntos.push({ i: ini + k, p: vwap, tipico, v: v.v });
-  });
-
-  /* La desviación, ponderada por volumen igual que el VWAP */
-  let sumaVar = 0, sumaV2 = 0;
-  puntos.forEach((pt) => {
-    sumaVar += Math.pow(pt.tipico - pt.p, 2) * pt.v;
-    sumaV2 += pt.v;
-  });
-  const sigma = sumaV2 > 0 ? Math.sqrt(sumaVar / sumaV2) : 0;
-
-  const ultimo = puntos[puntos.length - 1];
-  const precio = tramo[tramo.length - 1].c;
-
-  return {
-    puntos, sigma, ini,
-    valor: ultimo.p,
-    b1a: ultimo.p + sigma, b1b: ultimo.p - sigma,
-    b2a: ultimo.p + sigma * 2, b2b: ultimo.p - sigma * 2,
-    /* Dónde está el precio respecto al valor justo */
-    desvio: sigma > 0 ? (precio - ultimo.p) / sigma : 0,
-    porEncima: precio > ultimo.p
-  };
-}
 
 /* ══════════════════════════════════════════════════════════════
    PERFIL DE VOLUMEN
@@ -825,42 +789,83 @@ function calcularVWAP(velas, desdeIdx) {
 
    En TradingView esto requiere plan de pago.
    ══════════════════════════════════════════════════════════════ */
-function calcularPerfil(velas, cuantos = 40) {
-  const tramo = velas.slice(-120);
-  if (tramo.length < 10) return null;
 
-  const alto = Math.max(...tramo.map((v) => v.h));
-  const bajo = Math.min(...tramo.map((v) => v.l));
-  const paso = (alto - bajo) / cuantos;
-  if (!(paso > 0)) return null;
+/* ══════════════════════════════════════════════════════════════
+   DIVERGENCIA INSTITUCIONAL
 
-  const filas = new Array(cuantos).fill(0);
-  tramo.forEach((v) => {
-    /* El volumen se reparte entre los niveles que tocó la vela */
-    const iA = Math.max(0, Math.min(cuantos - 1, Math.floor((v.l - bajo) / paso)));
-    const iB = Math.max(0, Math.min(cuantos - 1, Math.floor((v.h - bajo) / paso)));
-    const cuantas = (iB - iA) + 1;
-    for (let k = iA; k <= iB; k++) filas[k] += v.v / cuantas;
+   Binance publica, por vela, cómo están posicionados dos grupos:
+
+     · Los traders TOP  — las cuentas grandes de la plataforma
+     · Todas las cuentas — la masa
+
+   Por separado son dos porcentajes. La resta es lo que importa:
+   cuando los grandes están comprando y la masa vendiendo (o al
+   revés), están en lados opuestos del mercado.
+
+   Y solo uno de los dos suele tener razón.
+
+   CryptoQuant cobra por datos de este tipo. Aquí salen de la API
+   pública de Binance, así que son reales y verificables: cualquiera
+   puede consultar el mismo endpoint.
+   ══════════════════════════════════════════════════════════════ */
+const FAPI = 'https://fapi.binance.com';
+
+async function traerPosicionamiento(simbolo, tf) {
+  /* Los periodos que admite el endpoint. Se elige el más cercano
+     al marco temporal que está mirando el usuario. */
+  const periodo = { '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d' }[tf] || '1h';
+
+  const pedir = async (ruta) => {
+    const r = await fetch(`${FAPI}/futures/data/${ruta}?symbol=${simbolo}&period=${periodo}&limit=200`);
+    if (!r.ok) throw new Error('sin datos de posicionamiento');
+    return r.json();
+  };
+
+  const [top, masa] = await Promise.all([
+    pedir('topLongShortPositionRatio').catch(() => []),
+    pedir('globalLongShortAccountRatio').catch(() => [])
+  ]);
+  if (!top.length || !masa.length) return null;
+
+  /* Se emparejan por marca de tiempo: cada punto tiene los dos
+     porcentajes del mismo momento. */
+  const porT = new Map();
+  masa.forEach((m) => porT.set(Number(m.timestamp), Number(m.longAccount) * 100));
+
+  const puntos = [];
+  top.forEach((t) => {
+    const ts = Number(t.timestamp);
+    const pMasa = porT.get(ts);
+    if (pMasa == null) return;
+    const pTop = Number(t.longAccount) * 100;
+    puntos.push({
+      t: ts,
+      top: pTop,
+      masa: pMasa,
+      brecha: pTop - pMasa        // el dato que importa
+    });
   });
+  if (puntos.length < 10) return null;
 
-  const total = filas.reduce((a, b) => a + b, 0);
-  let iPoc = 0;
-  filas.forEach((x, k) => { if (x > filas[iPoc]) iPoc = k; });
+  const ult = puntos[puntos.length - 1];
+  const brechas = puntos.map((x) => x.brecha);
+  const media = brechas.reduce((a, b) => a + b, 0) / brechas.length;
+  const desv = Math.sqrt(brechas.reduce((a, b) => a + Math.pow(b - media, 2), 0) / brechas.length);
 
-  /* El área de valor: se crece desde el POC hasta cubrir el 70% */
-  let acum = filas[iPoc], lo = iPoc, hi = iPoc;
-  while (acum < total * 0.7 && (lo > 0 || hi < cuantos - 1)) {
-    const abajo = lo > 0 ? filas[lo - 1] : -1;
-    const arriba = hi < cuantos - 1 ? filas[hi + 1] : -1;
-    if (arriba >= abajo) { hi++; acum += filas[hi]; }
-    else { lo--; acum += filas[lo]; }
-  }
+  /* Cuántas desviaciones se aparta la brecha actual de lo normal.
+     Por encima de 1,5 ya es una divergencia que llama la atención. */
+  const z = desv > 0 ? (ult.brecha - media) / desv : 0;
+
+  /* La dirección: quién está comprando cuando el otro vende. */
+  let lectura = 'neutro';
+  if (ult.brecha > 8 && z > 1) lectura = 'grandes-compran';
+  else if (ult.brecha < -8 && z < -1) lectura = 'grandes-venden';
 
   return {
-    filas, bajo, paso, max: filas[iPoc], total,
-    poc: bajo + (iPoc + 0.5) * paso,
-    vaAlto: bajo + (hi + 1) * paso,
-    vaBajo: bajo + lo * paso
+    puntos, media, desv, z,
+    top: ult.top, masa: ult.masa, brecha: ult.brecha,
+    lectura,
+    extremo: Math.abs(z) > 1.5
   };
 }
 
@@ -907,36 +912,6 @@ const FIBS = [
   { r: 1,     et: '1' }
 ];
 
-function calcularFibo(velas, imp) {
-  if (!imp) return null;
-  const alc = imp.dir === 'alcista';
-  /* El tramo: desde donde arrancó el impulso hasta donde acabó */
-  const A = alc ? imp.zonaBaja : imp.zonaAlta;      // origen
-  const B = imp.precioFin;                           // extremo
-  if (!(Math.abs(B - A) > 0)) return null;
-
-  const niveles = FIBS.map((f) => ({
-    ...f,
-    p: alc ? B - (B - A) * f.r : B + (A - B) * f.r
-  }));
-
-  const gp = {
-    alto: alc ? niveles.find((x) => x.r === 0.618).p : niveles.find((x) => x.r === 0.786).p,
-    bajo: alc ? niveles.find((x) => x.r === 0.786).p : niveles.find((x) => x.r === 0.618).p,
-    medio: niveles.find((x) => x.r === 0.705).p
-  };
-
-  /* Extensiones para los objetivos */
-  const ext = [1.272, 1.618].map((r) => ({
-    r, p: alc ? B + (B - A) * (r - 1) : B - (A - B) * (r - 1)
-  }));
-
-  return {
-    A, B, alc, niveles, gp, ext,
-    iA: imp.iniIdx, iB: imp.finIdx,
-    enGP: N.precio >= Math.min(gp.bajo, gp.alto) && N.precio <= Math.max(gp.bajo, gp.alto)
-  };
-}
 
 /* ══════════════════════════════════════════════════════════════
    11. EL PLAN DE OPERACIÓN COMPLETO
@@ -999,9 +974,6 @@ function analizar() {
   N.linea = calcularTendencia(v, piv, N.tendencia);
   N.dobles = detectarDobles(v, piv, N.precio);
   N.atr = calcularATR(v);
-  N.vwap = calcularVWAP(v, N.impulso ? N.impulso.iniIdx : null);
-  N.perfil = calcularPerfil(v);
-  N.fibo = calcularFibo(v, N.impulso);
   N.precio = v[v.length - 1].c;
   N.niveles = calcularNiveles(v, piv, N.precio);
 
@@ -1215,6 +1187,46 @@ function analizar() {
       });
     }
   });
+
+  /* ══ DIVERGENCIA INSTITUCIONAL ══
+     Solo se habla de ella cuando es extrema: si los grandes y la
+     masa están de acuerdo, no hay nada que contar. */
+  if (N.pos && N.pos.extremo && N.pos.lectura !== 'neutro') {
+    const P = N.pos;
+    const compran = P.lectura === 'grandes-compran';
+    msgs.push({
+      tipo: compran ? 'compra' : 'venta', p: N.precio, prioridad: 9,
+      titulo: elegir([
+        compran ? 'El dinero grande está comprando' : 'El dinero grande está vendiendo',
+        'Divergencia institucional',
+        compran ? 'Los grandes van largos, la masa corta' : 'Los grandes van cortos, la masa larga'
+      ]),
+      txt: elegir([
+        `Los traders grandes de Binance están al ${P.top.toFixed(0)}% en largo, mientras el resto de cuentas está al ${P.masa.toFixed(0)}%. Una brecha de ${Math.abs(P.brecha).toFixed(0)} puntos: están en lados opuestos.`,
+        `Hay ${Math.abs(P.brecha).toFixed(0)} puntos de diferencia entre cómo se posiciona el dinero grande (${P.top.toFixed(0)}% largo) y la masa (${P.masa.toFixed(0)}% largo).`,
+        `El posicionamiento se ha separado: institucional al ${P.top.toFixed(0)}% largo frente al ${P.masa.toFixed(0)}% de las cuentas minoristas.`
+      ]),
+      hacer: compran
+        ? elegir([
+            'Cuando los grandes acumulan y la masa vende, lo rentable históricamente ha sido acompañar a los grandes. Busque entradas largas en los soportes.',
+            'El dinero grande está del lado comprador. Opere a favor de ellos, no de la multitud.',
+            'Divergencia a favor de compras. Espere un retroceso a soporte y entre con la estructura, no a mercado.'
+          ])
+        : elegir([
+            'Cuando los grandes descargan y la masa compra, suele ser la masa la que se equivoca. Cuidado con las entradas largas.',
+            'El dinero grande está del lado vendedor. Reduzca exposición larga o busque cortos en resistencia.',
+            'Divergencia a favor de ventas. No compre contra el posicionamiento institucional.'
+          ]),
+      detalle: [
+        `Traders institucionales: ${P.top.toFixed(1)}% en largo`,
+        `Cuentas minoristas: ${P.masa.toFixed(1)}% en largo`,
+        `Brecha actual: ${P.brecha >= 0 ? '+' : ''}${P.brecha.toFixed(1)} puntos`,
+        `Media histórica de la brecha: ${P.media >= 0 ? '+' : ''}${P.media.toFixed(1)} puntos`,
+        `Desviación actual: ${P.z >= 0 ? '+' : ''}${P.z.toFixed(1)}σ (por encima de 1,5 es extremo)`,
+        `Datos del posicionamiento real de Binance Futures, no de un indicador`
+      ]
+    });
+  }
 
   /* ══ LA LÍNEA DE TENDENCIA ══ */
   if (N.linea) {
@@ -1666,6 +1678,7 @@ export async function abrirNiveles() {
   const prev = $('nv-overlay'); if (prev) prev.remove();
 
   N.velas = []; N.cargando = true; N.error = null;
+  if (N.verPos === undefined) N.verPos = true;   // es lo que nos diferencia
   N.vista = { desde: 0, ancho: window.innerWidth < 760 ? 55 : 90, zoomY: 1, offsetY: 0 };
 
   const d = document.createElement('div');
@@ -1690,6 +1703,10 @@ export async function abrirNiveles() {
         <div class="nv-der">
           <button class="nv-ico" id="nv-foto" title="Compartir">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          </button>
+          <!-- Divergencia institucional: se enciende y se apaga -->
+          <button class="nv-ico nv-pos-btn" id="nv-pos" title="Divergencia institucional">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16c3-1 5-6 9-6s6 4 9 3"/><path d="M3 9c3 1 5 5 9 5s6-3 9-2"/></svg>
           </button>
           <button class="nv-ico nv-comof" id="nv-ayuda">
             <span class="nv-cf-tx">Cómo funciona</span><span class="nv-cf-s">?</span>
@@ -1729,6 +1746,11 @@ export async function abrirNiveles() {
   d.querySelector('.nv-bg').onclick = cerrar;
   $('nv-x').onclick = cerrar;
   $('nv-ayuda').onclick = () => ayuda();
+  $('nv-pos').onclick = () => {
+    N.verPos = !N.verPos;
+    $('nv-pos').classList.toggle('on', N.verPos);
+    dibujar();
+  };
   $('nv-foto').onclick = () => guardarImagen();
   $('nv-sel').onclick = (e) => { e.stopPropagation(); menuPares(); };
 
@@ -1772,6 +1794,11 @@ async function recargar() {
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
       N.velas = await traerVelas(par.s, _tf, 300);
+      /* El posicionamiento va aparte: si falla, la herramienta
+         sigue funcionando sin él. */
+      traerPosicionamiento(par.s, _tf)
+        .then((d) => { N.pos = d; dibujar(); })
+        .catch(() => { N.pos = null; });
       /* La semilla se fija por par y hora: así las frases no bailan
          en cada refresco, pero cambian con el tiempo. */
       _semilla = (_par.charCodeAt(0) + new Date().getHours()) * 1.7;
@@ -2009,15 +2036,15 @@ function dibujar() {
     redondeado(g, 10, yEt - alt / 2, w, alt, 7); g.fill();
     g.restore();
 
-    // Borde claro: la separa de las velas del mismo color
-    g.strokeStyle = 'rgba(255,255,255,.5)';
-    g.lineWidth = 1.3;
+    /* Borde dorado: es el color de la marca y contrasta con el rojo
+       y el verde sin ensuciar. */
+    g.strokeStyle = 'rgba(232,184,75,.9)';
+    g.lineWidth = 1.4;
     redondeado(g, 10, yEt - alt / 2, w, alt, 7); g.stroke();
 
-    /* Una marca de fuerza a la izquierda: más gruesa, nivel más
-       fiable. Es información, no adorno. */
+    /* Marca de fuerza: cuanto más gruesa, más fiable el nivel. */
     const marca = Math.max(2, (n.fuerza / 100) * 4);
-    g.fillStyle = 'rgba(255,255,255,.85)';
+    g.fillStyle = 'rgba(232,184,75,.95)';
     g.fillRect(14, yEt - alt / 2 + 5, marca, alt - 10);
 
     g.fillStyle = esS ? '#04210f' : '#2a0509';
@@ -2118,133 +2145,111 @@ function dibujar() {
     }
   }
 
-  /* ══ VWAP ANCLADO CON BANDAS ══
-     La referencia de precio justo que usan las mesas. */
-  if (N.vwap && N.verVWAP) {
-    const V = N.vwap;
-    const pts = V.puntos.filter((pt) => pt.i >= Math.max(0, fin - ancho));
-    if (pts.length > 1) {
-      // Las bandas, como una nube
-      [[V.sigma * 2, 'rgba(77,159,255,.05)'], [V.sigma, 'rgba(77,159,255,.08)']].forEach(([sg, col]) => {
-        g.fillStyle = col;
-        g.beginPath();
-        pts.forEach((pt, k) => {
-          const x = idxVis(pt.i), y = Y(pt.p + sg);
-          k === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
-        });
-        for (let k = pts.length - 1; k >= 0; k--) {
-          g.lineTo(idxVis(pts[k].i), Y(pts[k].p - sg));
-        }
-        g.closePath(); g.fill();
-      });
+  /* ══ DIVERGENCIA INSTITUCIONAL ══
+     Una franja bajo el gráfico con dos líneas: los grandes y la
+     masa. Cuando se separan, se sombrea el hueco entre ellas: ahí
+     es donde está la información. */
+  if (N.pos && N.verPos) {
+    const P = N.pos;
+    const hF = Math.min(96, y1 * 0.2);       // alto de la franja
+    const yF = y1 - hF - 4;
 
-      // La línea central
-      g.strokeStyle = '#4d9fff';
-      g.lineWidth = 1.8;
+    // Fondo
+    g.fillStyle = 'rgba(11,15,22,.92)';
+    g.fillRect(0, yF, x1, hF);
+    g.strokeStyle = 'rgba(255,255,255,.07)';
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, yF); g.lineTo(x1, yF); g.stroke();
+
+    // La línea del 50%: el equilibrio
+    const y50 = yF + hF / 2;
+    g.strokeStyle = 'rgba(139,150,163,.28)';
+    g.setLineDash([3, 4]);
+    g.beginPath(); g.moveTo(0, y50); g.lineTo(x1, y50); g.stroke();
+    g.setLineDash([]);
+
+    /* Se dibujan solo los puntos que caen en la vista, alineados
+       con las velas por marca de tiempo. */
+    const t0 = vis[0].t, t1 = vis[vis.length - 1].t;
+    const dentro = P.puntos.filter((pt) => pt.t >= t0 - 3600000 && pt.t <= t1 + 3600000);
+    if (dentro.length > 1) {
+      const xDe = (t) => {
+        const k = vis.findIndex((v, i) => i === vis.length - 1 || vis[i + 1].t > t);
+        return Math.max(0, Math.min(x1, k * paso + paso / 2));
+      };
+      // 35% a 65% ocupa toda la franja: es donde se mueve el dato
+      const yDe = (p) => yF + hF - ((Math.max(30, Math.min(70, p)) - 30) / 40) * hF;
+
+      /* El hueco entre las dos líneas, sombreado */
       g.beginPath();
-      pts.forEach((pt, k) => {
-        const x = idxVis(pt.i), y = Y(pt.p);
+      dentro.forEach((pt, k) => {
+        const x = xDe(pt.t), y = yDe(pt.top);
+        k === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+      });
+      for (let k = dentro.length - 1; k >= 0; k--) {
+        g.lineTo(xDe(dentro[k].t), yDe(dentro[k].masa));
+      }
+      g.closePath();
+      g.fillStyle = P.brecha >= 0 ? 'rgba(46,232,106,.16)' : 'rgba(246,70,93,.16)';
+      g.fill();
+
+      // Los grandes, en dorado
+      g.strokeStyle = '#E8B84B';
+      g.lineWidth = 2;
+      g.beginPath();
+      dentro.forEach((pt, k) => {
+        const x = xDe(pt.t), y = yDe(pt.top);
         k === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
       });
       g.stroke();
 
-      const yV = Y(V.valor);
-      if (yV > 10 && yV < y1 - 10) {
-        const et = 'VWAP ' + fmt(V.valor);
-        g.font = 'bold 9px ui-monospace,monospace';
-        const w = g.measureText(et).width + 14;
-        const h = hueco(x1 - w - 90, yV - 8, w, 16);
-        if (h) {
-          g.fillStyle = '#4d9fff';
-          redondeado(g, h.x, h.y, w, 16, 4); g.fill();
-          g.fillStyle = '#04122a';
-          g.textAlign = 'left';
-          g.fillText(et, h.x + 7, h.y + 11);
-        }
-      }
-    }
-  }
-
-  /* ══ PERFIL DE VOLUMEN ══
-     Dónde se ha negociado de verdad. En TradingView es de pago. */
-  if (N.perfil && N.verPerfil) {
-    const P = N.perfil;
-    const anchoMax = x1 * 0.22;
-    P.filas.forEach((vol, k) => {
-      if (vol <= 0) return;
-      const p = P.bajo + (k + 0.5) * P.paso;
-      if (p < pMin || p > pMax) return;
-      const y = Y(p);
-      const alt = Math.max(1.5, Math.abs(Y(p + P.paso) - y) - 1);
-      const w = (vol / P.max) * anchoMax;
-      const dentroVA = p >= P.vaBajo && p <= P.vaAlto;
-      g.fillStyle = dentroVA ? 'rgba(232,184,75,.26)' : 'rgba(139,150,163,.14)';
-      g.fillRect(0, y - alt / 2, w, alt);
-    });
-
-    // El POC: donde más se negoció
-    const yP2 = Y(P.poc);
-    if (yP2 > 0 && yP2 < y1) {
-      g.strokeStyle = '#E8B84B';
-      g.lineWidth = 1.8;
+      // La masa, en gris
+      g.strokeStyle = 'rgba(139,150,163,.75)';
+      g.lineWidth = 1.5;
+      g.setLineDash([4, 3]);
+      g.beginPath();
+      dentro.forEach((pt, k) => {
+        const x = xDe(pt.t), y = yDe(pt.masa);
+        k === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+      });
+      g.stroke();
       g.setLineDash([]);
-      g.beginPath(); g.moveTo(0, yP2); g.lineTo(anchoMax * 1.15, yP2); g.stroke();
-      g.font = 'bold 9px ui-monospace,monospace';
-      const et = 'POC ' + fmt(P.poc);
-      const w = g.measureText(et).width + 12;
-      g.fillStyle = '#E8B84B';
-      redondeado(g, anchoMax * 1.15 + 4, yP2 - 8, w, 16, 4); g.fill();
-      g.fillStyle = '#2a1c00';
-      g.textAlign = 'left';
-      g.fillText(et, anchoMax * 1.15 + 10, yP2 + 3.5);
     }
-  }
 
-  /* ══ FIBONACCI SOBRE EL IMPULSO ══
-     Se traza como la tendencia: apareciendo delante del usuario.
-     La zona 0,618-0,786 es la que usan las mesas para recargar. */
-  /* El Fibonacci solo si el usuario lo pide desde el asistente. */
-  if (N.fibo && N.verFibo && _trazo > 0.35) {
-    const F = N.fibo;
-    const av = Math.min(1, (_trazo - 0.35) / 0.65);
-    const xA = idxVis(F.iA), xB = idxVis(F.iB);
-    const xIni = Math.max(0, Math.min(xA, xB));
-    const xFin = Math.min(x1, xIni + (x1 - xIni) * av);
+    /* Las etiquetas: quién está en qué lado, en cifras */
+    g.font = 'bold 9px ui-monospace,monospace';
+    const etG = `INSTITUCIONAL ${P.top.toFixed(0)}% LARGO`;
+    const wG = g.measureText(etG).width + 13;
+    g.fillStyle = '#E8B84B';
+    redondeado(g, 8, yF + 6, wG, 16, 5); g.fill();
+    g.fillStyle = '#2a1c00';
+    g.textAlign = 'left';
+    g.fillText(etG, 15, yF + 17);
 
-    // El golden pocket, sombreado suave para no tapar velas
-    const yG1 = Y(F.gp.alto), yG2 = Y(F.gp.bajo);
-    g.fillStyle = 'rgba(232,184,75,.07)';
-    g.fillRect(xIni, Math.min(yG1, yG2), xFin - xIni, Math.abs(yG2 - yG1));
+    const etM = `MINORISTA ${P.masa.toFixed(0)}% LARGO`;
+    const wM = g.measureText(etM).width + 13;
+    g.fillStyle = 'rgba(60,68,78,.95)';
+    redondeado(g, 8, yF + 26, wM, 16, 5); g.fill();
+    g.strokeStyle = 'rgba(232,184,75,.5)'; g.lineWidth = 1;
+    redondeado(g, 8, yF + 26, wM, 16, 5); g.stroke();
+    g.fillStyle = '#c8cfd8';
+    g.fillText(etM, 15, yF + 37);
 
-    // Los niveles
-    F.niveles.forEach((nv) => {
-      const y = Y(nv.p);
-      if (y < -10 || y > y1 + 10) return;
-      const clave = nv.r === 0.618 || nv.r === 0.786;
-      g.strokeStyle = clave ? 'rgba(232,184,75,.75)' : 'rgba(139,150,163,.28)';
-      g.lineWidth = clave ? 1.4 : 1;
-      g.setLineDash(clave ? [] : [3, 5]);
-      g.beginPath(); g.moveTo(xIni, y); g.lineTo(xFin, y); g.stroke();
-      g.setLineDash([]);
-
-      if (av > 0.9) {
-        g.font = (clave ? 'bold ' : '') + '8.5px ui-monospace,monospace';
-        g.fillStyle = clave ? '#E8B84B' : '#5c6672';
-        g.textAlign = 'right';
-        g.fillText(nv.et, Math.min(x1 - 4, xFin - 5), y - 3);
-        g.textAlign = 'left';
-      }
-    });
-
-    if (av > 0.9) {
-      const et = F.enGP ? 'ZONA DE ENTRADA · AQUÍ' : 'ZONA PREMIUM 0.618-0.786';
-      g.font = 'bold 9px ui-monospace,monospace';
-      const w = g.measureText(et).width + 14;
-      g.fillStyle = '#E8B84B';
-      redondeado(g, xIni + 6, Math.min(yG1, yG2) - 18, w, 15, 4); g.fill();
-      g.fillStyle = '#2a1c00';
-      g.textAlign = 'left';
-      g.fillText(et, xIni + 13, Math.min(yG1, yG2) - 7);
+    /* Y la brecha, que es el dato de verdad */
+    if (P.extremo) {
+      const col = P.brecha >= 0 ? '#2ee86a' : '#f6465d';
+      const etB = (P.brecha >= 0 ? '+' : '') + P.brecha.toFixed(0) + ' pts';
+      g.font = 'bold 13px ui-monospace,monospace';
+      const wB = g.measureText(etB).width + 18;
+      g.save();
+      g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 8;
+      g.fillStyle = col;
+      redondeado(g, x1 - wB - 10, yF + 8, wB, 22, 6); g.fill();
+      g.restore();
+      g.strokeStyle = 'rgba(232,184,75,.85)'; g.lineWidth = 1.3;
+      redondeado(g, x1 - wB - 10, yF + 8, wB, 22, 6); g.stroke();
+      g.fillStyle = P.brecha >= 0 ? '#04210f' : '#2a0509';
+      g.fillText(etB, x1 - wB - 1, yF + 23);
     }
   }
 
@@ -2400,7 +2405,7 @@ function dibujar() {
       g.fillStyle = col;
       redondeado(g, xEt, yEt2, w, 16, 5); g.fill();
       g.restore();
-      g.strokeStyle = 'rgba(255,255,255,.42)'; g.lineWidth = 1.1;
+      g.strokeStyle = 'rgba(232,184,75,.85)'; g.lineWidth = 1.2;
       redondeado(g, xEt, yEt2, w, 16, 5); g.stroke();
       g.fillStyle = e.dir === 'alcista' ? '#04210f' : '#2a0509';
       g.textAlign = 'left';
@@ -2677,25 +2682,6 @@ function burbujas() {
         </div>
 
         <!-- Herramientas que el usuario puede pedir -->
-        ${idx === 0 ? `
-        <div class="nv-herr">
-          <div class="nv-herr-t">${esc(T('Herramientas profesionales'))}</div>
-          <div class="nv-herr-rej">
-            <button class="nv-herr-b ${N.verFibo ? 'on' : ''} ${!N.fibo ? 'no-hay' : ''}"
-                    type="button" data-fib="1" ${!N.fibo ? 'disabled' : ''}>
-              <b>${esc(T('Fibonacci'))}</b>
-              <span>${N.fibo ? esc(T('Zona premium de entrada')) : esc(T('Necesita un impulso claro'))}</span>
-            </button>
-            <button class="nv-herr-b ${N.verVWAP ? 'on' : ''}" type="button" data-vwap="1">
-              <b>${esc(T('VWAP anclado'))}</b>
-              <span>${esc(T('El precio justo institucional'))}</span>
-            </button>
-            <button class="nv-herr-b ${N.verPerfil ? 'on' : ''}" type="button" data-perfil="1">
-              <b>${esc(T('Perfil de volumen'))}</b>
-              <span>${esc(T('Dónde se negoció de verdad'))}</span>
-            </button>
-          </div>
-        </div>` : ''}
         <div class="nv-pm-det">
           ${(m.detalle || []).map((x) => `<div class="nv-pm-li">${esc(T(x))}</div>`).join('')}
         </div>
@@ -3366,6 +3352,8 @@ function estilos() {
     background:rgba(255,255,255,.05);border:1px solid #2b3139;color:#8b96a3;
     font-family:var(--mono,monospace);font-size:14px;font-weight:700}
   #nv-overlay .nv-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  #nv-overlay .nv-pos-btn.on{background:rgba(232,184,75,.18);
+    border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
   #nv-overlay .nv-comof{width:auto;padding:0 14px;border-color:rgba(232,184,75,.4);color:var(--gold,#E8B84B)}
   #nv-overlay .nv-cf-tx{font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;white-space:nowrap}
   #nv-overlay .nv-cf-s{display:none}
@@ -3530,6 +3518,37 @@ function estilos() {
     line-height:1.7;padding-left:11px;position:relative}
   #nv-overlay .nv-pm-li:before{content:'·';position:absolute;left:2px;color:#5c6672}
 
+  /* ── Panel de herramientas ── */
+  #nv-overlay .nv-herr-btn.activa{border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
+  #nv-herr-panel{position:fixed;z-index:9795;width:292px;padding:8px;
+    background:linear-gradient(180deg,#1b2027,#0d1117);
+    border:1px solid var(--gold-soft,#C9A84B);border-radius:14px;
+    box-shadow:0 16px 44px rgba(0,0,0,.75)}
+  #nv-herr-panel .nv-hp-t{font-family:var(--mono,monospace);font-size:9px;
+    color:var(--gold,#E8B84B);text-transform:uppercase;letter-spacing:1.4px;
+    padding:6px 8px 8px}
+  #nv-herr-panel .nv-hp-b{display:flex;align-items:flex-start;gap:10px;width:100%;
+    padding:10px 11px;margin-bottom:4px;border-radius:10px;cursor:pointer;text-align:left;
+    background:rgba(255,255,255,.035);border:1px solid #2b3139}
+  #nv-herr-panel .nv-hp-b:hover:not(:disabled){border-color:var(--gold-soft,#C9A84B)}
+  #nv-herr-panel .nv-hp-b.on{background:rgba(232,184,75,.14);border-color:var(--gold,#E8B84B)}
+  #nv-herr-panel .nv-hp-b.no-hay{opacity:.45;cursor:not-allowed}
+  #nv-herr-panel .nv-hp-luz{width:9px;height:9px;border-radius:50%;flex:0 0 auto;margin-top:4px;
+    background:#3a424c;border:1px solid #4a525c;transition:background .18s}
+  #nv-herr-panel .nv-hp-b.on .nv-hp-luz{background:var(--gold,#E8B84B);
+    border-color:var(--gold,#E8B84B);box-shadow:0 0 8px rgba(232,184,75,.6)}
+  #nv-herr-panel .nv-hp-tx{flex:1;min-width:0}
+  #nv-herr-panel .nv-hp-tx b{display:block;font-family:var(--display,sans-serif);
+    font-weight:700;font-size:13px;color:#eaecef;margin-bottom:2px}
+  #nv-herr-panel .nv-hp-b.on .nv-hp-tx b{color:var(--gold,#E8B84B)}
+  #nv-herr-panel .nv-hp-tx span{display:block;font-family:var(--sans,sans-serif);
+    font-size:10.5px;color:#7d8794;line-height:1.4}
+  #nv-herr-panel .nv-hp-pie{padding:6px 8px 2px;font-family:var(--mono,monospace);
+    font-size:9px;color:#4a525c;text-align:center}
+  @media(max-width:560px){
+    #nv-herr-panel{left:8px !important;right:8px !important;width:auto !important}
+  }
+
   /* ── Selector ── */
   #nv-picker{position:fixed;z-index:9790;min-width:232px;max-height:340px;overflow:hidden;
     display:flex;flex-direction:column;background:linear-gradient(180deg,#1b2027,#0d1117);
@@ -3673,6 +3692,10 @@ function estilos() {
     #nv-overlay .nv-pill{padding:3px 8px;font-size:9px}
     #nv-overlay .nv-der{flex:0 0 auto;margin-left:auto}
     #nv-overlay .nv-ico{width:32px;height:32px;min-height:32px}
+    /* En móvil la barra se llenaba: los iconos secundarios pasan a
+       la banda de lecturas, donde sí hay sitio. */
+    #nv-overlay .nv-pos-btn{order:5;margin-left:0}
+    #nv-overlay .nv-der{gap:5px}
     /* [CORREGIDO] Las píldoras se cortaban. Ahora tienen su banda
        propia con desplazamiento lateral. */
     #nv-overlay .nv-veredicto{padding:7px 10px;min-height:40px;gap:7px}
