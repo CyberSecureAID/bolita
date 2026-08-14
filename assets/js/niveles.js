@@ -1199,9 +1199,34 @@ function unificar(msgs) {
   else if (votoV > votoC && votoV > votoE) { lado = 'venta'; conf = votoV / total; }
   else { lado = 'esperar'; conf = votoE / total; }
 
-  /* Si el resultado está muy repartido, no hay plan claro: se dice.
-     Es más honesto que forzar una dirección. */
-  const disputado = Math.abs(votoC - votoV) < Math.max(votoC, votoV) * 0.35 && votoC > 0 && votoV > 0;
+  /* ══════════════════════════════════════════════════════════
+     [CORREGIDO] LA TENDENCIA MANDA
+
+     Antes cualquier señal contraria bloqueaba el plan y salía
+     "señales enfrentadas". Eso es absurdo: en una tendencia clara
+     SIEMPRE hay algún nivel del otro lado, y eso no invalida nada.
+
+     Ahora la tendencia decide el sesgo. Las señales que van a
+     favor cuentan entero; las que van en contra cuentan la mitad,
+     porque operar contra tendencia es peor negocio. Solo se
+     declara empate si de verdad no hay estructura que mande.
+     ══════════════════════════════════════════════════════════ */
+  const dirT = N.tendencia ? N.tendencia.dir : 'lateral';
+  if (dirT === 'alcista') { votoC *= 1.6; votoV *= 0.5; }
+  else if (dirT === 'bajista') { votoV *= 1.6; votoC *= 0.5; }
+
+  // Se recalcula con el sesgo aplicado
+  const tot2 = votoC + votoV + votoE || 1;
+  if (votoC > votoV && votoC > votoE) { lado = 'compra'; conf = votoC / tot2; }
+  else if (votoV > votoC && votoV > votoE) { lado = 'venta'; conf = votoV / tot2; }
+  else { lado = 'esperar'; conf = votoE / tot2; }
+
+  /* Empate solo si NO hay tendencia definida y los pesos están
+     realmente parejos. Con tendencia clara nunca se declara empate:
+     hay dirección, y hay que decirla. */
+  const sinRumbo = dirT === 'lateral' || dirT === 'indefinida';
+  const disputado = sinRumbo && votoC > 0 && votoV > 0 &&
+                    Math.abs(votoC - votoV) < Math.max(votoC, votoV) * 0.2;
   if (disputado) { lado = 'esperar'; conf = 0.4; }
 
   N.plan = {
@@ -1398,11 +1423,13 @@ export async function abrirNiveles() {
 
 let _reloj = null;
 let _yaTrazado = false;
+let _planFijo = null;
 
 async function recargar() {
   clearInterval(_reloj);
   N.cargando = true; N.error = null;
   _yaTrazado = false;
+  _planFijo = null;      // al cambiar de par o marco, se replantea
   const esp = $('nv-esperando'); if (esp) esp.style.display = '';
   const bs = $('nv-burbujas'); if (bs) bs.innerHTML = '';
 
@@ -1415,6 +1442,21 @@ async function recargar() {
          en cada refresco, pero cambian con el tiempo. */
       _semilla = (_par.charCodeAt(0) + new Date().getHours()) * 1.7;
       analizar();
+
+      /* [CORREGIDO] El plan cambiaba de dirección entre refrescos y
+         eso deja al usuario tirado a medio trade. Ahora una vez
+         fijado, se mantiene mientras la tendencia no cambie de
+         verdad: es lo que haría cualquier analista serio. */
+      const dirAhora = N.tendencia ? N.tendencia.dir : 'lateral';
+      if (_planFijo && _planFijo.dir === dirAhora && N.plan &&
+          N.plan.lado !== _planFijo.lado && N.plan.lado !== 'esperar') {
+        // Se ignora el cambio: la tendencia no ha girado
+        N.mensajes = _planFijo.mensajes || N.mensajes;
+        N.plan = _planFijo.plan || N.plan;
+      } else if (N.plan && N.plan.lado !== 'esperar') {
+        _planFijo = { dir: dirAhora, lado: N.plan.lado, plan: N.plan, mensajes: N.mensajes };
+      }
+
       N.cargando = false; N.error = null;
       pintarEstado();
       /* La primera vez se traza el análisis delante del usuario.
@@ -1638,6 +1680,22 @@ function dibujar() {
     return (i - pri) * paso + paso / 2;
   };
 
+  /* ══ CONTROL DE ETIQUETAS ══
+     [CORREGIDO] Las etiquetas se pisaban unas a otras. Ahora cada
+     una se registra y, si choca, se desplaza hasta encontrar hueco.
+     Si no lo hay, no se dibuja: mejor menos y legible. */
+  const ocupado = [];
+  const hueco = (x, y, w, h) => {
+    for (let intento = 0; intento < 5; intento++) {
+      const choca = ocupado.some((o) =>
+        x < o.x + o.w + 6 && x + w + 6 > o.x && y < o.y + o.h + 4 && y + h + 4 > o.y);
+      if (!choca) { ocupado.push({ x, y, w, h }); return { x, y }; }
+      y += h + 6;
+      if (y > y1 - h - 4) return null;
+    }
+    return null;
+  };
+
   /* ══ LA LÍNEA DE TENDENCIA ══
      Se traza delante del usuario cuando abre: da la sensación de
      que alguien está dibujando el análisis en directo. */
@@ -1692,7 +1750,8 @@ function dibujar() {
   /* ══ FIBONACCI SOBRE EL IMPULSO ══
      Se traza como la tendencia: apareciendo delante del usuario.
      La zona 0,618-0,786 es la que usan las mesas para recargar. */
-  if (N.fibo && _trazo > 0.35) {
+  /* El Fibonacci solo si el usuario lo pide desde el asistente. */
+  if (N.fibo && N.verFibo && _trazo > 0.35) {
     const F = N.fibo;
     const av = Math.min(1, (_trazo - 0.35) / 0.65);
     const xA = idxVis(F.iA), xB = idxVis(F.iB);
@@ -1724,13 +1783,14 @@ function dibujar() {
       }
     });
 
-    if (av > 0.9 && F.enGP) {
-      const et = 'GOLDEN POCKET';
+    if (av > 0.9) {
+      const et = F.enGP ? 'ZONA DE ENTRADA · AQUÍ' : 'ZONA PREMIUM 0.618-0.786';
       g.font = 'bold 9px ui-monospace,monospace';
       const w = g.measureText(et).width + 14;
       g.fillStyle = '#E8B84B';
       redondeado(g, xIni + 6, Math.min(yG1, yG2) - 18, w, 15, 4); g.fill();
       g.fillStyle = '#2a1c00';
+      g.textAlign = 'left';
       g.fillText(et, xIni + 13, Math.min(yG1, yG2) - 7);
     }
   }
@@ -1770,21 +1830,26 @@ function dibujar() {
     const x1p = idxVis(d.p1.i), x2p = idxVis(d.p2.i);
     const yN = Y(d.nivel), yC = Y(d.cuello);
 
-    // La línea del cuello
+    /* La línea del cuello arranca donde empieza el patrón, no a
+       mitad de camino. */
     g.strokeStyle = col + 'aa';
     g.setLineDash([5, 4]); g.lineWidth = 1.4;
-    g.beginPath(); g.moveTo(Math.max(0, x1p), yC); g.lineTo(x1, yC); g.stroke();
+    g.beginPath(); g.moveTo(Math.max(0, x1p - paso), yC); g.lineTo(x1, yC); g.stroke();
     g.setLineDash([]);
 
     const et = (suelo ? 'DOBLE SUELO' : 'DOBLE TECHO') + (d.confirmado ? ' ✓' : '');
     g.font = 'bold 9px ui-monospace,monospace';
     const w = g.measureText(et).width + 14;
-    const xE = Math.max(4, Math.min(x1 - w - 4, (x1p + x2p) / 2 - w / 2));
-    g.fillStyle = col;
-    redondeado(g, xE, yN + (suelo ? 12 : -28), w, 16, 4); g.fill();
-    g.fillStyle = suelo ? '#04210f' : '#2a0509';
-    g.textAlign = 'left';
-    g.fillText(et, xE + 7, yN + (suelo ? 23 : -17));
+    // Anclada al primer extremo del patrón, no al centro
+    const h2 = hueco(Math.max(4, Math.min(x1 - w - 4, x1p - w / 2)),
+                     yN + (suelo ? 12 : -28), w, 16);
+    if (h2) {
+      g.fillStyle = col;
+      redondeado(g, h2.x, h2.y, w, 16, 4); g.fill();
+      g.fillStyle = suelo ? '#04210f' : '#2a0509';
+      g.textAlign = 'left';
+      g.fillText(et, h2.x + 7, h2.y + 11);
+    }
   });
 
   /* ══ LAS ESTRUCTURAS DIBUJADAS ══
@@ -1848,11 +1913,14 @@ function dibujar() {
       const et = e.tipo === 'ob' ? (e.dir === 'alcista' ? 'DEMANDA' : 'OFERTA') : 'BARRIDO';
       g.font = 'bold 9px ui-monospace,monospace';
       const w = g.measureText(et).width + 12;
-      g.fillStyle = col;
-      redondeado(g, Math.max(2, xR - paso / 2), yTop - 16, w, 15, 4); g.fill();
-      g.fillStyle = e.dir === 'alcista' ? '#04210f' : '#2a0509';
-      g.textAlign = 'left';
-      g.fillText(et, Math.max(2, xR - paso / 2) + 6, yTop - 5);
+      const h3 = hueco(Math.max(2, xR - paso / 2), yTop - 16, w, 15);
+      if (h3) {
+        g.fillStyle = col;
+        redondeado(g, h3.x, h3.y, w, 15, 4); g.fill();
+        g.fillStyle = e.dir === 'alcista' ? '#04210f' : '#2a0509';
+        g.textAlign = 'left';
+        g.fillText(et, h3.x + 6, h3.y + 11);
+      }
     }
   });
 
@@ -2070,6 +2138,15 @@ function burbujas() {
           <button class="nv-pm-mas" type="button">${esc(T('Por qué lo digo'))} ▾</button>
           ${m.p ? `<button class="nv-senala" type="button">${esc(T('Señálame dónde está'))}</button>` : ''}
         </div>
+
+        <!-- Herramientas que el usuario puede pedir -->
+        ${idx === 0 && N.fibo ? `
+        <div class="nv-herr">
+          <div class="nv-herr-t">${esc(T('Herramientas'))}</div>
+          <button class="nv-herr-b ${N.verFibo ? 'on' : ''}" type="button" data-fib="1">
+            ${esc(T('Trazar Fibonacci'))}
+          </button>
+        </div>` : ''}
         <div class="nv-pm-det">
           ${(m.detalle || []).map((x) => `<div class="nv-pm-li">${esc(T(x))}</div>`).join('')}
         </div>
@@ -2093,6 +2170,15 @@ function burbujas() {
       mas.textContent = el.classList.contains('con-detalle')
         ? T('Ocultar') + ' ▴' : T('Por qué lo digo') + ' ▾';
     };
+    const fib = el.querySelector('[data-fib]');
+    if (fib) fib.onclick = (e) => {
+      e.stopPropagation();
+      N.verFibo = !N.verFibo;
+      fib.classList.toggle('on', N.verFibo);
+      if (N.verFibo) { el.classList.remove('abierto'); animarFibo(); }
+      else dibujar();
+    };
+
     if (sen) sen.onclick = (e) => {
       e.stopPropagation();
       /* Se cierra la cápsula y se marca el nivel en la gráfica */
@@ -2104,6 +2190,23 @@ function burbujas() {
 
   const uno = caja.querySelector('.nv-cap');
   if (uno) { uno.classList.add('abierto'); escribir(uno.querySelector('[data-escribir]')); }
+}
+
+/** Traza el Fibonacci delante del usuario, como la tendencia. */
+function animarFibo() {
+  cancelAnimationFrame(_animId);
+  const desde = 0.35;
+  _trazo = desde;
+  const ini = performance.now();
+  const dura = 900;
+  const paso = (t) => {
+    const p = Math.min(1, (t - ini) / dura);
+    _trazo = desde + (1 - desde) * (1 - Math.pow(1 - p, 3));
+    dibujar();
+    if (p < 1) _animId = requestAnimationFrame(paso);
+    else { _trazo = 1; dibujar(); }
+  };
+  _animId = requestAnimationFrame(paso);
 }
 
 /** Escribe el texto letra a letra, como si lo tecleara. */
@@ -2516,9 +2619,11 @@ function estilos() {
     display:flex;flex-direction:column;background:#0b0f16}
 
   /* ── Cabecera ── */
+  /* [CORREGIDO] La barra recortaba los paneles con overflow. Ahora
+     no recorta y queda por encima de la gráfica. */
   #nv-overlay .nv-cab{display:flex;align-items:center;gap:11px;flex:0 0 auto;
     padding:9px 12px;background:#0a0d13;border-bottom:1px solid #1a1f28;
-    overflow-x:auto;scrollbar-width:none}
+    position:relative;z-index:30;overflow:visible}
   #nv-overlay .nv-cab::-webkit-scrollbar{display:none}
   #nv-overlay .nv-sel{display:inline-flex;align-items:center;gap:9px;flex:0 0 auto;min-height:36px;
     padding:0 12px;border-radius:10px;background:#141922;border:1px solid #2b3139;color:#eaecef;
@@ -2675,6 +2780,15 @@ function estilos() {
     font-family:var(--mono,monospace);font-size:9.5px;letter-spacing:.5px;padding:0 8px}
   #nv-overlay .nv-senala{background:rgba(232,184,75,.12);border-color:rgba(232,184,75,.4);
     color:var(--gold,#E8B84B);font-weight:700}
+  #nv-overlay .nv-herr{margin-top:9px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07)}
+  #nv-overlay .nv-herr-t{font-family:var(--mono,monospace);font-size:8.5px;color:#5c6672;
+    text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px}
+  #nv-overlay .nv-herr-b{width:100%;min-height:34px;border-radius:8px;cursor:pointer;
+    background:rgba(255,255,255,.04);border:1px solid #2b3139;color:#b7bdc6;
+    font-family:var(--mono,monospace);font-size:10px;letter-spacing:.5px}
+  #nv-overlay .nv-herr-b.on{background:rgba(232,184,75,.16);border-color:var(--gold,#E8B84B);
+    color:var(--gold,#E8B84B);font-weight:700}
+
   #nv-overlay .nv-pm-det{display:none;margin-top:9px}
   #nv-overlay .nv-cap.con-detalle .nv-pm-det{display:block}
   #nv-overlay .nv-pm-li{font-family:var(--mono,monospace);font-size:10.5px;color:#8b96a3;
@@ -2749,9 +2863,12 @@ function estilos() {
     #nv-overlay .nv-cap-b{width:34px;height:34px;padding:0;border-radius:50%;
       justify-content:center;position:relative}
     #nv-overlay .nv-cap-ava,#nv-overlay .nv-cap-tx,#nv-overlay .nv-cap-fl{display:none}
+    /* Los números 2 y 3 salían en negro sobre fondo oscuro */
     #nv-overlay .nv-num{width:auto;height:auto;background:none !important;
-      font-size:14px;color:inherit !important}
+      font-size:14px;color:#eaecef !important}
     #nv-overlay .nv-cap.plan .nv-num{color:var(--gold,#E8B84B) !important}
+    #nv-overlay .t-compra .nv-num{color:#3ee88a !important}
+    #nv-overlay .t-venta .nv-num{color:#ff6b7a !important}
     #nv-overlay .nv-cap-b:after{content:'';position:absolute;top:1px;right:1px;
       width:8px;height:8px;border-radius:50%;background:#ff3b30;
       border:1.5px solid #0b0f16;animation:nvLate 1.9s ease-in-out infinite}
@@ -2761,14 +2878,23 @@ function estilos() {
     /* [CORREGIDO] El panel se cortaba: el max-height en vh no cuenta
        la barra del navegador móvil. Se ancla arriba Y abajo, así
        ocupa exactamente lo que hay disponible. */
-    #nv-overlay .nv-cap-panel{position:fixed;top:112px;bottom:12px;
-      left:8px;right:8px;width:auto;max-height:none;height:auto}
+    /* [CORREGIDO] El panel tapaba toda la pantalla. Ahora ocupa la
+       mitad inferior, con su scroll, y deja ver la gráfica. */
+    #nv-overlay .nv-cap-panel{position:fixed;top:auto;bottom:10px;
+      left:8px;right:8px;width:auto;height:auto;
+      max-height:min(48vh, 380px);overflow-y:auto;
+      box-shadow:0 -8px 40px rgba(0,0,0,.8)}
     #nv-overlay .nv-acts{flex-direction:column}
     /* La barra superior, ordenada en dos filas */
-    #nv-overlay .nv-cab{flex-wrap:wrap;row-gap:7px;padding:8px 10px}
-    #nv-overlay .nv-estado{order:3;width:100%}
-    #nv-overlay .nv-caps{order:4;margin-left:auto}
-    #nv-overlay .nv-der{order:2;margin-left:auto}
+    /* Una sola fila compacta: la banda ancha robaba gráfica */
+    #nv-overlay .nv-cab{flex-wrap:nowrap;padding:7px 9px;gap:7px;
+      overflow-x:auto;scrollbar-width:none}
+    #nv-overlay .nv-cab::-webkit-scrollbar{display:none}
+    #nv-overlay .nv-estado{flex:0 0 auto}
+    #nv-overlay .nv-pill{padding:3px 8px;font-size:9px}
+    #nv-overlay .nv-caps{flex:0 0 auto}
+    #nv-overlay .nv-der{flex:0 0 auto;margin-left:auto}
+    #nv-overlay .nv-ico{width:32px;height:32px;min-height:32px}
     #nv-overlay .nv-chip-tx{font-size:9px}
     #nv-overlay .nv-chip-ava{width:20px;height:20px}
     #nv-overlay .nv-pm-quien span{font-size:12.5px}
