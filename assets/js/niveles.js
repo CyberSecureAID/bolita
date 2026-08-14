@@ -2450,42 +2450,50 @@ function dibujar() {
       const rgbOf = (alc) => (alc ? '46,232,106' : '255,60,80');
       const nvv = N.velas;
 
-      /* Traza la TENDENCIA REAL entre dos velas: recorre los cierres
-         punto por punto y los suaviza, de modo que la línea "recoja" el
-         movimiento real del precio en vez de un arco improvisado. Así el
-         pandeo aparece solo, y es más fuerte donde el mercado se movió
-         más y más leve donde apenas se movió. */
+      /* Traza la TENDENCIA REAL entre dos velas siguiendo la estructura
+         del precio como un FLEJE DE METAL: recorre los cierres y los une
+         con un spline suave (Catmull-Rom) que se acomoda a los picos y
+         valles sin volverse un espagueti. Si la distancia es larga, el
+         muestreo es más grueso y la línea sale más recta; si hay muchos
+         picos cerca, se curva para seguirlos. */
       const trazaReal = (iA, iB) => {
         if (iB <= iA || !nvv[iA] || !nvv[iB]) return false;
-        const paso = Math.max(1, Math.floor((iB - iA) / 48));   // muestreo
+        const paso = Math.max(1, Math.floor((iB - iA) / 60));   // muestreo
         const pts = [];
         for (let k = iA; k <= iB; k += paso) { if (nvv[k]) pts.push({ x: idxVis(k), y: Y(nvv[k].c) }); }
         const xf = idxVis(iB), yf = Y(nvv[iB].c);
         if (!pts.length || pts[pts.length - 1].x !== xf) pts.push({ x: xf, y: yf });
         if (pts.length < 2) return false;
         g.moveTo(pts[0].x, pts[0].y);
-        for (let k = 1; k < pts.length - 1; k++) {
-          const mx = (pts[k].x + pts[k + 1].x) / 2, my = (pts[k].y + pts[k + 1].y) / 2;
-          g.quadraticCurveTo(pts[k].x, pts[k].y, mx, my);
+        // Catmull-Rom → Bézier: pasa por TODOS los puntos, curva suave
+        for (let k = 0; k < pts.length - 1; k++) {
+          const p0 = pts[k - 1] || pts[k], p1 = pts[k], p2 = pts[k + 1], p3 = pts[k + 2] || pts[k + 1];
+          const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
+          const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+          g.bezierCurveTo(c1x, c1y, c2x, c2y, p2.x, p2.y);
         }
-        g.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
         return true;
       };
 
       g.save();
       g.lineJoin = 'round'; g.lineCap = 'round';
 
-      // Espina: enlaza los últimos giros visibles siguiendo la tendencia real
+      // Espina: enlaza los giros visibles siguiendo la estructura real del
+      // precio. Bien visible y del color del tramo (verde/rojo).
       const espina = visSig.slice(-6);
       for (let k = 1; k < espina.length; k++) {
         const a = espina[k - 1], b = espina[k];
-        const gl = g.createLinearGradient(a.x, a.y, b.x, b.y);
-        gl.addColorStop(0, `rgba(${rgbOf(a.alc)},.22)`);
-        gl.addColorStop(1, `rgba(${rgbOf(b.alc)},.22)`);
-        g.strokeStyle = gl; g.lineWidth = 1.3;
+        // leve resplandor por debajo
+        g.strokeStyle = `rgba(${rgbOf(a.alc)},.12)`; g.lineWidth = 4.5;
         g.beginPath(); if (trazaReal(a.i, b.i)) g.stroke();
-        g.fillStyle = `rgba(${rgbOf(a.alc)},.5)`;
-        g.beginPath(); g.arc(a.x, a.y, 2.1, 0, Math.PI * 2); g.fill();
+        // línea principal con degradado entre los dos colores
+        const gl = g.createLinearGradient(a.x, a.y, b.x, b.y);
+        gl.addColorStop(0, `rgba(${rgbOf(a.alc)},.72)`);
+        gl.addColorStop(1, `rgba(${rgbOf(b.alc)},.72)`);
+        g.strokeStyle = gl; g.lineWidth = 1.8;
+        g.beginPath(); if (trazaReal(a.i, b.i)) g.stroke();
+        g.fillStyle = `rgba(${rgbOf(a.alc)},.85)`;
+        g.beginPath(); g.arc(a.x, a.y, 2.4, 0, Math.PI * 2); g.fill();
       }
 
       // Tramo activo: del último giro al precio actual, siguiendo la tendencia
@@ -2494,12 +2502,12 @@ function dibujar() {
       const xNow = Math.min(x1 - 2, idxVis(iNow));
       const yNow = Y(N.precio);
       const rgb = rgbOf(last.alc);
-      g.strokeStyle = `rgba(${rgb},.12)`; g.lineWidth = 6;
+      g.strokeStyle = `rgba(${rgb},.14)`; g.lineWidth = 6;
       g.beginPath(); if (trazaReal(last.i, iNow)) g.stroke();
       const gl2 = g.createLinearGradient(last.x, last.y, xNow, yNow);
-      gl2.addColorStop(0, `rgba(${rgb},.3)`);
-      gl2.addColorStop(1, `rgba(${rgb},.92)`);
-      g.strokeStyle = gl2; g.lineWidth = 2;
+      gl2.addColorStop(0, `rgba(${rgb},.55)`);
+      gl2.addColorStop(1, `rgba(${rgb},.95)`);
+      g.strokeStyle = gl2; g.lineWidth = 2.2;
       g.beginPath(); if (trazaReal(last.i, iNow)) g.stroke();
       g.fillStyle = `rgba(${rgb},1)`; g.shadowColor = `rgba(${rgb},.9)`; g.shadowBlur = 8;
       g.beginPath(); g.arc(xNow, yNow, 3, 0, Math.PI * 2); g.fill();
@@ -3988,9 +3996,9 @@ function registrarIndicador() {
       <h3>${esc(T('Registra tu indicador'))}</h3>
       <p class="nv-reg-lead">${esc(T('¿Creaste un indicador de TradingView o una estrategia de análisis que funciona? Preséntala y podríamos mostrarla directamente en esta gráfica, a disposición de todos nuestros usuarios.'))}</p>
       <div class="nv-reg-pasos">
-        <div class="nv-reg-paso"><span>1</span><div><b>${esc(T('Nos escribes'))}</b><em>${esc(T('Cuéntanos qué hace tu indicador o estrategia y cómo lo diseñaste.'))}</em></div></div>
-        <div class="nv-reg-paso"><span>2</span><div><b>${esc(T('Evaluación y verificación'))}</b><em>${esc(T('Comprobamos que funciona de verdad. No se incorpora ningún indicador de forma automática: primero pasa nuestro filtro.'))}</em></div></div>
-        <div class="nv-reg-paso"><span>3</span><div><b>${esc(T('Acuerdo y publicación'))}</b><em>${esc(T('Si cumple los criterios, lo integramos y tú ganas una comisión por cada acceso o venta, preferiblemente en BNB o USDT.'))}</em></div></div>
+        <div class="nv-reg-paso"><span>1</span><div><b>${esc(T('Nos escribes'))}</b><em>${esc(T('Cuéntanos qué hace tu indicador o estrategia rentable y cómo lo diseñaste. Sirve tanto si viene de TradingView como si es tuyo propio.'))}</em></div></div>
+        <div class="nv-reg-paso"><span>2</span><div><b>${esc(T('Revisión manual'))}</b><em>${esc(T('Abrimos un período de revisión y comprobamos, a mano, que funciona de verdad. No se integra nada automáticamente: primero pasa nuestro filtro.'))}</em></div></div>
+        <div class="nv-reg-paso"><span>3</span><div><b>${esc(T('Se integra y ganas comisión'))}</b><em>${esc(T('Si cumple, lo integramos en la sección de indicadores del sistema. Nos das una wallet y te pagamos una comisión por tu indicador, según un acuerdo económico justo: beneficio para ambos y un precio asequible para los clientes. Pago en BNB o USDT.'))}</em></div></div>
       </div>
       <a class="nv-reg-cta" href="${TG}" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M9.8 15.6 9.6 20c.4 0 .6-.2.8-.4l1.9-1.8 3.9 2.9c.7.4 1.2.2 1.4-.7l2.6-12.2c.3-1.2-.4-1.7-1.2-1.4L3.6 10.9c-1.2.5-1.1 1.1-.2 1.4l3.9 1.2 9.1-5.7c.4-.3.8-.1.5.2z"/></svg>
@@ -4444,8 +4452,8 @@ function estilos() {
     border:1px solid #c79426;color:#3a2800;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 48%,#c79426);
     box-shadow:0 2px 0 #9c7016,0 6px 14px rgba(232,184,75,.28),inset 0 1px 0 rgba(255,255,255,.45)}
-  #nv-overlay .nv-registrar:hover{color:#3a2800;filter:brightness(1.04);
-    box-shadow:0 2px 0 #9c7016,0 9px 20px rgba(232,184,75,.4),inset 0 1px 0 rgba(255,255,255,.5)}
+  #nv-overlay .nv-registrar:hover{color:#3a2800;filter:brightness(1.02);
+    box-shadow:0 2px 0 #9c7016,0 4px 10px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.4)}
   #nv-overlay .nv-registrar:active{transform:translateY(1px);
     box-shadow:0 1px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.3)}
   #nv-overlay .nv-rg-tx{font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;white-space:nowrap;letter-spacing:.2px;color:#3a2800}
@@ -4461,10 +4469,11 @@ function estilos() {
     border:1px solid #2b3139;background:rgba(255,255,255,.04);color:#aeb6bf;cursor:pointer;font-size:14px}
   #nv-reg-modal .nv-reg-x:hover{border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
   #nv-reg-modal .nv-reg-ico{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+    margin:0 auto 14px;
     background:radial-gradient(circle at 50% 40%,rgba(232,184,75,.22),rgba(232,184,75,.05));
-    border:1px solid rgba(232,184,75,.45);color:var(--gold,#E8B84B);margin-bottom:14px}
-  #nv-reg-modal h3{font-family:var(--display,sans-serif);font-size:20px;font-weight:800;margin:0 0 8px;color:#fff;letter-spacing:.2px}
-  #nv-reg-modal .nv-reg-lead{font-size:12.5px;line-height:1.55;color:#c4ccd4;margin:0 0 16px}
+    border:1px solid rgba(232,184,75,.45);color:var(--gold,#E8B84B)}
+  #nv-reg-modal h3{font-family:var(--display,sans-serif);font-size:20px;font-weight:800;margin:0 0 8px;color:#fff;letter-spacing:.2px;text-align:center}
+  #nv-reg-modal .nv-reg-lead{font-size:12.5px;line-height:1.55;color:#c4ccd4;margin:0 0 16px;text-align:center}
   #nv-reg-modal .nv-reg-pasos{display:flex;flex-direction:column;gap:11px;margin-bottom:18px}
   #nv-reg-modal .nv-reg-paso{display:flex;gap:11px;align-items:flex-start}
   #nv-reg-modal .nv-reg-paso>span{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;

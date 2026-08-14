@@ -139,6 +139,8 @@ const V = {
   /* Tachuelas de zonas de alta liquidez (banda del perfil) */
   tachuelas: [],           // hitboxes recalculados en cada dibujo
   tachAbierta: null,       // índice de la tachuela desplegada, o null
+  tachCerrar: null,        // hitbox de la X de la tarjeta abierta
+  tachPanel: null,         // hitbox de la tarjeta abierta (para consumir clics)
 
   /* ── DIBUJO ──
      Las líneas se guardan en PRECIO y TIEMPO, no en píxeles. Así se
@@ -1438,6 +1440,7 @@ function dibujar() {
      partido en compra y venta. Nada de placeholders.
      ══════════════════════════════════════════════════════════════ */
   V.tachuelas = [];
+  V.tachCerrar = null; V.tachPanel = null;
   /* Las tachuelas se ESCONDEN cuando el perfil de volumen está activo
      (comparten la misma banda derecha) y reaparecen al apagarlo. */
   if (zonasLiq.length && !V.verPerfil) {
@@ -1445,6 +1448,7 @@ function dibujar() {
       : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M'
       : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toString();
     const precioAhora = ult.c;
+    let carta = null;   // la tarjeta abierta se dibuja al final, encima de todo
 
     zonasLiq.forEach((z, idx) => {
       const yN = Y(z.precio);
@@ -1456,109 +1460,128 @@ function dibujar() {
       }
 
       /* Color por posición: las de DEBAJO del precio (soportes) en VERDE,
-         las de ENCIMA (resistencias) en ROJO. Colores vivos y prominentes. */
+         las de ENCIMA (resistencias) en ROJO. Colores vivos. */
       const alcista = z.precio < precioAhora;
       const col = alcista ? '#2ee86a' : '#ff3b52';
       const cRGB = alcista ? '46,232,106' : '255,59,82';
 
-      const w = 96, h = 22, r = 8;
-      // Pegadas al ÁREA ROJA que señalan (lado izquierdo de la banda, donde
-      // acaban las barras), no al extremo derecho.
+      const w = 84, h = 20, r = 7;
+      // Pegadas al ÁREA que señalan (lado izq. de la banda). Ya NO llevan
+      // guía punteada ni flecha.
       const x = Math.max(6, Math.min(x1 - w - 4, xVelas + 8));
       const y = Math.max(4, Math.min(y1 - h - 6, yN - h / 2));
 
-      // guía + flecha que conecta la tachuela con el nivel rojo (a la izq.)
-      g.strokeStyle = `rgba(${cRGB},.55)`; g.lineWidth = 1.3; g.setLineDash([2, 3]);
-      g.beginPath(); g.moveTo(xVelas - 22, yN); g.lineTo(x - 2, yN); g.stroke();
-      g.setLineDash([]);
-      g.fillStyle = col;
-      g.beginPath(); g.moveTo(xVelas - 28, yN); g.lineTo(xVelas - 21, yN - 5); g.lineTo(xVelas - 21, yN + 5); g.closePath(); g.fill();
+      // cuerpo redondeado, fondo oscuro
+      g.fillStyle = 'rgba(13,17,24,.94)';
+      redondeadoLq(g, x, y, w, h, r); g.fill();
 
-      // cuerpo redondeado (SIN colita), con borde vivo y leve resplandor
+      /* RESPLANDOR INTERNO (hacia adentro, no hacia afuera): un trazo
+         grueso del color, recortado al cuerpo, deja un halo suave pegado
+         al borde por dentro. Nada de brillos hacia fuera. */
       g.save();
-      g.shadowColor = `rgba(${cRGB},.5)`; g.shadowBlur = 9;
-      g.fillStyle = `rgba(${cRGB},.12)`;
-      redondeadoLq(g, x, y, w, h, r); g.fill();
+      redondeadoLq(g, x, y, w, h, r); g.clip();
+      g.strokeStyle = `rgba(${cRGB},.5)`; g.lineWidth = 6;
+      g.shadowColor = `rgba(${cRGB},.75)`; g.shadowBlur = 6;
+      redondeadoLq(g, x, y, w, h, r); g.stroke();
       g.restore();
-      g.fillStyle = 'rgba(14,18,25,.9)';
-      redondeadoLq(g, x, y, w, h, r); g.fill();
-      g.strokeStyle = col; g.lineWidth = 1.6;
+
+      // borde nítido encima
+      g.strokeStyle = col; g.lineWidth = 1.4;
       redondeadoLq(g, x, y, w, h, r); g.stroke();
 
       // puntico latente (dot + anillo) del color de la tachuela
-      const dx = x + 13, dy = y + h / 2;
-      g.fillStyle = col; g.beginPath(); g.arc(dx, dy, 3, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = `rgba(${cRGB},.5)`; g.lineWidth = 1.4;
-      g.beginPath(); g.arc(dx, dy, 6.2, 0, Math.PI * 2); g.stroke();
+      const dx = x + 12, dy = y + h / 2;
+      g.fillStyle = col; g.beginPath(); g.arc(dx, dy, 2.8, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = `rgba(${cRGB},.5)`; g.lineWidth = 1.3;
+      g.beginPath(); g.arc(dx, dy, 5.6, 0, Math.PI * 2); g.stroke();
 
       // precio
-      g.fillStyle = '#eef1f4'; g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'left';
-      g.fillText(fmt(z.precio), x + 24, y + h / 2 + 3.5);
+      g.fillStyle = '#eef1f4'; g.font = 'bold 9.5px ui-monospace,monospace'; g.textAlign = 'left';
+      g.fillText(fmt(z.precio), x + 22, y + h / 2 + 3.3);
 
       // chevron desplegable, del MISMO color de la tachuela
       const abierta = V.tachAbierta === idx;
-      const cx = x + w - 13, cy = y + h / 2;
-      g.strokeStyle = col; g.lineWidth = 1.8; g.lineCap = 'round';
+      const cx = x + w - 11, cy = y + h / 2;
+      g.strokeStyle = col; g.lineWidth = 1.7; g.lineCap = 'round';
       g.beginPath();
-      if (abierta) { g.moveTo(cx - 4, cy + 2); g.lineTo(cx, cy - 2); g.lineTo(cx + 4, cy + 2); }
-      else { g.moveTo(cx - 4, cy - 2); g.lineTo(cx, cy + 2); g.lineTo(cx + 4, cy - 2); }
+      if (abierta) { g.moveTo(cx - 3.5, cy + 2); g.lineTo(cx, cy - 2); g.lineTo(cx + 3.5, cy + 2); }
+      else { g.moveTo(cx - 3.5, cy - 2); g.lineTo(cx, cy + 2); g.lineTo(cx + 3.5, cy - 2); }
       g.stroke(); g.lineCap = 'butt';
 
       V.tachuelas.push({ x, y, w, h, idx });
 
-      // ── DESPLEGABLE ── se abre a la IZQUIERDA (dentro de la gráfica), no
-      //    hacia abajo, para no tapar las tachuelas de más abajo.
-      if (abierta) {
-        const volT = volC + volV || 1;
-        const pw = 224, ph = 116;
-        const pxL = Math.max(6, x - pw - 12);
-        const py = Math.max(4, Math.min(y1 - ph - 4, yN - ph / 2));
-
-        // conector desde la tachuela al panel
-        g.strokeStyle = `rgba(${cRGB},.5)`; g.lineWidth = 1.2;
-        g.beginPath(); g.moveTo(x, y + h / 2); g.lineTo(pxL + pw, py + ph / 2); g.stroke();
-
-        g.save();
-        g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 14; g.shadowOffsetY = 3;
-        g.fillStyle = 'rgba(15,19,26,.99)';
-        redondeadoLq(g, pxL, py, pw, ph, 12); g.fill();
-        g.restore();
-        g.strokeStyle = `rgba(${cRGB},.55)`; g.lineWidth = 1.2;
-        redondeadoLq(g, pxL, py, pw, ph, 12); g.stroke();
-
-        const tx = pxL + 13;
-        g.textAlign = 'left';
-        g.fillStyle = col; g.font = 'bold 10px ui-monospace,monospace';
-        g.fillText((alcista ? '▲ SOPORTE' : '▼ RESISTENCIA') + ' · ALTA LIQUIDEZ', tx, py + 17);
-
-        g.fillStyle = '#d3dae1'; g.font = '9px ui-monospace,monospace';
-        g.fillText('Aquí se juntan muchas órdenes. El precio', tx, py + 32);
-        g.fillText('suele frenar o rebotar al tocar ' + fmt(z.precio) + '.', tx, py + 43);
-        g.fillStyle = '#9aa4af';
-        g.fillText(alcista ? 'Zona para vigilar rebotes o poner tu stop.'
-                           : 'Zona para tomar ganancias o cuidar la subida.', tx, py + 56);
-
-        // Volumen negociado — con etiquetas claras
-        g.fillStyle = '#8b95a1'; g.font = '8.5px ui-monospace,monospace';
-        g.fillText('Volumen ya negociado aquí (' + z.filas + ' muros):', tx, py + 72);
-        const bx = tx, by = py + 78, bw = pw - 26, bh = 9;
-        const wc = bw * (volC / volT);
-        g.fillStyle = 'rgba(46,232,106,.95)'; g.fillRect(bx, by, wc, bh);
-        g.fillStyle = 'rgba(255,70,90,.95)'; g.fillRect(bx + wc, by, bw - wc, bh);
-        g.strokeStyle = 'rgba(255,255,255,.15)'; g.lineWidth = 1; g.strokeRect(bx, by, bw, bh);
-        g.font = 'bold 9px ui-monospace,monospace';
-        g.fillStyle = '#2ee86a'; g.textAlign = 'left';
-        g.fillText('Compras ' + fmtVol(volC), bx, by + bh + 12);
-        g.fillStyle = '#ff6b7a'; g.textAlign = 'right';
-        g.fillText('Ventas ' + fmtVol(volV), bx + bw, by + bh + 12);
-        // veredicto en lenguaje llano
-        const dom = volC > volV * 1.25 ? ['Dominan los compradores', '#2ee86a']
-          : volV > volC * 1.25 ? ['Dominan los vendedores', '#ff6b7a']
-          : ['Compras y ventas equilibradas', '#c4ccd4'];
-        g.textAlign = 'left'; g.fillStyle = dom[1]; g.font = '8.5px ui-monospace,monospace';
-        g.fillText(dom[0], tx, py + ph - 8);
-      }
+      // Si está abierta, guardamos sus datos para pintarla AL FINAL (así la
+      // tarjeta queda por encima de las demás tachuelas, no debajo).
+      if (abierta) carta = { z, idx, alcista, col, cRGB, volC, volV, x, y, h };
     });
+
+    // ── TARJETA DESPLEGABLE (encima de todo) ──
+    if (carta) {
+      const { z, alcista, col, cRGB, volC, volV } = carta;
+      const fmtV = fmtVol;
+      const volT = volC + volV || 1;
+      const pw = Math.min(212, x1 - 12);
+      const ph = 134;
+      const px = Math.max(6, Math.min(x1 - pw - 6, carta.x));
+      let py = carta.y + carta.h + 8;
+      if (py + ph > y1 - 4) py = Math.max(4, carta.y - ph - 8);
+
+      g.save();
+      g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 14; g.shadowOffsetY = 4;
+      g.fillStyle = 'rgba(15,19,26,.99)';
+      redondeadoLq(g, px, py, pw, ph, 12); g.fill();
+      g.restore();
+      g.strokeStyle = `rgba(${cRGB},.5)`; g.lineWidth = 1.2;
+      redondeadoLq(g, px, py, pw, ph, 12); g.stroke();
+
+      // recorte para que NADA se desborde de la tarjeta
+      g.save();
+      redondeadoLq(g, px, py, pw, ph, 12); g.clip();
+
+      const tx = px + 12;
+      g.textAlign = 'left';
+      g.fillStyle = col; g.font = 'bold 10px ui-monospace,monospace';
+      g.fillText((alcista ? '\u25b2 SOPORTE' : '\u25bc RESISTENCIA') + ' \u00b7 ALTA LIQUIDEZ', tx, py + 18);
+      g.fillStyle = '#e6eaef';
+      g.fillText(fmt(z.precio), tx, py + 33);
+
+      g.fillStyle = '#c4ccd4'; g.font = '9px ui-monospace,monospace';
+      g.fillText('Muchas \u00f3rdenes juntas aqu\u00ed: el', tx, py + 48);
+      g.fillText('precio suele frenar o rebotar.', tx, py + 59);
+      g.fillStyle = '#9aa4af';
+      g.fillText(alcista ? '\u00datil para entradas o tu stop.'
+                         : '\u00datil para salidas o tu stop.', tx, py + 72);
+
+      g.fillStyle = '#8b95a1'; g.font = '8.5px ui-monospace,monospace';
+      g.fillText('Vol. negociado (' + z.filas + ' muros):', tx, py + 88);
+      const bx = tx, by = py + 93, bw = pw - 24, bh = 9;
+      const wc = bw * (volC / volT);
+      g.fillStyle = 'rgba(46,232,106,.95)'; g.fillRect(bx, by, wc, bh);
+      g.fillStyle = 'rgba(255,70,90,.95)'; g.fillRect(bx + wc, by, bw - wc, bh);
+      g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 1; g.strokeRect(bx, by, bw, bh);
+      g.font = 'bold 8.5px ui-monospace,monospace';
+      g.fillStyle = '#2ee86a'; g.textAlign = 'left';
+      g.fillText('Compras ' + fmtV(volC), bx, by + bh + 12);
+      g.fillStyle = '#ff6b7a'; g.textAlign = 'right';
+      g.fillText('Ventas ' + fmtV(volV), bx + bw, by + bh + 12);
+      const dom = volC > volV * 1.25 ? ['Dominan compradores', '#2ee86a']
+        : volV > volC * 1.25 ? ['Dominan vendedores', '#ff6b7a']
+        : ['Compras y ventas parejas', '#c4ccd4'];
+      g.textAlign = 'left'; g.fillStyle = dom[1]; g.font = '8.5px ui-monospace,monospace';
+      g.fillText(dom[0], tx, py + ph - 9);
+      g.restore();
+
+      // X para cerrar (esquina superior derecha)
+      const xw = 16, xx = px + pw - xw - 6, xy = py + 6;
+      g.strokeStyle = 'rgba(200,208,216,.8)'; g.lineWidth = 1.4; g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(xx + 4, xy + 4); g.lineTo(xx + xw - 4, xy + xw - 4);
+      g.moveTo(xx + xw - 4, xy + 4); g.lineTo(xx + 4, xy + xw - 4);
+      g.stroke(); g.lineCap = 'butt';
+
+      V.tachCerrar = { x: xx, y: xy, w: xw, h: xw };
+      V.tachPanel = { x: px, y: py, w: pw, h: ph };
+    }
   }
 
   /* ── LA ESCALA DE PRECIOS ── */
@@ -2193,18 +2216,19 @@ function redondeadoLq(g, x, y, w, h, r) {
   g.closePath();
 }
 
-/* ¿El punto (px,py) cayó sobre alguna tachuela de liquidez? Abre o
-   cierra su desplegable y redibuja. Devuelve true si consumió el toque. */
+/* ¿El punto (px,py) cayó sobre una tachuela, su X de cierre o su
+   tarjeta? Actúa en consecuencia y devuelve true si consumió el toque. */
 function clicTachuela(px, py) {
-  const t = V.tachuelas || [];
-  for (const b of t) {
-    if (px >= b.x - 6 && px <= b.x + b.w + 2 && py >= b.y - 2 && py <= b.y + b.h + 2) {
-      V.tachAbierta = (V.tachAbierta === b.idx) ? null : b.idx;
-      dibujar();
-      return true;
-    }
+  const dentro = (b) => b && px >= b.x - 4 && px <= b.x + b.w + 4 && py >= b.y - 4 && py <= b.y + b.h + 4;
+  // 1) la X cierra la tarjeta
+  if (dentro(V.tachCerrar)) { V.tachAbierta = null; dibujar(); return true; }
+  // 2) tocar dentro de la tarjeta no hace nada (no arrastra ni cierra)
+  if (dentro(V.tachPanel)) return true;
+  // 3) tocar una tachuela abre/cierra su tarjeta
+  for (const b of (V.tachuelas || [])) {
+    if (dentro(b)) { V.tachAbierta = (V.tachAbierta === b.idx) ? null : b.idx; dibujar(); return true; }
   }
-  // tocar fuera cierra cualquier desplegable abierto
+  // 4) tocar fuera cierra cualquier tarjeta abierta
   if (V.tachAbierta != null) { V.tachAbierta = null; dibujar(); }
   return false;
 }
