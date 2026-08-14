@@ -2262,10 +2262,10 @@ function dibujar() {
 
 
 
-  /* Visibilidad del indicador de ESTRUCTURA (niveles, tendencia, rango,
-     dobles): encendido por defecto, pero con su propio interruptor. La
-     "Gráfica limpia" lo apaga todo de golpe. */
-  const _verBase = !N.limpia && N.verEstructura !== false;
+  /* Visibilidad del indicador de ESTRUCTURA (Faro): APAGADO por defecto,
+     como el resto. Solo se dibuja si el usuario lo enciende. La "Gráfica
+     limpia" apaga todo de golpe. */
+  const _verBase = !N.limpia && N.verEstructura === true;
 
   /* ── Rejilla suave ── */
   g.strokeStyle = 'rgba(255,255,255,.028)';
@@ -2449,6 +2449,19 @@ function dibujar() {
     if (visSig.length && !MA.finde) {
       const rgbOf = (alc) => (alc ? '46,232,106' : '255,60,80');
 
+      /* Traza un tramo con un ARQUEO suave, como una soga que se pandea:
+         los tramos LONG se comban hacia ABAJO y los SHORT hacia ARRIBA.
+         El arqueo es proporcional a la distancia, con tope, para que en
+         tramos cortos sea leve y nunca desproporcionado. */
+      const traza = (ax, ay, bx, by, alc) => {
+        const len = Math.hypot(bx - ax, by - ay);
+        const arco = Math.min(16, len * 0.11);
+        const mx = (ax + bx) / 2;
+        const my = (ay + by) / 2 + (alc ? 1 : -1) * 2 * arco;
+        g.moveTo(ax, ay);
+        g.quadraticCurveTo(mx, my, bx, by);
+      };
+
       // Espina: enlaza los últimos giros visibles (máx. 6, para no cargar)
       const espina = visSig.slice(-6);
       for (let k = 1; k < espina.length; k++) {
@@ -2457,24 +2470,24 @@ function dibujar() {
         gl.addColorStop(0, `rgba(${rgbOf(a.alc)},.26)`);
         gl.addColorStop(1, `rgba(${rgbOf(b.alc)},.26)`);
         g.strokeStyle = gl; g.lineWidth = 1.4;
-        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+        g.beginPath(); traza(a.x, a.y, b.x, b.y, a.alc); g.stroke();
         g.fillStyle = `rgba(${rgbOf(a.alc)},.5)`;
         g.beginPath(); g.arc(a.x, a.y, 2.1, 0, Math.PI * 2); g.fill();
       }
 
-      // Tramo activo: del último giro al precio actual
+      // Tramo activo: del último giro al precio actual, también arqueado
       const last = visSig[visSig.length - 1];
       const xNow = Math.min(x1 - 2, idxVis(fin - 1));
       const yNow = Y(N.precio);
       const rgb = rgbOf(last.alc);
       g.save();
       g.strokeStyle = `rgba(${rgb},.12)`; g.lineWidth = 6;
-      g.beginPath(); g.moveTo(last.x, last.y); g.lineTo(xNow, yNow); g.stroke();
+      g.beginPath(); traza(last.x, last.y, xNow, yNow, last.alc); g.stroke();
       const gl2 = g.createLinearGradient(last.x, last.y, xNow, yNow);
       gl2.addColorStop(0, `rgba(${rgb},.32)`);
       gl2.addColorStop(1, `rgba(${rgb},.9)`);
       g.strokeStyle = gl2; g.lineWidth = 2;
-      g.beginPath(); g.moveTo(last.x, last.y); g.lineTo(xNow, yNow); g.stroke();
+      g.beginPath(); traza(last.x, last.y, xNow, yNow, last.alc); g.stroke();
       g.fillStyle = `rgba(${rgb},1)`; g.shadowColor = `rgba(${rgb},.9)`; g.shadowBlur = 8;
       g.beginPath(); g.arc(xNow, yNow, 3, 0, Math.PI * 2); g.fill();
       g.restore();
@@ -3547,8 +3560,8 @@ function menuHerramientas(anchor) {
       desc: 'Deja las velas y el precio solos: apaga de golpe todo el análisis (Marea, Faro, niveles, tendencia y etiquetas). Vuelve a tocar para restaurarlo.' },
     { h: 'marea', on: !!N.verMarea, nombre: 'Marea', tag: 'cambio de ciclo', ico: IC.marea,
       desc: 'Detecta dónde la marea del mercado cambia de manos, de compradores a vendedores. Solo marca el giro cuando pasa varios filtros a la vez; el resto del tiempo calla. Es nuestro indicador insignia.' },
-    { h: 'estructura', on: N.verEstructura !== false, nombre: 'Faro', tag: 'estructura', ico: IC.estructura,
-      desc: 'Ilumina la estructura del mercado: soportes y resistencias, la tendencia, el techo del rango, los dobles techos y dobles suelos. Encendido por defecto; apágalo si quieres la gráfica más despejada.' },
+    { h: 'estructura', on: N.verEstructura === true, nombre: 'Faro', tag: 'estructura', ico: IC.estructura,
+      desc: 'Ilumina la estructura del mercado: soportes y resistencias, la tendencia, el techo del rango, los dobles techos y dobles suelos. Enciéndelo cuando quieras ver el análisis de estructura sobre la gráfica.' },
     { h: 'alertas', on: !!N.alertas, nombre: 'Alertas', tag: (N.alertas && N.alertaPar) ? N.alertaPar : _par, ico: IC.alertas,
       desc: 'Te envía una notificación push (con sonido, en el móvil y en la computadora) cada vez que Marea dispara una señal LONG o SHORT en ' + _par + '. La alerta queda fijada a este par. Funciona mientras esta página siga abierta, aunque esté en segundo plano.' }
   ];
@@ -3598,10 +3611,10 @@ function menuHerramientas(anchor) {
     const b = e.target.closest('[data-h]');
     if (!b) return;
     const cual = b.dataset.h;
-    if (cual === 'alertas') { toggleAlertas(b); return; }
+    if (cual === 'alertas') { menuAlertas(); return; }
     if (cual === 'marea') N.verMarea = !N.verMarea;
     else if (cual === 'limpia') N.limpia = !N.limpia;
-    else if (cual === 'estructura') N.verEstructura = (N.verEstructura === false);
+    else if (cual === 'estructura') N.verEstructura = !N.verEstructura;
     b.classList.toggle('on');
     dibujar(); burbujas();
   });
@@ -3717,7 +3730,12 @@ async function sondearMarea() {
        aparezcan de ahí en adelante. */
     if (sg.t > (N.alertaUltimaTs || 0)) {
       N.alertaUltimaTs = sg.t;
-      notificarSenal(sg.dir === 'compra', N.alertaPar, sg.precio);
+      const alc = sg.dir === 'compra';
+      const dir = N.alertaDir || { long: true, short: true };
+      // solo avisa de la dirección que el usuario eligió para Marea
+      if ((alc && dir.long) || (!alc && dir.short)) {
+        notificarSenal(alc, N.alertaPar, sg.precio);
+      }
     }
   } catch (_) { /* sin red: se reintenta en el próximo ciclo */ }
 }
@@ -3728,43 +3746,126 @@ function arrancarSondeo() {
 }
 function pararSondeo() { if (_alertaInt) { clearInterval(_alertaInt); _alertaInt = null; } }
 
-async function toggleAlertas(boton) {
-  // Apagar
-  if (N.alertas) {
-    N.alertas = false; pararSondeo();
-    boton.classList.remove('on');
-    avisoMarea('Alertas de Marea desactivadas');
-    return;
-  }
-  // Encender
-  if (!('Notification' in window)) {
-    avisoMarea('Este navegador no admite notificaciones');
-    return;
-  }
+async function activarAlertasMarea(dLong, dShort) {
+  if (!('Notification' in window)) { avisoMarea('Este navegador no admite notificaciones'); return false; }
   let permiso = Notification.permission;
   if (permiso === 'default') {
     try { permiso = await Notification.requestPermission(); } catch (_) { permiso = 'denied'; }
   }
-  if (permiso !== 'granted') {
-    avisoMarea('Necesito permiso de notificaciones para avisarte');
-    return;
-  }
+  if (permiso !== 'granted') { avisoMarea('Necesito permiso de notificaciones para avisarte'); return false; }
   desbloquearAudio();                         // el gesto del toque desbloquea el sonido
   N.alertas = true;
+  N.alertaIndicador = 'marea';
   N.alertaPar = _par;
   N.alertaTf = _tf;
-  // marca la señal vigente como "ya vista" para no avisar de una vieja al
-  // arrancar; si no hay ninguna, 0 (así la primera que aparezca sí avisa)
+  N.alertaDir = { long: !!dLong, short: !!dShort };
   N.alertaUltimaTs = (N.marea && N.marea.ultima) ? N.marea.ultima.t : 0;
-  boton.classList.add('on');
-  // actualiza la etiqueta del par en la fila
-  const fila = boton.closest('.nv-hm-fila');
-  const tag = fila && fila.querySelector('.nv-hm-tx em');
-  if (tag) tag.textContent = N.alertaPar;
   arrancarSondeo();
-  notificar('Alertas activadas', `Te avisaré de cada señal de Marea en ${N.alertaPar}.`);
+  const quees = dLong && dShort ? 'LONG y SHORT' : (dLong ? 'LONG' : 'SHORT');
+  notificar('Alertas activadas', `Te avisaré de las señales ${quees} de Marea en ${N.alertaPar}.`);
   sonarAlerta(true);
-  avisoMarea(`Alertas activadas para ${N.alertaPar}. Sonarán aquí y en tu sistema.`);
+  avisoMarea(`Alertas de Marea (${quees}) activadas para ${N.alertaPar}.`);
+  return true;
+}
+
+function desactivarAlertas() {
+  N.alertas = false; pararSondeo();
+  avisoMarea('Alertas desactivadas');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VENTANA DE ALERTAS — elegir indicador y condiciones
+
+   Al tocar "Alertas" no se activa nada a ciegas: se abre esta ventana
+   donde el usuario elige PARA QUÉ INDICADOR y con QUÉ CONDICIONES.
+     · Marea  → avisos de señal LONG, SHORT o ambas (tiene tachuelas).
+     · Faro   → no tiene señales de entrada/salida, así que sus alertas
+                son de PRECIO por clic derecho ("solo avísame").
+   ══════════════════════════════════════════════════════════════ */
+function menuAlertas() {
+  document.querySelectorAll('#nv-herr-menu').forEach((x) => x.remove());
+  const prev = document.getElementById('nv-al-modal'); if (prev) { prev.remove(); return; }
+
+  const dir = N.alertaDir || { long: true, short: true };
+  const activa = !!N.alertas;
+  const m = document.createElement('div');
+  m.id = 'nv-al-modal';
+  m.innerHTML = `
+    <div class="nv-al-bg"></div>
+    <div class="nv-al-card" role="dialog" aria-modal="true">
+      <button class="nv-al-x" aria-label="${esc(T('Cerrar'))}">✕</button>
+      <h3>${esc(T('Habilitar una alerta'))}</h3>
+      <p class="nv-al-lead">${esc(T('Elige el indicador y con qué condiciones quieres que te avise.'))}</p>
+      ${activa ? `<div class="nv-al-estado">${esc(T('Alertas activas'))}: <b>${esc(N.alertaPar || _par)}</b> · ${dir.long && dir.short ? 'LONG + SHORT' : (dir.long ? 'LONG' : 'SHORT')} <button class="nv-al-off" type="button">${esc(T('Desactivar'))}</button></div>` : ''}
+      <div class="nv-al-inds">
+        <button class="nv-al-ind" data-ind="marea">
+          <span class="nv-al-ic">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 11c2.2 0 2.2-2.2 4.4-2.2S8.6 11 10.8 11 13 8.8 15.2 8.8 17.4 11 19.6 11 22 8.8 22 8.8"/><path d="M2 16c2.2 0 2.2-2.2 4.4-2.2S8.6 16 10.8 16 13 13.8 15.2 13.8 17.4 16 19.6 16 22 13.8 22 13.8"/></svg>'}</span>
+          <b>Marea</b><em>${esc(T('señales de giro'))}</em>
+        </button>
+        <button class="nv-al-ind" data-ind="faro">
+          <span class="nv-al-ic">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9.4" y="3.4" width="5.2" height="3.6" rx="1.1"/><path d="M12 1.6V3.2"/><path d="M16.6 5.2 19 4M7.4 5.2 5 4"/><path d="M10 7h4l1.1 13.4H8.9L10 7z"/><path d="M9.3 12.2h5.4"/></svg>'}</span>
+          <b>Faro</b><em>${esc(T('alerta de precio'))}</em>
+        </button>
+      </div>
+      <div class="nv-al-panel" data-panel="marea">
+        <div class="nv-al-sub">${esc(T('¿Qué señales de Marea quieres recibir en'))} <b>${esc(_par)}</b>?</div>
+        <div class="nv-al-conds">
+          <button class="nv-al-cond ${dir.long ? 'on' : ''}" data-cond="long"><span class="nv-al-dot" style="background:#2ee86a"></span>LONG</button>
+          <button class="nv-al-cond ${dir.short ? 'on' : ''}" data-cond="short"><span class="nv-al-dot" style="background:#f6465d"></span>SHORT</button>
+        </div>
+        <button class="nv-al-go" type="button">${esc(T('Activar alertas'))}</button>
+        <p class="nv-al-nota">${esc(T('Suena y notifica aunque estés en otra ventana, mientras la página siga abierta.'))}</p>
+      </div>
+      <div class="nv-al-panel" data-panel="faro" style="display:none">
+        <div class="nv-al-faro">
+          <p>${esc(T('Faro no tiene señales de entrada o salida (no lleva tachuelas de LONG/SHORT), así que sus alertas son de PRECIO, no de señal.'))}</p>
+          <ol>
+            <li>${esc(T('Haz clic derecho (o mantén pulsado en el móvil) sobre el precio donde quieras que te avise.'))}</li>
+            <li>${esc(T('Elige "Establecer posición".'))}</li>
+            <li>${esc(T('Selecciona la opción "Solo avísame".'))}</li>
+            <li>${esc(T('Confirma: recibirás un aviso cuando el precio toque ese nivel, en la moneda actual.'))}</li>
+          </ol>
+          <button class="nv-al-go" type="button" data-cerrar="1">${esc(T('Entendido'))}</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+
+  const cerrar = () => m.remove();
+  m.querySelector('.nv-al-bg').onclick = cerrar;
+  m.querySelector('.nv-al-x').onclick = cerrar;
+  const off = m.querySelector('.nv-al-off'); if (off) off.onclick = () => { desactivarAlertas(); cerrar(); };
+
+  const pMarea = m.querySelector('[data-panel="marea"]');
+  const pFaro = m.querySelector('[data-panel="faro"]');
+  const inds = m.querySelectorAll('.nv-al-ind');
+  const selInd = (cual) => {
+    inds.forEach((b) => b.classList.toggle('sel', b.dataset.ind === cual));
+    pMarea.style.display = cual === 'marea' ? '' : 'none';
+    pFaro.style.display = cual === 'faro' ? '' : 'none';
+  };
+  inds.forEach((b) => b.onclick = () => selInd(b.dataset.ind));
+  selInd('marea');   // por defecto, la más usada
+
+  // condiciones LONG / SHORT
+  const conds = m.querySelectorAll('.nv-al-cond');
+  conds.forEach((c) => c.onclick = () => {
+    // no permitir dejar las dos apagadas
+    const otras = [...conds].filter((x) => x !== c);
+    if (c.classList.contains('on') && otras.every((x) => !x.classList.contains('on'))) return;
+    c.classList.toggle('on');
+  });
+
+  // activar
+  m.querySelector('[data-panel="marea"] .nv-al-go').onclick = async () => {
+    const long = m.querySelector('.nv-al-cond[data-cond="long"]').classList.contains('on');
+    const short = m.querySelector('.nv-al-cond[data-cond="short"]').classList.contains('on');
+    if (!long && !short) { avisoMarea('Elige al menos LONG o SHORT'); return; }
+    const ok = await activarAlertasMarea(long, short);
+    if (ok) cerrar();
+  };
+  const fbtn = m.querySelector('[data-panel="faro"] .nv-al-go');
+  if (fbtn) fbtn.onclick = cerrar;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -3861,7 +3962,7 @@ async function abrirWidget() {
    ══════════════════════════════════════════════════════════════ */
 function registrarIndicador() {
   const prev = document.getElementById('nv-reg-modal'); if (prev) { prev.remove(); return; }
-  const TG = 'https://t.me/CriptoCubaOficial';
+  const TG = 'https://t.me/JesusDevTrader';
   const m = document.createElement('div');
   m.id = 'nv-reg-modal';
   m.innerHTML = `
@@ -4321,12 +4422,18 @@ function estilos() {
     font-family:var(--mono,monospace);font-size:14px;font-weight:700}
   #nv-overlay .nv-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
   #nv-overlay .nv-comof{width:auto;padding:0 14px;border-color:rgba(232,184,75,.4);color:var(--gold,#E8B84B)}
-  #nv-overlay .nv-registrar{width:auto;padding:0 13px;gap:7px;
-    border-color:rgba(232,184,75,.55);color:var(--gold,#E8B84B);
-    background:linear-gradient(180deg,rgba(232,184,75,.16),rgba(232,184,75,.06))}
-  #nv-overlay .nv-registrar:hover{border-color:var(--gold,#E8B84B);
-    box-shadow:0 0 0 1px rgba(232,184,75,.25),0 6px 18px rgba(232,184,75,.12)}
-  #nv-overlay .nv-rg-tx{font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;white-space:nowrap}
+  /* Los botones que llevan ícono + texto deben ir en FILA. La base
+     .nv-ico usa grid con una sola celda, que los apilaba (el texto caía
+     debajo del ícono). Con flex quedan uno al lado del otro y centrados. */
+  #nv-overlay .nv-registrar,
+  #nv-overlay .nv-herr-btn{display:inline-flex;flex-direction:row;align-items:center;justify-content:center}
+  #nv-overlay .nv-registrar{width:auto;height:36px;padding:0 14px;gap:8px;
+    border-color:rgba(232,184,75,.55);color:#0b0f16;
+    background:linear-gradient(180deg,#f0c869,#E8B84B);
+    box-shadow:0 4px 14px rgba(232,184,75,.22)}
+  #nv-overlay .nv-registrar:hover{filter:brightness(1.05);
+    box-shadow:0 6px 20px rgba(232,184,75,.32)}
+  #nv-overlay .nv-rg-tx{font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;white-space:nowrap;letter-spacing:.2px}
 
   /* ══ Modal Registrar mi indicador ══ */
   #nv-reg-modal{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px}
@@ -4354,6 +4461,53 @@ function estilos() {
     color:#0b0f16;background:linear-gradient(180deg,#f0c869,#E8B84B);box-shadow:0 8px 22px rgba(232,184,75,.25)}
   #nv-reg-modal .nv-reg-cta:hover{filter:brightness(1.06)}
   #nv-reg-modal .nv-reg-pie{font-size:10.5px;line-height:1.5;color:#7d8794;text-align:center;margin:13px 0 0}
+
+  /* ══ Modal de Alertas ══ */
+  #nv-al-modal{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px}
+  #nv-al-modal .nv-al-bg{position:absolute;inset:0;background:rgba(3,5,9,.72);backdrop-filter:blur(3px)}
+  #nv-al-modal .nv-al-card{position:relative;max-width:400px;width:100%;max-height:92vh;overflow:auto;
+    background:linear-gradient(180deg,#12161d,#0c1016);border:1px solid rgba(232,184,75,.4);
+    border-radius:18px;padding:22px 20px 18px;box-shadow:0 24px 70px rgba(0,0,0,.7);
+    font-family:var(--mono,ui-monospace,monospace);color:#eaecef}
+  #nv-al-modal .nv-al-x{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:9px;
+    border:1px solid #2b3139;background:rgba(255,255,255,.04);color:#aeb6bf;cursor:pointer;font-size:14px}
+  #nv-al-modal .nv-al-x:hover{border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
+  #nv-al-modal h3{font-family:var(--display,sans-serif);font-size:19px;font-weight:800;margin:0 0 6px;color:#fff}
+  #nv-al-modal .nv-al-lead{font-size:12px;line-height:1.5;color:#c4ccd4;margin:0 0 14px}
+  #nv-al-modal .nv-al-estado{font-size:11.5px;color:#c4ccd4;background:rgba(232,184,75,.1);
+    border:1px solid rgba(232,184,75,.28);border-radius:10px;padding:8px 10px;margin-bottom:14px;
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  #nv-al-modal .nv-al-off{margin-left:auto;padding:4px 10px;border-radius:8px;cursor:pointer;
+    border:1px solid #f6465d;background:rgba(246,70,93,.12);color:#ff8a97;font-size:11px;font-weight:700}
+  #nv-al-modal .nv-al-inds{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  #nv-al-modal .nv-al-ind{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+    padding:12px;border-radius:12px;cursor:pointer;text-align:left;
+    background:rgba(255,255,255,.035);border:1px solid #2b3139;transition:border-color .15s,background .15s}
+  #nv-al-modal .nv-al-ind:hover{border-color:var(--gold-soft,#C9A84B)}
+  #nv-al-modal .nv-al-ind.sel{background:rgba(232,184,75,.13);border-color:var(--gold,#E8B84B)}
+  #nv-al-modal .nv-al-ic{width:26px;height:26px;color:#8b95a1;margin-bottom:4px}
+  #nv-al-modal .nv-al-ic svg{width:22px;height:22px;display:block}
+  #nv-al-modal .nv-al-ind.sel .nv-al-ic{color:var(--gold,#E8B84B)}
+  #nv-al-modal .nv-al-ind b{font-family:var(--display,sans-serif);font-size:14px;color:#eaecef}
+  #nv-al-modal .nv-al-ind.sel b{color:var(--gold,#E8B84B)}
+  #nv-al-modal .nv-al-ind em{font-style:normal;font-size:10px;color:#8b95a1}
+  #nv-al-modal .nv-al-sub{font-size:12px;color:#c4ccd4;margin-bottom:9px}
+  #nv-al-modal .nv-al-conds{display:flex;gap:10px;margin-bottom:14px}
+  #nv-al-modal .nv-al-cond{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
+    padding:11px;border-radius:11px;cursor:pointer;font-family:var(--mono,monospace);font-weight:700;font-size:12.5px;
+    color:#8b95a1;background:rgba(255,255,255,.035);border:1px solid #2b3139;transition:.15s}
+  #nv-al-modal .nv-al-cond .nv-al-dot{width:9px;height:9px;border-radius:50%;opacity:.4;transition:.15s}
+  #nv-al-modal .nv-al-cond.on{color:#eaecef;border-color:var(--gold,#E8B84B);background:rgba(232,184,75,.1)}
+  #nv-al-modal .nv-al-cond.on .nv-al-dot{opacity:1;box-shadow:0 0 8px currentColor}
+  #nv-al-modal .nv-al-go{width:100%;padding:12px;border-radius:12px;cursor:pointer;border:none;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;color:#0b0f16;
+    background:linear-gradient(180deg,#f0c869,#E8B84B);box-shadow:0 8px 22px rgba(232,184,75,.25)}
+  #nv-al-modal .nv-al-go:hover{filter:brightness(1.05)}
+  #nv-al-modal .nv-al-nota{font-size:10.5px;line-height:1.5;color:#7d8794;text-align:center;margin:11px 0 0}
+  #nv-al-modal .nv-al-faro p{font-size:12px;line-height:1.55;color:#c4ccd4;margin:0 0 10px}
+  #nv-al-modal .nv-al-faro ol{margin:0 0 14px;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+  #nv-al-modal .nv-al-faro li{font-size:11.5px;line-height:1.45;color:#aeb6bf}
+  #nv-al-modal .nv-al-faro li::marker{color:var(--gold,#E8B84B);font-weight:700}
   #nv-overlay .nv-cf-tx{font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;white-space:nowrap}
   #nv-overlay .nv-cf-s{display:none}
 
