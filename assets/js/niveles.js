@@ -1972,8 +1972,9 @@ export async function abrirNiveles() {
           <button class="nv-ico" id="nv-foto" title="Compartir">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
           </button>
-          <button class="nv-ico nv-herr-btn" id="nv-herr" title="Herramientas">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <button class="nv-ico nv-herr-btn" id="nv-herr" title="Indicators">
+            <svg class="nv-ind-ic" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="2.6" y="13" width="3.2" height="8" rx="1"/><rect x="7.7" y="9.5" width="3.2" height="11.5" rx="1"/><rect x="12.8" y="6" width="3.2" height="15" rx="1"/><rect x="17.9" y="3" width="3.2" height="18" rx="1"/></svg>
+            <span class="nv-ind-tx">Indicators</span>
           </button>
           <button class="nv-ico nv-comof" id="nv-ayuda">
             <span class="nv-cf-tx">Cómo funciona</span><span class="nv-cf-s">?</span>
@@ -1988,6 +1989,9 @@ export async function abrirNiveles() {
       <div class="nv-veredicto" id="nv-veredicto">
         <div class="nv-caps" id="nv-caps"></div>
         <div class="nv-meta" id="nv-meta"></div>
+        <button class="nv-herr-m" id="nv-herr-m" title="Indicators" aria-label="Indicators">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><rect x="2.6" y="13" width="3.2" height="8" rx="1"/><rect x="7.7" y="9.5" width="3.2" height="11.5" rx="1"/><rect x="12.8" y="6" width="3.2" height="15" rx="1"/><rect x="17.9" y="3" width="3.2" height="18" rx="1"/></svg>
+        </button>
       </div>
 
       <div class="nv-graf" id="nv-graf">
@@ -2014,7 +2018,8 @@ export async function abrirNiveles() {
   $('nv-x').onclick = cerrar;
   $('nv-ayuda').onclick = () => ayuda();
   { const rb = $('nv-registrar'); if (rb) rb.onclick = () => registrarIndicador(); }
-  $('nv-herr').onclick = (e) => { e.stopPropagation(); menuHerramientas(); };
+  $('nv-herr').onclick = (e) => { e.stopPropagation(); menuHerramientas($('nv-herr')); };
+  { const hm = $('nv-herr-m'); if (hm) hm.onclick = (e) => { e.stopPropagation(); menuHerramientas(hm); }; }
   $('nv-foto').onclick = () => guardarImagen();
   /* El modo ventana flotante solo existe en navegadores de escritorio
      que admiten Document Picture-in-Picture (Chrome/Edge). Si no está,
@@ -3521,7 +3526,7 @@ function gestos(cv) {
 /* ══════════════════════════════════════════════════════════════
    MENÚ DE HERRAMIENTAS
    ══════════════════════════════════════════════════════════════ */
-function menuHerramientas() {
+function menuHerramientas(anchor) {
   const prev = document.getElementById('nv-herr-menu');
   if (prev) { prev.remove(); return; }
 
@@ -3567,7 +3572,15 @@ function menuHerramientas() {
     <div class="nv-hm-pie">${esc(T('Toca una herramienta para encenderla · el "?" explica qué hace'))}</div>`;
   document.body.appendChild(m);
 
-  const r = $('nv-herr').getBoundingClientRect();
+  /* Se ancla al botón que lo abrió: en móvil es el de la banda de
+     lecturas; en web, el de la cabecera. Si no se pasó, se elige el que
+     esté visible. */
+  let anc = anchor;
+  if (!anc || !anc.getBoundingClientRect || anc.offsetParent === null) {
+    anc = ($('nv-herr') && $('nv-herr').offsetParent !== null) ? $('nv-herr')
+        : ($('nv-herr-m') || $('nv-herr'));
+  }
+  const r = anc.getBoundingClientRect();
   const w = m.offsetWidth || 300;
   m.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
   m.style.top = (r.bottom + 8) + 'px';
@@ -4506,6 +4519,16 @@ function estilos() {
 
   /* ── Panel de herramientas ── */
   #nv-overlay .nv-herr-btn.activa{border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
+  /* En WEB el botón de indicadores es de TEXTO ("Indicators") con el
+     ícono de barras, no un cuadrito de menú (que confundía). */
+  #nv-overlay .nv-herr-btn{width:auto;padding:0 13px;gap:7px;
+    border-color:rgba(232,184,75,.4);color:var(--gold,#E8B84B)}
+  #nv-overlay .nv-herr-btn:hover{border-color:var(--gold,#E8B84B)}
+  #nv-overlay .nv-ind-ic{flex:0 0 auto}
+  #nv-overlay .nv-ind-tx{font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;white-space:nowrap}
+  /* El botón de indicadores MÓVIL vive junto a "3 lecturas"; en web se
+     oculta (allí manda el de texto de la cabecera). */
+  #nv-overlay .nv-herr-m{display:none}
   #nv-herr-panel{position:fixed;z-index:9795;width:292px;padding:8px;
     background:linear-gradient(180deg,#1b2027,#0d1117);
     border:1px solid var(--gold-soft,#C9A84B);border-radius:14px;
@@ -4740,6 +4763,16 @@ function estilos() {
       padding-bottom:1px}
     #nv-overlay .nv-caps::-webkit-scrollbar{display:none}
     #nv-overlay .nv-meta{flex:0 0 auto}
+    /* En MÓVIL el botón de indicadores no va en la cabecera (ahí se
+       perdía): baja a la banda de lecturas, a la derecha de "3 lecturas",
+       con el ícono de barras y un acento dorado para que se vea. No pisa
+       las píldoras 1·2·3 (que viven en su propia banda con scroll). */
+    #nv-overlay .nv-herr-btn{display:none}
+    #nv-overlay .nv-herr-m{display:flex;align-items:center;justify-content:center;
+      flex:0 0 auto;width:34px;height:34px;border-radius:10px;cursor:pointer;
+      color:var(--gold,#E8B84B);border:1px solid rgba(232,184,75,.5);
+      background:linear-gradient(180deg,rgba(232,184,75,.16),rgba(232,184,75,.05))}
+    #nv-overlay .nv-herr-m:active{filter:brightness(1.1)}
     #nv-overlay .nv-v-hz{display:none}
     #nv-overlay .nv-marca{height:28px;left:10px;bottom:34px}
     #nv-overlay .nv-chip-tx{font-size:9px}
