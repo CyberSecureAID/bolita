@@ -1120,7 +1120,7 @@ function dibujar() {
   const pMax = centro + semi + pad, pMin = centro - semi - pad;
   const Y = (p) => y1 - y1 * ((p - pMin) / Math.max(1e-12, pMax - pMin));
 
-  _geo = { W, H, x1, y1, pMax, pMin, Y, vis, ancho };
+
 
   /* ── Rejilla suave ── */
   g.strokeStyle = 'rgba(255,255,255,.028)';
@@ -1172,6 +1172,7 @@ function dibujar() {
   /* ══ LAS VELAS ══ */
   const paso = x1 / ancho;
   const cuerpo = Math.max(1.4, paso * 0.66);
+  _geo = { W, H, x1, y1, pMax, pMin, Y, vis, ancho, paso, fin };
   vis.forEach((v, i) => {
     const x = i * paso + paso / 2;
     const sube = v.c >= v.o;
@@ -1337,109 +1338,140 @@ function burbujas() {
   if (!caja || !_geo || N.cargando) return;
   if (!N.mensajes.length) { caja.innerHTML = ''; return; }
 
-  const { Y, pMin, pMax, x1, y1 } = _geo;
+  const { Y, pMin, pMax, x1, y1, paso, fin, ancho } = _geo;
 
-  /* La firma dice si hay que rehacer el HTML. Si solo cambió la
-     posición, se mueven las burbujas sin recrearlas: así no
-     parpadean ni se reinicia la escritura del texto. */
+  /* ══════════════════════════════════════════════════════════
+     CADA MARCADOR VA DONDE PASA LA COSA
+
+     Antes se apilaban en una esquina, lo que no servía de nada:
+     si el asistente habla de una zona, tiene que señalarla.
+
+     Ahora cada mensaje sale como un marcador pequeño anclado a
+     SU punto exacto en la gráfica, y al tocarlo se despliega el
+     texto completo. Si mueves el gráfico, el marcador va con él.
+     ══════════════════════════════════════════════════════════ */
+  const primero = Math.max(0, fin - ancho);
+  const xDe = (i) => (i - primero) * paso + paso / 2;
+
   const firma = N.mensajes.map((m) => m.titulo + '|' + m.txt).join('~');
   const rehacer = caja.dataset.firma !== firma;
 
-  const puestas = [];
-  const posiciones = N.mensajes.map((m) => {
-    let y = (m.p >= pMin && m.p <= pMax) ? Y(m.p) : y1 * 0.35;
-    let intentos = 0;
-    while (puestas.some((p) => Math.abs(p - y) < 130) && intentos < 8) {
-      y += 136; intentos++;
-      if (y > y1 - 110) y = 60 + intentos * 22;
+  /* Posición de cada marcador: X donde ocurrió, Y a su precio */
+  const pos = N.mensajes.map((m) => {
+    let x = x1 * 0.62;
+    // Si la señal viene de una estructura, se ancla a su vela
+    if (m.marca && m.marca.iRef != null) {
+      const xx = xDe(m.marca.iRef);
+      if (xx > 40 && xx < x1 - 40) x = xx;
+      else x = Math.max(60, Math.min(x1 - 60, xx));
+    } else if (m.iAncla != null) {
+      x = Math.max(60, Math.min(x1 - 60, xDe(m.iAncla)));
     }
-    y = Math.max(50, Math.min(y1 - 110, y));
-    puestas.push(y);
-    return { y, ancla: (m.p >= pMin && m.p <= pMax) ? Y(m.p) : null };
+    const dentro = m.p >= pMin && m.p <= pMax;
+    const y = dentro ? Y(m.p) : y1 * 0.3;
+    return { x, y: Math.max(24, Math.min(y1 - 24, y)), dentro };
+  });
+
+  /* Separar los que se pisen, moviéndolos en vertical */
+  const usados = [];
+  pos.forEach((p) => {
+    let intentos = 0;
+    while (usados.some((u) => Math.abs(u.x - p.x) < 130 && Math.abs(u.y - p.y) < 40) && intentos < 6) {
+      p.y += 44; intentos++;
+      if (p.y > y1 - 30) p.y = 30 + intentos * 20;
+    }
+    usados.push({ x: p.x, y: p.y });
   });
 
   if (!rehacer) {
-    // Solo recolocar: las burbujas siguen a su nivel sin parpadear
-    caja.querySelectorAll('.nv-b').forEach((el, i) => {
-      const pos = posiciones[i];
-      if (!pos) return;
-      el.style.top = pos.y + 'px';
-      const cola = el.querySelector('.nv-cola');
-      const guia = el.querySelector('.nv-guia');
-      if (cola && pos.ancla != null) {
-        cola.style.setProperty('--dy', (pos.ancla - pos.y) + 'px');
-      }
-      if (guia && pos.ancla != null) {
-        const dy = pos.ancla - pos.y - 26;
-        guia.style.height = Math.abs(dy) + 'px';
-        guia.style.top = (dy > 0 ? 26 : 26 + dy) + 'px';
-      }
+    // Solo recolocar: el marcador sigue a su punto sin parpadear
+    caja.querySelectorAll('.nv-m').forEach((el, i) => {
+      const p = pos[i]; if (!p) return;
+      el.style.left = p.x + 'px';
+      el.style.top = p.y + 'px';
+      el.classList.toggle('fuera', !p.dentro);
     });
     return;
   }
 
   caja.dataset.firma = firma;
-  const icono = { compra: '▲', venta: '▼', vigilar: '◆', aviso: '✱', tendencia: '➜' };
+  const ic = { compra: '▲', venta: '▼', vigilar: '◆', aviso: '✱', tendencia: '➜' };
+  const etiqueta = {
+    compra: 'COMPRA', venta: 'VENTA', vigilar: 'OJO', aviso: 'ESPERA', tendencia: 'CONTEXTO'
+  };
 
   caja.innerHTML = N.mensajes.map((m, idx) => {
-    const pos = posiciones[idx];
-    const anclada = pos.ancla != null;
-    const dy = anclada ? pos.ancla - pos.y - 26 : 0;
-
+    const p = pos[idx];
+    const lado = p.x > x1 * 0.58 ? 'izq' : 'der';   // hacia dónde abre el panel
     return `
-    <div class="nv-b t-${m.tipo}" style="top:${pos.y}px" data-nvb="${idx}">
-      ${anclada ? `<span class="nv-guia" style="height:${Math.abs(dy)}px;top:${dy > 0 ? 26 : 26 + dy}px"></span>
-                   <span class="nv-punto" style="top:${26 + dy}px"></span>` : ''}
-      <span class="nv-cola"></span>
+    <div class="nv-m t-${m.tipo} lado-${lado}" data-nvm="${idx}"
+         style="left:${p.x}px;top:${p.y}px">
 
-      <div class="nv-b-cab">
-        <img class="nv-ava" src="assets/img/jesus-avatar.webp" alt="">
-        <div class="nv-quien">
-          <b>Jesús</b>
-          <span>${esc(m.titulo)}</span>
+      <!-- El punto que marca el sitio exacto -->
+      <button class="nv-chip" type="button">
+        <img class="nv-chip-ava" src="assets/img/jesus-avatar.webp" alt="">
+        <span class="nv-chip-tx">${ic[m.tipo] || '✱'} ${etiqueta[m.tipo] || ''}</span>
+      </button>
+
+      <!-- El panel que se despliega al tocarlo -->
+      <div class="nv-panel-m">
+        <div class="nv-pm-cab">
+          <img class="nv-pm-ava" src="assets/img/jesus-avatar.webp" alt="">
+          <div class="nv-pm-quien"><b>Jesús</b><span>${esc(m.titulo)}</span></div>
+          <button class="nv-pm-x" type="button" aria-label="Cerrar">✕</button>
         </div>
-        <span class="nv-b-fl">▾</span>
-      </div>
-
-      <div class="nv-b-tx" data-escribir="${esc(m.txt)}"></div>
-      <div class="nv-b-hacer">${esc(m.hacer)}</div>
-      <div class="nv-b-det">
-        <div class="nv-b-det-t">Por qué lo digo</div>
-        ${(m.detalle || []).map((x) => `<div class="nv-b-li">${esc(x)}</div>`).join('')}
+        <div class="nv-pm-tx" data-escribir="${esc(m.txt)}"></div>
+        <div class="nv-pm-hacer">${esc(m.hacer)}</div>
+        <button class="nv-pm-mas" type="button">Por qué lo digo ▾</button>
+        <div class="nv-pm-det">
+          ${(m.detalle || []).map((x) => `<div class="nv-pm-li">${esc(x)}</div>`).join('')}
+        </div>
       </div>
     </div>`;
   }).join('');
 
-  /* El texto se escribe, como si lo estuviera tecleando. */
-  caja.querySelectorAll('[data-escribir]').forEach((el, i) => {
-    const txt = el.dataset.escribir;
-    let n = 0;
-    setTimeout(() => {
-      const t = setInterval(() => {
-        n += 2;
-        el.textContent = txt.slice(0, n);
-        if (n >= txt.length) { el.textContent = txt; clearInterval(t); }
-      }, 14);
-    }, 220 * i);
-  });
+  /* Abrir y cerrar. Solo uno abierto a la vez, para no tapar. */
+  caja.querySelectorAll('[data-nvm]').forEach((el) => {
+    const chip = el.querySelector('.nv-chip');
+    const cerrar = el.querySelector('.nv-pm-x');
+    const mas = el.querySelector('.nv-pm-mas');
 
-  caja.querySelectorAll('[data-nvb]').forEach((b) => {
-    b.querySelector('.nv-b-cab').onclick = (e) => {
+    chip.onclick = (e) => {
       e.stopPropagation();
-      b.classList.toggle('abierta');
-      /* Si al abrirse se sale por abajo, se sube para que quepa. */
-      setTimeout(() => {
-        const r = b.getBoundingClientRect();
-        const lim = (_geo && _geo.y1) || window.innerHeight;
-        const cajaR = caja.getBoundingClientRect();
-        if (r.bottom > cajaR.top + lim - 10) {
-          const exceso = r.bottom - (cajaR.top + lim - 10);
-          const actual = parseFloat(b.style.top) || 0;
-          b.style.top = Math.max(50, actual - exceso) + 'px';
-        }
-      }, 30);
+      const abierto = el.classList.contains('abierto');
+      caja.querySelectorAll('.nv-m').forEach((x) => x.classList.remove('abierto'));
+      if (!abierto) {
+        el.classList.add('abierto');
+        escribir(el.querySelector('[data-escribir]'));
+      }
+    };
+    cerrar.onclick = (e) => { e.stopPropagation(); el.classList.remove('abierto'); };
+    mas.onclick = (e) => {
+      e.stopPropagation();
+      el.classList.toggle('con-detalle');
+      mas.textContent = el.classList.contains('con-detalle') ? 'Ocultar ▴' : 'Por qué lo digo ▾';
     };
   });
+
+  /* El primero se abre solo: es el más importante. */
+  const primeroEl = caja.querySelector('.nv-m');
+  if (primeroEl) {
+    primeroEl.classList.add('abierto');
+    escribir(primeroEl.querySelector('[data-escribir]'));
+  }
+}
+
+/** Escribe el texto letra a letra, como si lo tecleara. */
+function escribir(el) {
+  if (!el || el.dataset.hecho) return;
+  const txt = el.dataset.escribir || '';
+  el.dataset.hecho = '1';
+  let n = 0;
+  const t = setInterval(() => {
+    n += 2;
+    el.textContent = txt.slice(0, n);
+    if (n >= txt.length) { el.textContent = txt; clearInterval(t); }
+  }, 13);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1876,70 +1908,77 @@ function estilos() {
     font-family:var(--display,sans-serif);font-weight:800;font-size:13px;cursor:pointer;margin-top:6px}
 
   /* ══════════════════════════════════════════════════════════
-     LAS BURBUJAS DEL ASISTENTE
-     Van sobre la gráfica, ancladas a su precio. Con su colita,
-     como un bocadillo de conversación.
+     LOS MARCADORES DEL ASISTENTE
+
+     Un punto pequeño anclado al sitio exacto del que se habla.
+     Al tocarlo se despliega el texto completo. Ocupa poco y no
+     tapa la gráfica.
      ══════════════════════════════════════════════════════════ */
   #nv-overlay .nv-burbujas{position:absolute;inset:0;pointer-events:none;z-index:5}
-  #nv-overlay .nv-b{position:absolute;right:100px;width:min(352px, calc(100% - 130px));
-    max-height:calc(100% - 70px);overflow-y:auto;overscroll-behavior:contain;
-    pointer-events:auto;border-radius:15px;padding:13px 15px;cursor:default;
-    background:linear-gradient(165deg,rgba(22,28,38,.97),rgba(13,17,23,.97));
-    border:1px solid #2b3139;backdrop-filter:blur(10px);
-    box-shadow:0 10px 32px rgba(0,0,0,.6);animation:nvEntra .35s ease both}
-  @keyframes nvEntra{from{opacity:0;transform:translateX(14px) scale(.97)}to{opacity:1;transform:none}}
-  #nv-overlay .nv-b.t-compra{border-color:rgba(46,232,106,.5);
-    background:linear-gradient(165deg,rgba(10,56,32,.97),rgba(13,17,23,.97))}
-  #nv-overlay .nv-b.t-venta{border-color:rgba(246,70,93,.5);
-    background:linear-gradient(165deg,rgba(66,14,22,.97),rgba(13,17,23,.97))}
-  #nv-overlay .nv-b.t-aviso{border-color:rgba(232,184,75,.45)}
-  #nv-overlay .nv-b.t-tendencia{border-color:rgba(77,159,255,.42)}
+  #nv-overlay .nv-m{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;z-index:6}
+  #nv-overlay .nv-m.abierto{z-index:20}
 
-  /* La colita que apunta al nivel */
-  #nv-overlay .nv-cola{position:absolute;left:-9px;top:22px;width:0;height:0;
-    border-top:8px solid transparent;border-bottom:8px solid transparent;
-    border-right:9px solid #2b3139;z-index:2}
-  #nv-overlay .t-compra .nv-cola{border-right-color:rgba(46,232,106,.5)}
-  #nv-overlay .t-venta .nv-cola{border-right-color:rgba(246,70,93,.5)}
-  #nv-overlay .t-aviso .nv-cola{border-right-color:rgba(232,184,75,.45)}
+  /* El chip: pequeño, con el avatar */
+  #nv-overlay .nv-chip{display:flex;align-items:center;gap:6px;padding:3px 9px 3px 3px;
+    border-radius:20px;cursor:pointer;white-space:nowrap;
+    background:rgba(13,17,23,.94);border:1.5px solid #3a424c;
+    box-shadow:0 3px 12px rgba(0,0,0,.55);transition:transform .15s,border-color .15s}
+  #nv-overlay .nv-chip:hover{transform:scale(1.06)}
+  #nv-overlay .nv-chip-ava{width:22px;height:22px;border-radius:50%;object-fit:cover;
+    border:1px solid rgba(232,184,75,.5);flex:0 0 auto}
+  #nv-overlay .nv-chip-tx{font-family:var(--mono,monospace);font-size:9.5px;font-weight:700;
+    letter-spacing:.6px}
+  #nv-overlay .t-compra .nv-chip{border-color:#2ee86a}
+  #nv-overlay .t-compra .nv-chip-tx{color:#3ee88a}
+  #nv-overlay .t-venta .nv-chip{border-color:#f6465d}
+  #nv-overlay .t-venta .nv-chip-tx{color:#ff6b7a}
+  #nv-overlay .t-aviso .nv-chip{border-color:rgba(232,184,75,.75)}
+  #nv-overlay .t-aviso .nv-chip-tx{color:var(--gold,#E8B84B)}
+  #nv-overlay .t-vigilar .nv-chip{border-color:#9aa5b1}
+  #nv-overlay .t-vigilar .nv-chip-tx{color:#b7bdc6}
+  #nv-overlay .t-tendencia .nv-chip{border-color:#4d9fff}
+  #nv-overlay .t-tendencia .nv-chip-tx{color:#6fb0ff}
+  #nv-overlay .nv-m.abierto .nv-chip{opacity:.55;transform:scale(.9)}
+  #nv-overlay .nv-m.fuera .nv-chip{opacity:.6}
 
-  /* La cabecera con el avatar: es Jesús quien habla */
-  #nv-overlay .nv-b-cab{display:flex;align-items:center;gap:10px;cursor:pointer}
-  #nv-overlay .nv-ava{width:34px;height:34px;border-radius:50%;flex:0 0 auto;object-fit:cover;
-    border:1.5px solid rgba(232,184,75,.6);background:#141922}
-  #nv-overlay .nv-quien{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
-  #nv-overlay .nv-quien b{font-family:var(--display,sans-serif);font-weight:800;font-size:13px;
-    color:var(--gold,#E8B84B);line-height:1.1}
-  #nv-overlay .nv-quien span{font-family:var(--display,sans-serif);font-weight:700;font-size:14px;
-    color:#eaecef;line-height:1.2;overflow-wrap:anywhere}
+  /* El panel desplegado */
+  #nv-overlay .nv-panel-m{display:none;position:absolute;top:calc(100% + 9px);
+    width:min(310px, 76vw);padding:12px 13px;border-radius:14px;
+    background:linear-gradient(165deg,rgba(20,26,35,.985),rgba(11,15,22,.985));
+    border:1px solid #3a424c;box-shadow:0 14px 40px rgba(0,0,0,.72);
+    animation:nvAbrePanel .22s ease both}
+  #nv-overlay .lado-der .nv-panel-m{left:-14px}
+  #nv-overlay .lado-izq .nv-panel-m{right:-14px}
+  #nv-overlay .nv-m.abierto .nv-panel-m{display:block}
+  @keyframes nvAbrePanel{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:none}}
+  #nv-overlay .t-compra .nv-panel-m{border-color:rgba(46,232,106,.5)}
+  #nv-overlay .t-venta .nv-panel-m{border-color:rgba(246,70,93,.5)}
+  #nv-overlay .t-aviso .nv-panel-m{border-color:rgba(232,184,75,.45)}
 
-  /* La guía que apunta al nivel del que habla */
-  #nv-overlay .nv-guia{position:absolute;left:-1px;width:2px;
-    background:linear-gradient(180deg,transparent,currentColor,transparent);opacity:.5}
-  #nv-overlay .nv-punto{position:absolute;left:-5px;width:10px;height:10px;border-radius:50%;
-    background:currentColor;box-shadow:0 0 0 3px rgba(0,0,0,.5);animation:nvLate 1.8s ease-in-out infinite}
-  @keyframes nvLate{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.25);opacity:.6}}
-  #nv-overlay .t-compra{color:#2ee86a}
-  #nv-overlay .t-venta{color:#f6465d}
-  #nv-overlay .t-aviso{color:#E8B84B}
-  #nv-overlay .t-tendencia{color:#4d9fff}
-  #nv-overlay .t-vigilar{color:#9aa5b1}
-  #nv-overlay .nv-b-fl{font-size:10px;color:#5c6672;transition:transform .2s}
-  #nv-overlay .nv-b.abierta .nv-b-fl{transform:rotate(180deg)}
-  #nv-overlay .nv-b-tx{min-height:34px;margin-top:8px;font-family:var(--sans,sans-serif);font-size:12.5px;
+  #nv-overlay .nv-pm-cab{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+  #nv-overlay .nv-pm-ava{width:32px;height:32px;border-radius:50%;object-fit:cover;flex:0 0 auto;
+    border:1.5px solid rgba(232,184,75,.6)}
+  #nv-overlay .nv-pm-quien{flex:1;min-width:0}
+  #nv-overlay .nv-pm-quien b{display:block;font-family:var(--display,sans-serif);font-weight:800;
+    font-size:12px;color:var(--gold,#E8B84B);line-height:1.1}
+  #nv-overlay .nv-pm-quien span{display:block;font-family:var(--display,sans-serif);font-weight:700;
+    font-size:13.5px;color:#eaecef;line-height:1.25;overflow-wrap:anywhere}
+  #nv-overlay .nv-pm-x{width:26px;height:26px;flex:0 0 auto;border-radius:8px;cursor:pointer;
+    display:grid;place-items:center;padding:0;font-size:11px;
+    background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#8b96a3}
+  #nv-overlay .nv-pm-tx{min-height:30px;font-family:var(--sans,sans-serif);font-size:12.5px;
     color:#b7bdc6;line-height:1.55}
-  #nv-overlay .nv-b-hacer{margin-top:9px;padding:10px 12px;border-radius:10px;
-    background:rgba(0,0,0,.32);border-left:2px solid rgba(232,184,75,.6);
+  #nv-overlay .nv-pm-hacer{margin-top:9px;padding:10px 12px;border-radius:10px;
+    background:rgba(0,0,0,.38);border-left:2px solid rgba(232,184,75,.6);
     font-family:var(--sans,sans-serif);font-size:12px;color:#e2e8ee;line-height:1.5}
-  #nv-overlay .nv-b-det{display:none;margin-top:10px;padding-top:10px;
-    border-top:1px solid rgba(255,255,255,.08)}
-  #nv-overlay .nv-b.abierta .nv-b-det{display:block;animation:nvAbre .2s ease both}
-  @keyframes nvAbre{from{opacity:0}to{opacity:1}}
-  #nv-overlay .nv-b-det-t{font-family:var(--mono,monospace);font-size:9px;color:var(--gold,#E8B84B);
-    text-transform:uppercase;letter-spacing:1.3px;margin-bottom:7px}
-  #nv-overlay .nv-b-li{font-family:var(--mono,monospace);font-size:11px;color:#8b96a3;
-    line-height:1.7;padding-left:12px;position:relative}
-  #nv-overlay .nv-b-li:before{content:'·';position:absolute;left:2px;color:#5c6672}
+  #nv-overlay .nv-pm-mas{width:100%;margin-top:9px;min-height:32px;border-radius:8px;cursor:pointer;
+    background:rgba(255,255,255,.04);border:1px solid #2b3139;color:#8b96a3;
+    font-family:var(--mono,monospace);font-size:10px;letter-spacing:.6px}
+  #nv-overlay .nv-pm-det{display:none;margin-top:9px}
+  #nv-overlay .nv-m.con-detalle .nv-pm-det{display:block}
+  #nv-overlay .nv-pm-li{font-family:var(--mono,monospace);font-size:10.5px;color:#8b96a3;
+    line-height:1.7;padding-left:11px;position:relative}
+  #nv-overlay .nv-pm-li:before{content:'·';position:absolute;left:2px;color:#5c6672}
 
   /* ── Selector ── */
   #nv-picker{position:fixed;z-index:9790;min-width:232px;max-height:340px;overflow:hidden;
@@ -2003,14 +2042,16 @@ function estilos() {
     #nv-overlay .nv-cf-tx{display:none}
     #nv-overlay .nv-cf-s{display:block}
     #nv-overlay .nv-precio{font-size:15px}
-    #nv-overlay .nv-b{right:auto;left:10px;width:calc(100% - 100px);padding:11px 13px}
-    #nv-overlay .nv-cola{left:auto;right:-9px;border-right:none;
-      border-left:9px solid #2b3139}
-    #nv-overlay .t-compra .nv-cola{border-left-color:rgba(46,232,106,.5)}
-    #nv-overlay .t-venta .nv-cola{border-left-color:rgba(246,70,93,.5)}
-    #nv-overlay .t-aviso .nv-cola{border-left-color:rgba(232,184,75,.45)}
-    #nv-overlay .nv-b-cab b{font-size:13px}
-    #nv-overlay .nv-b-tx{font-size:11.5px}
+    /* [CORREGIDO] En móvil el panel salía por el borde. Ahora se
+       fija al ancho de la pantalla, centrado, sin depender del chip. */
+    #nv-overlay .nv-m.abierto .nv-panel-m{position:fixed;
+      left:8px;right:8px;width:auto;max-width:none;transform:none;
+      top:auto;bottom:14px;max-height:52vh;overflow-y:auto}
+    #nv-overlay .lado-der .nv-panel-m,#nv-overlay .lado-izq .nv-panel-m{left:8px;right:8px}
+    #nv-overlay .nv-chip-tx{font-size:9px}
+    #nv-overlay .nv-chip-ava{width:20px;height:20px}
+    #nv-overlay .nv-pm-quien span{font-size:12.5px}
+    #nv-overlay .nv-pm-tx{font-size:12px}
     #nv-overlay .nv-marca{height:26px;left:10px;bottom:34px}
     #nv-ayuda-box .nva-c{padding:20px 14px}
   }`;
