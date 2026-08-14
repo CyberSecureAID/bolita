@@ -382,7 +382,16 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
       const et = d.querySelector('.od-saldo');
       if (et) et.innerHTML = `${esc(T('Disponible'))}: <b>${recorta(saldo)} ${esc(simb)}</b>`;
     } catch (er) {
-      sinSaldo(T('No se pudo leer tu saldo. Revisa la conexión de tu wallet.'));
+      /* [CORREGIDO] Si falla la LECTURA del saldo se bloqueaba el
+         botón para siempre, aunque el usuario tuviera fondos de
+         sobra. No poder leer no es lo mismo que no tener: se avisa
+         pero se deja continuar. El contrato validará al firmar. */
+      const et = d.querySelector('.od-saldo');
+      if (et) {
+        et.className = 'od-saldo alerta';
+        et.textContent = T('No hemos podido leer tu saldo ahora mismo. Puedes continuar: se comprobará al firmar.');
+      }
+      console.warn('[CCO] saldo:', er);
     }
   })();
 
@@ -399,6 +408,8 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
     /* Nunca por encima de lo que hay: evita firmas que van a fallar */
     if (saldo > 0 && cant > saldo) { cant = saldo; inp.value = recorta(saldo); }
     /* Un aviso no mueve dinero: no hace falta saldo ni cantidad. */
+    /* Bloqueado solo si de verdad no hay saldo (0 confirmado), no
+       cuando simplemente no se ha podido leer. */
     ok.disabled = modo === 'aviso' ? false : (!(cant > 0) || ok.classList.contains('bloqueado'));
     if (modo === 'aviso') {
       res.innerHTML = `
@@ -434,6 +445,7 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
   d.querySelectorAll('[data-pct]').forEach((b) => b.onclick = () => {
     rango.value = b.dataset.pct;
     if (saldo > 0) { inp.value = recorta(saldo * (b.dataset.pct / 100)); refrescar(); }
+    else { /* Sin saldo leído, el porcentaje no puede calcularse */ }
     d.querySelectorAll('[data-pct]').forEach((x) => x.classList.toggle('on', x === b));
   });
   d.querySelectorAll('[data-modo]').forEach((b) => b.onclick = () => {
@@ -506,10 +518,22 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
     } catch (er) {
       ok.disabled = false;
       ok.textContent = T(vender ? 'Poner orden de venta' : 'Poner orden de compra');
-      const m = String(er && er.message || er);
-      fallo(d, /user rejected|denied/i.test(m)
-        ? T('Cancelaste la firma.')
-        : T('No se pudo poner la orden.'));
+      /* [CORREGIDO] Antes se tragaba el error real y salía siempre
+         "no se puede poner la orden", que no dice nada. Ahora se
+         traduce a lenguaje claro y, si no se reconoce, se muestra
+         tal cual: es la única forma de saber qué pasa. */
+      const m = String((er && (er.reason || er.shortMessage || er.message)) || er);
+      console.warn('[CCO] orden:', er);
+      let txt;
+      if (/user rejected|denied|4001/i.test(m)) txt = T('Cancelaste la firma.');
+      else if (/suscrip/i.test(m)) txt = m;
+      else if (/pool/i.test(m)) txt = T('Esta moneda no tiene mercado en PancakeSwap. Prueba con otra.');
+      else if (/insufficient|saldo|balance/i.test(m)) txt = T('No tienes saldo suficiente para esta orden.');
+      else if (/objetivo|target/i.test(m)) txt = m;
+      else if (/precio del par|no se pudo leer/i.test(m)) txt = T('No se pudo leer el precio de este par ahora mismo.');
+      else if (/gas/i.test(m)) txt = T('Te falta gas. Añade BNB desde tu perfil.');
+      else txt = m.slice(0, 160);
+      fallo(d, txt);
     }
   };
 
@@ -559,11 +583,15 @@ async function ponerOrdenReal({ cfg, precio, cant, vender, sl, alPaso }) {
   const decQuote = quote.decimals ?? 18;
   const paso = (t) => { if (alPaso) alPaso(t); };
 
-  /* ── 1. La suscripción tiene que estar activa ── */
+  /* ── 1. Suscripción y gas: sin esto la orden nace muerta ── */
   paso(T('Comprobando tu suscripción…'));
   const activo = await gb.estaActivo(cuenta).catch(() => false);
   if (!activo) {
     throw new Error(T('Necesitas la suscripción activa para poner órdenes. Actívala desde tu perfil.'));
+  }
+  const gas = await gb.gasSaldo(cuenta).catch(() => 0n);
+  if (!gas || gas <= 0n) {
+    throw new Error(T('Necesitas gas para que el bot ejecute la orden. Añádelo desde tu perfil.'));
   }
 
   const p = {
@@ -573,7 +601,13 @@ async function ponerOrdenReal({ cfg, precio, cant, vender, sl, alPaso }) {
   };
 
   if (vender) {
-    /* ── VENDER: es un Cash Out de un solo objetivo ── */
+    /* ── VENDER: es un Cash Out de un solo objetivo ──
+       El contrato exige que el objetivo esté por encima del precio
+       actual. Se comprueba antes de firmar nada. */
+    const ahora = cfg.precioActual ? cfg.precioActual() : 0;
+    if (ahora > 0 && precio <= ahora) {
+      throw new Error(T('Para vender, el precio tiene que estar por encima del actual.'));
+    }
     paso(T('Preparando la orden con el precio real…'));
     const conf = await gb.construirConfigCashOut({
       ...p,
@@ -632,10 +666,13 @@ async function ponerOrdenReal({ cfg, precio, cant, vender, sl, alPaso }) {
     await gb.crearRejilla(conf);
   }
 
-  /* Se avisa al vigilante para que empiece a mirar el precio. */
+  /* Se avisa al keeper para que empiece a vigilar el precio.
+     [CORREGIDO] Antes se importaba worker.js, que no resuelve sus
+     dependencias y lanzaba un error que abortaba todo justo tras
+     crear la orden. Se llama directamente, como hace gridbot-ui. */
   try {
-    const av = await import('./worker.js?v=126').catch(() => null);
-    if (av && av.avisarKeeper) av.avisarKeeper(cuenta);
+    const KEEPER = 'https://bolita-keeper-bot.yamicelanvivesqui.workers.dev';
+    fetch(`${KEEPER}/registrar?u=${cuenta}`, { mode: 'cors' }).catch(() => {});
   } catch (_) {}
 }
 
