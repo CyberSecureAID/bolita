@@ -235,6 +235,17 @@ function analizar() {
   N.precio = v[v.length - 1].c;
   N.niveles = calcularNiveles(v, piv, N.precio);
 
+  /* [CORREGIDO] Si el mercado está en rango, el asistente dice "no
+     entres" — así que dibujar seis niveles de compra sería
+     contradictorio. En rango solo se marcan los bordes de la banda,
+     que es lo único operable ahí. */
+  if (N.rango) {
+    N.niveles = N.niveles.filter((x) =>
+      Math.abs(x.p - N.rango.alto) / N.precio < 0.008 ||
+      Math.abs(x.p - N.rango.bajo) / N.precio < 0.008
+    ).slice(0, 2);
+  }
+
   const msgs = [];
   const soportes = N.niveles.filter((x) => x.tipo === 'soporte' && x.p < N.precio);
   const resist = N.niveles.filter((x) => x.tipo === 'resistencia' && x.p > N.precio);
@@ -451,7 +462,7 @@ export async function abrirNiveles() {
   const prev = $('nv-overlay'); if (prev) prev.remove();
 
   N.velas = []; N.cargando = true; N.error = null;
-  N.vista = { desde: 0, ancho: window.innerWidth < 760 ? 55 : 90, zoomY: 1 };
+  N.vista = { desde: 0, ancho: window.innerWidth < 760 ? 55 : 90, zoomY: 1, offsetY: 0 };
 
   const d = document.createElement('div');
   d.id = 'nv-overlay';
@@ -624,8 +635,12 @@ function dibujar() {
     if (n.p > alto) alto = n.p;
     if (n.p < bajo) bajo = n.p;
   });
-  const centro = (alto + bajo) / 2;
-  const semi = ((alto - bajo) / 2) * (N.vista.zoomY || 1);
+  /* El arrastre vertical desplaza el centro del rango, para poder
+     recolocar el gráfico donde el usuario quiera. */
+  const rangoBase = (alto - bajo) || 1;
+  const despY = ((N.vista.offsetY || 0) / Math.max(1, y1)) * rangoBase;
+  const centro = (alto + bajo) / 2 + despY;
+  const semi = (rangoBase / 2) * (N.vista.zoomY || 1);
   const pad = semi * 0.1 || 1;
   const pMax = centro + semi + pad, pMin = centro - semi - pad;
   const Y = (p) => y1 - y1 * ((p - pMin) / Math.max(1e-12, pMax - pMin));
@@ -645,7 +660,11 @@ function dibujar() {
   N.niveles.forEach((n) => {
     if (n.p < pMin || n.p > pMax) return;
     const y = Y(n.p);
-    const esS = n.tipo === 'soporte';
+    /* [CORREGIDO] El tipo se decide por la POSICIÓN respecto al
+       precio, no por cómo nació el pivote. Un soporte que quedó por
+       encima del precio ya no es soporte: es resistencia. Poner
+       "COMPRA" por encima del precio no tiene sentido. */
+    const esS = n.p < N.precio;
     const col = esS ? '#2ee86a' : '#f6465d';
     const op = 0.22 + (n.fuerza / 100) * 0.5;
 
@@ -663,19 +682,16 @@ function dibujar() {
 
     /* La etiqueta: dice qué hacer, no qué es. Esto es lo que
        convierte la línea en una decisión. */
-    const txt = (esS ? 'COMPRA  ' : 'VENDE  ') + fmt(n.p);
+    /* La etiqueta va ENCIMA de la línea, no cruzada por ella. */
+    const txt = (esS ? 'COMPRA ' : 'VENDE ') + fmt(n.p) + '  ·  ' + n.toques + (n.toques === 1 ? ' toque' : ' toques');
     g.font = 'bold 11px ui-monospace,monospace';
-    const w = g.measureText(txt).width + 22;
+    const w = g.measureText(txt).width + 20;
+    const yEt = y - 15;                      // desplazada arriba
     g.fillStyle = col;
-    redondeado(g, 10, y - 11, w, 22, 6); g.fill();
+    redondeado(g, 10, yEt - 10, w, 20, 6); g.fill();
     g.fillStyle = esS ? '#04210f' : '#2a0509';
     g.textAlign = 'left';
-    g.fillText(txt, 20, y + 4);
-
-    // Los toques, a la derecha de la etiqueta
-    g.font = '9px ui-monospace,monospace';
-    g.fillStyle = col + 'cc';
-    g.fillText(`${n.toques} toques`, 10 + w + 8, y + 3);
+    g.fillText(txt, 20, yEt + 4);
   });
 
   /* ══ LAS VELAS ══ */
@@ -771,49 +787,106 @@ function burbujas() {
   if (!N.mensajes.length) { caja.innerHTML = ''; return; }
 
   const { Y, pMin, pMax, x1, y1 } = _geo;
-  const icono = {
-    compra: '▲', venta: '▼', vigilar: '◆', aviso: '✱', tendencia: '➜'
-  };
 
-  /* Se colocan de arriba abajo evitando que se pisen entre ellas */
+  /* La firma dice si hay que rehacer el HTML. Si solo cambió la
+     posición, se mueven las burbujas sin recrearlas: así no
+     parpadean ni se reinicia la escritura del texto. */
+  const firma = N.mensajes.map((m) => m.titulo + '|' + m.txt).join('~');
+  const rehacer = caja.dataset.firma !== firma;
+
   const puestas = [];
-  const html = N.mensajes.map((m, idx) => {
-    let y = (m.p >= pMin && m.p <= pMax) ? Y(m.p) : y1 * 0.4;
-    // Empujar si choca con otra
+  const posiciones = N.mensajes.map((m) => {
+    let y = (m.p >= pMin && m.p <= pMax) ? Y(m.p) : y1 * 0.35;
     let intentos = 0;
-    while (puestas.some((p) => Math.abs(p - y) < 108) && intentos < 8) {
-      y += 112; intentos++;
-      if (y > y1 - 90) y = 70 + intentos * 18;
+    while (puestas.some((p) => Math.abs(p - y) < 130) && intentos < 8) {
+      y += 136; intentos++;
+      if (y > y1 - 110) y = 60 + intentos * 22;
     }
-    y = Math.max(56, Math.min(y1 - 96, y));
+    y = Math.max(50, Math.min(y1 - 110, y));
     puestas.push(y);
+    return { y, ancla: (m.p >= pMin && m.p <= pMax) ? Y(m.p) : null };
+  });
 
-    const anclada = m.p >= pMin && m.p <= pMax;
-    const yAncla = anclada ? Y(m.p) : null;
+  if (!rehacer) {
+    // Solo recolocar: las burbujas siguen a su nivel sin parpadear
+    caja.querySelectorAll('.nv-b').forEach((el, i) => {
+      const pos = posiciones[i];
+      if (!pos) return;
+      el.style.top = pos.y + 'px';
+      const cola = el.querySelector('.nv-cola');
+      const guia = el.querySelector('.nv-guia');
+      if (cola && pos.ancla != null) {
+        cola.style.setProperty('--dy', (pos.ancla - pos.y) + 'px');
+      }
+      if (guia && pos.ancla != null) {
+        const dy = pos.ancla - pos.y - 26;
+        guia.style.height = Math.abs(dy) + 'px';
+        guia.style.top = (dy > 0 ? 26 : 26 + dy) + 'px';
+      }
+    });
+    return;
+  }
+
+  caja.dataset.firma = firma;
+  const icono = { compra: '▲', venta: '▼', vigilar: '◆', aviso: '✱', tendencia: '➜' };
+
+  caja.innerHTML = N.mensajes.map((m, idx) => {
+    const pos = posiciones[idx];
+    const anclada = pos.ancla != null;
+    const dy = anclada ? pos.ancla - pos.y - 26 : 0;
 
     return `
-    <div class="nv-b t-${m.tipo}" style="top:${y}px" data-nvb="${idx}">
-      ${anclada ? `<span class="nv-cola" style="--dy:${(yAncla - y)}px"></span>` : ''}
+    <div class="nv-b t-${m.tipo}" style="top:${pos.y}px" data-nvb="${idx}">
+      ${anclada ? `<span class="nv-guia" style="height:${Math.abs(dy)}px;top:${dy > 0 ? 26 : 26 + dy}px"></span>
+                   <span class="nv-punto" style="top:${26 + dy}px"></span>` : ''}
+      <span class="nv-cola"></span>
+
       <div class="nv-b-cab">
-        <span class="nv-b-ic">${icono[m.tipo] || '✱'}</span>
-        <b>${esc(m.titulo)}</b>
+        <img class="nv-ava" src="assets/img/jesus-avatar.webp" alt="">
+        <div class="nv-quien">
+          <b>Jesús</b>
+          <span>${esc(m.titulo)}</span>
+        </div>
         <span class="nv-b-fl">▾</span>
       </div>
-      <div class="nv-b-tx">${esc(m.txt)}</div>
+
+      <div class="nv-b-tx" data-escribir="${esc(m.txt)}"></div>
       <div class="nv-b-hacer">${esc(m.hacer)}</div>
       <div class="nv-b-det">
-        <div class="nv-b-det-t">Por qué lo decimos</div>
+        <div class="nv-b-det-t">Por qué lo digo</div>
         ${(m.detalle || []).map((x) => `<div class="nv-b-li">${esc(x)}</div>`).join('')}
       </div>
     </div>`;
   }).join('');
 
-  caja.innerHTML = html;
+  /* El texto se escribe, como si lo estuviera tecleando. */
+  caja.querySelectorAll('[data-escribir]').forEach((el, i) => {
+    const txt = el.dataset.escribir;
+    let n = 0;
+    setTimeout(() => {
+      const t = setInterval(() => {
+        n += 2;
+        el.textContent = txt.slice(0, n);
+        if (n >= txt.length) { el.textContent = txt; clearInterval(t); }
+      }, 14);
+    }, 220 * i);
+  });
 
   caja.querySelectorAll('[data-nvb]').forEach((b) => {
     b.querySelector('.nv-b-cab').onclick = (e) => {
       e.stopPropagation();
       b.classList.toggle('abierta');
+      /* Si al abrirse se sale por abajo, se sube para que quepa. */
+      setTimeout(() => {
+        const r = b.getBoundingClientRect();
+        const lim = (_geo && _geo.y1) || window.innerHeight;
+        const cajaR = caja.getBoundingClientRect();
+        if (r.bottom > cajaR.top + lim - 10) {
+          const exceso = r.bottom - (cajaR.top + lim - 10);
+          const actual = parseFloat(b.style.top) || 0;
+          b.style.top = Math.max(50, actual - exceso) + 'px';
+        }
+      }, 30);
     };
   });
 }
@@ -851,30 +924,44 @@ function gestos(cv) {
     N.vista.ancho = window.innerWidth < 760 ? 55 : 90;
     N.vista.desde = 0;
     N.vista.zoomY = 1;
+    N.vista.offsetY = 0;
     refrescar();
   });
 
   /* Arrastre: en el gráfico mueve el tiempo, en la escala estira */
+  /* [CORREGIDO] Antes solo se movía en el tiempo. Ahora el arrastre
+     mueve en AMBOS ejes, como en TradingView: agarras el gráfico y lo
+     llevas donde quieras. */
   let ax = 0, ay = 0, arr = false, modo = 'x';
   cv.addEventListener('mousedown', (e) => {
     const r = cv.getBoundingClientRect();
-    modo = enEscala(e.clientX - r.left) ? 'y' : 'x';
+    modo = enEscala(e.clientX - r.left) ? 'y' : 'libre';
     arr = true; ax = e.clientX; ay = e.clientY;
     cv.style.cursor = modo === 'y' ? 'ns-resize' : 'grabbing';
   });
   window.addEventListener('mousemove', (e) => {
     if (!arr) return;
     if (modo === 'y') {
+      // Sobre la escala: estirar o comprimir
       const dy = e.clientY - ay;
       if (Math.abs(dy) > 2) { zoomY(1 + dy * 0.004); ay = e.clientY; }
-    } else {
-      const paso = (cv.clientWidth - 84) / N.vista.ancho;
-      const d = Math.round((e.clientX - ax) / Math.max(1, paso));
-      if (d !== 0) {
-        N.vista.desde = Math.max(0, Math.min(Math.max(0, N.velas.length - 20), N.vista.desde + d));
-        ax = e.clientX; refrescar();
-      }
+      return;
     }
+    let cambio = false;
+    // Horizontal: recorrer el tiempo
+    const paso = (cv.clientWidth - 84) / N.vista.ancho;
+    const d = Math.round((e.clientX - ax) / Math.max(1, paso));
+    if (d !== 0) {
+      N.vista.desde = Math.max(0, Math.min(Math.max(0, N.velas.length - 20), N.vista.desde + d));
+      ax = e.clientX; cambio = true;
+    }
+    // Vertical: desplazar el rango de precios
+    const dy = e.clientY - ay;
+    if (Math.abs(dy) > 1) {
+      N.vista.offsetY = (N.vista.offsetY || 0) + dy;
+      ay = e.clientY; cambio = true;
+    }
+    if (cambio) refrescar();
   });
   window.addEventListener('mouseup', () => { arr = false; cv.style.cursor = 'crosshair'; });
 
@@ -1224,7 +1311,8 @@ function estilos() {
      como un bocadillo de conversación.
      ══════════════════════════════════════════════════════════ */
   #nv-overlay .nv-burbujas{position:absolute;inset:0;pointer-events:none;z-index:5}
-  #nv-overlay .nv-b{position:absolute;right:100px;width:min(340px, calc(100% - 130px));
+  #nv-overlay .nv-b{position:absolute;right:100px;width:min(352px, calc(100% - 130px));
+    max-height:calc(100% - 70px);overflow-y:auto;overscroll-behavior:contain;
     pointer-events:auto;border-radius:15px;padding:13px 15px;cursor:default;
     background:linear-gradient(165deg,rgba(22,28,38,.97),rgba(13,17,23,.97));
     border:1px solid #2b3139;backdrop-filter:blur(10px);
@@ -1240,23 +1328,35 @@ function estilos() {
   /* La colita que apunta al nivel */
   #nv-overlay .nv-cola{position:absolute;left:-9px;top:22px;width:0;height:0;
     border-top:8px solid transparent;border-bottom:8px solid transparent;
-    border-right:9px solid #2b3139}
+    border-right:9px solid #2b3139;z-index:2}
   #nv-overlay .t-compra .nv-cola{border-right-color:rgba(46,232,106,.5)}
   #nv-overlay .t-venta .nv-cola{border-right-color:rgba(246,70,93,.5)}
   #nv-overlay .t-aviso .nv-cola{border-right-color:rgba(232,184,75,.45)}
 
-  #nv-overlay .nv-b-cab{display:flex;align-items:center;gap:9px;cursor:pointer}
-  #nv-overlay .nv-b-ic{font-size:12px}
-  #nv-overlay .t-compra .nv-b-ic{color:#3ee88a}
-  #nv-overlay .t-venta .nv-b-ic{color:#ff6b7a}
-  #nv-overlay .t-aviso .nv-b-ic{color:var(--gold,#E8B84B)}
-  #nv-overlay .t-tendencia .nv-b-ic{color:#4d9fff}
-  #nv-overlay .t-vigilar .nv-b-ic{color:#9aa5b1}
-  #nv-overlay .nv-b-cab b{flex:1;font-family:var(--display,sans-serif);font-weight:800;
-    font-size:14.5px;color:#eaecef}
+  /* La cabecera con el avatar: es Jesús quien habla */
+  #nv-overlay .nv-b-cab{display:flex;align-items:center;gap:10px;cursor:pointer}
+  #nv-overlay .nv-ava{width:34px;height:34px;border-radius:50%;flex:0 0 auto;object-fit:cover;
+    border:1.5px solid rgba(232,184,75,.6);background:#141922}
+  #nv-overlay .nv-quien{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+  #nv-overlay .nv-quien b{font-family:var(--display,sans-serif);font-weight:800;font-size:13px;
+    color:var(--gold,#E8B84B);line-height:1.1}
+  #nv-overlay .nv-quien span{font-family:var(--display,sans-serif);font-weight:700;font-size:14px;
+    color:#eaecef;line-height:1.2;overflow-wrap:anywhere}
+
+  /* La guía que apunta al nivel del que habla */
+  #nv-overlay .nv-guia{position:absolute;left:-1px;width:2px;
+    background:linear-gradient(180deg,transparent,currentColor,transparent);opacity:.5}
+  #nv-overlay .nv-punto{position:absolute;left:-5px;width:10px;height:10px;border-radius:50%;
+    background:currentColor;box-shadow:0 0 0 3px rgba(0,0,0,.5);animation:nvLate 1.8s ease-in-out infinite}
+  @keyframes nvLate{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.25);opacity:.6}}
+  #nv-overlay .t-compra{color:#2ee86a}
+  #nv-overlay .t-venta{color:#f6465d}
+  #nv-overlay .t-aviso{color:#E8B84B}
+  #nv-overlay .t-tendencia{color:#4d9fff}
+  #nv-overlay .t-vigilar{color:#9aa5b1}
   #nv-overlay .nv-b-fl{font-size:10px;color:#5c6672;transition:transform .2s}
   #nv-overlay .nv-b.abierta .nv-b-fl{transform:rotate(180deg)}
-  #nv-overlay .nv-b-tx{margin-top:7px;font-family:var(--sans,sans-serif);font-size:12.5px;
+  #nv-overlay .nv-b-tx{min-height:34px;margin-top:8px;font-family:var(--sans,sans-serif);font-size:12.5px;
     color:#b7bdc6;line-height:1.55}
   #nv-overlay .nv-b-hacer{margin-top:9px;padding:10px 12px;border-radius:10px;
     background:rgba(0,0,0,.32);border-left:2px solid rgba(232,184,75,.6);
