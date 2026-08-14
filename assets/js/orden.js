@@ -873,17 +873,45 @@ function sonar(a, precioAhora) {
    franja rayada, etiqueta con relieve y su botón de cancelar.
    ══════════════════════════════════════════════════════════════ */
 export function pintar(g, opciones) {
-  const { x1, Y, pMin, pMax, simbolo } = opciones;
+  const { x1, y1, Y, pMin, pMax, simbolo } = opciones;
   const lista = ordenesPuestas().filter((o) => !simbolo || o.simbolo === simbolo);
   const zonas = [];
   if (!lista.length) return zonas;
 
+  const H = y1 || 600;
+  let usadosArriba = 0, usadosAbajo = 0;
+
   lista.forEach((o) => {
-    if (!(o.precio >= pMin && o.precio <= pMax)) return;
-    const y = Y(o.precio);
     const esAlerta = o.modo === 'aviso';
     const col = esAlerta ? '#E8B84B' : (o.vender ? '#f6465d' : '#2ee86a');
 
+    /* ── La orden queda FUERA de la vista (otra temporalidad u otro zoom) ──
+       No se omite: se deja un marcador en el borde apuntando hacia ella,
+       con su precio, para que nunca parezca que "desapareció". Así la
+       experiencia es consistente en todas las temporalidades. */
+    if (!(o.precio >= pMin && o.precio <= pMax)) {
+      const arriba = o.precio > pMax;                 // por encima → borde superior
+      const fila = arriba ? usadosArriba++ : usadosAbajo++;
+      const yB = arriba ? 10 + fila * 26 : H - 22 - fila * 26;
+      const flecha = arriba ? '▲' : '▼';
+      const tipo = esAlerta ? 'ALERTA' : (o.vender ? 'VENTA' : 'COMPRA');
+      const et = `${flecha} ${tipo}  ${fmt(o.precio)}`;
+      g.font = 'bold 10px ui-monospace,monospace';
+      const w = g.measureText(et).width + 22;
+      const xE = x1 - w - 8;
+      g.save();
+      g.globalAlpha = 0.96;
+      g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 7; g.shadowOffsetY = 2;
+      g.fillStyle = col;
+      redondeadoOd(g, xE, yB, w, 20, 7); g.fill();
+      g.restore();
+      g.fillStyle = esAlerta ? '#2a1c00' : (o.vender ? '#2a0509' : '#04210f');
+      g.textAlign = 'left';
+      g.fillText(et, xE + 11, yB + 14);
+      return;   // sin botón de cancelar aquí: acércala a la vista para cancelarla
+    }
+
+    const y = Y(o.precio);
     /* Franja rayada: nada en la gráfica se ve así, no hay confusión */
     g.save();
     g.beginPath(); g.rect(0, y - 9, x1, 18); g.clip();

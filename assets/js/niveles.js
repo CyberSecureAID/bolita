@@ -1962,6 +1962,10 @@ export async function abrirNiveles() {
 
 
         <div class="nv-der">
+          <button class="nv-ico nv-registrar" id="nv-registrar" title="Registrar mi indicador">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16l4.5-5 3 3L16 7"/><circle cx="19" cy="6" r="3"/><path d="M19 4.7v2.6M17.7 6h2.6"/></svg>
+            <span class="nv-rg-tx">Registrar mi indicador</span>
+          </button>
           <button class="nv-ico" id="nv-widget" title="Ventana flotante" style="display:none">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="15" rx="2"/><rect x="12" y="11" width="7" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
           </button>
@@ -2009,6 +2013,7 @@ export async function abrirNiveles() {
   d.querySelector('.nv-bg').onclick = cerrar;
   $('nv-x').onclick = cerrar;
   $('nv-ayuda').onclick = () => ayuda();
+  { const rb = $('nv-registrar'); if (rb) rb.onclick = () => registrarIndicador(); }
   $('nv-herr').onclick = (e) => { e.stopPropagation(); menuHerramientas(); };
   $('nv-foto').onclick = () => guardarImagen();
   /* El modo ventana flotante solo existe en navegadores de escritorio
@@ -2252,6 +2257,11 @@ function dibujar() {
 
 
 
+  /* Visibilidad del indicador de ESTRUCTURA (niveles, tendencia, rango,
+     dobles): encendido por defecto, pero con su propio interruptor. La
+     "Gráfica limpia" lo apaga todo de golpe. */
+  const _verBase = !N.limpia && N.verEstructura !== false;
+
   /* ── Rejilla suave ── */
   g.strokeStyle = 'rgba(255,255,255,.028)';
   g.lineWidth = 1;
@@ -2262,7 +2272,7 @@ function dibujar() {
 
   /* ══ LOS NIVELES ══
      Lo primero que se dibuja, para que las velas queden encima. */
-  if (!N.limpia) N.niveles.forEach((n) => {
+  if (_verBase) N.niveles.forEach((n) => {
     if (n.p < pMin || n.p > pMax) return;
     const y = Y(n.p);
     /* [CORREGIDO] El tipo se decide por la POSICIÓN respecto al
@@ -2344,7 +2354,7 @@ function dibujar() {
   /* ══ LA LÍNEA DE TENDENCIA ══
      Se traza delante del usuario cuando abre: da la sensación de
      que alguien está dibujando el análisis en directo. */
-  if (N.linea && _trazo > 0 && !N.limpia) {
+  if (N.linea && _trazo > 0 && _verBase) {
     const L = N.linea;
     const iA = L.pts[0].i, iB = Math.max(L.pts[L.pts.length - 1].i, fin - 1);
     const xA = idxVis(iA), xB = idxVis(iB);
@@ -2404,19 +2414,97 @@ function dibujar() {
      Solo deja las TACHUELAS del giro (a la cola, para que queden por
      encima de todo). El estado (lado, lateral, finde) lo cuenta el
      panel de confluencia, así que aquí no se repite ninguna etiqueta. */
-  if (N.marea && N.verMarea) {
+  if (N.marea && N.verMarea && !N.limpia) {
     const MA = N.marea;
     const primG = Math.max(0, fin - ancho);
 
     /* Las señales confirmadas: se guardan en la cola de tachuelas para
        pintarse al final, por encima de cualquier línea. La tachuela se
        coloca en la vela EXACTA del giro. */
+    const visSig = [];
     MA.validas.forEach((sg) => {
       if (sg.i < primG) return;
       const x = idxVis(sg.i);
       if (x < 10 || x > x1 - 10) return;
-      tachuelas.push({ x, y: Y(sg.precio), alc: sg.dir === 'compra' });
+      const y = Y(sg.precio);
+      tachuelas.push({ x, y, alc: sg.dir === 'compra' });
+      visSig.push({ x, y, alc: sg.dir === 'compra', precio: sg.precio, i: sg.i });
     });
+
+    /* ══ LA CORRIENTE DE LA MAREA ══
+       Elementos avanzados que dan a entender que detrás de las tachuelas
+       hay un sistema, SIN saturar la gráfica ni tapar las velas (todo va
+       con baja opacidad y solo alrededor de los giros y del precio):
+
+       · una ESPINA fina que enlaza los últimos giros — deja ver, de un
+         vistazo, el ciclo que el sistema va cabalgando;
+       · un TRAMO ACTIVO desde el último giro hasta el precio de ahora;
+       · el RECORRIDO CAPTURADO en vivo (% ganado desde ese giro);
+       · un AURA suave sobre el giro más reciente, para guiar la mirada. */
+    if (visSig.length && !MA.finde) {
+      const rgbOf = (alc) => (alc ? '46,232,106' : '255,60,80');
+
+      // Espina: enlaza los últimos giros visibles (máx. 6, para no cargar)
+      const espina = visSig.slice(-6);
+      for (let k = 1; k < espina.length; k++) {
+        const a = espina[k - 1], b = espina[k];
+        const gl = g.createLinearGradient(a.x, a.y, b.x, b.y);
+        gl.addColorStop(0, `rgba(${rgbOf(a.alc)},.26)`);
+        gl.addColorStop(1, `rgba(${rgbOf(b.alc)},.26)`);
+        g.strokeStyle = gl; g.lineWidth = 1.4;
+        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+        g.fillStyle = `rgba(${rgbOf(a.alc)},.5)`;
+        g.beginPath(); g.arc(a.x, a.y, 2.1, 0, Math.PI * 2); g.fill();
+      }
+
+      // Tramo activo: del último giro al precio actual
+      const last = visSig[visSig.length - 1];
+      const xNow = Math.min(x1 - 2, idxVis(fin - 1));
+      const yNow = Y(N.precio);
+      const rgb = rgbOf(last.alc);
+      g.save();
+      g.strokeStyle = `rgba(${rgb},.12)`; g.lineWidth = 6;
+      g.beginPath(); g.moveTo(last.x, last.y); g.lineTo(xNow, yNow); g.stroke();
+      const gl2 = g.createLinearGradient(last.x, last.y, xNow, yNow);
+      gl2.addColorStop(0, `rgba(${rgb},.32)`);
+      gl2.addColorStop(1, `rgba(${rgb},.9)`);
+      g.strokeStyle = gl2; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(last.x, last.y); g.lineTo(xNow, yNow); g.stroke();
+      g.fillStyle = `rgba(${rgb},1)`; g.shadowColor = `rgba(${rgb},.9)`; g.shadowBlur = 8;
+      g.beginPath(); g.arc(xNow, yNow, 3, 0, Math.PI * 2); g.fill();
+      g.restore();
+
+      // Aura del giro más reciente (ping estático, tres anillos que se apagan)
+      g.save();
+      for (let r = 0; r < 3; r++) {
+        g.strokeStyle = `rgba(${rgb},${0.2 - r * 0.055})`;
+        g.lineWidth = 1.4;
+        g.beginPath(); g.arc(last.x, last.y, 8 + r * 5, 0, Math.PI * 2); g.stroke();
+      }
+      g.restore();
+
+      // Recorrido capturado en vivo: % desde el giro hasta ahora. Se omite
+      // si cayera sobre el panel (arriba-derecha).
+      const enPanelB = (yy) => yy > 4 && yy < 12 + 250 && xNow > (x1 - Math.min(218, Math.max(150, x1 - 16)) - 14);
+      if (!enPanelB(yNow)) {
+        const mov = last.precio > 0 ? ((N.precio - last.precio) / last.precio) * 100 : 0;
+        const favorable = last.alc ? mov >= 0 : mov <= 0;
+        const signo = mov >= 0 ? '+' : '−';
+        const txt = `${last.alc ? '▲' : '▼'} ${signo}${Math.abs(mov).toFixed(2)}%`;
+        g.font = 'bold 9.5px ui-monospace,monospace';
+        const wE = g.measureText(txt).width + 16;
+        const tinta = favorable ? (last.alc ? '#2ee86a' : '#FFD400') : '#9aa4af';
+        etiquetas.push({
+          txt,
+          x: Math.max(8, xNow - wE - 8),
+          y: Math.max(2, Math.min(y1 - 20, yNow - 22)),
+          w: wE, h: 18,
+          fondo: 'rgba(11,15,22,.92)', tinta,
+          borde: favorable ? `rgba(${rgb},.85)` : 'rgba(154,164,175,.55)',
+          font: 'bold 9.5px ui-monospace,monospace', pad: 8
+        });
+      }
+    }
 
     /* ── El OBJETIVO de la próxima alerta, marcado en la gráfica ──
        Hasta dónde tiene que llegar el precio para que salte cada señal:
@@ -2488,7 +2576,7 @@ function dibujar() {
 
   /* ══ EL CANAL DEL RANGO ══
      Si el precio va lateral, se marcan las dos horizontales. */
-  if (N.rango && _trazo > 0 && !N.limpia) {
+  if (N.rango && _trazo > 0 && _verBase) {
     const yA = Y(N.rango.alto), yB = Y(N.rango.bajo);
     const xT = x1 * _trazo;
     g.strokeStyle = 'rgba(232,184,75,.85)';
@@ -2513,7 +2601,7 @@ function dibujar() {
   }
 
   /* ══ DOBLE SUELO / DOBLE TECHO ══ */
-  if (!N.limpia) (N.dobles || []).forEach((d) => {
+  if (_verBase) (N.dobles || []).forEach((d) => {
     const primero2 = Math.max(0, fin - ancho);
     if (d.p1.i < primero2 - 2) return;
     const suelo = d.tipo === 'dobleSuelo';
@@ -2563,7 +2651,7 @@ function dibujar() {
   /* ══ LAS ESTRUCTURAS DIBUJADAS ══
      Aquí es donde el usuario VE de lo que se le habla: la ruptura,
      la zona institucional, el barrido. No hay que creerse nada. */
-  if (!N.limpia) (N.estructuras || []).forEach((e) => {
+  if (_verBase) (N.estructuras || []).forEach((e) => {
     const primero = Math.max(0, fin - ancho);
     if (e.iRef < primero - 2 || e.iRef > fin) return;
     const col = e.dir === 'alcista' ? '#2ee86a' : '#f6465d';
@@ -2663,7 +2751,7 @@ function dibujar() {
      Solo cuando el usuario pulsa "Señálame dónde está". Sale de
      arriba (donde está su cápsula) y baja curvándose hasta el
      punto exacto, con la punta marcada. */
-  if (!N.limpia && N.senalado != null && N.mensajes[N.senalado]) {
+  if (_verBase && N.senalado != null && N.mensajes[N.senalado]) {
     const m = N.mensajes[N.senalado];
     if (m.p >= pMin && m.p <= pMax) {
       const y = Y(m.p);
@@ -2729,7 +2817,7 @@ function dibujar() {
   /* Tus órdenes y alertas, con el estilo común de las tres. */
   if (_od) {
     _zonasOd = _od.pintar(g, {
-      x1, Y, pMin, pMax,
+      x1, y1, Y, pMin, pMax,
       simbolo: (PARES.find((p) => p.id === _par) || {}).s || ''
     });
   }
@@ -2756,7 +2844,7 @@ function dibujar() {
     /* Con "Gráfica limpia" no hay etiquetas de nivel, así que tampoco
        hay que dejarles hueco: los números normales de la escala se
        pintan también donde antes iba un nivel. */
-    if (!N.limpia && N.niveles.some((n) => Math.abs(Y(n.p) - y) < 14)) continue;
+    if (_verBase && N.niveles.some((n) => Math.abs(Y(n.p) - y) < 14)) continue;
     g.fillStyle = '#4a525c';
     g.fillText(fmt(p), x1 + 7, y + 3.5);
   }
@@ -2764,7 +2852,7 @@ function dibujar() {
      [CORREGIDO] Antes se pintaban SIEMPRE y quedaban encendidas con
      "Gráfica limpia": esas eran las etiquetas rojas/verdes que no se
      apagaban. Ahora respetan N.limpia como todo lo demás del análisis. */
-  if (!N.limpia) N.niveles.forEach((n) => {
+  if (_verBase) N.niveles.forEach((n) => {
     if (n.p < pMin || n.p > pMax) return;
     const y = Y(n.p);
     const col = n.tipo === 'soporte' ? '#2ee86a' : '#f6465d';
@@ -2880,7 +2968,7 @@ function dibujar() {
      Esquina superior derecha, dentro de la gráfica. Dice cuántos
      requisitos de cada señal están ya cumplidos (NO es una predicción)
      y cuánto le falta al precio para dispararla. */
-  if (N.marea && N.verMarea && !N.cargando) {
+  if (N.marea && N.verMarea && !N.limpia && !N.cargando) {
     panelMarea(g, N.marea, x1, W);
   }
 
@@ -3440,21 +3528,32 @@ function menuHerramientas() {
   /* Data-driven: añadir una herramienta nueva es meter una entrada
      aquí. Cada fila ocupa una sola línea; la descripción vive plegada
      y solo se abre si el usuario toca el "?". Así caben muchas
-     herramientas sin que el menú crezca sin control. */
+     herramientas sin que el menú crezca sin control.
+     Cada herramienta lleva su propio ícono SVG (no emojis): se integra
+     al diseño y cambia a dorado cuando está encendida. */
+  const IC = {
+    limpia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6"/><path d="M18.5 6l-.9 13.1A2 2 0 0 1 15.6 21H8.4a2 2 0 0 1-2-1.9L5.5 6"/><path d="M10 10.5v6M14 10.5v6"/></svg>',
+    marea: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 11c2.2 0 2.2-2.2 4.4-2.2S8.6 11 10.8 11 13 8.8 15.2 8.8 17.4 11 19.6 11 22 8.8 22 8.8"/><path d="M2 16c2.2 0 2.2-2.2 4.4-2.2S8.6 16 10.8 16 13 13.8 15.2 13.8 17.4 16 19.6 16 22 13.8 22 13.8"/></svg>',
+    estructura: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9.4" y="3.4" width="5.2" height="3.6" rx="1.1"/><path d="M12 1.6V3.2"/><path d="M16.6 5.2 19 4M7.4 5.2 5 4"/><path d="M10 7h4l1.1 13.4H8.9L10 7z"/><path d="M9.3 12.2h5.4"/></svg>',
+    alertas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>'
+  };
   const HERRAS = [
-    { h: 'marea', on: !!N.verMarea, nombre: 'Marea', tag: 'cambio de ciclo',
-      desc: 'Marca dónde la marea del mercado cambia de manos, de compradores a vendedores. Solo avisa cuando el giro pasa varios filtros a la vez; el resto del tiempo calla.' },
-    { h: 'alertas', on: !!N.alertas, nombre: 'Alertas', tag: (N.alertas && N.alertaPar) ? N.alertaPar : _par,
-      desc: 'Te envía una notificación push (con sonido, en el móvil y en la computadora) cada vez que Marea dispara una señal LONG o SHORT en ' + _par + '. La alerta queda fijada a este par. Funciona mientras esta página siga abierta, aunque esté en segundo plano.' },
-    { h: 'limpia', on: !!N.limpia, nombre: 'Gráfica limpia', tag: '',
-      desc: 'Apaga todo el análisis automático (niveles, estructuras, tendencia y sus etiquetas) para dejar ver solo lo que tú elijas.' }
+    { h: 'limpia', on: !!N.limpia, nombre: 'Gráfica limpia', tag: '', ico: IC.limpia,
+      desc: 'Deja las velas y el precio solos: apaga de golpe todo el análisis (Marea, Faro, niveles, tendencia y etiquetas). Vuelve a tocar para restaurarlo.' },
+    { h: 'marea', on: !!N.verMarea, nombre: 'Marea', tag: 'cambio de ciclo', ico: IC.marea,
+      desc: 'Detecta dónde la marea del mercado cambia de manos, de compradores a vendedores. Solo marca el giro cuando pasa varios filtros a la vez; el resto del tiempo calla. Es nuestro indicador insignia.' },
+    { h: 'estructura', on: N.verEstructura !== false, nombre: 'Faro', tag: 'estructura', ico: IC.estructura,
+      desc: 'Ilumina la estructura del mercado: soportes y resistencias, la tendencia, el techo del rango, los dobles techos y dobles suelos. Encendido por defecto; apágalo si quieres la gráfica más despejada.' },
+    { h: 'alertas', on: !!N.alertas, nombre: 'Alertas', tag: (N.alertas && N.alertaPar) ? N.alertaPar : _par, ico: IC.alertas,
+      desc: 'Te envía una notificación push (con sonido, en el móvil y en la computadora) cada vez que Marea dispara una señal LONG o SHORT en ' + _par + '. La alerta queda fijada a este par. Funciona mientras esta página siga abierta, aunque esté en segundo plano.' }
   ];
 
   const filas = HERRAS.map((t) => `
     <div class="nv-hm-fila">
       <div class="nv-hm-b ${t.on ? 'on' : ''}" data-h="${t.h}" role="button" tabindex="0">
-        <span class="nv-hm-luz"></span>
+        <span class="nv-hm-ico">${t.ico || ''}</span>
         <div class="nv-hm-tx"><b>${esc(T(t.nombre))}</b>${t.tag ? ` <em>${esc(T(t.tag))}</em>` : ''}</div>
+        <span class="nv-hm-luz"></span>
         <button class="nv-hm-q" data-q="${t.h}" type="button" aria-label="${esc(T('Qué hace'))}">?</button>
       </div>
       <div class="nv-hm-desc" data-d="${t.h}">${esc(T(t.desc))}</div>
@@ -3489,6 +3588,7 @@ function menuHerramientas() {
     if (cual === 'alertas') { toggleAlertas(b); return; }
     if (cual === 'marea') N.verMarea = !N.verMarea;
     else if (cual === 'limpia') N.limpia = !N.limpia;
+    else if (cual === 'estructura') N.verEstructura = (N.verEstructura === false);
     b.classList.toggle('on');
     dibujar(); burbujas();
   });
@@ -3736,6 +3836,45 @@ async function abrirWidget() {
     _widgetVivo = false;
     avisoMarea('No se pudo abrir la ventana flotante');
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REGISTRAR MI INDICADOR — propuesta comercial
+
+   Abre una tarjeta explicando que un creador de indicadores o
+   estrategias (por ejemplo de TradingView) puede proponer su
+   herramienta para mostrarla en esta gráfica, con un proceso previo de
+   evaluación y verificación, y un acuerdo por comisión (BNB o USDT).
+   ══════════════════════════════════════════════════════════════ */
+function registrarIndicador() {
+  const prev = document.getElementById('nv-reg-modal'); if (prev) { prev.remove(); return; }
+  const TG = 'https://t.me/CriptoCubaOficial';
+  const m = document.createElement('div');
+  m.id = 'nv-reg-modal';
+  m.innerHTML = `
+    <div class="nv-reg-bg"></div>
+    <div class="nv-reg-card" role="dialog" aria-modal="true">
+      <button class="nv-reg-x" aria-label="${esc(T('Cerrar'))}">✕</button>
+      <div class="nv-reg-ico">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16l4.5-5 3 3L16 7"/><circle cx="19" cy="6" r="3"/><path d="M19 4.7v2.6M17.7 6h2.6"/></svg>
+      </div>
+      <h3>${esc(T('Registra tu indicador'))}</h3>
+      <p class="nv-reg-lead">${esc(T('¿Creaste un indicador de TradingView o una estrategia de análisis que funciona? Preséntala y podríamos mostrarla directamente en esta gráfica, a disposición de todos nuestros usuarios.'))}</p>
+      <div class="nv-reg-pasos">
+        <div class="nv-reg-paso"><span>1</span><div><b>${esc(T('Nos escribes'))}</b><em>${esc(T('Cuéntanos qué hace tu indicador o estrategia y cómo lo diseñaste.'))}</em></div></div>
+        <div class="nv-reg-paso"><span>2</span><div><b>${esc(T('Evaluación y verificación'))}</b><em>${esc(T('Comprobamos que funciona de verdad. No se incorpora ningún indicador de forma automática: primero pasa nuestro filtro.'))}</em></div></div>
+        <div class="nv-reg-paso"><span>3</span><div><b>${esc(T('Acuerdo y publicación'))}</b><em>${esc(T('Si cumple los criterios, lo integramos y tú ganas una comisión por cada acceso o venta, preferiblemente en BNB o USDT.'))}</em></div></div>
+      </div>
+      <a class="nv-reg-cta" href="${TG}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M9.8 15.6 9.6 20c.4 0 .6-.2.8-.4l1.9-1.8 3.9 2.9c.7.4 1.2.2 1.4-.7l2.6-12.2c.3-1.2-.4-1.7-1.2-1.4L3.6 10.9c-1.2.5-1.1 1.1-.2 1.4l3.9 1.2 9.1-5.7c.4-.3.8-.1.5.2z"/></svg>
+        ${esc(T('Escríbenos por Telegram'))}
+      </a>
+      <p class="nv-reg-pie">${esc(T('Ampliamos el catálogo con herramientas verificadas y damos a sus creadores una vía para comercializarlas.'))}</p>
+    </div>`;
+  document.body.appendChild(m);
+  const cerrar = () => m.remove();
+  m.querySelector('.nv-reg-bg').onclick = cerrar;
+  m.querySelector('.nv-reg-x').onclick = cerrar;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -4169,6 +4308,39 @@ function estilos() {
     font-family:var(--mono,monospace);font-size:14px;font-weight:700}
   #nv-overlay .nv-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
   #nv-overlay .nv-comof{width:auto;padding:0 14px;border-color:rgba(232,184,75,.4);color:var(--gold,#E8B84B)}
+  #nv-overlay .nv-registrar{width:auto;padding:0 13px;gap:7px;
+    border-color:rgba(232,184,75,.55);color:var(--gold,#E8B84B);
+    background:linear-gradient(180deg,rgba(232,184,75,.16),rgba(232,184,75,.06))}
+  #nv-overlay .nv-registrar:hover{border-color:var(--gold,#E8B84B);
+    box-shadow:0 0 0 1px rgba(232,184,75,.25),0 6px 18px rgba(232,184,75,.12)}
+  #nv-overlay .nv-rg-tx{font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;white-space:nowrap}
+
+  /* ══ Modal Registrar mi indicador ══ */
+  #nv-reg-modal{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px}
+  #nv-reg-modal .nv-reg-bg{position:absolute;inset:0;background:rgba(3,5,9,.72);backdrop-filter:blur(3px)}
+  #nv-reg-modal .nv-reg-card{position:relative;max-width:400px;width:100%;max-height:90vh;overflow:auto;
+    background:linear-gradient(180deg,#12161d,#0c1016);border:1px solid rgba(232,184,75,.4);
+    border-radius:18px;padding:24px 22px 20px;box-shadow:0 24px 70px rgba(0,0,0,.7);
+    font-family:var(--mono,ui-monospace,monospace);color:#eaecef}
+  #nv-reg-modal .nv-reg-x{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:9px;
+    border:1px solid #2b3139;background:rgba(255,255,255,.04);color:#aeb6bf;cursor:pointer;font-size:14px}
+  #nv-reg-modal .nv-reg-x:hover{border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
+  #nv-reg-modal .nv-reg-ico{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 40%,rgba(232,184,75,.22),rgba(232,184,75,.05));
+    border:1px solid rgba(232,184,75,.45);color:var(--gold,#E8B84B);margin-bottom:14px}
+  #nv-reg-modal h3{font-family:var(--display,sans-serif);font-size:20px;font-weight:800;margin:0 0 8px;color:#fff;letter-spacing:.2px}
+  #nv-reg-modal .nv-reg-lead{font-size:12.5px;line-height:1.55;color:#c4ccd4;margin:0 0 16px}
+  #nv-reg-modal .nv-reg-pasos{display:flex;flex-direction:column;gap:11px;margin-bottom:18px}
+  #nv-reg-modal .nv-reg-paso{display:flex;gap:11px;align-items:flex-start}
+  #nv-reg-modal .nv-reg-paso>span{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:11px;color:#0b0f16;background:var(--gold,#E8B84B);margin-top:1px}
+  #nv-reg-modal .nv-reg-paso b{display:block;font-family:var(--display,sans-serif);font-size:12.5px;color:#eaecef;margin-bottom:2px}
+  #nv-reg-modal .nv-reg-paso em{font-style:normal;font-size:11px;line-height:1.5;color:#98a1ab}
+  #nv-reg-modal .nv-reg-cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    padding:12px;border-radius:12px;text-decoration:none;font-family:var(--display,sans-serif);font-weight:700;font-size:13.5px;
+    color:#0b0f16;background:linear-gradient(180deg,#f0c869,#E8B84B);box-shadow:0 8px 22px rgba(232,184,75,.25)}
+  #nv-reg-modal .nv-reg-cta:hover{filter:brightness(1.06)}
+  #nv-reg-modal .nv-reg-pie{font-size:10.5px;line-height:1.5;color:#7d8794;text-align:center;margin:13px 0 0}
   #nv-overlay .nv-cf-tx{font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;white-space:nowrap}
   #nv-overlay .nv-cf-s{display:none}
 
@@ -4381,10 +4553,17 @@ function estilos() {
   #nv-herr-menu .nv-hm-b:hover{border-color:var(--gold-soft,#C9A84B)}
   #nv-herr-menu .nv-hm-b.on{background:rgba(232,184,75,.14);border-color:var(--gold,#E8B84B)}
   /* La lucecita del interruptor: apagada gris, encendida dorada */
-  #nv-herr-menu .nv-hm-luz{width:10px;height:10px;border-radius:50%;flex:0 0 auto;
+  #nv-herr-menu .nv-hm-luz{width:9px;height:9px;border-radius:50%;flex:0 0 auto;
     background:#3a424c;border:1px solid #4a525c;transition:background .18s,box-shadow .18s}
   #nv-herr-menu .nv-hm-b.on .nv-hm-luz{background:var(--gold,#E8B84B);
     border-color:var(--gold,#E8B84B);box-shadow:0 0 9px rgba(232,184,75,.65)}
+  /* El ícono de cada herramienta: SVG integrado, gris apagado y dorado
+     con leve resplandor cuando la herramienta está encendida */
+  #nv-herr-menu .nv-hm-ico{width:22px;height:22px;flex:0 0 auto;display:flex;
+    align-items:center;justify-content:center;color:#8b95a1;transition:color .18s}
+  #nv-herr-menu .nv-hm-ico svg{width:18px;height:18px;display:block}
+  #nv-herr-menu .nv-hm-b.on .nv-hm-ico{color:var(--gold,#E8B84B);
+    filter:drop-shadow(0 0 5px rgba(232,184,75,.5))}
   /* Nombre + etiqueta, en la misma línea, sin desbordar */
   #nv-herr-menu .nv-hm-tx{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;
     text-overflow:ellipsis}
@@ -4494,6 +4673,8 @@ function estilos() {
     #nv-overlay .nv-comof{width:36px;padding:0}
     #nv-overlay .nv-cf-tx{display:none}
     #nv-overlay .nv-cf-s{display:block}
+    #nv-overlay .nv-registrar{width:36px;padding:0}
+    #nv-overlay .nv-rg-tx{display:none}
     #nv-overlay .nv-precio{font-size:15px}
     /* ══ MÓVIL ══
        Las cápsulas se reducen a un círculo con su número y un punto
