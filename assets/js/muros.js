@@ -52,6 +52,8 @@ const PARES = [
 ];
 
 let _par = 'BNB';
+let _od = null;              // módulo de órdenes
+let _zonasOd = [];           // dónde pulsar para cancelar
 
 /* ══════════════════════════════════════════════════════════════
    LAS VELAS — el contexto que faltaba
@@ -631,8 +633,12 @@ function dibujar() {
         },
         precioActual: () => M.precio,
         par: () => _par,
-        simbolo: () => (PARES.find((p) => p.id === _par) || {}).s || ''
+        simbolo: () => (PARES.find((p) => p.id === _par) || {}).s || '',
+        repintar: () => pintar()
       });
+      _od = od;
+      od.clicCancelar(cv, () => _zonasOd, () => pintar());
+      pintar();
     }).catch(() => {});
   }
   const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -692,14 +698,25 @@ function dibujar() {
   M.muros.forEach((m) => { if (m.p > pAlto) pAlto = m.p; if (m.p < pBajo) pBajo = m.p; });
   /* El zoom vertical estira o comprime la escala de precios, como al
      arrastrar el borde derecho en TradingView. */
-  const centro = (pAlto + pBajo) / 2;
-  const semi = ((pAlto - pBajo) / 2) * (M.zoomY || 1);
+  /* El arrastre vertical desplaza el rango de precios. */
+  const rangoB = (pAlto - pBajo) || 1;
+  const despY = ((M.offsetY || 0) / Math.max(1, y1)) * rangoB;
+  const centro = (pAlto + pBajo) / 2 + despY;
+  const semi = (rangoB / 2) * (M.zoomY || 1);
   const pad = semi * 0.14 || 1;
   const pMax = centro + semi + pad, pMin = centro - semi - pad;
   const Y = (p) => y1 - y1 * ((p - pMin) / Math.max(1e-12, pMax - pMin));
   /* Se guarda para que el módulo de órdenes sepa qué precio hay a
      cada altura del gráfico. */
   M._geo = { pMin, pMax, y1 };
+
+  /* Tus órdenes y alertas, con el estilo común de las tres. */
+  if (_od) {
+    _zonasOd = _od.pintar(g, {
+      x1, Y, pMin, pMax,
+      simbolo: (PARES.find((p) => p.id === _par) || {}).s || ''
+    });
+  }
 
   /* ── Rejilla ── */
   g.strokeStyle = 'rgba(255,255,255,.03)';
@@ -836,21 +853,52 @@ function engancharGestos(cv) {
     dibujar();
   };
 
-  /* Arrastrar para recorrer el tiempo, como en TradingView. */
-  let ax = 0, arr = false;
-  cv.addEventListener('mousedown', (e) => { arr = true; ax = e.clientX; cv.style.cursor = 'grabbing'; });
+  /* [MEJORADO] El arrastre solo movía en el tiempo y no se podía
+     despegar del borde. Ahora es igual que en Smart Levels: se
+     agarra el gráfico y se lleva en los dos ejes. */
+  let ax = 0, ay = 0, arr = false, modoG = 'libre';
+  const enEscalaM = (x) => x > cv.clientWidth - 95;
+
+  cv.addEventListener('mousedown', (e) => {
+    const r = cv.getBoundingClientRect();
+    modoG = enEscalaM(e.clientX - r.left) ? 'y' : 'libre';
+    arr = true; ax = e.clientX; ay = e.clientY;
+    cv.style.cursor = modoG === 'y' ? 'ns-resize' : 'grabbing';
+  });
   window.addEventListener('mousemove', (e) => {
     if (!arr) return;
+    if (modoG === 'y') {
+      const dy = e.clientY - ay;
+      if (Math.abs(dy) > 2) {
+        M.zoomY = Math.max(0.25, Math.min(4, (M.zoomY || 1) * (1 + dy * 0.004)));
+        ay = e.clientY; dibujar();
+      }
+      return;
+    }
+    let cambio = false;
     const paso = (cv.clientWidth * 0.7) / (M.ancho || 70);
     const mov = Math.round((e.clientX - ax) / Math.max(1, paso));
     if (mov !== 0) {
       const tope = Math.max(0, M.velas.length - 20);
-      M.desplaz = Math.max(0, Math.min(tope, (M.desplaz || 0) + mov));
-      ax = e.clientX;
-      dibujar();
+      /* Se permite pasar de la última vela: hueco a la derecha */
+      const suelo = -Math.floor((M.ancho || 70) * 0.5);
+      M.desplaz = Math.max(suelo, Math.min(tope, (M.desplaz || 0) + mov));
+      ax = e.clientX; cambio = true;
     }
+    const dy = e.clientY - ay;
+    if (Math.abs(dy) > 1) {
+      M.offsetY = (M.offsetY || 0) + dy;
+      ay = e.clientY; cambio = true;
+    }
+    if (cambio) dibujar();
   });
-  window.addEventListener('mouseup', () => { arr = false; cv.style.cursor = 'grab'; });
+  window.addEventListener('mouseup', () => { arr = false; cv.style.cursor = 'crosshair'; });
+
+  cv.addEventListener('dblclick', () => {
+    M.ancho = 70; M.desplaz = 0; M.zoomY = 1; M.offsetY = 0;
+    dibujar();
+  });
+  cv.style.cursor = 'crosshair';
 
   cv.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -891,7 +939,8 @@ function engancharGestos(cv) {
       const mov = Math.round((e.touches[0].clientX - tx) / Math.max(1, paso));
       if (mov !== 0) {
         const tope = Math.max(0, M.velas.length - 20);
-        M.desplaz = Math.max(0, Math.min(tope, (M.desplaz || 0) + mov));
+        const sueloT = -Math.floor((M.ancho || 70) * 0.5);
+        M.desplaz = Math.max(sueloT, Math.min(tope, (M.desplaz || 0) + mov));
         tx = e.touches[0].clientX;
         dibujar();
       }

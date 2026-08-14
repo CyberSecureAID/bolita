@@ -57,9 +57,26 @@ const fmt = (p) => {
        simbolo: () => 'BTCUSDT'
      })
    ══════════════════════════════════════════════════════════════ */
-/* Las órdenes puestas, para dibujarlas sobre el gráfico. */
+/* ══════════════════════════════════════════════════════════════
+   LO QUE HAY PUESTO
+
+   Se junta todo —órdenes y alertas— para que las tres herramientas
+   lo pinten igual. Las alertas se leen del almacenamiento, así
+   sobreviven a recargar la página.
+   ══════════════════════════════════════════════════════════════ */
 const _puestas = [];
-export const ordenesPuestas = () => _puestas;
+
+export function ordenesPuestas() {
+  const alertas = leerAvisos().map((a) => ({ ...a, modo: 'aviso' }));
+  return [..._puestas.filter((x) => x.modo !== 'aviso'), ...alertas];
+}
+
+/** Cancela una alerta por su identificador. */
+export function cancelar(id) {
+  quitarAviso(id);
+  const i = _puestas.findIndex((x) => x.id === id);
+  if (i >= 0) _puestas.splice(i, 1);
+}
 
 /** Cierra cualquier ficha abierta: al cambiar de moneda o marco. */
 export function cerrarFichas() { cerrarTodo(); }
@@ -245,6 +262,16 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
   d.addEventListener('click', (e) => e.stopPropagation());
 
   const inp = $('od-cant'), rango = $('od-rango'), ok = $('od-ok'), res = $('od-res');
+
+  /* Cifras legibles: nunca por encima del saldo y con los decimales
+     justos. Antes salían ocho decimales y cantidades imposibles. */
+  function recorta(v) {
+    const x = saldo > 0 ? Math.min(v, saldo) : v;
+    if (x >= 1000) return x.toFixed(2);
+    if (x >= 1) return x.toFixed(4);
+    if (x >= 0.0001) return x.toFixed(6);
+    return x.toFixed(8);
+  }
   let modo = 'real';
   let saldo = 0;
   let _tokens = null;
@@ -291,8 +318,19 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
         return;
       }
 
-      const bruto = await gb.saldoParaMostrar(mon.address, cuenta);
-      saldo = Number(bruto) || 0;
+      /* [CORREGIDO] Dos fallos aquí:
+         1. `esBNB()` compara con la dirección de WBNB, así que
+            pasarle null hacía que intentara leer un token
+            inexistente y reventaba.
+         2. El saldo viene en wei (BigInt). Hacer Number() directo
+            daba cifras astronómicas con decimales infinitos.
+         Ahora se pasa WBNB para la nativa y se convierte bien. */
+      const WBNB = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
+      const dir = mon.address || WBNB;
+      const bruto = await gb.saldoParaMostrar(dir, cuenta);
+      const dec = mon.decimals ?? 18;
+      saldo = Number(bruto) / Math.pow(10, dec);
+      if (!isFinite(saldo)) saldo = 0;
 
       if (!(saldo > 0)) {
         sinSaldo(vender
@@ -302,7 +340,7 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
       }
 
       const et = d.querySelector('.od-saldo');
-      if (et) et.innerHTML = `${esc(T('Disponible'))}: <b>${saldo < 1 ? saldo.toFixed(6) : saldo.toFixed(2)} ${esc(simb)}</b>`;
+      if (et) et.innerHTML = `${esc(T('Disponible'))}: <b>${recorta(saldo)} ${esc(simb)}</b>`;
     } catch (er) {
       sinSaldo(T('No se pudo leer tu saldo. Revisa la conexión de tu wallet.'));
     }
@@ -352,15 +390,7 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
     if (saldo > 0) { inp.value = recorta(saldo * (rango.value / 100)); refrescar(); }
   });
 
-  /* [CORREGIDO] Los porcentajes daban cifras mayores que el saldo
-     y con ocho decimales ilegibles. Ahora nunca pasan del saldo y
-     se muestran con los decimales justos. */
-  function recorta(v) {
-    const x = Math.min(v, saldo);
-    if (x >= 1000) return x.toFixed(2);
-    if (x >= 1) return x.toFixed(4);
-    return x.toFixed(6);
-  }
+
   d.querySelectorAll('[data-pct]').forEach((b) => b.onclick = () => {
     rango.value = b.dataset.pct;
     if (saldo > 0) { inp.value = recorta(saldo * (b.dataset.pct / 100)); refrescar(); }
@@ -387,7 +417,10 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
     if (ev) { ev.stopPropagation(); ev.preventDefault(); }
     d.remove();
   };
-  d.querySelector('.od-x').addEventListener('click', cerrarEsta);
+  const btnX = d.querySelector('.od-x');
+  btnX.addEventListener('click', cerrarEsta, true);
+  btnX.addEventListener('pointerdown', (ev) => ev.stopPropagation(), true);
+  btnX.addEventListener('touchend', cerrarEsta, true);
   /* Y si se cambia de moneda o de marco, la ficha se va sola: no
      tiene sentido dejar una orden de BTC abierta mirando BNB. */
   d._cerrar = cerrarEsta;
@@ -401,10 +434,11 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
     ok.textContent = T('Confirma en tu wallet…');
     try {
       if (modo === 'aviso') {
-        guardarAviso({
+        const id = guardarAviso({
           par, simbolo: cfg.simbolo ? cfg.simbolo() : '', precio,
           cant: cant || 0, vender, sl: 0, cuando: Date.now()
         });
+        if (cfg.repintar) cfg.repintar();
         exito(d, T('Aviso puesto'), T('Te avisaremos cuando el precio llegue a') + ' ' + fmt(precio));
       } else {
         await ponerOrdenReal({ cfg, precio, cant, vender, sl });
@@ -507,9 +541,11 @@ function leerAvisos() {
 function guardarAviso(a) {
   try {
     const l = leerAvisos();
-    l.push({ ...a, id: Date.now() + '-' + Math.random().toString(36).slice(2, 7) });
+    const id = Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+    l.push({ ...a, id });
     localStorage.setItem(CLAVE_AVISOS, JSON.stringify(l.slice(-40)));
-  } catch (_) {}
+    return id;
+  } catch (_) { return null; }
 }
 export function quitarAviso(id) {
   try {
@@ -563,6 +599,138 @@ function sonar(a, precioAhora) {
   document.body.appendChild(t);
   t.querySelector('.od-t-x').onclick = () => t.remove();
   setTimeout(() => { if (t.parentNode) t.remove(); }, 15000);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PINTAR LAS ÓRDENES SOBRE EL GRÁFICO
+
+   Uno solo para las tres herramientas: así se ven idénticas en
+   todas y se arregla en un sitio.
+
+   Deliberadamente distintas de las líneas de análisis: llevan
+   franja rayada, etiqueta con relieve y su botón de cancelar.
+   ══════════════════════════════════════════════════════════════ */
+export function pintar(g, opciones) {
+  const { x1, Y, pMin, pMax, simbolo } = opciones;
+  const lista = ordenesPuestas().filter((o) => !simbolo || o.simbolo === simbolo);
+  const zonas = [];
+  if (!lista.length) return zonas;
+
+  lista.forEach((o) => {
+    if (!(o.precio >= pMin && o.precio <= pMax)) return;
+    const y = Y(o.precio);
+    const esAlerta = o.modo === 'aviso';
+    const col = esAlerta ? '#E8B84B' : (o.vender ? '#f6465d' : '#2ee86a');
+
+    /* Franja rayada: nada en la gráfica se ve así, no hay confusión */
+    g.save();
+    g.beginPath(); g.rect(0, y - 9, x1, 18); g.clip();
+    g.fillStyle = col + '14';
+    g.fillRect(0, y - 9, x1, 18);
+    g.strokeStyle = col + '30';
+    g.lineWidth = 1.5;
+    for (let xx = -20; xx < x1 + 20; xx += 9) {
+      g.beginPath(); g.moveTo(xx, y + 10); g.lineTo(xx + 10, y - 10); g.stroke();
+    }
+    g.restore();
+
+    // La línea, gruesa y sólida
+    g.strokeStyle = col;
+    g.lineWidth = 2.4;
+    g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
+
+    /* La etiqueta: dice qué es, no se parece a nada más */
+    const tipo = esAlerta ? 'ALERTA' : (o.vender ? 'VENTA' : 'COMPRA');
+    const et = `${tipo}  ${fmt(o.precio)}`;
+    g.font = 'bold 11px ui-monospace,monospace';
+    const w = g.measureText(et).width + 30;
+    const xE = x1 - w - 42;
+
+    // Sombra para despegarla del fondo
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 8; g.shadowOffsetY = 2;
+    g.fillStyle = col;
+    redondeadoOd(g, xE, y - 13, w, 26, 8); g.fill();
+    g.restore();
+    g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1.4;
+    redondeadoOd(g, xE, y - 13, w, 26, 8); g.stroke();
+
+    g.fillStyle = esAlerta ? '#2a1c00' : (o.vender ? '#2a0509' : '#04210f');
+    g.textAlign = 'left';
+    g.fillText(et, xE + 13, y + 4);
+
+    /* El botón de cancelar, a su derecha */
+    const xB = x1 - 34;
+    g.fillStyle = 'rgba(11,15,22,.92)';
+    redondeadoOd(g, xB, y - 13, 26, 26, 8); g.fill();
+    g.strokeStyle = col + 'aa'; g.lineWidth = 1.4;
+    redondeadoOd(g, xB, y - 13, 26, 26, 8); g.stroke();
+    g.strokeStyle = col; g.lineWidth = 1.8; g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(xB + 9, y - 4); g.lineTo(xB + 17, y + 4);
+    g.moveTo(xB + 17, y - 4); g.lineTo(xB + 9, y + 4);
+    g.stroke();
+    g.lineCap = 'butt';
+
+    // Dónde se puede pulsar para cancelar
+    zonas.push({ x: xB, y: y - 13, w: 26, h: 26, orden: o });
+  });
+
+  return zonas;
+}
+
+function redondeadoOd(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
+  g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  g.lineTo(x + r, y + h); g.quadraticCurveTo(x, y + h, x, y + h - r);
+  g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y);
+  g.closePath();
+}
+
+/** Engancha el clic de cancelar en un lienzo. */
+export function clicCancelar(cv, dameZonas, repintar) {
+  if (cv.dataset.odCancel) return;
+  cv.dataset.odCancel = '1';
+  const mirar = (cx, cy) => {
+    const r = cv.getBoundingClientRect();
+    const x = cx - r.left, y = cy - r.top;
+    const z = (dameZonas() || []).find((q) =>
+      x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h);
+    if (z) { pedirCancelar(z.orden, repintar); return true; }
+    return false;
+  };
+  cv.addEventListener('click', (e) => { if (mirar(e.clientX, e.clientY)) { e.stopPropagation(); } }, true);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CANCELAR — con confirmación, que es dinero
+   ══════════════════════════════════════════════════════════════ */
+export function pedirCancelar(orden, alCancelar) {
+  cerrarTodo();
+  const esAlerta = orden.modo === 'aviso';
+  const d = document.createElement('div');
+  d.className = 'od-confirmar-box';
+  d.innerHTML = `<div class="od-cb-fondo"></div>
+    <div class="od-cb-caja ${orden.vender ? 'vender' : 'comprar'}">
+      <div class="od-cb-ic">${esAlerta ? '◔' : '◆'}</div>
+      <b>${esc(T(esAlerta ? '¿Cancelar esta alerta?' : '¿Cancelar esta orden?'))}</b>
+      <span>${esc(orden.par)} · ${esc(T(orden.vender ? 'Venta' : 'Compra'))} ${esc(T('en'))} ${fmt(orden.precio)}</span>
+      <div class="od-cb-acts">
+        <button class="od-cb-no" type="button">${esc(T('No, dejarla'))}</button>
+        <button class="od-cb-si" type="button">${esc(T('Sí, cancelar'))}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(d);
+  const q = () => d.remove();
+  d.querySelector('.od-cb-fondo').onclick = q;
+  d.querySelector('.od-cb-no').onclick = q;
+  d.querySelector('.od-cb-si').onclick = () => {
+    cancelar(orden.id);
+    q();
+    if (alCancelar) alCancelar();
+  };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -620,13 +788,16 @@ function estilos() {
   .od-menu.vender,.od-ficha.vender{border-color:rgba(246,70,93,.55)}
 
   /* El menú del clic derecho */
-  .od-menu{width:236px;padding:12px}
+  .od-menu{width:262px;padding:13px}
   .od-m-cab{display:flex;align-items:flex-start;gap:9px;margin-bottom:10px}
   .od-m-tx{flex:1;min-width:0}
   /* El porcentaje, grande arriba a la derecha */
   .od-m-pct{flex:0 0 auto;text-align:right}
-  .od-m-pct b{display:block;font-family:var(--display,sans-serif);font-weight:800;
-    font-size:25px;line-height:1;color:#2ee86a !important}
+  /* Más específico que la regla general del encabezado, que lo
+     estaba pisando y dejaba el porcentaje en 13px. */
+  .od-menu .od-m-cab .od-m-pct b{display:block;font-family:var(--display,sans-serif);
+    font-weight:800;font-size:32px !important;line-height:1;color:#2ee86a !important;
+    text-shadow:0 0 18px rgba(46,232,106,.35)}
   .od-m-pct span{display:block;font-family:var(--sans,sans-serif);font-size:10px;
     font-weight:600;color:#3ee88a;margin-top:2px}
   .od-m-ic{font-size:14px}
@@ -774,6 +945,32 @@ function estilos() {
   .od-t-x{width:26px;height:26px;flex:0 0 auto;border-radius:7px;cursor:pointer;
     display:grid;place-items:center;padding:0;font-size:11px;
     background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#8b96a3}
+
+  /* La ventana de confirmar cancelación */
+  .od-confirmar-box{position:fixed;inset:0;z-index:9900;display:flex;
+    align-items:center;justify-content:center;padding:16px}
+  .od-cb-fondo{position:absolute;inset:0;background:rgba(3,5,8,.86)}
+  .od-cb-caja{position:relative;width:100%;max-width:330px;padding:22px 20px;
+    border-radius:18px;text-align:center;
+    background:linear-gradient(165deg,rgba(22,28,38,.99),rgba(11,15,22,.99));
+    border:1.5px solid #3a424c;box-shadow:0 20px 60px rgba(0,0,0,.85);
+    animation:odEntra .2s ease both}
+  .od-cb-caja.comprar{border-color:rgba(46,232,106,.5)}
+  .od-cb-caja.vender{border-color:rgba(246,70,93,.5)}
+  .od-cb-ic{width:48px;height:48px;margin:0 auto 13px;border-radius:50%;
+    display:grid;place-items:center;font-size:21px;
+    background:rgba(232,184,75,.14);color:var(--gold,#E8B84B);
+    border:2px solid rgba(232,184,75,.4)}
+  .od-cb-caja b{display:block;font-family:var(--display,sans-serif);font-weight:800;
+    font-size:16px;color:#eaecef;margin-bottom:6px}
+  .od-cb-caja > span{display:block;font-family:var(--mono,monospace);font-size:12px;
+    color:#8b96a3;margin-bottom:18px}
+  .od-cb-acts{display:flex;gap:8px}
+  .od-cb-no,.od-cb-si{flex:1;min-height:44px;border-radius:11px;cursor:pointer;
+    font-family:var(--display,sans-serif);font-weight:700;font-size:13px}
+  .od-cb-no{background:transparent;border:1px solid #3a424c;color:#b7bdc6}
+  .od-cb-si{border:none;background:linear-gradient(180deg,#ff8a95,#e03546);
+    color:#2a0509;font-weight:800;box-shadow:0 3px 0 #8f1f2b}
 
   @media(max-width:560px){
     /* En el móvil la ficha va abajo, a lo ancho */

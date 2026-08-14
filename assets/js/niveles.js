@@ -1501,6 +1501,8 @@ let _reloj = null;
 let _yaTrazado = false;
 let _planFijo = null;
 let _cerrarFichas = null;    // para cerrar órdenes abiertas al cambiar de par
+let _od = null;              // módulo de órdenes
+let _zonasOd = [];           // dónde se puede pulsar para cancelar
 let _soloOperables = false;  // filtro del selector de monedas
 let _operables = null;       // las que tienen contrato en BNB Chain
 
@@ -1631,10 +1633,12 @@ function dibujar() {
         precioActual: () => N.precio,
         par: () => _par,
         simbolo: () => (PARES.find((p) => p.id === _par) || {}).s || '',
-        repintar: () => { N.misOrdenes = od.ordenesPuestas(); dibujar(); }
+        repintar: () => dibujar()
       });
-      N.misOrdenes = od.ordenesPuestas();
+      _od = od;
       _cerrarFichas = od.cerrarFichas;
+      od.clicCancelar(cv, () => _zonasOd, () => dibujar());
+      dibujar();
     }).catch(() => {});
   }
   const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -2106,36 +2110,11 @@ function dibujar() {
     }
   }
 
-  /* ══ TUS ÓRDENES ══
-     Marca propia, deliberadamente distinta de las señales del
-     asistente: es TU posición, no una sugerencia. */
-  if (N.misOrdenes && N.misOrdenes.length) {
-    const sim = (PARES.find((p) => p.id === _par) || {}).s || '';
-    N.misOrdenes.filter((o) => o.simbolo === sim).forEach((o) => {
-      if (o.precio < pMin || o.precio > pMax) return;
-      const y = Y(o.precio);
-      const col = o.vender ? '#f6465d' : '#2ee86a';
-
-      // Línea sólida y gruesa, con banda
-      g.fillStyle = col + '12';
-      g.fillRect(0, y - 11, x1, 22);
-      g.strokeStyle = col;
-      g.lineWidth = 2.2;
-      g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
-
-      // La etiqueta: con icono de orden, no de señal
-      const et = `${o.modo === 'aviso' ? '🔔' : '◆'} ${o.vender ? 'VENTA' : 'COMPRA'}  ${fmt(o.precio)}`;
-      g.font = 'bold 11px ui-monospace,monospace';
-      const w = g.measureText(et).width + 22;
-      const xE = x1 - w - 10;
-      g.fillStyle = col;
-      redondeado(g, xE, y - 12, w, 24, 7); g.fill();
-      // Borde claro para separarla de todo lo demás
-      g.strokeStyle = '#ffffff55'; g.lineWidth = 1.2;
-      redondeado(g, xE, y - 12, w, 24, 7); g.stroke();
-      g.fillStyle = o.vender ? '#2a0509' : '#04210f';
-      g.textAlign = 'left';
-      g.fillText(et, xE + 11, y + 4);
+  /* Tus órdenes y alertas, con el estilo común de las tres. */
+  if (_od) {
+    _zonasOd = _od.pintar(g, {
+      x1, Y, pMin, pMax,
+      simbolo: (PARES.find((p) => p.id === _par) || {}).s || ''
     });
   }
 
