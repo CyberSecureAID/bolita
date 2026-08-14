@@ -496,10 +496,21 @@ function detectarEstructuras(velas, piv) {
       const p = velas[j];
       const contraria = alcista ? p.c < p.o : p.c > p.o;
       if (contraria) {
+        /* Volumen real que se negoció dentro de la zona, separando
+           velas alcistas de bajistas. Dato calculado, no estimado. */
+        const zA = Math.max(p.o, p.c), zB = Math.min(p.o, p.c);
+        let volAlc = 0, volBaj = 0;
+        velas.forEach((v) => {
+          if (v.l > zA || v.h < zB) return;      // no tocó la zona
+          if (v.c >= v.o) volAlc += v.v; else volBaj += v.v;
+        });
+
         out.push({
           tipo: 'ob', dir: alcista ? 'alcista' : 'bajista',
           nivel: (p.o + p.c) / 2,
-          zonaA: Math.max(p.o, p.c), zonaB: Math.min(p.o, p.c),
+          zonaA: zA, zonaB: zB,
+          volAlc, volBaj,
+          volTot: volAlc + volBaj,
           iRef: j, iRot: i,
           nombre: alcista ? 'Zona de demanda institucional' : 'Zona de oferta institucional',
           corto: alcista ? 'Order block alcista' : 'Order block bajista'
@@ -557,19 +568,39 @@ function calcularTendencia(velas, piv, tend) {
     return { m, b, r2, pts };
   };
 
-  if (tend.dir === 'alcista') {
-    /* Se usan más pivotes para que la línea abarque un tramo mayor:
-       una recta sobre 6 puntos dice mucho más que sobre 3. */
-    const pts = piv.bajos.slice(-6);
-    const r = recta(pts);
-    // Solo si el ajuste es bueno y la pendiente sube de verdad
-    if (r && pts.length >= 3 && r.r2 > 0.55 && r.m > 0) return { tipo: 'alcista', ...r };
-  }
-  if (tend.dir === 'bajista') {
-    const pts = piv.altos.slice(-6);
-    const r = recta(pts);
-    if (r && pts.length >= 3 && r.r2 > 0.55 && r.m < 0) return { tipo: 'bajista', ...r };
-  }
+  /* [CORREGIDO] Casi nunca se trazaba: exigía tendencia ya definida
+     Y un ajuste altísimo. Ahora se prueban los dos lados siempre y
+     se queda con el que mejor se ajuste, con un umbral razonable.
+     Si de verdad no hay recta que valga, no se dibuja: pero eso
+     ahora es la excepción, no la norma. */
+  const probar = (pts, signo) => {
+    if (pts.length < 3) return null;
+    // Se prueba con 6, 5 y 4 puntos: la que mejor encaje
+    let mejor = null;
+    for (const cuantos of [6, 5, 4]) {
+      const sub = pts.slice(-cuantos);
+      if (sub.length < 3) continue;
+      const r = recta(sub);
+      if (!r) continue;
+      if (signo > 0 && r.m <= 0) continue;
+      if (signo < 0 && r.m >= 0) continue;
+      if (r.r2 < 0.4) continue;                 // umbral realista
+      if (!mejor || r.r2 > mejor.r2) mejor = r;
+    }
+    return mejor;
+  };
+
+  const alc = probar(piv.bajos, 1);
+  const baj = probar(piv.altos, -1);
+
+  /* Si hay tendencia declarada, manda ella. Si no, la que mejor
+     ajuste tenga. */
+  if (tend.dir === 'alcista' && alc) return { tipo: 'alcista', ...alc };
+  if (tend.dir === 'bajista' && baj) return { tipo: 'bajista', ...baj };
+  if (alc && baj) return alc.r2 >= baj.r2
+    ? { tipo: 'alcista', ...alc } : { tipo: 'bajista', ...baj };
+  if (alc) return { tipo: 'alcista', ...alc };
+  if (baj) return { tipo: 'bajista', ...baj };
   return null;
 }
 
@@ -1358,6 +1389,15 @@ const fmt = (p) => {
   return p.toFixed(8);
 };
 
+/** Volumen en formato corto: 1.2M, 340K… */
+const miles = (v) => {
+  const a = Math.abs(v);
+  if (a >= 1e9) return (v / 1e9).toFixed(1) + 'B';
+  if (a >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+  if (a >= 1e3) return (v / 1e3).toFixed(0) + 'K';
+  return v.toFixed(0);
+};
+
 const hora = (t) => new Date(t).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
 const fecha = (t) => new Date(t).toLocaleDateString('es', { day: '2-digit', month: 'short' });
 
@@ -1741,6 +1781,12 @@ function dibujar() {
       g.beginPath(); g.arc(xT, yT, 4, 0, Math.PI * 2);
       g.fillStyle = col; g.fill();
     } else {
+      /* Los dos extremos con su punto, para que se vea acabada */
+      [[xA, yA], [xB, yB]].forEach(([xx, yy]) => {
+        g.beginPath(); g.arc(xx, yy, 4.5, 0, Math.PI * 2);
+        g.fillStyle = col; g.fill();
+        g.strokeStyle = '#0b0f16'; g.lineWidth = 1.6; g.stroke();
+      });
       // Prolongación hacia el futuro, discontinua
       /* La prolongación se corta si se sale de la vista: antes se
          iba al infinito y arrastraba la etiqueta fuera de pantalla. */
@@ -1854,7 +1900,7 @@ function dibujar() {
        mitad de camino. */
     g.strokeStyle = col + 'aa';
     g.setLineDash([5, 4]); g.lineWidth = 1.4;
-    g.beginPath(); g.moveTo(Math.max(0, x1p - paso), yC); g.lineTo(x1, yC); g.stroke();
+    g.beginPath(); g.moveTo(Math.max(0, x1p), yC); g.lineTo(x1, yC); g.stroke();
     g.setLineDash([]);
 
     const et = (suelo ? 'DOBLE SUELO' : 'DOBLE TECHO') + (d.confirmado ? ' ✓' : '');
@@ -1930,16 +1976,39 @@ function dibujar() {
       g.strokeRect(Math.max(0, xR - paso / 2), yTop, x1 - Math.max(0, xR - paso / 2), alto);
       g.setLineDash([]);
 
-      const et = e.tipo === 'ob' ? (e.dir === 'alcista' ? 'DEMANDA' : 'OFERTA') : 'BARRIDO';
+      /* "BARRIDO" no lo entiende nadie. Se llama por lo que es. */
+      const et = e.tipo === 'ob'
+        ? (e.dir === 'alcista' ? 'ZONA DE COMPRA INSTITUCIONAL' : 'ZONA DE VENTA INSTITUCIONAL')
+        : (e.dir === 'alcista' ? 'CAZA DE STOPS ABAJO' : 'CAZA DE STOPS ARRIBA');
       g.font = 'bold 9px ui-monospace,monospace';
       const w = g.measureText(et).width + 12;
-      const h3 = hueco(Math.max(2, xR - paso / 2), yTop - 16, w, 15);
+      /* Desplazada a la derecha, dentro de su rectángulo: pegada al
+         borde izquierdo siempre caía sobre las velas. */
+      const xEt = Math.max(2, Math.min(x1 - w - 4, xR + paso * 2.5));
+      const h3 = hueco(xEt, yTop - 16, w, 15);
       if (h3) {
         g.fillStyle = col;
         redondeado(g, h3.x, h3.y, w, 15, 4); g.fill();
         g.fillStyle = e.dir === 'alcista' ? '#04210f' : '#2a0509';
         g.textAlign = 'left';
         g.fillText(et, h3.x + 6, h3.y + 11);
+      }
+
+      /* El volumen negociado dentro, a la DERECHA de la zona para
+         no taparle las velas. Dice quién mandó ahí dentro. */
+      if (e.volTot > 0 && alto > 14) {
+        const pctC = (e.volAlc / e.volTot) * 100;
+        const txtV = `${miles(e.volTot)}  ${pctC.toFixed(0)}%↑ ${(100 - pctC).toFixed(0)}%↓`;
+        g.font = '9px ui-monospace,monospace';
+        const wv = g.measureText(txtV).width + 12;
+        const xv = x1 - wv - 6;
+        g.fillStyle = 'rgba(11,15,22,.88)';
+        redondeado(g, xv, yTop + alto / 2 - 8, wv, 16, 4); g.fill();
+        g.strokeStyle = col + '77'; g.lineWidth = 1;
+        redondeado(g, xv, yTop + alto / 2 - 8, wv, 16, 4); g.stroke();
+        g.fillStyle = pctC >= 50 ? '#3ee88a' : '#ff6b7a';
+        g.textAlign = 'left';
+        g.fillText(txtV, xv + 6, yTop + alto / 2 + 3.5);
       }
     }
   });
@@ -2594,6 +2663,17 @@ function pasoNv() {
    ══════════════════════════════════════════════════════════════ */
 function guardarImagen() {
   const cv = $('nv-cv'); if (!cv) return;
+
+  /* ══════════════════════════════════════════════════════════
+     LA IMAGEN PARA COMPARTIR
+
+     [MEJORADO] Antes solo salía el lienzo del gráfico. Ahora se
+     compone la pieza completa: cabecera con el par y el precio,
+     las píldoras del análisis, la gráfica y la franja de marca.
+
+     Es la publicidad de la herramienta: quien la reciba tiene que
+     ver qué es y de dónde salió.
+     ══════════════════════════════════════════════════════════ */
   const marca = document.querySelector('.nv-marca');
   const antes = marca ? marca.style.display : null;
   if (marca) marca.style.display = 'none';
@@ -2601,57 +2681,136 @@ function guardarImagen() {
 
   try {
     const e2 = cv.width / cv.clientWidth;
-    const barra = 78 * e2;
+    const W = cv.width;
+    const hCab = 66 * e2;          // cabecera
+    const hAna = N.mensajes && N.mensajes.length ? 78 * e2 : 0;
+    const hPie = 82 * e2;          // franja de marca
     const out = document.createElement('canvas');
-    out.width = cv.width; out.height = cv.height + barra;
+    out.width = W;
+    out.height = hCab + cv.height + hAna + hPie;
     const g = out.getContext('2d');
-    g.fillStyle = '#0b0f16'; g.fillRect(0, 0, out.width, out.height);
-    g.drawImage(cv, 0, 0);
 
-    const yB = cv.height;
-    g.fillStyle = '#0b0e12'; g.fillRect(0, yB, out.width, barra);
-    g.fillStyle = 'rgba(232,184,75,.35)'; g.fillRect(0, yB, out.width, 2 * e2);
+    g.fillStyle = '#0b0f16';
+    g.fillRect(0, 0, out.width, out.height);
 
-    const textos = (x) => {
+    /* ── Cabecera: par, marco y precio ── */
+    g.fillStyle = '#0a0d13';
+    g.fillRect(0, 0, W, hCab);
+    g.fillStyle = 'rgba(255,255,255,.06)';
+    g.fillRect(0, hCab - 1, W, 1);
+
+    g.textAlign = 'left';
+    g.fillStyle = '#eaecef';
+    g.font = `800 ${23 * e2}px system-ui,sans-serif`;
+    g.fillText(_par, 20 * e2, 40 * e2);
+
+    const anchoPar = g.measureText(_par).width;
+    g.font = `700 ${13 * e2}px ui-monospace,monospace`;
+    g.fillStyle = '#7d8794';
+    g.fillText(_tf.toUpperCase(), 20 * e2 + anchoPar + 12 * e2, 40 * e2);
+
+    // La tendencia
+    const t = N.tendencia || { dir: 'lateral' };
+    const colT = t.dir === 'alcista' ? '#3ee88a' : t.dir === 'bajista' ? '#ff6b7a' : '#9aa5b1';
+    const etT = (N.rango ? 'EN RANGO' : nombreTend(t.dir).toUpperCase());
+    g.font = `700 ${11 * e2}px ui-monospace,monospace`;
+    const wT = g.measureText(etT).width + 20 * e2;
+    const xT2 = 20 * e2 + anchoPar + 60 * e2;
+    g.fillStyle = colT + '28';
+    redondeado(g, xT2, 22 * e2, wT, 22 * e2, 6 * e2); g.fill();
+    g.fillStyle = colT;
+    g.fillText(etT, xT2 + 10 * e2, 37 * e2);
+
+    // El precio, a la derecha
+    g.textAlign = 'right';
+    g.fillStyle = '#E8B84B';
+    g.font = `800 ${23 * e2}px system-ui,sans-serif`;
+    g.fillText(fmt(N.precio), W - 20 * e2, 40 * e2);
+
+    /* ── El gráfico ── */
+    g.drawImage(cv, 0, hCab);
+
+    /* ── Las lecturas del análisis ── */
+    if (hAna > 0) {
+      const yA = hCab + cv.height;
+      g.fillStyle = '#0d1219';
+      g.fillRect(0, yA, W, hAna);
+      g.fillStyle = 'rgba(255,255,255,.06)';
+      g.fillRect(0, yA, W, 1);
+
+      g.textAlign = 'left';
+      g.fillStyle = '#5c6672';
+      g.font = `${10 * e2}px ui-monospace,monospace`;
+      g.fillText('ANÁLISIS', 20 * e2, yA + 20 * e2);
+
+      let x = 20 * e2;
+      N.mensajes.slice(0, 3).forEach((m, i) => {
+        const et = { compra: 'COMPRA', venta: 'VENTA', vigilar: 'VIGILAR',
+                     aviso: 'ESPERA', tendencia: 'TENDENCIA', contexto: 'CONTEXTO' }[m.tipo] || '';
+        const c = m.tipo === 'compra' ? '#2ee86a' : m.tipo === 'venta' ? '#f6465d' : '#E8B84B';
+        const txt = `${i + 1}  ${et}  ·  ${m.titulo}`;
+        g.font = `700 ${12 * e2}px system-ui,sans-serif`;
+        const w = g.measureText(txt).width + 26 * e2;
+        if (x + w > W - 20 * e2) return;
+        g.fillStyle = c + '22';
+        redondeado(g, x, yA + 32 * e2, w, 30 * e2, 8 * e2); g.fill();
+        g.strokeStyle = c + '77'; g.lineWidth = 1.5 * e2;
+        redondeado(g, x, yA + 32 * e2, w, 30 * e2, 8 * e2); g.stroke();
+        g.fillStyle = c;
+        g.fillText(txt, x + 13 * e2, yA + 52 * e2);
+        x += w + 10 * e2;
+      });
+    }
+
+    /* ── La franja de marca ── */
+    const yB = hCab + cv.height + hAna;
+    g.fillStyle = '#0b0e12';
+    g.fillRect(0, yB, W, hPie);
+    g.fillStyle = 'rgba(232,184,75,.4)';
+    g.fillRect(0, yB, W, 2 * e2);
+
+    const textos = (wLogo) => {
+      const x0 = wLogo ? 20 * e2 + wLogo + 18 * e2 : 20 * e2;
       g.textAlign = 'left';
       g.fillStyle = '#E8B84B';
-      g.font = `800 ${19 * e2}px system-ui,sans-serif`;
-      g.fillText('Smart Levels', x, yB + 34 * e2);
+      g.font = `800 ${20 * e2}px system-ui,sans-serif`;
+      g.fillText('Smart Levels', x0, yB + 36 * e2);
       g.font = `700 ${14 * e2}px ui-monospace,monospace`;
       g.fillStyle = '#C9A84B';
-      g.fillText('CriptoCubaOficial.com', x, yB + 56 * e2);
+      g.fillText('CriptoCubaOficial.com', x0, yB + 58 * e2);
+
       g.textAlign = 'right';
-      g.fillStyle = '#8b96a3';
-      g.font = `700 ${14 * e2}px ui-monospace,monospace`;
-      g.fillText(`${_par} · ${_tf}`, out.width - 20 * e2, yB + 34 * e2);
-      g.font = `${11 * e2}px ui-monospace,monospace`;
       g.fillStyle = '#6b7681';
+      g.font = `${11 * e2}px ui-monospace,monospace`;
+      g.fillText('Análisis automático · no es asesoramiento financiero', W - 20 * e2, yB + 36 * e2);
       g.fillText(new Date().toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
-        out.width - 20 * e2, yB + 56 * e2);
+        W - 20 * e2, yB + 58 * e2);
       g.textAlign = 'left';
     };
+
     const bajar = () => out.toBlob((blob) => {
       devolver();
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `criptocuba-niveles-${_par}-${Date.now()}.png`;
+      a.href = url; a.download = `criptocuba-analisis-${_par}-${_tf}-${Date.now()}.png`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1500);
     }, 'image/png');
 
     const logo = new Image();
     let hecho = false;
-    const una = (w) => { if (hecho) return; hecho = true; textos(w ? 20 * e2 + w + 18 * e2 : 20 * e2); bajar(); };
+    const una = (w) => { if (hecho) return; hecho = true; textos(w); bajar(); };
     logo.onload = () => {
       try {
-        const alto = 52 * e2, ancho = Math.round(logo.width * (alto / logo.height));
-        g.drawImage(logo, 20 * e2, yB + (barra - alto) / 2, ancho, alto);
+        const alto = 54 * e2;
+        const ancho = Math.round(logo.width * (alto / logo.height));
+        g.drawImage(logo, 20 * e2, yB + (hPie - alto) / 2, ancho, alto);
         una(ancho);
       } catch (_) { una(0); }
     };
     logo.onerror = () => una(0);
-    setTimeout(() => una(0), 1500);
+    setTimeout(() => una(0), 1600);
     logo.src = 'assets/img/cco-marca.png';
   } catch (_) { devolver(); }
 }
