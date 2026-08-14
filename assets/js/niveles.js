@@ -791,149 +791,6 @@ function detectarDobles(velas, piv, precio) {
    ══════════════════════════════════════════════════════════════ */
 
 /* ══════════════════════════════════════════════════════════════
-   GAMMA EXPOSURE (GEX) — los muros de opciones
-
-   Quien vende opciones (los dealers) está obligado a cubrirse. No
-   es opinión: es matemática. Cuando el precio se mueve, tienen que
-   comprar o vender para mantenerse neutrales.
-
-   Eso crea niveles que NO aparecen en ningún gráfico de velas:
-
-     · MURO DE GAMMA — el strike con más exposición. El precio se
-       frena ahí porque los dealers venden cada subida.
-
-     · GAMMA FLIP — donde cambia el régimen. Por encima, la
-       volatilidad se comprime. Por debajo, los movimientos se
-       amplifican entre 1,5 y 2 veces.
-
-     · MAX PAIN — donde caduca el máximo de contratos sin valor.
-       El precio tiende a imantarse ahí al vencimiento.
-
-   Glassnode lo vende solo en su plan Professional. SpotGamma y
-   GammaFlip viven de esto. Aquí se calcula con el interés abierto
-   público de Deribit, que mueve el 90% de las opciones cripto.
-
-   Solo hay opciones líquidas en BTC, ETH, SOL y XRP.
-   ══════════════════════════════════════════════════════════════ */
-const CON_OPCIONES = { BTC: 'BTC', ETH: 'ETH', SOL: 'SOL', XRP: 'XRP' };
-
-async function calcularGEX(par, precio) {
-  const moneda = CON_OPCIONES[par];
-  if (!moneda) return { sinDatos: true, motivo: 'sin-opciones' };
-
-  const r = await fetch(
-    `https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${moneda}&kind=option`
-  );
-  if (!r.ok) throw new Error('sin datos de opciones');
-  const j = await r.json();
-  const lista = (j && j.result) || [];
-  if (!lista.length) return { sinDatos: true, motivo: 'vacio' };
-
-  const ahora = Date.now();
-  const MES = 45 * 86400000;      // hasta 45 días: lo que de verdad pesa
-  const porStrike = new Map();
-  let spot = precio;
-
-  lista.forEach((o) => {
-    /* El nombre trae todo: BTC-26SEP25-70000-C */
-    const p = String(o.instrument_name || '').split('-');
-    if (p.length < 4) return;
-    const strike = Number(p[2]);
-    const esCall = p[3] === 'C';
-    const oi = Number(o.open_interest) || 0;
-    if (!(strike > 0) || oi <= 0) return;
-
-    /* Solo vencimientos cercanos: los lejanos no mueven el precio */
-    const venc = fechaDeribit(p[1]);
-    if (!venc || venc - ahora > MES || venc < ahora) return;
-
-    if (o.underlying_price > 0) spot = Number(o.underlying_price);
-
-    const dias = Math.max(0.5, (venc - ahora) / 86400000);
-    const iv = Number(o.mark_iv) / 100 || 0.6;
-
-    /* Gamma por Black-Scholes. Es la fórmula estándar del sector,
-       no una aproximación inventada. */
-    const T = dias / 365;
-    const raizT = Math.sqrt(T);
-    const d1 = (Math.log(spot / strike) + (iv * iv / 2) * T) / (iv * raizT);
-    const gamma = normal(d1) / (spot * iv * raizT);
-
-    /* El signo: los dealers están largos en calls y cortos en puts
-       (el supuesto estándar del sector). El resultado es cuánto
-       tienen que operar por cada 1% de movimiento. */
-    const exp = gamma * oi * spot * spot * 0.01 * (esCall ? 1 : -1);
-
-    const acum = porStrike.get(strike) || { strike, gex: 0, oiCall: 0, oiPut: 0 };
-    acum.gex += exp;
-    if (esCall) acum.oiCall += oi; else acum.oiPut += oi;
-    porStrike.set(strike, acum);
-  });
-
-  const strikes = [...porStrike.values()].sort((a, b) => a.strike - b.strike);
-  if (strikes.length < 4) return { sinDatos: true, motivo: 'poca-liquidez' };
-
-  /* El muro: el strike con más gamma positiva (frena las subidas)
-     y el suelo: el de más gamma negativa. */
-  let muro = strikes[0], suelo = strikes[0];
-  strikes.forEach((x) => {
-    if (x.gex > muro.gex) muro = x;
-    if (x.gex < suelo.gex) suelo = x;
-  });
-
-  /* El gamma flip: donde el acumulado cambia de signo. */
-  let acumulado = 0, flip = null;
-  const curva = strikes.map((x) => {
-    const antes = acumulado;
-    acumulado += x.gex;
-    if (flip === null && antes < 0 && acumulado >= 0) flip = x.strike;
-    if (flip === null && antes > 0 && acumulado <= 0) flip = x.strike;
-    return { strike: x.strike, acum: acumulado, gex: x.gex };
-  });
-
-  /* Max pain: el strike donde el conjunto de opciones pierde más
-     valor al vencer. Se calcula probando cada strike. */
-  let maxPain = strikes[0].strike, menorDolor = Infinity;
-  strikes.forEach((cand) => {
-    let dolor = 0;
-    strikes.forEach((x) => {
-      if (x.strike < cand.strike) dolor += x.oiCall * (cand.strike - x.strike);
-      if (x.strike > cand.strike) dolor += x.oiPut * (x.strike - cand.strike);
-    });
-    if (dolor < menorDolor) { menorDolor = dolor; maxPain = cand.strike; }
-  });
-
-  const netoGex = strikes.reduce((a, x) => a + x.gex, 0);
-  const maxAbs = Math.max(...strikes.map((x) => Math.abs(x.gex))) || 1;
-
-  return {
-    strikes, curva, maxAbs,
-    muro: muro.strike, muroValor: muro.gex,
-    suelo: suelo.strike, sueloValor: suelo.gex,
-    flip, maxPain, netoGex,
-    /* El régimen: lo que de verdad cambia cómo operas */
-    regimen: netoGex >= 0 ? 'comprimido' : 'amplificado',
-    spot
-  };
-}
-
-/** Densidad de la normal, para la fórmula de gamma. */
-function normal(x) {
-  return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
-}
-
-/** Deribit escribe las fechas como 26SEP25. */
-function fechaDeribit(txt) {
-  const m = String(txt).match(/^(\d{1,2})([A-Z]{3})(\d{2})$/);
-  if (!m) return null;
-  const meses = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
-                  JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
-  const mes = meses[m[2]];
-  if (mes === undefined) return null;
-  return Date.UTC(2000 + Number(m[3]), mes, Number(m[1]), 8, 0, 0);
-}
-
-/* ══════════════════════════════════════════════════════════════
    9. ATR — la volatilidad real
 
    El recorrido medio de una vela. Sirve para poner el stop donde
@@ -1812,12 +1669,6 @@ async function recargar() {
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
       N.velas = await traerVelas(par.s, _tf, 300);
-      /* Las opciones van aparte: si fallan, todo lo demás sigue. */
-      if (N.verGex) {
-        calcularGEX(_par, N.velas[N.velas.length - 1].c)
-          .then((d) => { N.gex = d; dibujar(); })
-          .catch(() => { N.gex = { sinDatos: true, motivo: 'error' }; dibujar(); });
-      }
       /* La semilla se fija por par y hora: así las frases no bailan
          en cada refresco, pero cambian con el tiempo. */
       _semilla = (_par.charCodeAt(0) + new Date().getHours()) * 1.7;
@@ -2151,70 +2002,6 @@ function dibujar() {
       g.textAlign = 'left';
       g.fillText(et, xE + 7, yE + 11);
     }
-  }
-
-  /* ══ MUROS DE GAMMA ══
-     Los niveles donde los dealers están obligados a operar. No
-     salen de las velas: salen de las opciones. */
-  if (N.gex && !N.gex.sinDatos && N.verGex) {
-    const G = N.gex;
-    const anchoBarra = x1 * 0.16;
-
-    /* [SIMPLIFICADO] Las barras por strike parecían un perfil de
-       volumen y solo añadían ruido. Lo que importa son los cuatro
-       niveles, no la distribución completa. */
-
-    /* El muro principal: donde el precio se frena */
-    if (G.muro >= pMin && G.muro <= pMax) {
-      const y = Y(G.muro);
-      g.strokeStyle = '#2ee86a';
-      g.lineWidth = 2.4;
-      g.setLineDash([]);
-      g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
-      etiquetaGex(g, 'MURO DE GAMMA  ' + fmt(G.muro), x1, y, '#2ee86a', '#04210f', hueco, etiquetas);
-    }
-
-    /* El suelo: donde se acelera */
-    if (G.suelo >= pMin && G.suelo <= pMax && G.suelo !== G.muro) {
-      const y = Y(G.suelo);
-      g.strokeStyle = '#f6465d';
-      g.lineWidth = 2.4;
-      g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
-      etiquetaGex(g, 'SUELO DE GAMMA  ' + fmt(G.suelo), x1, y, '#f6465d', '#2a0509', hueco, etiquetas);
-    }
-
-    /* El gamma flip: la frontera entre los dos regímenes */
-    if (G.flip && G.flip >= pMin && G.flip <= pMax) {
-      const y = Y(G.flip);
-      g.strokeStyle = '#E8B84B';
-      g.lineWidth = 2;
-      g.setLineDash([8, 5]);
-      g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
-      g.setLineDash([]);
-      etiquetaGex(g, 'GAMMA FLIP  ' + fmt(G.flip), x1, y, '#E8B84B', '#2a1c00', hueco, etiquetas);
-    }
-
-    /* Max pain: el imán del vencimiento */
-    if (G.maxPain >= pMin && G.maxPain <= pMax) {
-      const y = Y(G.maxPain);
-      g.strokeStyle = 'rgba(139,150,163,.7)';
-      g.lineWidth = 1.4;
-      g.setLineDash([3, 5]);
-      g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
-      g.setLineDash([]);
-      etiquetaGex(g, 'MAX PAIN  ' + fmt(G.maxPain), x1, y, '#C9A84B', '#2a1c00', hueco, etiquetas);
-    }
-
-    /* El régimen, arriba a la izquierda y en dorado como la marca */
-    const et = G.regimen === 'comprimido'
-      ? 'VOLATILIDAD COMPRIMIDA' : 'VOLATILIDAD AMPLIFICADA';
-    g.font = 'bold 10px ui-monospace,monospace';
-    const wR = g.measureText(et).width + 20;
-    etiquetas.push({
-      txt: et, x: 10, y: 10, w: wR, h: 21,
-      fondo: G.regimen === 'comprimido' ? '#C9A84B' : '#ff9500',
-      tinta: '#2a1c00', borde: 'rgba(232,184,75,.9)'
-    });
   }
 
   /* ══ EL CANAL DEL RANGO ══
@@ -2578,17 +2365,6 @@ function dibujar() {
 
 function velaEn(i) { return N.velas[i] || null; }
 
-/** Etiqueta de un nivel de gamma, pegada a la derecha. */
-function etiquetaGex(g, txt, x1, y, fondo, tinta, hueco, cola) {
-  g.font = 'bold 10px ui-monospace,monospace';
-  const w = g.measureText(txt).width + 20;
-  const h = hueco(x1 - w - 10, y - 10, w, 20);
-  if (!h) return;
-  /* Se encola: se pinta al final, encima de todas las líneas. */
-  cola.push({ txt, x: h.x, y: h.y, w, h: 20, fondo, tinta,
-              borde: 'rgba(232,184,75,.85)' });
-}
-
 function redondeado(g, x, y, w, h, r) {
   g.beginPath();
   g.moveTo(x + r, y);
@@ -2931,7 +2707,6 @@ function menuHerramientas() {
   const prev = document.getElementById('nv-herr-menu');
   if (prev) { prev.remove(); return; }
 
-  const hayOpciones = !!CON_OPCIONES[_par];
   const m = document.createElement('div');
   m.id = 'nv-herr-menu';
   m.innerHTML = `
@@ -2944,15 +2719,7 @@ function menuHerramientas() {
       </div>
     </button>
 
-    <button class="nv-hm-b ${N.verGex ? 'on' : ''} ${hayOpciones ? '' : 'bloq'}"
-            data-h="gex" type="button">
-      <span class="nv-hm-luz"></span>
-      <div class="nv-hm-tx">
-        <b>${esc(T('Muros de opciones'))} <em>GEX</em></b>
-        <span>${esc(T('Los niveles donde los dealers están obligados a operar'))}</span>
-      </div>
-    </button>
-    <div class="nv-hm-pie">${esc(T('Se calcula con el interés abierto real de Deribit'))}</div>`;
+    <div class="nv-hm-pie">${esc(T('Toca para activar o desactivar sobre la gráfica'))}</div>`;
   document.body.appendChild(m);
 
   const r = $('nv-herr').getBoundingClientRect();
@@ -2967,41 +2734,9 @@ function menuHerramientas() {
     dibujar(); burbujas();
   };
 
-  m.querySelector('[data-h=gex]').onclick = () => {
-    /* Si la moneda no tiene opciones, se explica en vez de callar */
-    if (!hayOpciones) { avisoSinOpciones(); return; }
-    N.verGex = !N.verGex;
-    m.querySelector('[data-h=gex]').classList.toggle('on', N.verGex);
-    if (N.verGex && !N.gex) {
-      calcularGEX(_par, N.precio)
-        .then((d) => { N.gex = d; dibujar(); })
-        .catch(() => { N.gex = { sinDatos: true, motivo: 'error' }; dibujar(); });
-    } else dibujar();
-  };
   setTimeout(() => document.addEventListener('click', () => {
     const x = document.getElementById('nv-herr-menu'); if (x) x.remove();
   }, { once: true }), 10);
-}
-
-/** Cuando la moneda no tiene mercado de opciones. */
-function avisoSinOpciones() {
-  const d = document.createElement('div');
-  d.id = 'nv-aviso-op';
-  d.innerHTML = `<div class="nv-ao-fondo"></div>
-    <div class="nv-ao-caja">
-      <div class="nv-ao-ic">◈</div>
-      <b>${esc(T('Esta moneda no tiene opciones'))}</b>
-      <p>${esc(T('Los muros de gamma se calculan con el mercado de opciones, y solo cuatro criptomonedas tienen suficiente liquidez para que el dato sea fiable:'))}</p>
-      <div class="nv-ao-lista">
-        ${['BTC', 'ETH', 'SOL', 'XRP'].map((x) => `<span>${x}</span>`).join('')}
-      </div>
-      <p class="nv-ao-nota">${esc(T('En'))} ${esc(_par)} ${esc(T('no hay opciones listadas, así que cualquier nivel que mostráramos sería inventado. Preferimos no enseñarlo.'))}</p>
-      <button class="nv-ao-b" type="button">${esc(T('Entendido'))}</button>
-    </div>`;
-  document.body.appendChild(d);
-  const q = () => d.remove();
-  d.querySelector('.nv-ao-fondo').onclick = q;
-  d.querySelector('.nv-ao-b').onclick = q;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -3656,34 +3391,6 @@ function estilos() {
     font-size:11px;color:#7d8794;line-height:1.45}
   #nv-herr-menu .nv-hm-pie{padding:9px 8px 3px;font-family:var(--mono,monospace);
     font-size:8.5px;color:#4a525c;text-align:center}
-
-  /* El aviso de monedas sin opciones */
-  #nv-aviso-op{position:fixed;inset:0;z-index:9900;display:flex;
-    align-items:center;justify-content:center;padding:16px}
-  #nv-aviso-op .nv-ao-fondo{position:absolute;inset:0;background:rgba(3,5,8,.9)}
-  #nv-aviso-op .nv-ao-caja{position:relative;width:100%;max-width:360px;padding:26px 22px;
-    border-radius:20px;text-align:center;
-    background:linear-gradient(165deg,#161b22,#0b0e12);
-    border:1.5px solid var(--gold-soft,#C9A84B);box-shadow:0 22px 60px rgba(0,0,0,.85)}
-  #nv-aviso-op .nv-ao-ic{width:52px;height:52px;margin:0 auto 15px;border-radius:50%;
-    display:grid;place-items:center;font-size:22px;
-    background:rgba(232,184,75,.14);color:var(--gold,#E8B84B);
-    border:2px solid rgba(232,184,75,.45)}
-  #nv-aviso-op .nv-ao-caja b{display:block;font-family:var(--display,sans-serif);
-    font-weight:800;font-size:17px;color:#eaecef;margin-bottom:11px}
-  #nv-aviso-op .nv-ao-caja p{font-family:var(--sans,sans-serif);font-size:12.5px;
-    color:#8b96a3;line-height:1.6;margin:0 0 14px}
-  #nv-aviso-op .nv-ao-lista{display:flex;gap:7px;justify-content:center;margin-bottom:14px}
-  #nv-aviso-op .nv-ao-lista span{padding:7px 14px;border-radius:9px;
-    font-family:var(--mono,monospace);font-weight:700;font-size:12px;
-    background:rgba(232,184,75,.14);color:var(--gold,#E8B84B);
-    border:1px solid rgba(232,184,75,.4)}
-  #nv-aviso-op .nv-ao-nota{font-size:11.5px !important;color:#7d8794 !important;
-    padding:11px;border-radius:10px;background:rgba(255,255,255,.03)}
-  #nv-aviso-op .nv-ao-b{width:100%;min-height:46px;border-radius:12px;cursor:pointer;border:none;
-    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
-    font-family:var(--display,sans-serif);font-weight:800;font-size:14px;
-    box-shadow:0 4px 0 #8f6a1a}
 
   /* ── Selector ── */
   #nv-picker{position:fixed;z-index:9790;min-width:232px;max-height:340px;overflow:hidden;
