@@ -566,9 +566,9 @@ const SERVICIOS = [
   },
   {
     id: 'tercero',
-    nombre: 'Order Flow Footprint',
-    lema: 'Dónde entrar, con precisión',
-    desc: 'Abre cada vela y muestra cuánto se compró y cuánto se vendió en cada nivel de precio. Marca las zonas exactas donde entró el dinero grande.',
+    nombre: 'Smart Levels',
+    lema: 'Dónde comprar y dónde vender',
+    desc: 'Analiza la estructura del mercado y dibuja los niveles exactos de entrada y salida sobre la gráfica, explicándole por qué en cada momento.',
     img: 'assets/img/serv-tres.webp',
     listo: true
   }
@@ -672,9 +672,9 @@ async function portada() {
     }
     if (sv.id === 'tercero') {
       try {
-        const fp = await import('./footprint.js?v=126');
-        fp.abrirFootprint();
-      } catch (er) { console.warn('[CCO] footprint:', er); }
+        const sl = await import('./niveles.js?v=126');
+        sl.abrirNiveles();
+      } catch (er) { console.warn('[CCO] niveles:', er); }
     }
 
   });
