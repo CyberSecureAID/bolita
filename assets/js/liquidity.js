@@ -566,11 +566,11 @@ const SERVICIOS = [
   },
   {
     id: 'tercero',
-    nombre: 'Próximamente',
-    lema: 'En desarrollo',
-    desc: 'La tercera herramienta del paquete. Muy pronto.',
+    nombre: 'Order Flow Footprint',
+    lema: 'Dónde entrar, con precisión',
+    desc: 'Abre cada vela y muestra cuánto se compró y cuánto se vendió en cada nivel de precio. Marca las zonas exactas donde entró el dinero grande.',
     img: 'assets/img/serv-tres.webp',
-    listo: false
+    listo: true
   }
 ];
 
@@ -669,6 +669,12 @@ async function portada() {
         mu.abrirMuros();
       } catch (er) { console.warn('[CCO] radar:', er); }
       return;
+    }
+    if (sv.id === 'tercero') {
+      try {
+        const fp = await import('./footprint.js?v=126');
+        fp.abrirFootprint();
+      } catch (er) { console.warn('[CCO] footprint:', er); }
     }
 
   });
