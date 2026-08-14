@@ -59,7 +59,38 @@ const PARES = [
   { id: 'LTC',   s: 'LTCUSDT',   n: 'Litecoin',   cg: 'litecoin' },
   { id: 'PEPE',  s: 'PEPEUSDT',  n: 'Pepe',       cg: 'pepe' },
   { id: 'WIF',   s: 'WIFUSDT',   n: 'dogwifhat',  cg: 'dogwifcoin' },
-  { id: 'ATOM',  s: 'ATOMUSDT',  n: 'Cosmos',     cg: 'cosmos' }
+  { id: 'ATOM',  s: 'ATOMUSDT',  n: 'Cosmos',     cg: 'cosmos' },
+  { id: 'AAVE',  s: 'AAVEUSDT',  n: 'Aave',       cg: 'aave' },
+  { id: 'UNI',   s: 'UNIUSDT',   n: 'Uniswap',    cg: 'uniswap' },
+  { id: 'INJ',   s: 'INJUSDT',   n: 'Injective',  cg: 'injective-protocol' },
+  { id: 'APT',   s: 'APTUSDT',   n: 'Aptos',      cg: 'aptos' },
+  { id: 'ARB',   s: 'ARBUSDT',   n: 'Arbitrum',   cg: 'arbitrum' },
+  { id: 'OP',    s: 'OPUSDT',    n: 'Optimism',   cg: 'optimism' },
+  { id: 'FIL',   s: 'FILUSDT',   n: 'Filecoin',   cg: 'filecoin' },
+  { id: 'TIA',   s: 'TIAUSDT',   n: 'Celestia',   cg: 'celestia' },
+  { id: 'SEI',   s: 'SEIUSDT',   n: 'Sei',        cg: 'sei-network' },
+  { id: 'RENDER',s: 'RENDERUSDT',n: 'Render',     cg: 'render-token' },
+  { id: 'TON',   s: 'TONUSDT',   n: 'Toncoin',    cg: 'the-open-network' },
+  { id: 'ICP',   s: 'ICPUSDT',   n: 'Internet Computer', cg: 'internet-computer' },
+  { id: 'ETC',   s: 'ETCUSDT',   n: 'Ethereum Classic',  cg: 'ethereum-classic' },
+  { id: 'BCH',   s: 'BCHUSDT',   n: 'Bitcoin Cash', cg: 'bitcoin-cash' },
+  { id: 'XLM',   s: 'XLMUSDT',   n: 'Stellar',    cg: 'stellar' },
+  { id: 'HBAR',  s: 'HBARUSDT',  n: 'Hedera',     cg: 'hedera-hashgraph' },
+  { id: 'ALGO',  s: 'ALGOUSDT',  n: 'Algorand',   cg: 'algorand' },
+  { id: 'VET',   s: 'VETUSDT',   n: 'VeChain',    cg: 'vechain' },
+  { id: 'FET',   s: 'FETUSDT',   n: 'Artificial Superintelligence', cg: 'fetch-ai' },
+  { id: 'GALA',  s: 'GALAUSDT',  n: 'Gala',       cg: 'gala' },
+  { id: 'SAND',  s: 'SANDUSDT',  n: 'The Sandbox', cg: 'the-sandbox' },
+  { id: 'MANA',  s: 'MANAUSDT',  n: 'Decentraland', cg: 'decentraland' },
+  { id: 'BONK',  s: 'BONKUSDT',  n: 'Bonk',       cg: 'bonk' },
+  { id: 'FLOKI', s: 'FLOKIUSDT', n: 'Floki',      cg: 'floki' },
+  { id: 'JUP',   s: 'JUPUSDT',   n: 'Jupiter',    cg: 'jupiter-exchange-solana' },
+  { id: 'ENA',   s: 'ENAUSDT',   n: 'Ethena',     cg: 'ethena' },
+  { id: 'ORDI',  s: 'ORDIUSDT',  n: 'ORDI',       cg: 'ordinals' },
+  { id: 'STX',   s: 'STXUSDT',   n: 'Stacks',     cg: 'blockstack' },
+  { id: 'EUR',   s: 'EURUSDT',   n: 'Euro',       cg: '', grupo: 'divisa' },
+  { id: 'GBP',   s: 'GBPUSDT',   n: 'Libra',      cg: '', grupo: 'divisa' },
+  { id: 'PAXG',  s: 'PAXGUSDT',  n: 'Oro (PAXG)', cg: 'pax-gold', grupo: 'materia' }
 ];
 
 const TFS = [
@@ -1361,9 +1392,7 @@ export async function abrirNiveles() {
 
         <div class="nv-estado" id="nv-estado"></div>
 
-        <!-- Las cápsulas del asistente viven en la barra, no sobre
-             la gráfica: así no tapan nada y siempre están a mano. -->
-        <div class="nv-caps" id="nv-caps"></div>
+
 
         <div class="nv-der">
           <button class="nv-ico" id="nv-foto" title="Compartir">
@@ -1376,9 +1405,13 @@ export async function abrirNiveles() {
         </div>
       </header>
 
-      <!-- El veredicto de un vistazo: para quien no sabe leer
-           una gráfica, esto es lo único que necesita mirar. -->
-      <div class="nv-veredicto" id="nv-veredicto"></div>
+      <!-- La banda de lecturas: aquí viven las píldoras 1, 2 y 3.
+           El veredicto y el título salían aquí y eran redundantes:
+           las propias tarjetas ya lo dicen. -->
+      <div class="nv-veredicto" id="nv-veredicto">
+        <div class="nv-caps" id="nv-caps"></div>
+        <div class="nv-meta" id="nv-meta"></div>
+      </div>
 
       <div class="nv-graf" id="nv-graf">
         <canvas class="nv-cv" id="nv-cv"></canvas>
@@ -1485,32 +1518,19 @@ function pintarEstado() {
       <span class="nv-precio">${fmt(N.precio)}</span>`;
   }
 
-  /* ══ EL VEREDICTO ══
-     Una línea que resume qué hacer. Para quien no sabe leer una
-     gráfica, esto es lo único que tiene que mirar. */
-  const v = $('nv-veredicto'); if (!v) return;
-  const principal = (N.mensajes || [])[0];
-  if (!principal) { v.innerHTML = ''; return; }
+  /* Solo el horizonte y el número de lecturas: lo demás lo dicen
+     ya las propias tarjetas, y repetirlo era ruido. */
+  const meta = $('nv-meta'); if (!meta) return;
+  const cuantas = (N.mensajes || []).length;
+  if (!cuantas) { meta.innerHTML = ''; return; }
 
-  const mapa = {
-    compra: { cls: 'comprar', txt: 'COMPRAR', ic: '▲' },
-    venta:  { cls: 'vender',  txt: 'VENDER',  ic: '▼' },
-    vigilar:{ cls: 'esperar', txt: 'VIGILAR', ic: '◆' },
-    aviso:  { cls: 'esperar', txt: 'ESPERAR', ic: '✱' },
-    tendencia:{ cls: 'esperar', txt: 'CONTEXTO', ic: '➜' }
-  };
-  const m = mapa[principal.tipo] || mapa.aviso;
-
-  /* El horizonte sale del marco temporal: no se inventa. */
   const horizonte = {
     '15m': 'horas', '1h': 'de 1 a 3 días', '4h': 'de 3 a 10 días', '1d': 'semanas'
   }[_tf] || '';
 
-  v.innerHTML = `
-    <span class="nv-v-tag ${m.cls}">${m.ic} ${m.txt}</span>
-    <span class="nv-v-tx">${esc(T(principal.titulo))}</span>
-    ${horizonte ? `<span class="nv-v-hz">Horizonte: ${horizonte}</span>` : ''}
-    <span class="nv-v-pt">${(N.mensajes || []).length} ${(N.mensajes || []).length === 1 ? 'lectura' : 'lecturas'}</span>`;
+  meta.innerHTML = `
+    ${horizonte ? `<span class="nv-v-hz">${esc(T('Horizonte'))}: ${esc(T(horizonte))}</span>` : ''}
+    <span class="nv-v-pt">${cuantas} ${cuantas === 1 ? esc(T('lectura')) : esc(T('lecturas'))}</span>`;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1941,9 +1961,20 @@ function dibujar() {
       else if (m.iAncla != null) xFin = idxVis(m.iAncla);
       xFin = Math.max(30, Math.min(x1 - 20, xFin));
 
-      // El origen: arriba, donde vive la cápsula del asistente
-      const xIni = Math.min(x1 - 40, x1 * 0.5 + N.senalado * 40);
-      const yIni = 8;
+      /* [CORREGIDO] La soguita salía de un punto inventado y se
+         cortaba con la banda. Ahora arranca de la píldora real:
+         se mide dónde está y se traza desde ahí. */
+      let xIni = x1 * 0.5, yIni = 2;
+      try {
+        const pil = document.querySelector(`.nv-cap[data-nvm="${N.senalado}"] .nv-cap-b`);
+        const zonaG = $('nv-graf');
+        if (pil && zonaG) {
+          const rp = pil.getBoundingClientRect();
+          const rg = zonaG.getBoundingClientRect();
+          xIni = Math.max(10, Math.min(x1 - 10, rp.left + rp.width / 2 - rg.left));
+          yIni = Math.max(0, rp.bottom - rg.top);   // justo bajo la píldora
+        }
+      } catch (_) {}
 
       // La cuerda con pandeo
       g.strokeStyle = col;
@@ -2116,7 +2147,7 @@ function burbujas() {
                 tendencia: 'TENDENCIA', contexto: 'CONTEXTO' };
 
   caja.innerHTML = `${N.mensajes.map((m, idx) => `
-    <div class="nv-cap t-${m.tipo} ${m.esPlan ? 'plan' : ''}" data-nvm="${idx}">
+    <div class="nv-cap t-${m.tipo} ${m.esPlan ? 'plan' : ''} avisa" data-nvm="${idx}">
       <button class="nv-cap-b" type="button">
         <span class="nv-num">${idx + 1}</span>
         <img class="nv-cap-ava" src="assets/img/jesus-avatar.webp" alt="">
@@ -2160,6 +2191,7 @@ function burbujas() {
 
     b.onclick = (e) => {
       e.stopPropagation();
+      el.classList.remove('avisa');      // ya la miró: deja de avisar
       const ab = el.classList.contains('abierto');
       caja.querySelectorAll('.nv-cap').forEach((x) => x.classList.remove('abierto'));
       if (!ab) { el.classList.add('abierto'); escribir(el.querySelector('[data-escribir]')); }
@@ -2188,8 +2220,12 @@ function burbujas() {
     };
   });
 
-  const uno = caja.querySelector('.nv-cap');
-  if (uno) { uno.classList.add('abierto'); escribir(uno.querySelector('[data-escribir]')); }
+  /* En escritorio se abre la principal; en móvil no, porque taparía
+     la gráfica. Ahí solo parpadea para avisar de que hay algo. */
+  if (window.innerWidth > 760) {
+    const uno = caja.querySelector('.nv-cap');
+    if (uno) { uno.classList.add('abierto'); escribir(uno.querySelector('[data-escribir]')); }
+  }
 }
 
 /** Traza el Fibonacci delante del usuario, como la tendencia. */
@@ -2379,12 +2415,17 @@ function menuPares() {
   m.id = 'nv-picker';
   m.innerHTML = `<input class="nv-buscar" id="nv-buscar" placeholder="Buscar…" autocomplete="off">
     <div class="nv-lista-mon">
-      ${PARES.map((p) => `
-        <button class="nv-op ${p.id === _par ? 'on' : ''}" data-np="${p.id}"
-                data-busca="${esc((p.id + ' ' + p.n).toLowerCase())}">
-          <i class="nv-logo" data-cg="${esc(p.cg)}"></i>
-          <b>${esc(p.id)}</b><span>${esc(p.n)}</span>
-        </button>`).join('')}
+      ${['cripto', 'divisa', 'materia'].map((gr) => {
+        const lista = PARES.filter((p) => (p.grupo || 'cripto') === gr);
+        if (!lista.length) return '';
+        const tit = { cripto: 'Criptomonedas', divisa: 'Divisas', materia: 'Materias primas' }[gr];
+        return `<div class="nv-grupo">${esc(T(tit))}</div>` + lista.map((p) => `
+          <button class="nv-op ${p.id === _par ? 'on' : ''}" data-np="${p.id}"
+                  data-busca="${esc((p.id + ' ' + p.n).toLowerCase())}">
+            <i class="nv-logo" data-cg="${esc(p.cg)}"></i>
+            <b>${esc(p.id)}</b><span>${esc(p.n)}</span>
+          </button>`).join('');
+      }).join('')}
     </div>`;
   document.body.appendChild(m);
   const r = anc.getBoundingClientRect();
@@ -2398,6 +2439,15 @@ function menuPares() {
     const q = e.target.value.toLowerCase().trim();
     m.querySelectorAll('[data-np]').forEach((x) => {
       x.style.display = !q || x.dataset.busca.includes(q) ? '' : 'none';
+    });
+    // Ocultar los títulos de grupos que se quedan sin resultados
+    m.querySelectorAll('.nv-grupo').forEach((g) => {
+      let hay = false, sig = g.nextElementSibling;
+      while (sig && !sig.classList.contains('nv-grupo')) {
+        if (sig.style.display !== 'none') { hay = true; break; }
+        sig = sig.nextElementSibling;
+      }
+      g.style.display = hay ? '' : 'none';
     });
   };
   setTimeout(() => { try { $('nv-buscar').focus(); } catch (_) {} }, 60);
@@ -2656,9 +2706,10 @@ function estilos() {
   #nv-overlay .nv-cf-s{display:none}
 
   /* ── La barra de veredicto ── */
-  #nv-overlay .nv-veredicto{display:flex;align-items:center;gap:11px;flex:0 0 auto;flex-wrap:wrap;
-    padding:9px 14px;background:#0d1219;border-bottom:1px solid #1a1f28}
-  #nv-overlay .nv-veredicto:empty{display:none}
+  #nv-overlay .nv-veredicto{display:flex;align-items:center;gap:10px;flex:0 0 auto;
+    padding:8px 12px;background:#0d1219;border-bottom:1px solid #1a1f28;
+    position:relative;z-index:28;overflow:visible;min-height:44px}
+  #nv-overlay .nv-meta{margin-left:auto;display:flex;gap:7px;flex:0 0 auto}
   #nv-overlay .nv-v-tag{font-family:var(--mono,monospace);font-size:11px;font-weight:800;
     letter-spacing:1.2px;padding:5px 12px;border-radius:8px}
   #nv-overlay .nv-v-tag.comprar{background:linear-gradient(180deg,#4dffa0,#1fc96e);color:#04210f}
@@ -2675,8 +2726,8 @@ function estilos() {
   #nv-overlay .nv-cv{display:block}
 
   /* El logo: se tiene que ver que somos nosotros */
-  #nv-overlay .nv-marca{position:absolute;left:16px;bottom:40px;height:34px;width:auto;
-    opacity:.82;pointer-events:none;filter:drop-shadow(0 2px 9px rgba(0,0,0,.95))}
+  #nv-overlay .nv-marca{position:absolute;left:16px;bottom:40px;height:42px;width:auto;
+    opacity:.85;pointer-events:none;filter:drop-shadow(0 2px 9px rgba(0,0,0,.95))}
 
   #nv-overlay .nv-esperando{position:absolute;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:12px;text-align:center;padding:30px;
@@ -2705,6 +2756,11 @@ function estilos() {
     background:rgba(13,17,23,.95);border:1.5px solid #3a424c;
     box-shadow:0 3px 14px rgba(0,0,0,.6);transition:transform .15s}
   #nv-overlay .nv-cap-b:hover{transform:scale(1.04)}
+  /* Parpadeo discreto: "tengo algo que decirte" */
+  #nv-overlay .nv-cap.avisa .nv-cap-b{animation:nvAvisa 2.6s ease-in-out infinite}
+  @keyframes nvAvisa{0%,100%{box-shadow:0 3px 14px rgba(0,0,0,.6)}
+                     50%{box-shadow:0 3px 14px rgba(0,0,0,.6),0 0 0 4px rgba(232,184,75,.16)}}
+  #nv-overlay .nv-cap.abierto .nv-cap-b{animation:none}
   #nv-overlay .nv-num{width:19px;height:19px;flex:0 0 auto;border-radius:6px;
     display:grid;place-items:center;font-family:var(--display,sans-serif);
     font-weight:800;font-size:11px;background:rgba(255,255,255,.1);color:#b7bdc6}
@@ -2805,6 +2861,9 @@ function estilos() {
     font-family:var(--sans,sans-serif);font-size:13px;min-height:38px}
   #nv-picker .nv-buscar:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
   #nv-picker .nv-lista-mon{overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+  #nv-picker .nv-grupo{font-family:var(--mono,monospace);font-size:8.5px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:1.3px;padding:9px 11px 4px;position:sticky;top:0;
+    background:linear-gradient(180deg,#1b2027,#1b2027 70%,transparent)}
   #nv-picker .nv-op{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;
     border-radius:9px;background:transparent;border:none;color:#b7bdc6;cursor:pointer;
     text-align:left;min-height:42px}
@@ -2892,9 +2951,17 @@ function estilos() {
     #nv-overlay .nv-cab::-webkit-scrollbar{display:none}
     #nv-overlay .nv-estado{flex:0 0 auto}
     #nv-overlay .nv-pill{padding:3px 8px;font-size:9px}
-    #nv-overlay .nv-caps{flex:0 0 auto}
     #nv-overlay .nv-der{flex:0 0 auto;margin-left:auto}
     #nv-overlay .nv-ico{width:32px;height:32px;min-height:32px}
+    /* [CORREGIDO] Las píldoras se cortaban. Ahora tienen su banda
+       propia con desplazamiento lateral. */
+    #nv-overlay .nv-veredicto{padding:7px 10px;min-height:40px;gap:7px}
+    #nv-overlay .nv-caps{flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;
+      padding-bottom:1px}
+    #nv-overlay .nv-caps::-webkit-scrollbar{display:none}
+    #nv-overlay .nv-meta{flex:0 0 auto}
+    #nv-overlay .nv-v-hz{display:none}
+    #nv-overlay .nv-marca{height:28px;left:10px;bottom:34px}
     #nv-overlay .nv-chip-tx{font-size:9px}
     #nv-overlay .nv-chip-ava{width:20px;height:20px}
     #nv-overlay .nv-pm-quien span{font-size:12.5px}
