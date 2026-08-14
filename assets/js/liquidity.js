@@ -108,6 +108,8 @@ const TFS = [
   { id: '1w',  n: '1 semana' }
 ];
 
+let _od = null;              // módulo de órdenes
+let _zonasOd = [];           // dónde pulsar para cancelar
 let _par = 'BNB';
 let _tf = '1h';
 
@@ -1086,8 +1088,12 @@ function dibujar() {
           return v.length ? v[v.length - 1].c : 0;
         },
         par: () => _par,
-        simbolo: () => (PARES.find((p) => p.id === _par) || {}).s || ''
+        simbolo: () => (PARES.find((p) => p.id === _par) || {}).s || '',
+        repintar: () => dibujar()
       });
+      _od = od;
+      od.clicCancelar(cv, () => _zonasOd, () => dibujar());
+      dibujar();
     }).catch(() => {});
   }
 
@@ -1104,6 +1110,14 @@ function dibujar() {
   const Y = (p) => y1 - y1 * ((p - yMin) / Math.max(1e-12, yMax - yMin));
   /* Se guarda para que el módulo de órdenes traduzca altura a precio. */
   V._geo = { pMin: yMin, pMax: yMax, y1 };
+
+  /* Tus órdenes y alertas, con el estilo común de las tres. */
+  if (_od) {
+    _zonasOd = _od.pintar(g, {
+      x1, Y, pMin: yMin, pMax: yMax,
+      simbolo: (PARES.find((p) => p.id === _par) || {}).s || ''
+    });
+  }
 
   g.fillStyle = '#0a0d12';
   g.fillRect(0, 0, W, H);
@@ -1800,6 +1814,8 @@ function menuPares() {
   setTimeout(ponerLogosLq, 40);
   abrirMenu($('lq-sel-par'), html, (v) => {
     _par = v;
+    /* Una ficha de otra moneda no puede quedarse abierta. */
+    try { if (_od && _od.cerrarFichas) _od.cerrarFichas(); } catch (_) {}
     const b = $('lq-sel-par').querySelector('b');
     if (b) b.textContent = v;
     V.dibujos = [];          // los dibujos son de la moneda anterior

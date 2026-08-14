@@ -1310,6 +1310,8 @@ function menuPares() {
 
   m.querySelectorAll('[data-mv]').forEach((b) => b.onclick = () => {
     _par = b.dataset.mv;
+    /* Una ficha de otra moneda no puede quedarse abierta. */
+    try { if (_od && _od.cerrarFichas) _od.cerrarFichas(); } catch (_) {}
     const bb = anc.querySelector('b'); if (bb) bb.textContent = _par;
     const lg = anc.querySelector('.mu-logo');
     if (lg) {

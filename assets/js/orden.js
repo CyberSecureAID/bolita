@@ -30,6 +30,38 @@ const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 
 const CLAVE_AVISOS = 'cco-ordenes-aviso';
 
+/* ══════════════════════════════════════════════════════════════
+   EQUIVALENCIAS DE SÍMBOLO
+
+   El gráfico usa los nombres de Binance (BTC, ETH…), pero en BNB
+   Chain algunos tokens se llaman distinto: Bitcoin es BTCB,
+   Ethereum es ETH envuelto, y así.
+
+   Esto es GENÉRICO: una sola tabla para todas las monedas y todas
+   las secciones. No hay nada escrito a medida de ninguna.
+   ══════════════════════════════════════════════════════════════ */
+const EQUIV = {
+  BTC: 'BTCB',        // Bitcoin en BNB Chain es BTCB
+  WBTC: 'BTCB',
+  WETH: 'ETH',
+  WBNB: 'BNB',
+  MATIC: 'MATIC',
+  POL: 'MATIC'
+};
+
+/** Busca la moneda en tokens.js, probando todas las variantes. */
+function buscarMoneda(MONEDAS, simb) {
+  if (!simb) return null;
+  const s = String(simb).toUpperCase();
+  /* 1. Tal cual. 2. Por su equivalente en BNB Chain. 3. Por el
+     campo `simbolo`, que puede no coincidir con la clave. */
+  return MONEDAS[s]
+      || (EQUIV[s] && MONEDAS[EQUIV[s]])
+      || Object.values(MONEDAS).find((m) => String(m.simbolo).toUpperCase() === s)
+      || Object.values(MONEDAS).find((m) => String(m.simbolo).toUpperCase() === EQUIV[s])
+      || null;
+}
+
 let _tr = null;
 try { import('./idioma.js?v=126').then((m) => { _tr = m; }).catch(() => {}); } catch (_) {}
 const T = (t) => { try { return _tr ? _tr.t(t) : t; } catch (_) { return t; } };
@@ -305,7 +337,7 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
       }
 
       const simb = vender ? par : 'USDT';
-      const mon = tk.MONEDAS[simb] || Object.values(tk.MONEDAS).find((m) => m.simbolo === simb);
+      const mon = buscarMoneda(tk.MONEDAS, simb);
       _tokens = { mon, monQuote: tk.MONEDAS.USDT };
 
       if (!cuenta) { sinSaldo(T('Conecta tu wallet para poder operar.')); return; }
@@ -410,7 +442,14 @@ function abrirFicha(cx, cy, cfg, precio, vender) {
     d.classList.toggle('solo-aviso', modo === 'aviso');
     refrescar();
   });
-  $('od-sl-t').onclick = () => d.querySelector('.od-opcional').classList.toggle('abierto');
+  /* [CORREGIDO] En las ventas no hay bloque de stop, así que esta
+     línea lanzaba un error que dejaba la X sin enganchar. Por eso
+     la X funcionaba al comprar y no al vender. */
+  const slT = $('od-sl-t');
+  if (slT) slT.onclick = () => {
+    const c = d.querySelector('.od-opcional');
+    if (c) c.classList.toggle('abierto');
+  };
   /* [CORREGIDO] La X no cerraba porque el clic se paraba antes de
      llegar. Ahora cierra su propia ficha directamente. */
   const cerrarEsta = (ev) => {
@@ -480,7 +519,7 @@ async function ponerOrdenReal({ cfg, precio, cant, vender, sl }) {
   /* Las direcciones salen de `tokens.js`, que ya tiene el mapa de
      las 31 monedas con su dirección y decimales en BNB Chain. */
   const par = cfg.par ? cfg.par() : '';
-  const base = tk.MONEDAS[par] || Object.values(tk.MONEDAS).find((m) => m.simbolo === par);
+  const base = buscarMoneda(tk.MONEDAS, par);
   const quote = tk.MONEDAS.USDT;
 
   if (!base) {
@@ -553,6 +592,29 @@ export function quitarAviso(id) {
   } catch (_) {}
 }
 export const avisos = () => leerAvisos();
+
+/** ¿Se puede operar esta moneda desde el gráfico? */
+export async function sePuedeOperar(simb) {
+  try {
+    const tk = await import('./tokens.js?v=126');
+    return !!buscarMoneda(tk.MONEDAS, simb);
+  } catch (_) { return false; }
+}
+
+/** Todos los símbolos operables, con sus equivalencias. */
+export async function simbolosOperables() {
+  try {
+    const tk = await import('./tokens.js?v=126');
+    const out = new Set();
+    Object.values(tk.MONEDAS).forEach((m) => out.add(String(m.simbolo).toUpperCase()));
+    Object.keys(tk.MONEDAS).forEach((k) => out.add(k.toUpperCase()));
+    /* Los alias también cuentan: si BTCB está, BTC se puede operar. */
+    Object.entries(EQUIV).forEach(([a, b]) => {
+      if (out.has(b.toUpperCase())) out.add(a.toUpperCase());
+    });
+    return out;
+  } catch (_) { return new Set(); }
+}
 
 let _vigila = null;
 function arrancarVigilante() {
@@ -816,10 +878,14 @@ function estilos() {
   /* La ficha */
   .od-ficha{width:min(330px, calc(100vw - 20px));max-height:calc(100vh - 24px);
     overflow-y:auto;padding:15px}
-  .od-x{position:absolute;top:11px;right:11px;width:28px;height:28px;border-radius:8px;
-    display:grid;place-items:center;padding:0;cursor:pointer;font-size:12px;
-    background:rgba(255,255,255,.06);border:1px solid #3a424c;color:#8b96a3}
-  .od-cab{display:flex;align-items:center;gap:10px;margin-bottom:6px;padding-right:32px}
+  /* [CORREGIDO] En las ventas el porcentaje se montaba encima de la
+     X y se comía el clic. Ahora la X va por encima de todo y el
+     porcentaje deja su sitio libre. */
+  .od-x{position:absolute;top:11px;right:11px;width:32px;height:32px;border-radius:9px;
+    display:grid;place-items:center;padding:0;cursor:pointer;font-size:13px;z-index:20;
+    background:rgba(255,255,255,.08);border:1px solid #3a424c;color:#b7bdc6}
+  .od-x:hover{background:rgba(255,255,255,.14);color:#eaecef}
+  .od-cab{display:flex;align-items:center;gap:10px;margin-bottom:6px;padding-right:44px}
   .od-ic{font-size:17px}
   .od-ficha.comprar .od-ic{color:#2ee86a}
   .od-ficha.vender .od-ic{color:#f6465d}
@@ -828,7 +894,7 @@ function estilos() {
   .od-tit span{display:block;font-family:var(--mono,monospace);font-size:13px;
     color:var(--gold,#E8B84B);font-weight:700;margin-top:1px}
   /* El porcentaje: el dato que decide, bien visible */
-  .od-pct-grande{margin-left:auto;text-align:right;flex:0 0 auto}
+  .od-pct-grande{margin-left:auto;text-align:right;flex:0 0 auto;margin-top:22px}
   .od-pct-grande b{display:block;font-family:var(--display,sans-serif);font-weight:800;
     font-size:25px;line-height:1;color:#2ee86a !important}
   .od-pct-grande span{display:block;font-family:var(--sans,sans-serif);font-size:10px;
