@@ -791,85 +791,6 @@ function detectarDobles(velas, piv, precio) {
    ══════════════════════════════════════════════════════════════ */
 
 /* ══════════════════════════════════════════════════════════════
-   DIVERGENCIA INSTITUCIONAL
-
-   Binance publica, por vela, cómo están posicionados dos grupos:
-
-     · Los traders TOP  — las cuentas grandes de la plataforma
-     · Todas las cuentas — la masa
-
-   Por separado son dos porcentajes. La resta es lo que importa:
-   cuando los grandes están comprando y la masa vendiendo (o al
-   revés), están en lados opuestos del mercado.
-
-   Y solo uno de los dos suele tener razón.
-
-   CryptoQuant cobra por datos de este tipo. Aquí salen de la API
-   pública de Binance, así que son reales y verificables: cualquiera
-   puede consultar el mismo endpoint.
-   ══════════════════════════════════════════════════════════════ */
-const FAPI = 'https://fapi.binance.com';
-
-async function traerPosicionamiento(simbolo, tf) {
-  /* Los periodos que admite el endpoint. Se elige el más cercano
-     al marco temporal que está mirando el usuario. */
-  const periodo = { '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d' }[tf] || '1h';
-
-  const pedir = async (ruta) => {
-    const r = await fetch(`${FAPI}/futures/data/${ruta}?symbol=${simbolo}&period=${periodo}&limit=200`);
-    if (!r.ok) throw new Error('sin datos de posicionamiento');
-    return r.json();
-  };
-
-  const [top, masa] = await Promise.all([
-    pedir('topLongShortPositionRatio').catch(() => []),
-    pedir('globalLongShortAccountRatio').catch(() => [])
-  ]);
-  if (!top.length || !masa.length) return null;
-
-  /* Se emparejan por marca de tiempo: cada punto tiene los dos
-     porcentajes del mismo momento. */
-  const porT = new Map();
-  masa.forEach((m) => porT.set(Number(m.timestamp), Number(m.longAccount) * 100));
-
-  const puntos = [];
-  top.forEach((t) => {
-    const ts = Number(t.timestamp);
-    const pMasa = porT.get(ts);
-    if (pMasa == null) return;
-    const pTop = Number(t.longAccount) * 100;
-    puntos.push({
-      t: ts,
-      top: pTop,
-      masa: pMasa,
-      brecha: pTop - pMasa        // el dato que importa
-    });
-  });
-  if (puntos.length < 10) return null;
-
-  const ult = puntos[puntos.length - 1];
-  const brechas = puntos.map((x) => x.brecha);
-  const media = brechas.reduce((a, b) => a + b, 0) / brechas.length;
-  const desv = Math.sqrt(brechas.reduce((a, b) => a + Math.pow(b - media, 2), 0) / brechas.length);
-
-  /* Cuántas desviaciones se aparta la brecha actual de lo normal.
-     Por encima de 1,5 ya es una divergencia que llama la atención. */
-  const z = desv > 0 ? (ult.brecha - media) / desv : 0;
-
-  /* La dirección: quién está comprando cuando el otro vende. */
-  let lectura = 'neutro';
-  if (ult.brecha > 8 && z > 1) lectura = 'grandes-compran';
-  else if (ult.brecha < -8 && z < -1) lectura = 'grandes-venden';
-
-  return {
-    puntos, media, desv, z,
-    top: ult.top, masa: ult.masa, brecha: ult.brecha,
-    lectura,
-    extremo: Math.abs(z) > 1.5
-  };
-}
-
-/* ══════════════════════════════════════════════════════════════
    9. ATR — la volatilidad real
 
    El recorrido medio de una vela. Sirve para poner el stop donde
@@ -1187,46 +1108,6 @@ function analizar() {
       });
     }
   });
-
-  /* ══ DIVERGENCIA INSTITUCIONAL ══
-     Solo se habla de ella cuando es extrema: si los grandes y la
-     masa están de acuerdo, no hay nada que contar. */
-  if (N.pos && N.pos.extremo && N.pos.lectura !== 'neutro') {
-    const P = N.pos;
-    const compran = P.lectura === 'grandes-compran';
-    msgs.push({
-      tipo: compran ? 'compra' : 'venta', p: N.precio, prioridad: 9,
-      titulo: elegir([
-        compran ? 'El dinero grande está comprando' : 'El dinero grande está vendiendo',
-        'Divergencia institucional',
-        compran ? 'Los grandes van largos, la masa corta' : 'Los grandes van cortos, la masa larga'
-      ]),
-      txt: elegir([
-        `Los traders grandes de Binance están al ${P.top.toFixed(0)}% en largo, mientras el resto de cuentas está al ${P.masa.toFixed(0)}%. Una brecha de ${Math.abs(P.brecha).toFixed(0)} puntos: están en lados opuestos.`,
-        `Hay ${Math.abs(P.brecha).toFixed(0)} puntos de diferencia entre cómo se posiciona el dinero grande (${P.top.toFixed(0)}% largo) y la masa (${P.masa.toFixed(0)}% largo).`,
-        `El posicionamiento se ha separado: institucional al ${P.top.toFixed(0)}% largo frente al ${P.masa.toFixed(0)}% de las cuentas minoristas.`
-      ]),
-      hacer: compran
-        ? elegir([
-            'Cuando los grandes acumulan y la masa vende, lo rentable históricamente ha sido acompañar a los grandes. Busque entradas largas en los soportes.',
-            'El dinero grande está del lado comprador. Opere a favor de ellos, no de la multitud.',
-            'Divergencia a favor de compras. Espere un retroceso a soporte y entre con la estructura, no a mercado.'
-          ])
-        : elegir([
-            'Cuando los grandes descargan y la masa compra, suele ser la masa la que se equivoca. Cuidado con las entradas largas.',
-            'El dinero grande está del lado vendedor. Reduzca exposición larga o busque cortos en resistencia.',
-            'Divergencia a favor de ventas. No compre contra el posicionamiento institucional.'
-          ]),
-      detalle: [
-        `Traders institucionales: ${P.top.toFixed(1)}% en largo`,
-        `Cuentas minoristas: ${P.masa.toFixed(1)}% en largo`,
-        `Brecha actual: ${P.brecha >= 0 ? '+' : ''}${P.brecha.toFixed(1)} puntos`,
-        `Media histórica de la brecha: ${P.media >= 0 ? '+' : ''}${P.media.toFixed(1)} puntos`,
-        `Desviación actual: ${P.z >= 0 ? '+' : ''}${P.z.toFixed(1)}σ (por encima de 1,5 es extremo)`,
-        `Datos del posicionamiento real de Binance Futures, no de un indicador`
-      ]
-    });
-  }
 
   /* ══ LA LÍNEA DE TENDENCIA ══ */
   if (N.linea) {
@@ -1678,7 +1559,6 @@ export async function abrirNiveles() {
   const prev = $('nv-overlay'); if (prev) prev.remove();
 
   N.velas = []; N.cargando = true; N.error = null;
-  if (N.verPos === undefined) N.verPos = true;   // es lo que nos diferencia
   N.vista = { desde: 0, ancho: window.innerWidth < 760 ? 55 : 90, zoomY: 1, offsetY: 0 };
 
   const d = document.createElement('div');
@@ -1703,10 +1583,6 @@ export async function abrirNiveles() {
         <div class="nv-der">
           <button class="nv-ico" id="nv-foto" title="Compartir">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
-          </button>
-          <!-- Divergencia institucional: se enciende y se apaga -->
-          <button class="nv-ico nv-pos-btn" id="nv-pos" title="Divergencia institucional">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16c3-1 5-6 9-6s6 4 9 3"/><path d="M3 9c3 1 5 5 9 5s6-3 9-2"/></svg>
           </button>
           <button class="nv-ico nv-comof" id="nv-ayuda">
             <span class="nv-cf-tx">Cómo funciona</span><span class="nv-cf-s">?</span>
@@ -1746,11 +1622,6 @@ export async function abrirNiveles() {
   d.querySelector('.nv-bg').onclick = cerrar;
   $('nv-x').onclick = cerrar;
   $('nv-ayuda').onclick = () => ayuda();
-  $('nv-pos').onclick = () => {
-    N.verPos = !N.verPos;
-    $('nv-pos').classList.toggle('on', N.verPos);
-    dibujar();
-  };
   $('nv-foto').onclick = () => guardarImagen();
   $('nv-sel').onclick = (e) => { e.stopPropagation(); menuPares(); };
 
@@ -1794,11 +1665,6 @@ async function recargar() {
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
       N.velas = await traerVelas(par.s, _tf, 300);
-      /* El posicionamiento va aparte: si falla, la herramienta
-         sigue funcionando sin él. */
-      traerPosicionamiento(par.s, _tf)
-        .then((d) => { N.pos = d; dibujar(); })
-        .catch(() => { N.pos = null; });
       /* La semilla se fija por par y hora: así las frases no bailan
          en cada refresco, pero cambian con el tiempo. */
       _semilla = (_par.charCodeAt(0) + new Date().getHours()) * 1.7;
@@ -2142,114 +2008,6 @@ function dibujar() {
       g.fillStyle = L.tipo === 'alcista' ? '#04210f' : '#2a0509';
       g.textAlign = 'left';
       g.fillText(et, xE + 7, yE + 11);
-    }
-  }
-
-  /* ══ DIVERGENCIA INSTITUCIONAL ══
-     Una franja bajo el gráfico con dos líneas: los grandes y la
-     masa. Cuando se separan, se sombrea el hueco entre ellas: ahí
-     es donde está la información. */
-  if (N.pos && N.verPos) {
-    const P = N.pos;
-    const hF = Math.min(96, y1 * 0.2);       // alto de la franja
-    const yF = y1 - hF - 4;
-
-    // Fondo
-    g.fillStyle = 'rgba(11,15,22,.92)';
-    g.fillRect(0, yF, x1, hF);
-    g.strokeStyle = 'rgba(255,255,255,.07)';
-    g.lineWidth = 1;
-    g.beginPath(); g.moveTo(0, yF); g.lineTo(x1, yF); g.stroke();
-
-    // La línea del 50%: el equilibrio
-    const y50 = yF + hF / 2;
-    g.strokeStyle = 'rgba(139,150,163,.28)';
-    g.setLineDash([3, 4]);
-    g.beginPath(); g.moveTo(0, y50); g.lineTo(x1, y50); g.stroke();
-    g.setLineDash([]);
-
-    /* Se dibujan solo los puntos que caen en la vista, alineados
-       con las velas por marca de tiempo. */
-    const t0 = vis[0].t, t1 = vis[vis.length - 1].t;
-    const dentro = P.puntos.filter((pt) => pt.t >= t0 - 3600000 && pt.t <= t1 + 3600000);
-    if (dentro.length > 1) {
-      const xDe = (t) => {
-        const k = vis.findIndex((v, i) => i === vis.length - 1 || vis[i + 1].t > t);
-        return Math.max(0, Math.min(x1, k * paso + paso / 2));
-      };
-      // 35% a 65% ocupa toda la franja: es donde se mueve el dato
-      const yDe = (p) => yF + hF - ((Math.max(30, Math.min(70, p)) - 30) / 40) * hF;
-
-      /* El hueco entre las dos líneas, sombreado */
-      g.beginPath();
-      dentro.forEach((pt, k) => {
-        const x = xDe(pt.t), y = yDe(pt.top);
-        k === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
-      });
-      for (let k = dentro.length - 1; k >= 0; k--) {
-        g.lineTo(xDe(dentro[k].t), yDe(dentro[k].masa));
-      }
-      g.closePath();
-      g.fillStyle = P.brecha >= 0 ? 'rgba(46,232,106,.16)' : 'rgba(246,70,93,.16)';
-      g.fill();
-
-      // Los grandes, en dorado
-      g.strokeStyle = '#E8B84B';
-      g.lineWidth = 2;
-      g.beginPath();
-      dentro.forEach((pt, k) => {
-        const x = xDe(pt.t), y = yDe(pt.top);
-        k === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
-      });
-      g.stroke();
-
-      // La masa, en gris
-      g.strokeStyle = 'rgba(139,150,163,.75)';
-      g.lineWidth = 1.5;
-      g.setLineDash([4, 3]);
-      g.beginPath();
-      dentro.forEach((pt, k) => {
-        const x = xDe(pt.t), y = yDe(pt.masa);
-        k === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
-      });
-      g.stroke();
-      g.setLineDash([]);
-    }
-
-    /* Las etiquetas: quién está en qué lado, en cifras */
-    g.font = 'bold 9px ui-monospace,monospace';
-    const etG = `INSTITUCIONAL ${P.top.toFixed(0)}% LARGO`;
-    const wG = g.measureText(etG).width + 13;
-    g.fillStyle = '#E8B84B';
-    redondeado(g, 8, yF + 6, wG, 16, 5); g.fill();
-    g.fillStyle = '#2a1c00';
-    g.textAlign = 'left';
-    g.fillText(etG, 15, yF + 17);
-
-    const etM = `MINORISTA ${P.masa.toFixed(0)}% LARGO`;
-    const wM = g.measureText(etM).width + 13;
-    g.fillStyle = 'rgba(60,68,78,.95)';
-    redondeado(g, 8, yF + 26, wM, 16, 5); g.fill();
-    g.strokeStyle = 'rgba(232,184,75,.5)'; g.lineWidth = 1;
-    redondeado(g, 8, yF + 26, wM, 16, 5); g.stroke();
-    g.fillStyle = '#c8cfd8';
-    g.fillText(etM, 15, yF + 37);
-
-    /* Y la brecha, que es el dato de verdad */
-    if (P.extremo) {
-      const col = P.brecha >= 0 ? '#2ee86a' : '#f6465d';
-      const etB = (P.brecha >= 0 ? '+' : '') + P.brecha.toFixed(0) + ' pts';
-      g.font = 'bold 13px ui-monospace,monospace';
-      const wB = g.measureText(etB).width + 18;
-      g.save();
-      g.shadowColor = 'rgba(0,0,0,.7)'; g.shadowBlur = 8;
-      g.fillStyle = col;
-      redondeado(g, x1 - wB - 10, yF + 8, wB, 22, 6); g.fill();
-      g.restore();
-      g.strokeStyle = 'rgba(232,184,75,.85)'; g.lineWidth = 1.3;
-      redondeado(g, x1 - wB - 10, yF + 8, wB, 22, 6); g.stroke();
-      g.fillStyle = P.brecha >= 0 ? '#04210f' : '#2a0509';
-      g.fillText(etB, x1 - wB - 1, yF + 23);
     }
   }
 
@@ -3352,8 +3110,6 @@ function estilos() {
     background:rgba(255,255,255,.05);border:1px solid #2b3139;color:#8b96a3;
     font-family:var(--mono,monospace);font-size:14px;font-weight:700}
   #nv-overlay .nv-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
-  #nv-overlay .nv-pos-btn.on{background:rgba(232,184,75,.18);
-    border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
   #nv-overlay .nv-comof{width:auto;padding:0 14px;border-color:rgba(232,184,75,.4);color:var(--gold,#E8B84B)}
   #nv-overlay .nv-cf-tx{font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;white-space:nowrap}
   #nv-overlay .nv-cf-s{display:none}
@@ -3692,10 +3448,6 @@ function estilos() {
     #nv-overlay .nv-pill{padding:3px 8px;font-size:9px}
     #nv-overlay .nv-der{flex:0 0 auto;margin-left:auto}
     #nv-overlay .nv-ico{width:32px;height:32px;min-height:32px}
-    /* En móvil la barra se llenaba: los iconos secundarios pasan a
-       la banda de lecturas, donde sí hay sitio. */
-    #nv-overlay .nv-pos-btn{order:5;margin-left:0}
-    #nv-overlay .nv-der{gap:5px}
     /* [CORREGIDO] Las píldoras se cortaban. Ahora tienen su banda
        propia con desplazamiento lateral. */
     #nv-overlay .nv-veredicto{padding:7px 10px;min-height:40px;gap:7px}
