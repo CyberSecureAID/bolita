@@ -2959,19 +2959,23 @@ function dibujar() {
     if (!MA.finde) {
       const box = N._panelBox || { x: x1, y: 12, w: 0, h: 0 };
       const prox = (dato, alc) => {
-        if (!dato || dato.falta <= 0) return;
+        if (!dato) return;
         const nv = dato.nivel;
+        if (!isFinite(nv) || nv <= 0) return;
         const col = alc ? '#2ee86a' : '#FF0000';
         const rgb = alc ? '46,232,106' : '255,60,80';
-        const cerca = dato.falta < 0.4;
+        const cruzado = dato.falta <= 0;       // el precio ya cruzó el nivel
+        const cerca = !cruzado && dato.falta < 0.4;  // a punto de gatillar
         // ¿el nivel de disparo está a la vista, o fuera (arriba/abajo)?
         const arriba = nv > pMax, abajo = nv < pMin, fuera = arriba || abajo;
         const yN = arriba ? 11 : abajo ? y1 - 11 : Y(nv);
         // si la línea llegara a la altura del panel, se detiene antes de él
         const chocaPanel = !fuera && yN >= box.y - 2 && yN <= box.y + box.h + 2;
         const xFin = chocaPanel ? Math.max(60, box.x - 6) : x1 - 4;
+        const aClara = cruzado ? .5 : 1;       // los ya cruzados, más tenues
 
         g.save();
+        g.globalAlpha = aClara;
         if (!fuera) {
           // LÍNEA horizontal de disparo, directamente sobre las velas
           g.strokeStyle = `rgba(${rgb},.10)`; g.lineWidth = 7;
@@ -2985,7 +2989,6 @@ function dibujar() {
           g.setLineDash([]);
         } else {
           // el nivel queda fuera de la vista: banda tenue en el borde
-          // (arriba o abajo) para indicar hacia dónde está
           const y0 = arriba ? 0 : y1 - 22;
           const grd = g.createLinearGradient(0, arriba ? 0 : y1, 0, arriba ? 22 : y1 - 22);
           grd.addColorStop(0, `rgba(${rgb},.30)`);
@@ -2994,27 +2997,29 @@ function dibujar() {
         }
         g.restore();
 
-        // TACHUELA: precio + cuánto falta. Doble flecha si el nivel está
-        // fuera de la vista (indica que hay que mirar más arriba/abajo).
+        // TACHUELA: precio + cuánto falta (o "cruzado" si ya pasó). Doble
+        // flecha si el nivel está fuera de la vista.
         const dir = alc ? 'LONG' : 'SHORT';
         const fl = fuera ? (arriba ? '▲▲ ' : '▼▼ ') : (alc ? '▲ ' : '▼ ');
-        const dist = cerca ? '¡a punto!' : `falta ${dato.falta.toFixed(1)}%`;
+        const dist = cruzado ? 'cruzado' : (cerca ? '¡a punto!' : `falta ${dato.falta.toFixed(1)}%`);
         const txt = chocaPanel ? `${fl}${dir} · ${dist}` : `${fl}${dir} ${fmt(nv)} · ${dist}`;
+        g.save();
+        g.globalAlpha = aClara;
         g.font = 'bold 9px ui-monospace,monospace';
         const tw = g.measureText(txt).width + 20;
         const th = 19;
         const tX = Math.max(6, xFin - tw);
         const tY = Math.max(2, Math.min(y1 - th - 2, yN - th / 2));
-        g.save();
         g.shadowColor = col; g.shadowBlur = cerca ? 12 : 7;
         g.fillStyle = cerca ? col : (alc ? 'rgba(6,33,15,.97)' : 'rgba(42,5,9,.97)');
         redondeado(g, tX, tY, tw, th, 6); g.fill();
-        g.restore();
+        g.shadowBlur = 0;
         g.strokeStyle = col; g.lineWidth = 1.3;
         redondeado(g, tX, tY, tw, th, 6); g.stroke();
         g.fillStyle = cerca ? '#0b0f16' : (alc ? '#2ee86a' : '#FFD400');
         g.textAlign = 'left';
         g.fillText(txt, tX + 9, tY + th / 2 + 3.2);
+        g.restore();
       };
       prox(MA.panel.long, true);
       prox(MA.panel.short, false);
@@ -3598,10 +3603,7 @@ function menuHerramientas(anchor) {
       guia: 'Faro traza la estructura del mercado sobre el gráfico: soportes y resistencias, la dirección de la tendencia, los límites del rango y las formaciones de doble techo y doble suelo. Ofrece el mapa de las zonas donde el precio suele reaccionar.\n\nCómo interpretarlo: un soporte es un nivel por debajo del precio donde la demanda tiende a frenar las caídas; una resistencia, un nivel por encima donde la oferta tiende a frenar las subidas. Los dobles techos y dobles suelos anticipan agotamiento de la tendencia vigente.\n\nAplicación operativa: apóyese en estos niveles para definir entradas, objetivos y la ubicación del stop de pérdidas. Trátelos como zonas de probabilidad, no de certeza: aportan contexto para la decisión, no una garantía. Puede desactivarlo cuando necesite un gráfico despejado.' },
     { h: 'alertas', on: !!N.alertas, nombre: 'Alertas', tag: (N.alertas && N.alertaPar) ? N.alertaPar : _par, ico: IC.alertas, accion: true,
       desc: 'notificaciones',
-      guia: 'Las Alertas emiten una notificación con sonido cuando se produce el evento que usted defina, de modo que no necesite mantener la vista sobre el gráfico de forma continua.\n\nCómo configurarlas: seleccione Marea para recibir aviso en el instante en que se dispare una señal LONG o SHORT, o Faro para fijar una alerta sobre un precio concreto directamente en el gráfico. La alerta queda asociada al par que esté operando.\n\nConsideración importante: al ejecutarse en el navegador, las notificaciones se entregan mientras la página permanezca abierta, incluso en segundo plano. Manténgala activa para no perder avisos.' },
-    { h: 'limpia', on: !!N.limpia, nombre: 'Gráfica limpia', tag: 'quitar todo', ico: IC.limpia, accion: false,
-      desc: 'quitar todo',
-      guia: 'Gráfica limpia desactiva de forma simultánea todos los indicadores y deja únicamente las velas y el precio.\n\nCuándo usarla: cuando desee analizar la acción del precio sin ninguna capa superpuesta, con una lectura neutra del gráfico. Vuelva a activarla para restaurar la configuración anterior de indicadores.\n\nUtilidad: resulta práctica para despejar el gráfico durante un análisis puntual sin perder los ajustes que tenía activos.' }
+      guia: 'Las Alertas emiten una notificación con sonido cuando se produce el evento que usted defina, de modo que no necesite mantener la vista sobre el gráfico de forma continua.\n\nCómo configurarlas: seleccione Marea para recibir aviso en el instante en que se dispare una señal LONG o SHORT, o Faro para fijar una alerta sobre un precio concreto directamente en el gráfico. La alerta queda asociada al par que esté operando.\n\nConsideración importante: al ejecutarse en el navegador, las notificaciones se entregan mientras la página permanezca abierta, incluso en segundo plano. Manténgala activa para no perder avisos.' }
   ];
 
   const items = HERRAS.map((t) => `
@@ -3625,7 +3627,12 @@ function menuHerramientas(anchor) {
     <div class="nv-ind-card" role="dialog" aria-modal="true">
       <div class="nv-ind-head">
         <h3>Indicators</h3>
-        <button class="nv-ind-x" aria-label="${esc(T('Cerrar'))}">✕</button>
+        <div class="nv-ind-acc">
+          <button class="nv-ind-limpia ${N.limpia ? 'on' : ''}" id="nv-ind-limpia" type="button" title="${esc(T('Gráfica limpia'))}" aria-label="${esc(T('Gráfica limpia'))}">
+            ${IC.limpia}<span>${esc(T('Limpiar'))}</span>
+          </button>
+          <button class="nv-ind-x" aria-label="${esc(T('Cerrar'))}">✕</button>
+        </div>
       </div>
       <div class="nv-ind-search">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
@@ -3640,6 +3647,14 @@ function menuHerramientas(anchor) {
   const cerrar = () => m.remove();
   m.querySelector('.nv-ind-bg').onclick = cerrar;
   m.querySelector('.nv-ind-x').onclick = cerrar;
+
+  // Botón compacto "Gráfica limpia" (arriba): apaga/enciende todo
+  const btnLimpia = m.querySelector('#nv-ind-limpia');
+  if (btnLimpia) btnLimpia.onclick = () => {
+    N.limpia = !N.limpia;
+    btnLimpia.classList.toggle('on', N.limpia);
+    dibujar(); burbujas();
+  };
 
   // Buscador: filtra la lista en vivo
   const q = m.querySelector('#nv-ind-q');
@@ -4812,6 +4827,15 @@ function estilos() {
   #nv-ind-modal .nv-ind-head{display:flex;align-items:center;justify-content:space-between;
     padding:16px 16px 10px}
   #nv-ind-modal .nv-ind-head h3{margin:0;font-family:var(--display,sans-serif);font-size:18px;font-weight:800;color:#fff}
+  #nv-ind-modal .nv-ind-acc{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  #nv-ind-modal .nv-ind-limpia{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;
+    border-radius:9px;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid #2b3139;color:#aeb6bf;
+    font-family:var(--mono,monospace)}
+  #nv-ind-modal .nv-ind-limpia svg{width:15px;height:15px;display:block}
+  #nv-ind-modal .nv-ind-limpia span{font-size:11px;font-weight:700}
+  #nv-ind-modal .nv-ind-limpia:hover{border-color:var(--gold-soft,#C9A84B);color:#eaecef}
+  #nv-ind-modal .nv-ind-limpia.on{background:rgba(232,184,75,.14);border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
+  @media(max-width:440px){ #nv-ind-modal .nv-ind-limpia span{display:none} #nv-ind-modal .nv-ind-limpia{padding:0;width:30px;justify-content:center} }
   #nv-ind-modal .nv-ind-x{width:30px;height:30px;border-radius:9px;flex:0 0 auto;
     border:1px solid #2b3139;background:rgba(255,255,255,.04);color:#aeb6bf;cursor:pointer;font-size:14px}
   #nv-ind-modal .nv-ind-x:hover{border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
