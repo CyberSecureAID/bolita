@@ -905,8 +905,10 @@ function adxSerie(velas, periodo = 14) {
 }
 
 function esFinde(t) {
-  const d = new Date(t).getUTCDay();
-  return d === 0 || d === 6;   // domingo o sábado (UTC)
+  /* Cripto opera 24/7: no hay pausa de fin de semana. Se deja la función
+     por compatibilidad, pero siempre devuelve false para que nada se pause
+     ni el sábado ni el domingo. */
+  return false;
 }
 
 /* El motor. Recibe las velas y el ATR ya calculado (N.atr). Devuelve
