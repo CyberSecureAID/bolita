@@ -1945,10 +1945,11 @@ export async function abrirNiveles() {
   N.vista = { desde: 0, ancho: window.innerWidth < 760 ? 80 : 130, zoomY: 1, offsetY: 0 };
   N.herr = 'cursor';          // herramienta activa
   N.imant = (N.imant !== false); // imán a las velas (por defecto sí)
+  N.fijar = !!N.fijar;        // mantener la herramienta activa tras dibujar
+  N.cursorTipo = N.cursorTipo || 'cruz';   // cruz | punto | flecha
   N.dib = null;               // dibujo en curso
   N.sel = -1;                 // índice del dibujo seleccionado
-  if (!N.estilo) N.estilo = { color: '#22d3ee', grosor: 2, punteado: false, tam: 4 };
-  if (!N.favs) { try { N.favs = JSON.parse(localStorage.getItem('cco-favs') || '[]'); } catch (_) { N.favs = []; } }
+  if (!N.estilo) N.estilo = { color: '#22d3ee', grosor: 2, punteado: false, tam: 7 };
   cargarDib();                // dibujos guardados de esta moneda
 
   const d = document.createElement('div');
@@ -2005,7 +2006,7 @@ export async function abrirNiveles() {
 
       <div class="nv-graf" id="nv-graf">
         <div class="nv-tools" id="nv-tools">
-          <button class="nv-tool on" data-h="cursor" title="Cursor (cruz)"><svg viewBox="0 0 24 24"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg></button>
+          <button class="nv-tool on nv-tool-fly" data-h="cursor" data-fly="cursores" title="Cursor"><svg viewBox="0 0 24 24"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg><b class="nv-fly-mark"></b></button>
           <button class="nv-tool" data-h="marca" title="Marcador (deja puntos)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="7"/></svg></button>
           <button class="nv-tool nv-tool-fly" data-h="linea" data-fly="lineas" title="Líneas"><svg viewBox="0 0 24 24"><path d="M4 19L20 5"/><circle cx="4" cy="19" r="1.8" fill="currentColor" stroke="none"/><circle cx="20" cy="5" r="1.8" fill="currentColor" stroke="none"/></svg><b class="nv-fly-mark"></b></button>
           <button class="nv-tool" data-h="rect" title="Rectángulo / zona"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1.5"/></svg></button>
@@ -2095,7 +2096,7 @@ async function recargar() {
     if (!$('nv-cv')) { clearInterval(_reloj); return; }
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
-      N.velas = await traerVelas(par.s, _tf, 500);
+      N.velas = await traerVelas(par.s, _tf, 400);
       /* La semilla se fija por par y hora: así las frases no bailan
          en cada refresco, pero cambian con el tiempo. */
       _semilla = (_par.charCodeAt(0) + new Date().getHours()) * 1.7;
@@ -2292,11 +2293,22 @@ function dibujarUno(g, d, x1, y1, sel) {
     g.stroke(); g.shadowBlur = 0;
   } else if (d.tipo === 'marca') {
     if (!A) return;
-    const rr = d.tam || 4;
+    const rr = Math.max(9, d.tam ? d.tam + 4 : 11);
+    g.save();
+    g.shadowColor = `rgba(${rgb},.5)`; g.shadowBlur = 6;
     g.fillStyle = col; g.beginPath(); g.arc(A.x, A.y, rr, 0, 6.283); g.fill();
-    g.strokeStyle = `rgba(${rgb},.5)`; g.lineWidth = 1.4;
-    g.beginPath(); g.arc(A.x, A.y, rr + 4, 0, 6.283); g.stroke();
-    if (sel) { g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.beginPath(); g.arc(A.x, A.y, rr + 7, 0, 6.283); g.stroke(); }
+    g.restore();
+    g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 1.6; g.beginPath(); g.arc(A.x, A.y, rr, 0, 6.283); g.stroke();
+    // número dentro, en color que contraste con el relleno
+    const nn = String(d._n || 1);
+    const cn = parseInt((d.color || '#22d3ee').slice(1), 16);
+    const lum = (0.299 * ((cn >> 16) & 255) + 0.587 * ((cn >> 8) & 255) + 0.114 * (cn & 255)) / 255;
+    g.fillStyle = lum > 0.6 ? '#0b0f16' : '#ffffff';
+    g.font = `800 ${Math.round(rr * 1.05)}px var(--display,sans-serif)`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(nn, A.x, A.y + 0.5);
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    if (sel) { g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.beginPath(); g.arc(A.x, A.y, rr + 4, 0, 6.283); g.stroke(); }
   } else if (d.tipo === 'texto') {
     if (!A) return;
     g.font = 'bold 12px var(--sans,sans-serif)';
@@ -2324,37 +2336,46 @@ function dibujarUno(g, d, x1, y1, sel) {
     if (!A || !B) return;
     const largo = d.tipo === 'poslarga';
     const pe = d.pts[0].p;
-    let pt = d.pts[1].p;
-    // proyección de ejemplo si el arrastre es mínimo (TP 1%, en el sentido)
-    if (Math.abs((pt - pe) / pe) < 0.0015) pt = pe * (largo ? 1.01 : 0.99);
-    const ps = pe - (pt - pe) * 0.5;                         // stop → R:R 2:1
-    const ye = A.y, yt = _geo.Y(pt), ysY = _geo.Y(ps);
+    const pT = (d.pTarget != null) ? d.pTarget : pe * (largo ? 1.01 : 0.99);
+    const pS = (d.pStop != null) ? d.pStop : pe - (pT - pe) * 0.5;
+    const ye = A.y, yt = _geo.Y(pT), ys = _geo.Y(pS);
     const x = Math.min(A.x, B.x), w = Math.abs(B.x - A.x) || 130;
-    g.fillStyle = 'rgba(46,232,106,.14)'; g.fillRect(x, Math.min(ye, yt), w, Math.abs(yt - ye));
-    g.fillStyle = 'rgba(255,59,82,.14)'; g.fillRect(x, Math.min(ye, ysY), w, Math.abs(ysY - ye));
-    [['#2ee86a', yt, 1.6], ['#e6eaef', ye, 1.6], ['#ff3b52', ysY, 1.6]].forEach((r) => {
-      g.strokeStyle = r[0]; g.lineWidth = r[2]; g.beginPath(); g.moveTo(x, r[1]); g.lineTo(x + w, r[1]); g.stroke();
+    // zona de ganancia (entrada→objetivo) y de riesgo (entrada→stop)
+    g.fillStyle = 'rgba(46,232,106,.15)'; g.fillRect(x, Math.min(ye, yt), w, Math.abs(yt - ye));
+    g.fillStyle = 'rgba(255,59,82,.15)'; g.fillRect(x, Math.min(ye, ys), w, Math.abs(ys - ye));
+    // las 3 líneas (objetivo verde, entrada blanca, stop roja) — más gruesas si seleccionado
+    [['#2ee86a', yt], ['#eaecef', ye], ['#ff3b52', ys]].forEach((r) => {
+      g.strokeStyle = r[0]; g.lineWidth = sel ? 2.2 : 1.6; g.beginPath(); g.moveTo(x, r[1]); g.lineTo(x + w, r[1]); g.stroke();
+      if (sel) { g.fillStyle = '#fff'; g.strokeStyle = r[0]; g.lineWidth = 2; g.beginPath(); g.arc(x + w, r[1], 4, 0, 6.283); g.fill(); g.stroke(); }
     });
-    const gPct = ((pt - pe) / pe) * 100, rPct = ((ps - pe) / pe) * 100;
-    const rr = Math.abs(gPct / rPct) || 2;
-    // ── Tarjeta grande con TP / SL bien visibles, pegada al borde derecho ──
-    const cw = 128, ch = 72;
-    let cx = x + w + 8; if (cx + cw > x1 - 4) cx = Math.max(4, x - cw - 8); if (cx < 4) cx = x + 6;
-    let cy = Math.min(ye, yt) - 4; cy = Math.max(4, Math.min(y1 - ch - 4, cy));
-    g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 14;
-    g.fillStyle = 'rgba(13,17,24,.92)'; redondeado(g, cx, cy, cw, ch, 11); g.fill(); g.restore();
-    g.strokeStyle = 'rgba(255,255,255,.12)'; g.lineWidth = 1; redondeado(g, cx, cy, cw, ch, 11); g.stroke();
+    const gPct = ((pT - pe) / pe) * 100, rPct = ((pS - pe) / pe) * 100;
+    const rr = Math.abs(rPct) > 0 ? Math.abs(gPct / rPct) : 0;
+    // ── Tarjeta grande y estética (TP/SL grandes + R:R notable) ──
+    const cw = 168, ch = 96;
+    let cx = x + w + 10; if (cx + cw > x1 - 4) cx = Math.max(4, x - cw - 10); if (cx < 4) cx = Math.min(x1 - cw - 4, x + 8);
+    let cy = (Math.min(yt, ye, ys) + Math.max(yt, ye, ys)) / 2 - ch / 2;
+    cy = Math.max(4, Math.min(y1 - ch - 4, cy));
+    g.save(); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 18;
+    g.fillStyle = 'rgba(13,17,24,.94)'; redondeado(g, cx, cy, cw, ch, 13); g.fill(); g.restore();
+    g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 1; redondeado(g, cx, cy, cw, ch, 13); g.stroke();
     g.textAlign = 'left';
-    g.fillStyle = '#8b95a1'; g.font = 'bold 8px ui-monospace,monospace';
-    g.fillText(`${largo ? 'POSICIÓN LARGA' : 'POSICIÓN CORTA'}`, cx + 11, cy + 14);
-    g.fillStyle = '#2ee86a'; g.font = '800 19px var(--display,sans-serif)';
-    g.fillText(`+${Math.abs(gPct).toFixed(2)}%`, cx + 11, cy + 36);
-    g.fillStyle = '#7d8794'; g.font = '7.5px ui-monospace,monospace'; g.fillText('TAKE PROFIT', cx + 11, cy + 45);
-    g.fillStyle = '#ff5b6e'; g.font = '800 15px var(--display,sans-serif)';
-    g.fillText(`−${Math.abs(rPct).toFixed(2)}%`, cx + 11, cy + 63);
-    g.fillStyle = '#7d8794'; g.font = '7.5px ui-monospace,monospace'; g.textAlign = 'right';
-    g.fillText(`R:R  ${rr.toFixed(1)}`, cx + cw - 10, cy + 63);
-    anclas([{ x: A.x, y: ye }, { x: A.x, y: yt }]);
+    g.fillStyle = largo ? '#2ee86a' : '#ff5b6e'; g.font = 'bold 9px ui-monospace,monospace';
+    g.fillText(largo ? '● POSICIÓN LARGA' : '● POSICIÓN CORTA', cx + 13, cy + 17);
+    // Take profit grande
+    g.fillStyle = '#7d8794'; g.font = '8px ui-monospace,monospace'; g.fillText('TAKE PROFIT', cx + 13, cy + 33);
+    g.fillStyle = '#2ee86a'; g.font = '800 22px var(--display,sans-serif)';
+    g.fillText(`+${Math.abs(gPct).toFixed(2)}%`, cx + 13, cy + 55);
+    // Stop loss grande
+    g.fillStyle = '#7d8794'; g.font = '8px ui-monospace,monospace'; g.fillText('STOP LOSS', cx + 13, cy + 71);
+    g.fillStyle = '#ff5b6e'; g.font = '800 19px var(--display,sans-serif)';
+    g.fillText(`−${Math.abs(rPct).toFixed(2)}%`, cx + 13, cy + 90);
+    // R:R notable, a la derecha
+    g.fillStyle = 'rgba(232,184,75,.14)'; redondeado(g, cx + cw - 58, cy + 44, 48, 40, 9); g.fill();
+    g.fillStyle = '#8b95a1'; g.font = '7px ui-monospace,monospace'; g.textAlign = 'center';
+    g.fillText('R : R', cx + cw - 34, cy + 57);
+    g.fillStyle = 'var(--gold,#E8B84B)'; g.font = '800 18px var(--display,sans-serif)';
+    g.fillText(rr.toFixed(1), cx + cw - 34, cy + 78);
+    g.textAlign = 'left';
   }
   g.shadowBlur = 0; g.globalAlpha = 1;
 }
@@ -2386,6 +2407,7 @@ function dibujarHerramientas(g, x1, y1) {
   if (!lista.length && !N.dib && !N.gomaBox) return;
   g.save();
   g.beginPath(); g.rect(0, 0, x1, y1); g.clip();
+  let _mk = 0; lista.forEach((d) => { if (d.tipo === 'marca') d._n = ++_mk; });
   lista.forEach((d, i) => dibujarUno(g, d, x1, y1, i === N.sel));
   if (N.dib) dibujarUno(g, N.dib, x1, y1, false);
   if (N.gomaBox) {
@@ -3118,13 +3140,20 @@ function dibujar() {
   /* ══ LA CRUZ DEL CURSOR ══
      Como en TradingView: sigue al ratón y muestra el precio a la
      derecha y la hora abajo. */
-  if (N.cruz && N.cruz.x >= 0 && N.cruz.x < x1 && N.cruz.y >= 0 && N.cruz.y < y1) {
+  if (N.cruz && N.cruz.x >= 0 && N.cruz.x < x1 && N.cruz.y >= 0 && N.cruz.y < y1 && (N.herr === 'cursor' || N.herr === 'borrar')) {
     const cx = N.cruz.x, cy = N.cruz.y;
-    g.strokeStyle = 'rgba(255,255,255,.22)';
-    g.setLineDash([4, 4]); g.lineWidth = 1;
-    g.beginPath(); g.moveTo(cx, 0); g.lineTo(cx, y1); g.stroke();
-    g.beginPath(); g.moveTo(0, cy); g.lineTo(x1, cy); g.stroke();
-    g.setLineDash([]);
+    const tipoC = N.cursorTipo || 'cruz';
+    if (tipoC === 'cruz') {
+      g.strokeStyle = 'rgba(255,255,255,.22)';
+      g.setLineDash([4, 4]); g.lineWidth = 1;
+      g.beginPath(); g.moveTo(cx, 0); g.lineTo(cx, y1); g.stroke();
+      g.beginPath(); g.moveTo(0, cy); g.lineTo(x1, cy); g.stroke();
+      g.setLineDash([]);
+    } else if (tipoC === 'punto') {
+      g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.arc(cx, cy, 3.5, 0, 6.283); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, 7, 0, 6.283); g.stroke();
+    }
+    // (flecha: no dibuja retícula, deja el cursor nativo)
 
     // El precio a esa altura
     const pC = pMin + (pMax - pMin) * ((y1 - cy) / y1);
@@ -3759,6 +3788,7 @@ function gestos(cv) {
   /* ══ Herramientas de dibujo: barra lateral, ajustes e interacción ══ */
   const loc = (e, t) => { const r = cv.getBoundingClientRect(); const s = t || e; return { x: s.clientX - r.left, y: s.clientY - r.top }; };
   const tools = document.getElementById('nv-tools');
+  let abrirBarra = () => {}, cerrarBarra = () => {};
   const grafEl = document.getElementById('nv-graf');
   let topbar = document.getElementById('nv-topbar');
   if (!topbar && grafEl) { topbar = document.createElement('div'); topbar.id = 'nv-topbar'; topbar.style.display = 'none'; grafEl.appendChild(topbar); }
@@ -3774,20 +3804,26 @@ function gestos(cv) {
   const tipoCtx = () => (N.herr !== 'cursor' && N.herr !== 'borrar') ? N.herr : (objSel() ? objSel().tipo : null);
 
   const marcarBoton = () => {
-    if (tools) tools.querySelectorAll('.nv-tool[data-h]').forEach((o) => o.classList.toggle('on', o.dataset.h === N.herr));
-    cv.style.cursor = N.herr === 'cursor' ? 'crosshair' : (N.herr === 'borrar' ? 'pointer' : 'crosshair');
+    if (tools) {
+      tools.querySelectorAll('.nv-tool[data-h]').forEach((o) => o.classList.toggle('on', o.dataset.h === N.herr));
+      tools.classList.toggle('forz', N.herr !== 'cursor');   // no se oculta con herramienta activa
+    }
+    let cur = 'crosshair';
+    if (N.herr === 'cursor') cur = N.cursorTipo === 'flecha' ? 'default' : 'crosshair';
+    else if (N.herr === 'borrar') cur = 'pointer';
+    cv.style.cursor = cur;
   };
-  const marcarFavs = () => { if (tools) tools.querySelectorAll('.nv-tool[data-h]').forEach((o) => o.classList.toggle('fav', N.favs.includes(o.dataset.h))); };
+  const marcarFavs = () => {};
   const construirTopbar = () => {
     if (!topbar) return;
     const t = tipoCtx();
     if (!t) { topbar.style.display = 'none'; cerrarPopups(); return; }
     const o = objEstilo();
-    let h = `<button class="nv-tb-b nv-tb-fav ${N.favs.includes(t) ? 'on' : ''}" data-a="fav" title="Favorito">★</button><span class="nv-tb-sep"></span>`;
-    // un único botón de color que abre el selector
+    // Interruptor "mantener activa" (sustituye a la estrella de favoritos)
+    let h = `<button class="nv-tb-b nv-tb-pin ${N.fijar ? 'on' : ''}" data-a="fijar" title="${N.fijar ? 'Mantener activa: SÍ' : 'Mantener activa: NO'}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 7 3 3v2H7v-2l3-3z"/><path d="M12 16v4"/></svg></button><span class="nv-tb-sep"></span>`;
     h += `<button class="nv-tb-b nv-tb-color" data-a="colorpop" title="Color"><span class="nv-tb-swatch" style="background:${o.color || '#22d3ee'}"></span></button>`;
     if (CON_GROSOR.includes(t)) h += '<span class="nv-tb-sep"></span>' + [1, 2, 3, 4].map((w) => `<button class="nv-tb-b nv-tb-gr ${(o.grosor || 2) === w ? 'on' : ''}" data-gr="${w}"><i style="height:${w + 1}px"></i></button>`).join('');
-    if (t === 'marca') h += '<span class="nv-tb-sep"></span>' + [['S', 3], ['M', 5], ['L', 8]].map((e) => `<button class="nv-tb-b nv-tb-tx ${(o.tam || 4) === e[1] ? 'on' : ''}" data-tam="${e[1]}">${e[0]}</button>`).join('');
+    if (t === 'marca') h += '<span class="nv-tb-sep"></span>' + [['S', 5], ['M', 7], ['L', 10]].map((e) => `<button class="nv-tb-b nv-tb-tx ${(o.tam || 7) === e[1] ? 'on' : ''}" data-tam="${e[1]}">${e[0]}</button>`).join('');
     if (CON_PUNTEADO.includes(t)) h += `<span class="nv-tb-sep"></span><button class="nv-tb-b ${o.punteado ? 'on' : ''}" data-a="dash" title="Punteado">╌</button>`;
     if (t === 'fib') h += `<span class="nv-tb-sep"></span><button class="nv-tb-b nv-tb-niv" data-a="fibpop" title="Niveles">Niveles</button>`;
     h += `<span class="nv-tb-sep"></span><button class="nv-tb-b nv-tb-del" data-a="del" title="Eliminar"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>`;
@@ -3799,7 +3835,7 @@ function gestos(cv) {
     else { N.estilo[prop] = val; if (prop === 'color') N.estilo.rgb = rgbDe(val); }
     construirTopbar(); dibujar();
   };
-  const seleccionar = (h) => { N.herr = h; N.sel = -1; cerrarPopups(); marcarBoton(); construirTopbar(); };
+  const seleccionar = (h) => { if (h !== N.herr) N.fijar = false; N.herr = h; N.sel = -1; cerrarPopups(); marcarBoton(); construirTopbar(); };
 
   // ── Popups flotantes (color, niveles Fibonacci, tipos de línea) ──
   const cerrarPopups = () => { if (grafEl) grafEl.querySelectorAll('.nv-pop').forEach((p) => p.remove()); };
@@ -3840,19 +3876,33 @@ function gestos(cv) {
     const pop = crearPop(anchor, false); pop.classList.add('nv-pop-fly');
     const items = [['linea', 'Tendencia', 'M4 19L20 5'], ['rayo', 'Horizontal', 'M3 12h18'], ['vert', 'Vertical', 'M12 3v18']];
     pop.innerHTML = items.map((it) => `<button class="nv-fl ${N.herr === it[0] ? 'on' : ''}" data-h="${it[0]}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="${it[2]}"/></svg><span>${it[1]}</span></button>`).join('');
-    pop.addEventListener('click', (e) => { const b = e.target.closest('[data-h]'); if (!b) return; const mk = document.querySelector('.nv-tool-fly'); if (mk) { mk.dataset.h = b.dataset.h; mk.title = b.querySelector('span').textContent; } seleccionar(b.dataset.h); pop.remove(); });
+    pop.addEventListener('click', (e) => { const b = e.target.closest('[data-h]'); if (!b) return; const mk = anchor; mk.dataset.h = b.dataset.h; mk.title = b.querySelector('span').textContent; seleccionar(b.dataset.h); pop.remove(); });
+  };
+  const flyCursores = (anchor) => {
+    const pop = crearPop(anchor, false); pop.classList.add('nv-pop-fly');
+    const items = [['cruz', 'Cruz', 'M12 4v16M4 12h16'], ['punto', 'Punto', 'M12 12h.01'], ['flecha', 'Flecha', 'M5 3l7 17 2-7 7-2z']];
+    pop.innerHTML = items.map((it) => `<button class="nv-fl ${N.cursorTipo === it[0] ? 'on' : ''}" data-c="${it[0]}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${it[2]}"/></svg><span>${it[1]}</span></button>`).join('');
+    pop.addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (!b) return; N.cursorTipo = b.dataset.c; seleccionar('cursor'); pop.remove(); });
   };
 
   if (tools) {
     tools.querySelectorAll('.nv-tool[data-h]').forEach((b) => b.addEventListener('click', () => {
       if (b.dataset.fly === 'lineas') { flyLineas(b); return; }
+      if (b.dataset.fly === 'cursores') { flyCursores(b); return; }
       seleccionar(b.dataset.h);
     }));
     const bIman = document.getElementById('nv-iman');
     if (bIman) { bIman.classList.toggle('on', !!N.imant); bIman.addEventListener('click', () => { N.imant = !N.imant; bIman.classList.toggle('on', N.imant); }); }
     const bLimp = document.getElementById('nv-limpiar');
     if (bLimp) bLimp.addEventListener('click', () => { N.dibujos = []; N.dib = null; N.sel = -1; guardarDib(); construirTopbar(); dibujar(); });
-    marcarFavs();
+    // Auto-ocultar: la barra sale al acercar el cursor al borde izquierdo
+    tools.classList.add('nv-oculta');
+    const tab = document.createElement('div'); tab.id = 'nv-tools-tab'; grafEl.appendChild(tab);
+    let tHide = null;
+    abrirBarra = () => { clearTimeout(tHide); tools.classList.add('abierta'); };
+    cerrarBarra = () => { clearTimeout(tHide); tHide = setTimeout(() => tools.classList.remove('abierta'), 300); };
+    tools.addEventListener('mouseenter', abrirBarra);
+    tools.addEventListener('mouseleave', cerrarBarra);
   }
   if (topbar) {
     topbar.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -3869,7 +3919,7 @@ function gestos(cv) {
         else { for (let k = N.dibujos.length - 1; k >= 0; k--) if (N.dibujos[k].tipo === N.herr) { N.dibujos.splice(k, 1); break; } }
         guardarDib(); cerrarPopups(); construirTopbar(); dibujar(); return;
       }
-      if (a === 'fav') { const t = tipoCtx(); if (!t) return; const i = N.favs.indexOf(t); if (i >= 0) N.favs.splice(i, 1); else N.favs.push(t); try { localStorage.setItem('cco-favs', JSON.stringify(N.favs)); } catch (_) {} construirTopbar(); marcarFavs(); }
+      if (a === 'fijar') { N.fijar = !N.fijar; construirTopbar(); }
     });
   }
 
@@ -3894,15 +3944,27 @@ function gestos(cv) {
     if (tipo === 'fib' && N.estilo.fibNiveles) e.niveles = N.estilo.fibNiveles.slice();
     return e;
   };
+  const finDib = (idx) => { if (!N.fijar) { N.herr = 'cursor'; N.sel = idx; marcarBoton(); } construirTopbar(); dibujar(); };
+  const pedirTexto = (x, y, cb) => {
+    cerrarPopups();
+    const inp = document.createElement('input'); inp.className = 'nv-txt-in'; inp.placeholder = 'Escribe y pulsa Enter…';
+    grafEl.appendChild(inp);
+    inp.style.left = Math.max(4, Math.min(grafEl.clientWidth - 200, x)) + 'px';
+    inp.style.top = Math.max(4, y - 14) + 'px';
+    setTimeout(() => inp.focus(), 0);
+    let done = false;
+    const cerrar = (ok) => { if (done) return; done = true; const v = inp.value.trim(); inp.remove(); if (ok && v) cb(v); else { construirTopbar(); dibujar(); } };
+    inp.addEventListener('keydown', (ev) => { ev.stopPropagation(); if (ev.key === 'Enter') cerrar(true); else if (ev.key === 'Escape') cerrar(false); });
+    inp.addEventListener('blur', () => cerrar(true));
+  };
   const unPunto = (t) => t === 'rayo' || t === 'vert' || t === 'marca';
   const dosPuntos = (t) => t === 'linea' || t === 'rect' || t === 'fib' || t === 'flecha' || t === 'regla' || t === 'poslarga' || t === 'poscorta';
-  const unaVez = (t) => t === 'fib' || t === 'regla' || t === 'poslarga' || t === 'poscorta';   // se dibuja una y se selecciona
   let dibujando = false;
   const iniciarDib = (x, y) => {
     const t = N.herr;
     if (t === 'cursor' || t === 'borrar') return false;
-    if (t === 'texto') { const txt = (window.prompt('Texto de la nota:') || '').trim(); if (txt) { N.dibujos.push({ tipo: 'texto', pts: [dibXYa(x, y, false)], txt, ...estiloNuevo(t) }); guardarDib(); dibujar(); } return true; }
-    if (unPunto(t)) { N.dibujos.push({ tipo: t, pts: [dibXYa(x, y, true)], ...estiloNuevo(t) }); guardarDib(); dibujar(); return true; }
+    if (t === 'texto') { pedirTexto(x, y, (v) => { N.dibujos.push({ tipo: 'texto', pts: [dibXYa(x, y, false)], txt: v, ...estiloNuevo(t) }); guardarDib(); finDib(N.dibujos.length - 1); }); return true; }
+    if (unPunto(t)) { N.dibujos.push({ tipo: t, pts: [dibXYa(x, y, true)], ...estiloNuevo(t) }); guardarDib(); finDib(N.dibujos.length - 1); return true; }
     if (t === 'brush') { N.dib = { tipo: 'brush', pts: [dibXYa(x, y, false)], ...estiloNuevo(t) }; dibujando = true; return true; }
     if (dosPuntos(t)) { const a = dibXYa(x, y, true); N.dib = { tipo: t, pts: [a, { ...a }], ...estiloNuevo(t) }; dibujando = true; return true; }
     return false;
@@ -3911,9 +3973,14 @@ function gestos(cv) {
   const soltarDib = () => {
     if (!dibujando || !N.dib) { dibujando = false; return; }
     const d = N.dib; N.dib = null; dibujando = false;
-    if (!(d.tipo === 'brush' && d.pts.length < 2)) { N.dibujos.push(d); guardarDib(); }
-    if (unaVez(d.tipo)) { N.herr = 'cursor'; N.sel = N.dibujos.length - 1; marcarBoton(); }  // no re-proyecta sola
-    construirTopbar(); dibujar();
+    if (d.tipo === 'brush' && d.pts.length < 2) { construirTopbar(); dibujar(); return; }
+    if (d.tipo === 'poslarga' || d.tipo === 'poscorta') {
+      const largo = d.tipo === 'poslarga', pe = d.pts[0].p; let pT = d.pts[1].p;
+      if (Math.abs((pT - pe) / pe) < 0.0015) pT = pe * (largo ? 1.01 : 0.99);  // proyección de ejemplo
+      d.pTarget = pT; d.pStop = pe - (pT - pe) * 0.5;
+      d.pts[1] = { t: d.pts[1].t, p: pe };
+    }
+    N.dibujos.push(d); guardarDib(); finDib(N.dibujos.length - 1);
   };
 
   /* Goma por ÁREA: arrastra un rectángulo y borra lo que quede dentro */
@@ -3935,22 +4002,46 @@ function gestos(cv) {
     goma = null; N.gomaBox = null; guardarDib(); dibujar();
   };
 
-  /* Arrastrar un dibujo ya hecho (modo cursor) */
-  let arrDib = -1, arrXY = null;
+  /* ¿el cursor está sobre una de las 3 líneas de una posición? */
+  const posLineaEn = (d, x, y) => {
+    const A = dibAxy(d.pts[0]), B = dibAxy(d.pts[1]);
+    const xL = Math.min(A.x, B.x) - 6, xR = Math.max(A.x, B.x) + 6;
+    if (x < xL || x > xR) return null;
+    const pe = d.pts[0].p, pT = d.pTarget != null ? d.pTarget : pe, pS = d.pStop != null ? d.pStop : pe;
+    const cand = [['target', _geo.Y(pT)], ['entry', A.y], ['stop', _geo.Y(pS)]];
+    for (const c of cand) if (Math.abs(y - c[1]) < 7) return c[0];
+    return null;
+  };
+
+  /* Arrastrar un dibujo ya hecho, o una de las líneas de una posición */
+  let arrDib = -1, arrXY = null, arrLin = null;
   const iniciarArrastre = (x, y) => {
     const k = dibujoEn(x, y);
     N.sel = k; construirTopbar();
-    if (k >= 0) { arrDib = k; arrXY = { x, y }; cv.style.cursor = 'grabbing'; dibujar(); return true; }
+    if (k >= 0) {
+      const d = N.dibujos[k];
+      if (d.tipo === 'poslarga' || d.tipo === 'poscorta') { const cual = posLineaEn(d, x, y); if (cual) { arrLin = { idx: k, cual }; cv.style.cursor = 'ns-resize'; dibujar(); return true; } }
+      arrDib = k; arrXY = { x, y }; cv.style.cursor = 'grabbing'; dibujar(); return true;
+    }
     dibujar(); return false;
   };
   const moverArrastre = (x, y) => {
+    if (arrLin) {
+      const d = N.dibujos[arrLin.idx]; if (!d) return;
+      const p = dibXYa(x, y, false).p;
+      if (arrLin.cual === 'entry') { d.pts[0].p = p; d.pts[1].p = p; }
+      else if (arrLin.cual === 'target') d.pTarget = p; else d.pStop = p;
+      dibujar(); return;
+    }
     if (arrDib < 0 || !arrXY || !N.dibujos[arrDib]) return;
     const a = dibXYa(arrXY.x, arrXY.y, false), b = dibXYa(x, y, false);
     const dt = b.t - a.t, dp = b.p - a.p;
-    N.dibujos[arrDib].pts = N.dibujos[arrDib].pts.map((pt) => ({ t: pt.t + dt, p: pt.p + dp }));
+    const d = N.dibujos[arrDib];
+    d.pts = d.pts.map((pt) => ({ t: pt.t + dt, p: pt.p + dp }));
+    if (d.pTarget != null) d.pTarget += dp; if (d.pStop != null) d.pStop += dp;
     arrXY = { x, y }; dibujar();
   };
-  const soltarArrastre = () => { if (arrDib >= 0) guardarDib(); arrDib = -1; arrXY = null; };
+  const soltarArrastre = () => { if (arrDib >= 0 || arrLin) guardarDib(); arrDib = -1; arrXY = null; arrLin = null; };
   marcarBoton(); construirTopbar();
 
   cv.addEventListener('wheel', (e) => {
@@ -3965,11 +4056,16 @@ function gestos(cv) {
     const p = loc(e);
     if (dibujando) { moverDib(p.x, p.y); return; }
     if (goma) { moverGoma(p.x, p.y); return; }
-    if (arrDib >= 0) { moverArrastre(p.x, p.y); return; }
+    if (arrDib >= 0 || arrLin) { moverArrastre(p.x, p.y); return; }
     if (arr) return;
+    if (p.x < 20) abrirBarra(); else if (p.x > 90) cerrarBarra();
     N.cruz = { x: Math.round(p.x), y: Math.round(p.y) };
-    // manito cuando pasas por encima de un dibujo (modo cursor)
-    if (N.herr === 'cursor' && !enEscala(p.x)) cv.style.cursor = dibujoEn(p.x, p.y) >= 0 ? 'grab' : 'crosshair';
+    // cursor: manito sobre un dibujo, editar sobre las líneas de una posición
+    if (N.herr === 'cursor' && !enEscala(p.x)) {
+      const k = dibujoEn(p.x, p.y); let cur = 'crosshair';
+      if (k >= 0) { const d = N.dibujos[k]; cur = 'grab'; if ((d.tipo === 'poslarga' || d.tipo === 'poscorta') && posLineaEn(d, p.x, p.y)) cur = 'ns-resize'; }
+      cv.style.cursor = cur;
+    }
     dibujar();
   });
   cv.addEventListener('mouseleave', () => { N.cruz = null; dibujar(); });
@@ -4003,7 +4099,7 @@ function gestos(cv) {
   window.addEventListener('mousemove', (e) => {
     if (dibujando) { const p = loc(e); moverDib(p.x, p.y); return; }
     if (goma) { const p = loc(e); moverGoma(p.x, p.y); return; }
-    if (arrDib >= 0) { const p = loc(e); moverArrastre(p.x, p.y); return; }
+    if (arrDib >= 0 || arrLin) { const p = loc(e); moverArrastre(p.x, p.y); return; }
     if (!arr) return;
     if (modo === 'y') {
       // Sobre la escala: estirar o comprimir
@@ -4029,7 +4125,7 @@ function gestos(cv) {
     }
     if (cambio) refrescar();
   });
-  window.addEventListener('mouseup', () => { if (dibujando) { soltarDib(); return; } if (goma) { soltarGoma(); return; } if (arrDib >= 0) { soltarArrastre(); cv.style.cursor = 'grab'; return; } arr = false; cv.style.cursor = N.herr === 'cursor' ? 'crosshair' : 'crosshair'; });
+  window.addEventListener('mouseup', () => { if (dibujando) { soltarDib(); return; } if (goma) { soltarGoma(); return; } if (arrDib >= 0 || arrLin) { soltarArrastre(); cv.style.cursor = 'grab'; return; } arr = false; cv.style.cursor = N.herr === 'cursor' ? 'crosshair' : 'crosshair'; });
 
   /* Táctil: un dedo mueve, dos hacen zoom en ambos ejes */
   let d0 = 0, dy0 = 0, tx = 0;
@@ -4048,7 +4144,7 @@ function gestos(cv) {
   }, { passive: true });
   cv.addEventListener('touchmove', (e) => {
     if (dibujando && e.touches.length === 1) { e.preventDefault(); const p = loc(e, e.touches[0]); moverDib(p.x, p.y); return; }
-    if (arrDib >= 0 && e.touches.length === 1) { e.preventDefault(); const p = loc(e, e.touches[0]); moverArrastre(p.x, p.y); return; }
+    if ((arrDib >= 0 || arrLin) && e.touches.length === 1) { e.preventDefault(); const p = loc(e, e.touches[0]); moverArrastre(p.x, p.y); return; }
     if (e.touches.length === 1 && arr) {
       e.preventDefault();
       const paso = (cv.clientWidth - 84) / N.vista.ancho;
@@ -4069,7 +4165,7 @@ function gestos(cv) {
       d0 = d;
     }
   }, { passive: false });
-  cv.addEventListener('touchend', () => { if (dibujando) { soltarDib(); } if (arrDib >= 0) { soltarArrastre(); } arr = false; d0 = 0; });
+  cv.addEventListener('touchend', () => { if (dibujando) { soltarDib(); } if (arrDib >= 0 || arrLin) { soltarArrastre(); } arr = false; d0 = 0; });
   cv.style.cursor = 'crosshair';
 }
 
@@ -4972,7 +5068,7 @@ function estilos() {
   if ($('nv-css')) return;
   const s = document.createElement('style'); s.id = 'nv-css';
   s.textContent = `
-  #nv-overlay{position:fixed;inset:0;z-index:9740;display:flex;align-items:center;justify-content:center}
+  #nv-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center}
   #nv-overlay .nv-bg{position:absolute;inset:0;background:rgba(3,5,8,.95)}
   #nv-overlay .nv-c{position:relative;width:100%;height:100vh;height:100dvh;
     display:flex;flex-direction:column;background:#0b0f16}
@@ -5149,12 +5245,25 @@ function estilos() {
   #nv-overlay .nv-tool.on{background:rgba(34,211,238,.16);color:#22d3ee;box-shadow:inset 0 0 0 1px rgba(34,211,238,.4)}
   #nv-overlay .nv-tool-tg.on{background:rgba(232,184,75,.16);color:var(--gold,#E8B84B);box-shadow:inset 0 0 0 1px rgba(232,184,75,.4)}
   #nv-overlay .nv-tool-sep{height:1px;background:rgba(255,255,255,.1);margin:3px 5px;flex:0 0 auto}
+  /* Input de texto en la propia página (no del navegador) */
+  #nv-overlay .nv-txt-in{position:absolute;z-index:10002;width:190px;height:32px;padding:0 11px;border-radius:9px;
+    background:rgba(13,17,24,.97);border:1px solid #22d3ee;color:#eaecef;outline:none;
+    font-family:var(--sans,sans-serif);font-size:13px;box-shadow:0 10px 28px rgba(0,0,0,.55)}
+  #nv-overlay .nv-txt-in::placeholder{color:#5c6672}
+  /* Barra auto-ocultable: sale al pasar el cursor por el bisel del borde */
+  #nv-overlay .nv-tools.nv-oculta{transform:translate(calc(-100% - 12px),-50%);opacity:0;pointer-events:none;
+    transition:transform .22s ease,opacity .22s ease}
+  #nv-overlay .nv-tools.nv-oculta.abierta,#nv-overlay .nv-tools.nv-oculta.forz{transform:translate(0,-50%);opacity:1;pointer-events:auto}
+  #nv-overlay #nv-tools-tab{position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:9996;pointer-events:none;
+    width:9px;height:66px;border-radius:0 8px 8px 0;
+    background:linear-gradient(180deg,rgba(34,211,238,.65),rgba(232,184,75,.6));
+    box-shadow:2px 0 12px rgba(0,0,0,.5),inset -1px 0 0 rgba(255,255,255,.25);transition:opacity .2s}
+  #nv-overlay .nv-tools.abierta ~ #nv-tools-tab,#nv-overlay .nv-tools.forz ~ #nv-tools-tab{opacity:0;pointer-events:none}
   @media(max-width:760px){ #nv-overlay .nv-tools{left:5px;padding:4px;gap:2px}
     #nv-overlay .nv-tool{width:29px;height:29px}
     #nv-overlay .nv-tool svg{width:16px;height:16px} }
   /* ── Barra de ajustes horizontal (arriba) ── */
   #nv-overlay .nv-tool{position:relative}
-  #nv-overlay .nv-tool.fav::after{content:'★';position:absolute;top:0;right:1px;font-size:8px;line-height:1;color:var(--gold,#E8B84B)}
   #nv-overlay #nv-topbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:10000;
     display:flex;align-items:center;gap:3px;padding:6px 8px;border-radius:14px;
     background:linear-gradient(180deg,rgba(24,30,40,.94),rgba(14,18,26,.94));
@@ -5167,8 +5276,8 @@ function estilos() {
     font-family:var(--mono,monospace);font-size:11px;font-weight:700;line-height:1;transition:background .13s,color .13s}
   #nv-overlay .nv-tb-b:hover{background:rgba(255,255,255,.09)}
   #nv-overlay .nv-tb-b.on{background:rgba(34,211,238,.2);color:#22d3ee;box-shadow:inset 0 0 0 1px rgba(34,211,238,.4)}
-  #nv-overlay .nv-tb-fav{color:#7d8794;font-size:16px}
-  #nv-overlay .nv-tb-fav.on{color:var(--gold,#E8B84B)}
+  #nv-overlay .nv-tb-pin{color:#7d8794}
+  #nv-overlay .nv-tb-pin.on{background:rgba(46,232,106,.18);color:#3ee88a;box-shadow:inset 0 0 0 1px rgba(46,232,106,.4)}
   #nv-overlay .nv-tb-del:hover{background:rgba(255,59,82,.2);color:#ff6b7a}
   #nv-overlay .nv-tb-color{padding:0 6px}
   #nv-overlay .nv-tb-swatch{width:20px;height:20px;border-radius:6px;display:block;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35),0 1px 3px rgba(0,0,0,.5)}
