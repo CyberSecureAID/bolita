@@ -1943,6 +1943,10 @@ export async function abrirNiveles() {
 
   N.velas = []; N.cargando = true; N.error = null;
   N.vista = { desde: 0, ancho: window.innerWidth < 760 ? 80 : 130, zoomY: 1, offsetY: 0 };
+  N.herr = 'cursor';          // herramienta activa
+  N.imant = (N.imant !== false); // imán a las velas (por defecto sí)
+  N.dib = null;               // dibujo en curso
+  cargarDib();                // dibujos guardados de esta moneda
 
   const d = document.createElement('div');
   d.id = 'nv-overlay';
@@ -1997,6 +2001,23 @@ export async function abrirNiveles() {
       </div>
 
       <div class="nv-graf" id="nv-graf">
+        <div class="nv-tools" id="nv-tools">
+          <button class="nv-tool on" data-h="cursor" title="Cursor (cruz)"><svg viewBox="0 0 24 24"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg></button>
+          <button class="nv-tool" data-h="marca" title="Marcador (deja puntos)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="7"/></svg></button>
+          <button class="nv-tool" data-h="linea" title="Línea de tendencia"><svg viewBox="0 0 24 24"><path d="M4 19L20 5"/><circle cx="4" cy="19" r="1.8" fill="currentColor" stroke="none"/><circle cx="20" cy="5" r="1.8" fill="currentColor" stroke="none"/></svg></button>
+          <button class="nv-tool" data-h="rayo" title="Línea horizontal"><svg viewBox="0 0 24 24"><path d="M3 12h18"/><circle cx="8" cy="12" r="1.8" fill="currentColor" stroke="none"/></svg></button>
+          <button class="nv-tool" data-h="vert" title="Línea vertical"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><circle cx="12" cy="8" r="1.8" fill="currentColor" stroke="none"/></svg></button>
+          <button class="nv-tool" data-h="rect" title="Rectángulo / zona"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1.5"/></svg></button>
+          <button class="nv-tool" data-h="fib" title="Fibonacci"><svg viewBox="0 0 24 24"><path d="M3 5h18M3 10h18M3 14h18M3 19h18" opacity=".9"/></svg></button>
+          <button class="nv-tool" data-h="flecha" title="Flecha"><svg viewBox="0 0 24 24"><path d="M5 19L19 5M19 5h-7M19 5v7"/></svg></button>
+          <button class="nv-tool" data-h="brush" title="Pincel (mano alzada)"><svg viewBox="0 0 24 24"><path d="M3 21c3 0 3-3 6-3s3 3 6 0 3-6 6-6"/><path d="M14 5l5 5-2 2-5-5z"/></svg></button>
+          <button class="nv-tool" data-h="texto" title="Texto"><svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M9 19h6"/></svg></button>
+          <button class="nv-tool" data-h="regla" title="Medir (regla)"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="8" rx="1.2"/><path d="M7 8v3M11 8v4M15 8v3M19 8v4"/></svg></button>
+          <span class="nv-tool-sep"></span>
+          <button class="nv-tool" data-h="borrar" title="Borrador (toca un dibujo)"><svg viewBox="0 0 24 24"><path d="M4 15l7-7 7 7-4 4H8z"/><path d="M9 20h11"/></svg></button>
+          <button class="nv-tool nv-tool-tg" id="nv-iman" title="Imán a las velas"><svg viewBox="0 0 24 24"><path d="M6 4v7a6 6 0 0 0 12 0V4"/><path d="M6 4h4M14 4h4"/></svg></button>
+          <button class="nv-tool" id="nv-limpiar" title="Borrar todo"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+        </div>
         <canvas class="nv-cv" id="nv-cv"></canvas>
         <div class="nv-burbujas" id="nv-burbujas"></div>
         <div class="nv-esperando" id="nv-esperando">
@@ -2160,6 +2181,157 @@ function pintarEstado() {
 let _geo = null;
 let _trazo = 0;         // 0 a 1: cuánto se ha dibujado la tendencia
 let _animId = null;
+
+/* ══════════════════════════════════════════════════════════════
+   HERRAMIENTAS DE DIBUJO · análisis técnico sobre el gráfico
+   Barra lateral izquierda con las herramientas de TradingView que
+   SÍ se pueden hacer sobre este canvas (velas de Binance), en versión
+   mejorada: trazos limpios con leve resplandor, imán a las velas, y
+   guardado por moneda. Los dibujos se anclan en coordenadas (tiempo,
+   precio), así que se mueven con el gráfico al hacer scroll o zoom.
+   ══════════════════════════════════════════════════════════════ */
+const DIB_FIBS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+const _tfMs = () => {
+  const v = N.velas;
+  if (!v || v.length < 2) return 3600000;
+  return (v[v.length - 1].t - v[v.length - 2].t) || 3600000;
+};
+// dato (t,p) → pantalla (x,y)
+function dibAxy(pt) {
+  const g = _geo; if (!g || !N.velas.length) return { x: 0, y: 0 };
+  const i = (pt.t - N.velas[0].t) / _tfMs();
+  const pri = g.fin - g.ancho;
+  return { x: (i - pri) * g.paso + g.paso / 2, y: g.Y(pt.p) };
+}
+// pantalla (x,y) → dato (t,p), con imán opcional al OHLC de la vela
+function dibXYa(x, y, iman) {
+  const g = _geo; if (!g || !N.velas.length) return { t: 0, p: 0 };
+  const pri = g.fin - g.ancho;
+  const iF = (x - g.paso / 2) / g.paso + pri;
+  if (iman && N.imant) {
+    const i = Math.max(0, Math.min(N.velas.length - 1, Math.round(iF)));
+    const v = N.velas[i];
+    let p = v.c, best = Infinity;
+    [v.o, v.h, v.l, v.c].forEach((c) => { const dd = Math.abs(g.Y(c) - y); if (dd < best) { best = dd; p = c; } });
+    if (best <= 18) return { t: N.velas[0].t + i * _tfMs(), p };
+  }
+  return { t: N.velas[0].t + iF * _tfMs(), p: g.pMin + (g.pMax - g.pMin) * ((g.y1 - y) / g.y1) };
+}
+
+function dibujarUno(g, d, x1, y1) {
+  const col = d.color || '#22d3ee';
+  const rgb = d.rgb || '34,211,238';
+  const A = d.pts[0] ? dibAxy(d.pts[0]) : null;
+  const B = d.pts[1] ? dibAxy(d.pts[1]) : null;
+  g.lineJoin = 'round'; g.lineCap = 'round'; g.textAlign = 'left';
+
+  if (d.tipo === 'linea' || d.tipo === 'flecha') {
+    if (!A || !B) return;
+    g.shadowColor = `rgba(${rgb},.55)`; g.shadowBlur = 6;
+    g.strokeStyle = col; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(A.x, A.y); g.lineTo(B.x, B.y); g.stroke();
+    g.shadowBlur = 0;
+    if (d.tipo === 'flecha') {
+      const ang = Math.atan2(B.y - A.y, B.x - A.x), h = 12;
+      g.fillStyle = col; g.beginPath(); g.moveTo(B.x, B.y);
+      g.lineTo(B.x - h * Math.cos(ang - 0.42), B.y - h * Math.sin(ang - 0.42));
+      g.lineTo(B.x - h * Math.cos(ang + 0.42), B.y - h * Math.sin(ang + 0.42));
+      g.closePath(); g.fill();
+    } else {
+      [A, B].forEach((P) => { g.fillStyle = col; g.beginPath(); g.arc(P.x, P.y, 3, 0, 6.283); g.fill(); });
+    }
+  } else if (d.tipo === 'rayo') {
+    if (!A) return;
+    g.strokeStyle = col; g.lineWidth = 1.7; g.setLineDash([7, 4]);
+    g.beginPath(); g.moveTo(0, A.y); g.lineTo(x1, A.y); g.stroke(); g.setLineDash([]);
+    g.font = 'bold 9px ui-monospace,monospace';
+    const et = fmt(d.pts[0].p); const tw = g.measureText(et).width + 10;
+    g.fillStyle = col; redondeado(g, x1 - tw - 2, A.y - 8, tw, 16, 4); g.fill();
+    g.fillStyle = '#04121a'; g.fillText(et, x1 - tw + 3, A.y + 3.5);
+  } else if (d.tipo === 'vert') {
+    if (!A) return;
+    g.strokeStyle = col; g.lineWidth = 1.7; g.setLineDash([7, 4]);
+    g.beginPath(); g.moveTo(A.x, 0); g.lineTo(A.x, y1); g.stroke(); g.setLineDash([]);
+  } else if (d.tipo === 'rect') {
+    if (!A || !B) return;
+    const x = Math.min(A.x, B.x), y = Math.min(A.y, B.y), w = Math.abs(B.x - A.x), h = Math.abs(B.y - A.y);
+    g.fillStyle = `rgba(${rgb},.10)`; g.fillRect(x, y, w, h);
+    g.strokeStyle = col; g.lineWidth = 1.6; g.strokeRect(x, y, w, h);
+  } else if (d.tipo === 'fib') {
+    if (!A || !B) return;
+    const p0 = d.pts[0].p, p1 = d.pts[1].p;
+    const x = Math.min(A.x, B.x), w = Math.abs(B.x - A.x) || (x1 - x);
+    DIB_FIBS.forEach((f, k) => {
+      const pf = p0 + (p1 - p0) * f, yf = _geo.Y(pf);
+      const cc = `hsl(${18 + k * 33},82%,62%)`;
+      g.strokeStyle = cc; g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(x, yf); g.lineTo(x + w, yf); g.stroke();
+      g.fillStyle = cc; g.font = '8.5px ui-monospace,monospace';
+      g.fillText(`${(f * 100).toFixed(1)}%  ${fmt(pf)}`, x + 4, yf - 3);
+    });
+    g.strokeStyle = `rgba(${rgb},.5)`; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(A.x, A.y); g.lineTo(A.x, B.y); g.stroke();
+  } else if (d.tipo === 'brush') {
+    if (d.pts.length < 2) { if (A) { g.fillStyle = col; g.beginPath(); g.arc(A.x, A.y, 1.4, 0, 6.283); g.fill(); } return; }
+    g.shadowColor = `rgba(${rgb},.4)`; g.shadowBlur = 4;
+    g.strokeStyle = col; g.lineWidth = 2.4; g.beginPath();
+    d.pts.forEach((pt, k) => { const P = dibAxy(pt); if (k === 0) g.moveTo(P.x, P.y); else g.lineTo(P.x, P.y); });
+    g.stroke(); g.shadowBlur = 0;
+  } else if (d.tipo === 'marca') {
+    if (!A) return;
+    g.fillStyle = col; g.beginPath(); g.arc(A.x, A.y, 4, 0, 6.283); g.fill();
+    g.strokeStyle = `rgba(${rgb},.5)`; g.lineWidth = 1.4;
+    g.beginPath(); g.arc(A.x, A.y, 8, 0, 6.283); g.stroke();
+  } else if (d.tipo === 'texto') {
+    if (!A) return;
+    g.font = 'bold 12px var(--sans,sans-serif)';
+    const tw = g.measureText(d.txt || '…').width;
+    g.fillStyle = 'rgba(11,15,22,.82)'; redondeado(g, A.x - 5, A.y - 13, tw + 14, 22, 6); g.fill();
+    g.strokeStyle = `rgba(${rgb},.55)`; g.lineWidth = 1; redondeado(g, A.x - 5, A.y - 13, tw + 14, 22, 6); g.stroke();
+    g.fillStyle = col; g.fillText(d.txt || '…', A.x + 2, A.y + 4);
+  } else if (d.tipo === 'regla') {
+    if (!A || !B) return;
+    const alza = d.pts[1].p >= d.pts[0].p;
+    const cc = alza ? '#2ee86a' : '#ff3b52', crgb = alza ? '46,232,106' : '255,59,82';
+    const x = Math.min(A.x, B.x), y = Math.min(A.y, B.y), w = Math.abs(B.x - A.x), h = Math.abs(B.y - A.y);
+    g.fillStyle = `rgba(${crgb},.12)`; g.fillRect(x, y, w, h);
+    g.strokeStyle = cc; g.lineWidth = 1.4; g.strokeRect(x, y, w, h);
+    const dp = ((d.pts[1].p - d.pts[0].p) / d.pts[0].p) * 100;
+    const barras = Math.round((d.pts[1].t - d.pts[0].t) / _tfMs());
+    const txt = `${dp >= 0 ? '+' : ''}${dp.toFixed(2)}%  ·  ${Math.abs(barras)} velas`;
+    g.font = 'bold 9px ui-monospace,monospace'; const tw = g.measureText(txt).width + 14;
+    const mx = Math.max(2, (A.x + B.x) / 2 - tw / 2), my = alza ? y - 22 : y + h + 6;
+    g.fillStyle = cc; redondeado(g, mx, my, tw, 18, 5); g.fill();
+    g.fillStyle = '#04121a'; g.fillText(txt, mx + 7, my + 12.5);
+  }
+  g.shadowBlur = 0;
+}
+
+function dibujarHerramientas(g, x1, y1) {
+  const lista = N.dibujos || [];
+  if (!lista.length && !N.dib) return;
+  g.save();
+  g.beginPath(); g.rect(0, 0, x1, y1); g.clip();
+  lista.forEach((d) => dibujarUno(g, d, x1, y1));
+  if (N.dib) dibujarUno(g, N.dib, x1, y1);
+  g.restore();
+  g.textAlign = 'left';
+}
+
+/* Guardado por moneda (persiste entre sesiones) */
+function guardarDib() {
+  try {
+    const m = JSON.parse(localStorage.getItem('cco-dibujos') || '{}');
+    m[_par] = N.dibujos || [];
+    localStorage.setItem('cco-dibujos', JSON.stringify(m));
+  } catch (_) {}
+}
+function cargarDib() {
+  try {
+    const m = JSON.parse(localStorage.getItem('cco-dibujos') || '{}');
+    N.dibujos = Array.isArray(m[_par]) ? m[_par] : [];
+  } catch (_) { N.dibujos = []; }
+}
 
 /** Traza la línea de tendencia delante del usuario. */
 function animarTrazo() {
@@ -3063,6 +3235,9 @@ function dibujar() {
     g.fillText(largo ? fecha(v.t) : hora(v.t), x, y1 + 16);
   });
   g.textAlign = 'left';
+
+  // Los dibujos del usuario (herramientas de análisis), encima de todo
+  dibujarHerramientas(g, x1, y1);
 }
 
 function velaEn(i) { return N.velas[i] || null; }
@@ -3501,6 +3676,82 @@ function gestos(cv) {
   };
   const enEscala = (x) => x > cv.clientWidth - 90;
 
+  /* ══ Herramientas de dibujo: barra lateral + interacción ══ */
+  const loc = (e, t) => { const r = cv.getBoundingClientRect(); const s = t || e; return { x: s.clientX - r.left, y: s.clientY - r.top }; };
+  const tools = document.getElementById('nv-tools');
+  const marcarBoton = () => {
+    if (!tools) return;
+    tools.querySelectorAll('.nv-tool[data-h]').forEach((o) => o.classList.toggle('on', o.dataset.h === N.herr));
+    cv.style.cursor = N.herr === 'cursor' ? 'crosshair' : (N.herr === 'borrar' ? 'pointer' : 'crosshair');
+  };
+  const volverCursor = () => { N.herr = 'cursor'; marcarBoton(); };
+  if (tools) {
+    tools.querySelectorAll('.nv-tool[data-h]').forEach((b) => {
+      b.addEventListener('click', () => { N.herr = b.dataset.h; marcarBoton(); });
+    });
+    const bIman = document.getElementById('nv-iman');
+    if (bIman) { bIman.classList.toggle('on', !!N.imant); bIman.addEventListener('click', () => { N.imant = !N.imant; bIman.classList.toggle('on', N.imant); }); }
+    const bLimp = document.getElementById('nv-limpiar');
+    if (bLimp) bLimp.addEventListener('click', () => { N.dibujos = []; N.dib = null; guardarDib(); dibujar(); });
+  }
+  const distSeg = (px, py, ax2, ay2, bx, by) => {
+    const dx = bx - ax2, dy = by - ay2, L = dx * dx + dy * dy || 1;
+    let t = ((px - ax2) * dx + (py - ay2) * dy) / L; t = Math.max(0, Math.min(1, t));
+    return Math.hypot(px - (ax2 + t * dx), py - (ay2 + t * dy));
+  };
+  const dibujoEn = (x, y) => {
+    const lista = N.dibujos || [];
+    for (let k = lista.length - 1; k >= 0; k--) {
+      const d = lista[k], A = d.pts[0] ? dibAxy(d.pts[0]) : null, B = d.pts[1] ? dibAxy(d.pts[1]) : null;
+      let hit = false;
+      if (d.tipo === 'rayo' && A) hit = Math.abs(y - A.y) < 7;
+      else if (d.tipo === 'vert' && A) hit = Math.abs(x - A.x) < 7;
+      else if ((d.tipo === 'linea' || d.tipo === 'flecha') && A && B) hit = distSeg(x, y, A.x, A.y, B.x, B.y) < 7;
+      else if ((d.tipo === 'rect' || d.tipo === 'regla' || d.tipo === 'fib') && A && B) {
+        const x0 = Math.min(A.x, B.x), x1b = Math.max(A.x, B.x), y0 = Math.min(A.y, B.y), y1b = Math.max(A.y, B.y);
+        hit = x >= x0 - 6 && x <= x1b + 6 && y >= y0 - 6 && y <= y1b + 6;
+      } else if ((d.tipo === 'marca' || d.tipo === 'texto') && A) hit = Math.hypot(x - A.x, y - A.y) < 12;
+      else if (d.tipo === 'brush') hit = d.pts.some((pt, i) => { if (!i) return false; const P = dibAxy(d.pts[i - 1]), Q = dibAxy(pt); return distSeg(x, y, P.x, P.y, Q.x, Q.y) < 7; });
+      if (hit) return k;
+    }
+    return -1;
+  };
+  const COL = { color: '#22d3ee', rgb: '34,211,238' };
+  const unPunto = (t) => t === 'rayo' || t === 'vert' || t === 'marca';
+  const dosPuntos = (t) => t === 'linea' || t === 'rect' || t === 'fib' || t === 'flecha' || t === 'regla';
+  let dibujando = false;
+  const iniciarDib = (x, y) => {
+    const t = N.herr;
+    if (t === 'cursor') return false;
+    if (t === 'borrar') { const k = dibujoEn(x, y); if (k >= 0) { N.dibujos.splice(k, 1); guardarDib(); dibujar(); } return true; }
+    if (t === 'texto') {
+      const txt = (window.prompt('Texto de la nota:') || '').trim();
+      if (txt) { N.dibujos.push({ tipo: 'texto', pts: [dibXYa(x, y, false)], txt, ...COL }); guardarDib(); }
+      volverCursor(); dibujar(); return true;
+    }
+    if (unPunto(t)) {
+      N.dibujos.push({ tipo: t, pts: [dibXYa(x, y, true)], ...COL }); guardarDib();
+      if (t !== 'marca') volverCursor();   // el marcador se queda para poner varios
+      dibujar(); return true;
+    }
+    if (t === 'brush') { N.dib = { tipo: 'brush', pts: [dibXYa(x, y, false)], ...COL }; dibujando = true; return true; }
+    if (dosPuntos(t)) { const a = dibXYa(x, y, true); N.dib = { tipo: t, pts: [a, { ...a }], ...COL }; dibujando = true; return true; }
+    return false;
+  };
+  const moverDib = (x, y) => {
+    if (!dibujando || !N.dib) return;
+    if (N.dib.tipo === 'brush') N.dib.pts.push(dibXYa(x, y, false));
+    else N.dib.pts[1] = dibXYa(x, y, true);
+    dibujar();
+  };
+  const soltarDib = () => {
+    if (!dibujando || !N.dib) { dibujando = false; return; }
+    const d = N.dib; N.dib = null; dibujando = false;
+    if (!(d.tipo === 'brush' && d.pts.length < 2)) { N.dibujos.push(d); guardarDib(); }
+    volverCursor(); dibujar();
+  };
+  marcarBoton();
+
   cv.addEventListener('wheel', (e) => {
     e.preventDefault();
     const r = cv.getBoundingClientRect();
@@ -3508,8 +3759,9 @@ function gestos(cv) {
     else zoomX(e.deltaY > 0 ? 1.15 : 0.87);
   }, { passive: false });
 
-  /* La cruz sigue al cursor */
+  /* La cruz sigue al cursor (o dibuja si hay una herramienta activa) */
   cv.addEventListener('mousemove', (e) => {
+    if (dibujando) { const p = loc(e); moverDib(p.x, p.y); return; }
     if (arr) return;
     const r = cv.getBoundingClientRect();
     N.cruz = { x: Math.round(e.clientX - r.left), y: Math.round(e.clientY - r.top) };
@@ -3518,7 +3770,7 @@ function gestos(cv) {
   cv.addEventListener('mouseleave', () => { N.cruz = null; dibujar(); });
 
   cv.addEventListener('dblclick', () => {
-    N.vista.ancho = window.innerWidth < 760 ? 55 : 90;
+    N.vista.ancho = window.innerWidth < 760 ? 80 : 130;
     N.vista.desde = 0;
     N.vista.zoomY = 1;
     N.vista.offsetY = 0;
@@ -3532,11 +3784,15 @@ function gestos(cv) {
   let ax = 0, ay = 0, arr = false, modo = 'x';
   cv.addEventListener('mousedown', (e) => {
     const r = cv.getBoundingClientRect();
-    modo = enEscala(e.clientX - r.left) ? 'y' : 'libre';
+    const lx = e.clientX - r.left, ly = e.clientY - r.top;
+    // Si hay una herramienta de dibujo activa, dibuja (no arrastra)
+    if (N.herr !== 'cursor' && !enEscala(lx)) { if (iniciarDib(lx, ly)) { e.preventDefault(); return; } }
+    modo = enEscala(lx) ? 'y' : 'libre';
     arr = true; ax = e.clientX; ay = e.clientY;
     cv.style.cursor = modo === 'y' ? 'ns-resize' : 'grabbing';
   });
   window.addEventListener('mousemove', (e) => {
+    if (dibujando) { const p = loc(e); moverDib(p.x, p.y); return; }
     if (!arr) return;
     if (modo === 'y') {
       // Sobre la escala: estirar o comprimir
@@ -3562,19 +3818,23 @@ function gestos(cv) {
     }
     if (cambio) refrescar();
   });
-  window.addEventListener('mouseup', () => { arr = false; cv.style.cursor = 'crosshair'; });
+  window.addEventListener('mouseup', () => { if (dibujando) { soltarDib(); return; } arr = false; cv.style.cursor = N.herr === 'cursor' ? 'crosshair' : 'crosshair'; });
 
   /* Táctil: un dedo mueve, dos hacen zoom en ambos ejes */
   let d0 = 0, dy0 = 0, tx = 0;
   cv.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) { tx = e.touches[0].clientX; arr = true; modo = 'x'; }
-    else if (e.touches.length === 2) {
-      arr = false;
+    if (e.touches.length === 1) {
+      const p = loc(e, e.touches[0]);
+      if (N.herr !== 'cursor' && !enEscala(p.x)) { if (iniciarDib(p.x, p.y)) { arr = false; return; } }
+      tx = e.touches[0].clientX; arr = true; modo = 'x';
+    } else if (e.touches.length === 2) {
+      arr = false; dibujando = false; N.dib = null;
       d0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       dy0 = Math.abs(e.touches[0].clientY - e.touches[1].clientY);
     }
   }, { passive: true });
   cv.addEventListener('touchmove', (e) => {
+    if (dibujando && e.touches.length === 1) { e.preventDefault(); const p = loc(e, e.touches[0]); moverDib(p.x, p.y); return; }
     if (e.touches.length === 1 && arr) {
       e.preventDefault();
       const paso = (cv.clientWidth - 84) / N.vista.ancho;
@@ -3595,7 +3855,7 @@ function gestos(cv) {
       d0 = d;
     }
   }, { passive: false });
-  cv.addEventListener('touchend', () => { arr = false; d0 = 0; });
+  cv.addEventListener('touchend', () => { if (dibujando) { soltarDib(); } arr = false; d0 = 0; });
   cv.style.cursor = 'crosshair';
 }
 
@@ -4661,6 +4921,23 @@ function estilos() {
   /* ── La gráfica ocupa todo ── */
   #nv-overlay .nv-graf{flex:1;min-height:0;position:relative;background:#0b0f16}
   #nv-overlay .nv-cv{display:block}
+  /* ── Barra lateral de herramientas de dibujo ── */
+  #nv-overlay .nv-tools{position:absolute;left:8px;top:50%;transform:translateY(-50%);z-index:30;
+    display:flex;flex-direction:column;gap:3px;padding:5px;border-radius:13px;
+    background:rgba(13,17,24,.82);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,.08);box-shadow:0 10px 34px rgba(0,0,0,.55);
+    max-height:calc(100% - 20px);overflow-y:auto;scrollbar-width:none}
+  #nv-overlay .nv-tools::-webkit-scrollbar{display:none}
+  #nv-overlay .nv-tool{width:32px;height:32px;flex:0 0 auto;border-radius:9px;border:none;padding:0;
+    background:transparent;color:#98a2ad;cursor:pointer;display:grid;place-items:center;transition:background .14s,color .14s}
+  #nv-overlay .nv-tool svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  #nv-overlay .nv-tool:hover{background:rgba(255,255,255,.07);color:#eaecef}
+  #nv-overlay .nv-tool.on{background:rgba(34,211,238,.16);color:#22d3ee;box-shadow:inset 0 0 0 1px rgba(34,211,238,.4)}
+  #nv-overlay .nv-tool-tg.on{background:rgba(232,184,75,.16);color:var(--gold,#E8B84B);box-shadow:inset 0 0 0 1px rgba(232,184,75,.4)}
+  #nv-overlay .nv-tool-sep{height:1px;background:rgba(255,255,255,.1);margin:3px 5px;flex:0 0 auto}
+  @media(max-width:760px){ #nv-overlay .nv-tools{left:5px;padding:4px;gap:2px}
+    #nv-overlay .nv-tool{width:29px;height:29px}
+    #nv-overlay .nv-tool svg{width:16px;height:16px} }
 
   /* El logo: se tiene que ver que somos nosotros */
   #nv-overlay .nv-marca{position:absolute;left:16px;bottom:40px;height:42px;width:auto;
