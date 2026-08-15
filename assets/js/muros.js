@@ -105,7 +105,7 @@ const M = {
   cruzY: -1,
   velas: [],          // las velas del gráfico
   tf: '5m',           // temporalidad
-  ancho: 70,          // cuántas velas se ven
+  ancho: window.innerWidth < 760 ? 65 : 100,  // cuántas velas se ven
   filtro: 'todos',
   maxMuro: 1,
   zoomY: 1,           // estirar/contraer la escala de precios
@@ -527,7 +527,7 @@ async function cargarVelas() {
     if (!$('mu-cv')) { clearInterval(_relojVelas); return; }
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
-      M.velas = await traerVelas(par.s, M.tf, 120);
+      M.velas = await traerVelas(par.s, M.tf, 400);
       dibujar();
     } catch (_) {}
   };
@@ -677,11 +677,14 @@ function dibujar() {
   const xVelas = x1 * 0.82;      // las velas ocupan casi todo
 
   /* La ventana visible: el ancho es el zoom y el desplazamiento el
-     arrastre. Así se puede recorrer el histórico como en TradingView. */
+     arrastre. Muestra SIEMPRE `ancho` velas completas (sin aplastar ni
+     dejar telón), con un respiro del 15% a la derecha. */
   const ancho = Math.min(M.velas.length, M.ancho || 70);
-  const desp = Math.min(M.desplaz || 0, Math.max(0, M.velas.length - ancho));
+  const huecoMax = Math.floor(ancho * 0.15);
+  const desp = Math.max(-huecoMax, Math.min(M.desplaz || 0, Math.max(0, M.velas.length - ancho)));
+  M.desplaz = desp;
   const fin = M.velas.length - desp;
-  const vis = M.velas.slice(Math.max(0, fin - ancho), fin);
+  const vis = M.velas.slice(Math.max(0, fin - ancho), Math.min(M.velas.length, fin));
   if (!vis.length) return;
 
   /* ══════════════════════════════════════════════════════════
@@ -889,9 +892,8 @@ function engancharGestos(cv) {
     const paso = (cv.clientWidth * 0.7) / (M.ancho || 70);
     const mov = Math.round((e.clientX - ax) / Math.max(1, paso));
     if (mov !== 0) {
-      const tope = Math.max(0, M.velas.length - 20);
-      /* Se permite pasar de la última vela: hueco a la derecha */
-      const suelo = -Math.floor((M.ancho || 70) * 0.5);
+      const tope = Math.max(0, M.velas.length - (M.ancho || 70));
+      const suelo = -Math.floor((M.ancho || 70) * 0.15);   // respiro a la derecha
       M.desplaz = Math.max(suelo, Math.min(tope, (M.desplaz || 0) + mov));
       ax = e.clientX; cambio = true;
     }
@@ -905,7 +907,7 @@ function engancharGestos(cv) {
   window.addEventListener('mouseup', () => { arr = false; cv.style.cursor = 'crosshair'; });
 
   cv.addEventListener('dblclick', () => {
-    M.ancho = 70; M.desplaz = 0; M.zoomY = 1; M.offsetY = 0;
+    M.ancho = window.innerWidth < 760 ? 65 : 100; M.desplaz = 0; M.zoomY = 1; M.offsetY = 0;
     dibujar();
   });
   cv.style.cursor = 'crosshair';
@@ -926,7 +928,7 @@ function engancharGestos(cv) {
 
   // Doble clic: volver al encuadre inicial
   cv.addEventListener('dblclick', () => {
-    M.ancho = window.innerWidth < 760 ? 45 : 70;
+    M.ancho = window.innerWidth < 760 ? 65 : 100;
     M.desplaz = 0;
     M.zoomY = 1;
     dibujar();
@@ -948,8 +950,8 @@ function engancharGestos(cv) {
       const paso = (cv.clientWidth * 0.7) / (M.ancho || 70);
       const mov = Math.round((e.touches[0].clientX - tx) / Math.max(1, paso));
       if (mov !== 0) {
-        const tope = Math.max(0, M.velas.length - 20);
-        const sueloT = -Math.floor((M.ancho || 70) * 0.5);
+        const tope = Math.max(0, M.velas.length - (M.ancho || 70));
+        const sueloT = -Math.floor((M.ancho || 70) * 0.15);
         M.desplaz = Math.max(sueloT, Math.min(tope, (M.desplaz || 0) + mov));
         tx = e.touches[0].clientX;
         dibujar();

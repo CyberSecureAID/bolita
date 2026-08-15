@@ -1942,7 +1942,7 @@ export async function abrirNiveles() {
   const prev = $('nv-overlay'); if (prev) prev.remove();
 
   N.velas = []; N.cargando = true; N.error = null;
-  N.vista = { desde: 0, ancho: window.innerWidth < 760 ? 55 : 90, zoomY: 1, offsetY: 0 };
+  N.vista = { desde: 0, ancho: window.innerWidth < 760 ? 80 : 130, zoomY: 1, offsetY: 0 };
 
   const d = document.createElement('div');
   d.id = 'nv-overlay';
@@ -2071,7 +2071,7 @@ async function recargar() {
     if (!$('nv-cv')) { clearInterval(_reloj); return; }
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
-      N.velas = await traerVelas(par.s, _tf, 300);
+      N.velas = await traerVelas(par.s, _tf, 500);
       /* La semilla se fija por par y hora: así las frases no bailan
          en cada refresco, pero cambian con el tiempo. */
       _semilla = (_par.charCodeAt(0) + new Date().getHours()) * 1.7;
@@ -2115,8 +2115,21 @@ function pintarEstado() {
   if (e) {
     const cls = t.dir === 'alcista' ? 'sube' : t.dir === 'bajista' ? 'baja' : 'lat';
     const txt = N.rango ? 'En rango' : nombreTend(t.dir);
+    /* Cambio de las últimas 24 h, calculado con las velas reales (el número
+       de velas equivale exactamente a 24 h según la temporalidad). Cápsula
+       verde si sube, roja si baja, gris si está plano. */
+    const perTf = { '15m': 96, '1h': 24, '4h': 6, '1d': 1 };
+    const n24 = perTf[_tf] || 24;
+    let c24 = 0;
+    if (N.velas && N.velas.length > 1) {
+      const base = N.velas[Math.max(0, N.velas.length - 1 - n24)].c;
+      if (base > 0) c24 = ((N.precio - base) / base) * 100;
+    }
+    const c24cls = c24 > 0.05 ? 'sube' : c24 < -0.05 ? 'baja' : 'lat';
+    const c24txt = (c24 >= 0 ? '+' : '') + c24.toFixed(2) + '%';
     e.innerHTML = `<span class="nv-pill ${cls}">${esc(txt.charAt(0).toUpperCase() + txt.slice(1))}</span>
-      <span class="nv-precio">${fmt(N.precio)}</span>`;
+      <span class="nv-precio">${fmt(N.precio)}</span>
+      <span class="nv-24h ${c24cls}" title="${esc(T('Cambio 24h'))}">${c24txt}</span>`;
   }
 
   /* Solo el horizonte y el número de lecturas: lo demás lo dicen
@@ -2232,10 +2245,14 @@ function dibujar() {
      podían despegar. Ahora se reserva un hueco a la derecha, como en
      TradingView, y el desplazamiento puede ser negativo para empujar
      el gráfico más allá de la última vela. */
+  /* La ventana siempre muestra `ancho` velas completas: al mover a la
+     izquierda se detiene cuando llega a la vela más antigua (sin aplastar
+     ni dejar hueco), y a la derecha se permite solo un respiro del 15%. */
   const total = N.velas.length;
   const ancho = Math.max(20, Math.min(total, N.vista.ancho));
-  const desp = Math.max(-Math.floor(ancho * 0.6),
-                        Math.min(N.vista.desde, Math.max(0, total - 20)));
+  const huecoMax = Math.floor(ancho * 0.15);
+  const desp = Math.max(-huecoMax,
+                        Math.min(N.vista.desde, Math.max(0, total - ancho)));
   N.vista.desde = desp;
   const fin = total - desp;
   const vis = N.velas.slice(Math.max(0, fin - ancho), Math.min(total, fin));
@@ -3532,8 +3549,8 @@ function gestos(cv) {
     const paso = (cv.clientWidth - 84) / N.vista.ancho;
     const d = Math.round((e.clientX - ax) / Math.max(1, paso));
     if (d !== 0) {
-      const tope = Math.max(0, N.velas.length - 20);
-      const suelo = -Math.floor(N.vista.ancho * 0.6);   // hueco a la derecha
+      const tope = Math.max(0, N.velas.length - N.vista.ancho);
+      const suelo = -Math.floor(N.vista.ancho * 0.15);   // respiro a la derecha
       N.vista.desde = Math.max(suelo, Math.min(tope, N.vista.desde + d));
       ax = e.clientX; cambio = true;
     }
@@ -3563,8 +3580,8 @@ function gestos(cv) {
       const paso = (cv.clientWidth - 84) / N.vista.ancho;
       const d = Math.round((e.touches[0].clientX - tx) / Math.max(1, paso));
       if (d !== 0) {
-        const tope = Math.max(0, N.velas.length - 20);
-        const suelo = -Math.floor(N.vista.ancho * 0.6);
+        const tope = Math.max(0, N.velas.length - N.vista.ancho);
+        const suelo = -Math.floor(N.vista.ancho * 0.15);
         N.vista.desde = Math.max(suelo, Math.min(tope, N.vista.desde + d));
         tx = e.touches[0].clientX; refrescar();
       }
@@ -4513,6 +4530,11 @@ function estilos() {
   #nv-overlay .nv-pill.lat{background:rgba(139,150,163,.14);color:#9aa5b1}
   #nv-overlay .nv-precio{font-family:var(--display,sans-serif);font-weight:800;font-size:17px;
     color:var(--gold,#E8B84B)}
+  #nv-overlay .nv-24h{font-family:var(--mono,monospace);font-weight:700;font-size:11px;
+    padding:3px 8px;border-radius:8px;margin-left:1px;white-space:nowrap}
+  #nv-overlay .nv-24h.sube{background:rgba(46,232,106,.16);color:#3ee88a}
+  #nv-overlay .nv-24h.baja{background:rgba(246,70,93,.16);color:#ff6b7a}
+  #nv-overlay .nv-24h.lat{background:rgba(139,150,163,.14);color:#9aa5b1}
   #nv-overlay .nv-der{margin-left:auto;display:flex;gap:6px;flex:0 0 auto}
   #nv-overlay .nv-ico{width:36px;height:36px;min-height:36px;flex:0 0 auto;border-radius:10px;
     display:grid;place-items:center;padding:0;cursor:pointer;
