@@ -2961,41 +2961,50 @@ function dibujar() {
       const prox = (dato, alc) => {
         if (!dato || dato.falta <= 0) return;
         const nv = dato.nivel;
-        if (nv < pMin || nv > pMax) return;
-        const yN = Y(nv);
         const col = alc ? '#2ee86a' : '#FF0000';
         const rgb = alc ? '46,232,106' : '255,60,80';
         const cerca = dato.falta < 0.4;
-        // ¿la línea llegaría hasta el eje, o choca con el panel?
-        const chocaPanel = yN >= box.y - 2 && yN <= box.y + box.h + 2;
+        // ¿el nivel de disparo está a la vista, o fuera (arriba/abajo)?
+        const arriba = nv > pMax, abajo = nv < pMin, fuera = arriba || abajo;
+        const yN = arriba ? 11 : abajo ? y1 - 11 : Y(nv);
+        // si la línea llegara a la altura del panel, se detiene antes de él
+        const chocaPanel = !fuera && yN >= box.y - 2 && yN <= box.y + box.h + 2;
         const xFin = chocaPanel ? Math.max(60, box.x - 6) : x1 - 4;
 
         g.save();
-        // halo + línea punteada con degradado (tenue izq. → intensa der.)
-        g.strokeStyle = `rgba(${rgb},.10)`; g.lineWidth = 7;
-        g.beginPath(); g.moveTo(2, yN); g.lineTo(xFin, yN); g.stroke();
-        const gl = g.createLinearGradient(2, 0, xFin, 0);
-        gl.addColorStop(0, `rgba(${rgb},.12)`);
-        gl.addColorStop(0.7, `rgba(${rgb},.6)`);
-        gl.addColorStop(1, `rgba(${rgb},.95)`);
-        g.strokeStyle = gl; g.lineWidth = 2; g.setLineDash([7, 5]);
-        g.beginPath(); g.moveTo(2, yN); g.lineTo(xFin, yN); g.stroke();
-        g.setLineDash([]);
+        if (!fuera) {
+          // LÍNEA horizontal de disparo, directamente sobre las velas
+          g.strokeStyle = `rgba(${rgb},.10)`; g.lineWidth = 7;
+          g.beginPath(); g.moveTo(2, yN); g.lineTo(xFin, yN); g.stroke();
+          const gl = g.createLinearGradient(2, 0, xFin, 0);
+          gl.addColorStop(0, `rgba(${rgb},.14)`);
+          gl.addColorStop(0.7, `rgba(${rgb},.6)`);
+          gl.addColorStop(1, `rgba(${rgb},.95)`);
+          g.strokeStyle = gl; g.lineWidth = 2.2; g.setLineDash([7, 5]);
+          g.beginPath(); g.moveTo(2, yN); g.lineTo(xFin, yN); g.stroke();
+          g.setLineDash([]);
+        } else {
+          // el nivel queda fuera de la vista: banda tenue en el borde
+          // (arriba o abajo) para indicar hacia dónde está
+          const y0 = arriba ? 0 : y1 - 22;
+          const grd = g.createLinearGradient(0, arriba ? 0 : y1, 0, arriba ? 22 : y1 - 22);
+          grd.addColorStop(0, `rgba(${rgb},.30)`);
+          grd.addColorStop(1, `rgba(${rgb},0)`);
+          g.fillStyle = grd; g.fillRect(0, y0, xFin, 22);
+        }
         g.restore();
 
-        // TACHUELA a la derecha: flecha + texto (precio + cuánto falta).
-        // Si el nivel cae tras el panel, se acorta (el panel ya da el precio).
-        const flecha = alc ? '▲' : '▼';
+        // TACHUELA: precio + cuánto falta. Doble flecha si el nivel está
+        // fuera de la vista (indica que hay que mirar más arriba/abajo).
+        const dir = alc ? 'LONG' : 'SHORT';
+        const fl = fuera ? (arriba ? '▲▲ ' : '▼▼ ') : (alc ? '▲ ' : '▼ ');
         const dist = cerca ? '¡a punto!' : `falta ${dato.falta.toFixed(1)}%`;
-        const txt = chocaPanel
-          ? `${flecha} ${alc ? 'LONG' : 'SHORT'} · ${dist}`
-          : `${flecha} ${alc ? 'LONG' : 'SHORT'} ${fmt(nv)} · ${dist}`;
+        const txt = chocaPanel ? `${fl}${dir} · ${dist}` : `${fl}${dir} ${fmt(nv)} · ${dist}`;
         g.font = 'bold 9px ui-monospace,monospace';
         const tw = g.measureText(txt).width + 20;
         const th = 19;
-        const tX = Math.max(6, xFin - tw);          // pegada al fin de la línea
+        const tX = Math.max(6, xFin - tw);
         const tY = Math.max(2, Math.min(y1 - th - 2, yN - th / 2));
-        // puntita triangular que conecta la tachuela con la línea
         g.save();
         g.shadowColor = col; g.shadowBlur = cerca ? 12 : 7;
         g.fillStyle = cerca ? col : (alc ? 'rgba(6,33,15,.97)' : 'rgba(42,5,9,.97)');
@@ -3582,17 +3591,17 @@ function menuHerramientas(anchor) {
   };
   const HERRAS = [
     { h: 'marea', on: !!N.verMarea, nombre: 'Marea', tag: 'cambio de ciclo', ico: IC.marea, accion: false,
-      desc: 'Marca dónde la marea del mercado cambia de manos y avisa a qué distancia saltará la próxima señal LONG o SHORT. Nuestro indicador insignia.',
-      guia: 'Marea te avisa cuándo el mercado está cambiando de dirección: de subir a bajar, o de bajar a subir. Es como ver cuándo cambia la marea del mar.\n\nCómo usarlo: cuando aparece una tachuela verde que dice LONG, el mercado acaba de girar al alza (hacia arriba), una zona donde suele entrar gente a comprar. Si aparece una roja que dice SHORT, giró a la baja (hacia abajo). Además verás unas líneas horizontales con una etiqueta a la derecha que te dicen a qué precio saltará la próxima señal y cuánto le falta al precio para llegar; así te preparas con tiempo.\n\nRecomendaciones: no entres solo porque aparezca una tachuela; espera a que el precio confirme el movimiento. Combínalo con las Alertas para que te avise aunque no estés mirando la pantalla. Y ten paciencia: Marea es estricto y si no marca nada es porque no hay un giro claro, lo que también es una señal para no operar.' },
+      desc: 'cambio de ciclo',
+      guia: 'Marea identifica los puntos en los que el mercado cambia de ciclo: el momento en que el control pasa de compradores a vendedores, o al revés. Su propósito es señalar el giro de tendencia con criterio, no en cada oscilación.\n\nCómo interpretarlo: una señal LONG (verde) indica que el ciclo ha girado al alza y que la presión compradora toma el control; una señal SHORT (roja) indica lo contrario. Sobre el gráfico verás además dos niveles de disparo: la línea que el precio debe superar para activar el próximo LONG y la que debe perder para activar el próximo SHORT, cada una con la distancia que le falta al precio para alcanzarla.\n\nAplicación operativa: use la distancia a esos niveles para anticipar cuándo se acerca una señal y planificar la entrada con antelación en lugar de reaccionar tarde. Confirme el giro con precio y volumen antes de comprometer capital, y combine la herramienta con las Alertas para no depender de la vigilancia manual. La ausencia de señal es información válida: indica que no hay un cambio de ciclo con respaldo suficiente.' },
     { h: 'estructura', on: N.verEstructura === true, nombre: 'Faro', tag: 'estructura', ico: IC.estructura, accion: false,
-      desc: 'Ilumina la estructura del mercado: soportes y resistencias, tendencia, techo del rango, dobles techos y dobles suelos.',
-      guia: 'Faro te ilumina las zonas clave del gráfico: dónde el precio suele frenar cuando sube (resistencias, por arriba) y dónde suele rebotar cuando baja (soportes, por abajo). También te dice la tendencia general.\n\nCómo usarlo: si el precio se acerca a un soporte, hay más probabilidad de que rebote hacia arriba; si se acerca a una resistencia, puede frenarse o darse la vuelta. Los "dobles techos" y "dobles suelos" que marca suelen avisar de un cambio de dirección.\n\nRecomendaciones: usa esas zonas para decidir dónde comprar, dónde vender y dónde poner tu stop (el precio al que cortas la pérdida si te equivocas). No las tomes como algo seguro: son zonas de alta probabilidad, no de certeza. Si el gráfico se te hace cargado, puedes apagarlo cuando quieras.' },
+      desc: 'estructura',
+      guia: 'Faro traza la estructura del mercado sobre el gráfico: soportes y resistencias, la dirección de la tendencia, los límites del rango y las formaciones de doble techo y doble suelo. Ofrece el mapa de las zonas donde el precio suele reaccionar.\n\nCómo interpretarlo: un soporte es un nivel por debajo del precio donde la demanda tiende a frenar las caídas; una resistencia, un nivel por encima donde la oferta tiende a frenar las subidas. Los dobles techos y dobles suelos anticipan agotamiento de la tendencia vigente.\n\nAplicación operativa: apóyese en estos niveles para definir entradas, objetivos y la ubicación del stop de pérdidas. Trátelos como zonas de probabilidad, no de certeza: aportan contexto para la decisión, no una garantía. Puede desactivarlo cuando necesite un gráfico despejado.' },
     { h: 'alertas', on: !!N.alertas, nombre: 'Alertas', tag: (N.alertas && N.alertaPar) ? N.alertaPar : _par, ico: IC.alertas, accion: true,
-      desc: 'Recibe una notificación push (con sonido) cuando Marea dispara una señal, o pon una alerta de precio con Faro.',
-      guia: 'Las Alertas te avisan con una notificación y un sonido cuando pasa algo importante, aunque tengas el teléfono guardado o estés usando otra aplicación.\n\nCómo usarlo: elige Marea para que te avise justo cuando salga una señal LONG o SHORT, o elige Faro para poner una alerta en un precio concreto (haz clic derecho o mantén pulsado sobre el gráfico y elige "avísame"). Así no tienes que estar pegado a la pantalla esperando.\n\nRecomendaciones: activa las alertas del par que estés vigilando (por ejemplo BTC). Ten en cuenta que, al ser una página web, las alertas funcionan mientras la tengas abierta, aunque sea en segundo plano.' },
+      desc: 'notificaciones',
+      guia: 'Las Alertas emiten una notificación con sonido cuando se produce el evento que usted defina, de modo que no necesite mantener la vista sobre el gráfico de forma continua.\n\nCómo configurarlas: seleccione Marea para recibir aviso en el instante en que se dispare una señal LONG o SHORT, o Faro para fijar una alerta sobre un precio concreto directamente en el gráfico. La alerta queda asociada al par que esté operando.\n\nConsideración importante: al ejecutarse en el navegador, las notificaciones se entregan mientras la página permanezca abierta, incluso en segundo plano. Manténgala activa para no perder avisos.' },
     { h: 'limpia', on: !!N.limpia, nombre: 'Gráfica limpia', tag: 'quitar todo', ico: IC.limpia, accion: false,
-      desc: 'Apaga de golpe todos los indicadores y deja solo las velas y el precio. Vuelve a tocar para restaurar.',
-      guia: 'Gráfica limpia apaga de una sola vez todos los indicadores y te deja solo las velas y el precio, sin nada encima.\n\nCómo usarlo: tócalo cuando quieras mirar el gráfico "desnudo" y analizar el precio a tu manera. Vuelve a tocarlo para recuperar todo lo que tenías encendido.\n\nRecomendaciones: es útil cuando sientes que la gráfica tiene demasiada información y quieres despejarla un momento para ver el precio con calma.' }
+      desc: 'quitar todo',
+      guia: 'Gráfica limpia desactiva de forma simultánea todos los indicadores y deja únicamente las velas y el precio.\n\nCuándo usarla: cuando desee analizar la acción del precio sin ninguna capa superpuesta, con una lectura neutra del gráfico. Vuelva a activarla para restaurar la configuración anterior de indicadores.\n\nUtilidad: resulta práctica para despejar el gráfico durante un análisis puntual sin perder los ajustes que tenía activos.' }
   ];
 
   const items = HERRAS.map((t) => `
@@ -3600,7 +3609,6 @@ function menuHerramientas(anchor) {
       <span class="nv-ind-ic">${t.ico || ''}</span>
       <div class="nv-ind-tx">
         <div class="nv-ind-nm"><b>${esc(T(t.nombre))}</b>${t.tag ? `<em>${esc(T(t.tag))}</em>` : ''}</div>
-        <span class="nv-ind-de">${esc(T(t.desc))}</span>
       </div>
       <button class="nv-ind-help" data-help="${t.h}" type="button" aria-label="${esc(T('Cómo funciona') + ' ' + T(t.nombre))}">
         <span>?</span><em>${esc(T('Cómo funciona'))}</em>
