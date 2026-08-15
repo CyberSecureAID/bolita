@@ -2545,75 +2545,9 @@ function dibujar() {
       }
     }
 
-    /* ── El OBJETIVO de la próxima alerta, marcado en la gráfica ──
-       Hasta dónde tiene que llegar el precio para que salte cada señal:
-       una línea fina punteada al nivel que hay que superar (LONG, por
-       arriba) o perder (SHORT, por abajo), con una pastilla que dice el
-       precio exacto y cuánto falta. Así la persona sabe qué esperar y
-       puede poner ahí su alerta de precio. Solo se marca si de verdad
-       falta camino (si el nivel ya está roto, esa condición ya está
-       cumplida) y si el nivel entra en la parte visible. En fin de
-       semana no se marca: no va a saltar nada. */
-    if (!MA.finde) {
-      // banda vertical que ocupa el panel (arriba-derecha), para no pisarlo
-      const enPanel = (yy) => yy > 4 && yy < 12 + 250;
-      const PWp = Math.min(218, Math.max(150, x1 - 16));
-      const pxp = Math.max(8, x1 - PWp - 10);
-      const objetivo = (dato, alc) => {
-        if (!dato || dato.falta <= 0) return;
-        const nv = dato.nivel;
-        if (nv < pMin || nv > pMax) return;
-        const yN = Y(nv);
-        const col = alc ? '#2ee86a' : '#FF0000';
-        const rgb = alc ? '46,232,106' : '255,60,80';
-        const cerca = dato.falta < 0.4;        // a punto de gatillar
-
-        g.save();
-        // 1) halo suave, para que la línea "respire" sin ensuciar
-        g.strokeStyle = `rgba(${rgb},.10)`; g.lineWidth = 7;
-        g.beginPath(); g.moveTo(2, yN); g.lineTo(x1 - 3, yN); g.stroke();
-        // 2) línea punteada con degradado: tenue a la izquierda, intensa
-        //    hacia el eje de precio (guía la mirada al nivel exacto)
-        const gl = g.createLinearGradient(2, 0, x1, 0);
-        gl.addColorStop(0, `rgba(${rgb},.12)`);
-        gl.addColorStop(0.7, `rgba(${rgb},.55)`);
-        gl.addColorStop(1, `rgba(${rgb},.95)`);
-        g.strokeStyle = gl; g.lineWidth = 1.9; g.setLineDash([7, 5]);
-        g.beginPath(); g.moveTo(2, yN); g.lineTo(x1 - 4, yN); g.stroke();
-        g.setLineDash([]);
-        // 3) marcador triangular en el extremo derecho (más glow si está cerca)
-        g.fillStyle = col; g.shadowColor = col; g.shadowBlur = cerca ? 13 : 8;
-        const tx = x1 - 4;
-        g.beginPath();
-        if (alc) { g.moveTo(tx, yN - 6); g.lineTo(tx - 9, yN); g.lineTo(tx, yN); }
-        else { g.moveTo(tx, yN + 6); g.lineTo(tx - 9, yN); g.lineTo(tx, yN); }
-        g.closePath(); g.fill();
-        g.restore();
-
-        // 4) pastilla con el PRECIO y, sobre todo, CUÁNTO FALTA (la distancia
-        //    a la que saltará la alerta). Si el nivel cae tras el panel, la
-        //    pastilla —más corta— salta a la izquierda para verse SIEMPRE.
-        const flecha = alc ? '▲' : '▼';
-        const dist = cerca ? '¡a punto!' : `falta ${dato.falta.toFixed(1)}%`;
-        const enBandaPanel = yN > 4 && yN < 12 + 250;
-        const txt = enBandaPanel
-          ? `${flecha} ${alc ? 'LONG' : 'SHORT'} · ${dist}`
-          : `${flecha} PRÓX. ${alc ? 'LONG' : 'SHORT'} · ${fmt(nv)} · ${dist}`;
-        g.font = 'bold 9px ui-monospace,monospace';
-        const wE = g.measureText(txt).width + 16;
-        const yPill = Math.max(2, Math.min(y1 - 20, alc ? yN - 22 : yN + 4));
-        const xPill = enBandaPanel ? 8 : Math.max(pxp + 4, x1 - 12 - wE);
-        etiquetas.push({
-          txt, x: xPill, y: yPill, w: wE, h: 18,
-          fondo: alc ? 'rgba(6,33,15,.96)' : 'rgba(42,5,9,.96)',
-          tinta: cerca ? '#ffffff' : (alc ? '#2ee86a' : '#FFD400'),
-          borde: cerca ? col : (alc ? 'rgba(46,232,106,.9)' : 'rgba(255,60,80,.9)'),
-          font: 'bold 9px ui-monospace,monospace', pad: 8
-        });
-      };
-      objetivo(MA.panel.long, true);
-      objetivo(MA.panel.short, false);
-    }
+    /* Las marcas de PRÓXIMA ALERTA (línea horizontal + tachuela a la
+       derecha con el precio y cuánto falta) se dibujan DESPUÉS del panel,
+       para que el panel nunca las tape. Ver dibujarProx() más abajo. */
   }
 
   /* ══ EL CANAL DEL RANGO ══
@@ -3012,6 +2946,70 @@ function dibujar() {
      y cuánto le falta al precio para dispararla. */
   if (N.marea && N.verMarea && !N.limpia && !N.cargando) {
     panelMarea(g, N.marea, x1, W);
+
+    /* ══ PRÓXIMA ALERTA (línea horizontal + tachuela a la derecha) ══
+       La dinámica que el usuario quiere: una línea horizontal en el
+       precio que hay que SUPERAR para que salte LONG (verde) o PERDER
+       para que salte SHORT (rojo), con una TACHUELA a la derecha que
+       dice el precio y cuánto falta. Se dibuja DESPUÉS del panel para que
+       nunca quede tapada; si el nivel cae a la altura del panel, la línea
+       y su tachuela se detienen justo antes del panel (siguen a la
+       derecha, pero sin pisarlo). */
+    const MA = N.marea;
+    if (!MA.finde) {
+      const box = N._panelBox || { x: x1, y: 12, w: 0, h: 0 };
+      const prox = (dato, alc) => {
+        if (!dato || dato.falta <= 0) return;
+        const nv = dato.nivel;
+        if (nv < pMin || nv > pMax) return;
+        const yN = Y(nv);
+        const col = alc ? '#2ee86a' : '#FF0000';
+        const rgb = alc ? '46,232,106' : '255,60,80';
+        const cerca = dato.falta < 0.4;
+        // ¿la línea llegaría hasta el eje, o choca con el panel?
+        const chocaPanel = yN >= box.y - 2 && yN <= box.y + box.h + 2;
+        const xFin = chocaPanel ? Math.max(60, box.x - 6) : x1 - 4;
+
+        g.save();
+        // halo + línea punteada con degradado (tenue izq. → intensa der.)
+        g.strokeStyle = `rgba(${rgb},.10)`; g.lineWidth = 7;
+        g.beginPath(); g.moveTo(2, yN); g.lineTo(xFin, yN); g.stroke();
+        const gl = g.createLinearGradient(2, 0, xFin, 0);
+        gl.addColorStop(0, `rgba(${rgb},.12)`);
+        gl.addColorStop(0.7, `rgba(${rgb},.6)`);
+        gl.addColorStop(1, `rgba(${rgb},.95)`);
+        g.strokeStyle = gl; g.lineWidth = 2; g.setLineDash([7, 5]);
+        g.beginPath(); g.moveTo(2, yN); g.lineTo(xFin, yN); g.stroke();
+        g.setLineDash([]);
+        g.restore();
+
+        // TACHUELA a la derecha: flecha + texto (precio + cuánto falta).
+        // Si el nivel cae tras el panel, se acorta (el panel ya da el precio).
+        const flecha = alc ? '▲' : '▼';
+        const dist = cerca ? '¡a punto!' : `falta ${dato.falta.toFixed(1)}%`;
+        const txt = chocaPanel
+          ? `${flecha} ${alc ? 'LONG' : 'SHORT'} · ${dist}`
+          : `${flecha} ${alc ? 'LONG' : 'SHORT'} ${fmt(nv)} · ${dist}`;
+        g.font = 'bold 9px ui-monospace,monospace';
+        const tw = g.measureText(txt).width + 20;
+        const th = 19;
+        const tX = Math.max(6, xFin - tw);          // pegada al fin de la línea
+        const tY = Math.max(2, Math.min(y1 - th - 2, yN - th / 2));
+        // puntita triangular que conecta la tachuela con la línea
+        g.save();
+        g.shadowColor = col; g.shadowBlur = cerca ? 12 : 7;
+        g.fillStyle = cerca ? col : (alc ? 'rgba(6,33,15,.97)' : 'rgba(42,5,9,.97)');
+        redondeado(g, tX, tY, tw, th, 6); g.fill();
+        g.restore();
+        g.strokeStyle = col; g.lineWidth = 1.3;
+        redondeado(g, tX, tY, tw, th, 6); g.stroke();
+        g.fillStyle = cerca ? '#0b0f16' : (alc ? '#2ee86a' : '#FFD400');
+        g.textAlign = 'left';
+        g.fillText(txt, tX + 9, tY + th / 2 + 3.2);
+      };
+      prox(MA.panel.long, true);
+      prox(MA.panel.short, false);
+    }
   }
 
   /* ── Las fechas ── */
@@ -3234,6 +3232,10 @@ function panelMarea(g, MA, x1, W) {
   g.font = '7px ui-monospace,monospace';
   g.fillStyle = '#4a525c';
   g.fillText('confluencia de requisitos, no predicción', cx0, py + PH - 9);
+
+  // Guardamos el recuadro del panel para colocar las marcas PRÓX sin que
+  // el panel las tape (se dibujan después, ya sabiendo dónde está).
+  N._panelBox = { x: px, y: py, w: PW, h: PH };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -3580,13 +3582,17 @@ function menuHerramientas(anchor) {
   };
   const HERRAS = [
     { h: 'marea', on: !!N.verMarea, nombre: 'Marea', tag: 'cambio de ciclo', ico: IC.marea, accion: false,
-      desc: 'Marca dónde la marea del mercado cambia de manos y avisa a qué distancia saltará la próxima señal LONG o SHORT. Nuestro indicador insignia.' },
+      desc: 'Marca dónde la marea del mercado cambia de manos y avisa a qué distancia saltará la próxima señal LONG o SHORT. Nuestro indicador insignia.',
+      guia: 'Marea te avisa cuándo el mercado está cambiando de dirección: de subir a bajar, o de bajar a subir. Es como ver cuándo cambia la marea del mar.\n\nCómo usarlo: cuando aparece una tachuela verde que dice LONG, el mercado acaba de girar al alza (hacia arriba), una zona donde suele entrar gente a comprar. Si aparece una roja que dice SHORT, giró a la baja (hacia abajo). Además verás unas líneas horizontales con una etiqueta a la derecha que te dicen a qué precio saltará la próxima señal y cuánto le falta al precio para llegar; así te preparas con tiempo.\n\nRecomendaciones: no entres solo porque aparezca una tachuela; espera a que el precio confirme el movimiento. Combínalo con las Alertas para que te avise aunque no estés mirando la pantalla. Y ten paciencia: Marea es estricto y si no marca nada es porque no hay un giro claro, lo que también es una señal para no operar.' },
     { h: 'estructura', on: N.verEstructura === true, nombre: 'Faro', tag: 'estructura', ico: IC.estructura, accion: false,
-      desc: 'Ilumina la estructura del mercado: soportes y resistencias, tendencia, techo del rango, dobles techos y dobles suelos.' },
+      desc: 'Ilumina la estructura del mercado: soportes y resistencias, tendencia, techo del rango, dobles techos y dobles suelos.',
+      guia: 'Faro te ilumina las zonas clave del gráfico: dónde el precio suele frenar cuando sube (resistencias, por arriba) y dónde suele rebotar cuando baja (soportes, por abajo). También te dice la tendencia general.\n\nCómo usarlo: si el precio se acerca a un soporte, hay más probabilidad de que rebote hacia arriba; si se acerca a una resistencia, puede frenarse o darse la vuelta. Los "dobles techos" y "dobles suelos" que marca suelen avisar de un cambio de dirección.\n\nRecomendaciones: usa esas zonas para decidir dónde comprar, dónde vender y dónde poner tu stop (el precio al que cortas la pérdida si te equivocas). No las tomes como algo seguro: son zonas de alta probabilidad, no de certeza. Si el gráfico se te hace cargado, puedes apagarlo cuando quieras.' },
     { h: 'alertas', on: !!N.alertas, nombre: 'Alertas', tag: (N.alertas && N.alertaPar) ? N.alertaPar : _par, ico: IC.alertas, accion: true,
-      desc: 'Recibe una notificación push (con sonido) cuando Marea dispara una señal, o pon una alerta de precio con Faro.' },
+      desc: 'Recibe una notificación push (con sonido) cuando Marea dispara una señal, o pon una alerta de precio con Faro.',
+      guia: 'Las Alertas te avisan con una notificación y un sonido cuando pasa algo importante, aunque tengas el teléfono guardado o estés usando otra aplicación.\n\nCómo usarlo: elige Marea para que te avise justo cuando salga una señal LONG o SHORT, o elige Faro para poner una alerta en un precio concreto (haz clic derecho o mantén pulsado sobre el gráfico y elige "avísame"). Así no tienes que estar pegado a la pantalla esperando.\n\nRecomendaciones: activa las alertas del par que estés vigilando (por ejemplo BTC). Ten en cuenta que, al ser una página web, las alertas funcionan mientras la tengas abierta, aunque sea en segundo plano.' },
     { h: 'limpia', on: !!N.limpia, nombre: 'Gráfica limpia', tag: 'quitar todo', ico: IC.limpia, accion: false,
-      desc: 'Apaga de golpe todos los indicadores y deja solo las velas y el precio. Vuelve a tocar para restaurar.' }
+      desc: 'Apaga de golpe todos los indicadores y deja solo las velas y el precio. Vuelve a tocar para restaurar.',
+      guia: 'Gráfica limpia apaga de una sola vez todos los indicadores y te deja solo las velas y el precio, sin nada encima.\n\nCómo usarlo: tócalo cuando quieras mirar el gráfico "desnudo" y analizar el precio a tu manera. Vuelve a tocarlo para recuperar todo lo que tenías encendido.\n\nRecomendaciones: es útil cuando sientes que la gráfica tiene demasiada información y quieres despejarla un momento para ver el precio con calma.' }
   ];
 
   const items = HERRAS.map((t) => `
@@ -3596,6 +3602,9 @@ function menuHerramientas(anchor) {
         <div class="nv-ind-nm"><b>${esc(T(t.nombre))}</b>${t.tag ? `<em>${esc(T(t.tag))}</em>` : ''}</div>
         <span class="nv-ind-de">${esc(T(t.desc))}</span>
       </div>
+      <button class="nv-ind-help" data-help="${t.h}" type="button" aria-label="${esc(T('Cómo funciona') + ' ' + T(t.nombre))}">
+        <span>?</span><em>${esc(T('Cómo funciona'))}</em>
+      </button>
       ${t.accion
         ? `<span class="nv-ind-go">›</span>`
         : `<span class="nv-ind-sw" aria-hidden="true"><span class="nv-ind-kn"></span></span>`}
@@ -3641,8 +3650,15 @@ function menuHerramientas(anchor) {
   q.addEventListener('input', filtrar);
   setTimeout(() => { try { q.focus(); } catch (_) {} }, 30);
 
-  // Encender / apagar cada indicador
+  // Encender / apagar cada indicador, o abrir su guía "Cómo funciona"
   lista.addEventListener('click', (e) => {
+    const ayuda = e.target.closest('[data-help]');
+    if (ayuda) {
+      e.stopPropagation();
+      const t = HERRAS.find((x) => x.h === ayuda.dataset.help);
+      if (t) guiaIndicador(T(t.nombre), t.guia);
+      return;
+    }
     const it = e.target.closest('[data-h]');
     if (!it) return;
     const cual = it.dataset.h;
@@ -3653,6 +3669,29 @@ function menuHerramientas(anchor) {
     it.classList.toggle('on');
     dibujar(); burbujas();
   });
+}
+
+/* Ventana "Cómo funciona": explicación para principiantes (no técnica) de
+   cómo usar y aprovechar el indicador. Se abre encima del modal y trae una
+   X para cerrarla (no se queda congelada). */
+function guiaIndicador(nombre, guia) {
+  const prev = document.getElementById('nv-guia'); if (prev) prev.remove();
+  const pars = String(guia || '').split('\n\n').map((p) => `<p>${esc(T(p))}</p>`).join('');
+  const m = document.createElement('div');
+  m.id = 'nv-guia';
+  m.innerHTML = `
+    <div class="nv-guia-bg"></div>
+    <div class="nv-guia-card" role="dialog" aria-modal="true">
+      <div class="nv-guia-head">
+        <h3><span>${esc(T('Cómo funciona'))}</span>${esc(nombre)}</h3>
+        <button class="nv-guia-x" aria-label="${esc(T('Cerrar'))}">✕</button>
+      </div>
+      <div class="nv-guia-body">${pars}</div>
+    </div>`;
+  document.body.appendChild(m);
+  const cerrar = () => m.remove();
+  m.querySelector('.nv-guia-bg').onclick = cerrar;
+  m.querySelector('.nv-guia-x').onclick = cerrar;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -4797,9 +4836,36 @@ function estilos() {
   #nv-ind-modal .nv-ind-item.on .nv-ind-sw{background:rgba(232,184,75,.9);border-color:var(--gold,#E8B84B)}
   #nv-ind-modal .nv-ind-item.on .nv-ind-kn{left:18px;background:#1a1205}
   #nv-ind-modal .nv-ind-go{flex:0 0 auto;font-size:20px;color:var(--gold,#E8B84B);line-height:1;padding:0 4px}
+  /* Botón "Cómo funciona": "?" siempre; el texto se ve si hay espacio */
+  #nv-ind-modal .nv-ind-help{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
+    height:28px;padding:0 9px;border-radius:9px;cursor:pointer;
+    background:rgba(232,184,75,.1);border:1px solid rgba(232,184,75,.4);color:var(--gold,#E8B84B);
+    font-family:var(--mono,monospace)}
+  #nv-ind-modal .nv-ind-help:hover{background:rgba(232,184,75,.2)}
+  #nv-ind-modal .nv-ind-help span{font-size:13px;font-weight:800;line-height:1}
+  #nv-ind-modal .nv-ind-help em{font-style:normal;font-size:10.5px;font-weight:600;white-space:nowrap}
+  @media(max-width:520px){ #nv-ind-modal .nv-ind-help em{display:none} #nv-ind-modal .nv-ind-help{padding:0;width:28px;justify-content:center} }
   #nv-ind-modal .nv-ind-nada{padding:20px;text-align:center;color:#7d8794;font-size:12px}
   #nv-ind-modal .nv-ind-pie{padding:10px 16px 14px;font-family:var(--mono,monospace);
     font-size:9px;color:#5c6672;text-align:center;border-top:1px solid #1c232b}
+
+  /* ── Ventana "Cómo funciona" (encima del modal) ── */
+  #nv-guia{position:fixed;inset:0;z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px}
+  #nv-guia .nv-guia-bg{position:absolute;inset:0;background:rgba(3,5,9,.7);backdrop-filter:blur(3px)}
+  #nv-guia .nv-guia-card{position:relative;display:flex;flex-direction:column;
+    width:min(440px,100%);max-height:min(600px,88vh);
+    background:linear-gradient(180deg,#12161d,#0c1016);border:1px solid rgba(232,184,75,.45);
+    border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.72);overflow:hidden}
+  #nv-guia .nv-guia-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:16px 16px 8px}
+  #nv-guia .nv-guia-head h3{margin:0;font-family:var(--display,sans-serif);font-size:16px;font-weight:800;color:#fff;line-height:1.3}
+  #nv-guia .nv-guia-head h3 span{display:block;font-family:var(--mono,monospace);font-size:9px;font-weight:700;
+    letter-spacing:1.4px;text-transform:uppercase;color:var(--gold,#E8B84B);margin-bottom:3px}
+  #nv-guia .nv-guia-x{flex:0 0 auto;width:30px;height:30px;border-radius:9px;
+    border:1px solid #2b3139;background:rgba(255,255,255,.04);color:#aeb6bf;cursor:pointer;font-size:14px}
+  #nv-guia .nv-guia-x:hover{border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
+  #nv-guia .nv-guia-body{overflow-y:auto;padding:4px 18px 18px}
+  #nv-guia .nv-guia-body p{margin:0 0 12px;font-family:var(--sans,sans-serif);font-size:13px;line-height:1.6;color:#c9d1d9}
+  #nv-guia .nv-guia-body p:last-child{margin-bottom:0}
 
   /* ── Selector ── */
   #nv-picker{position:fixed;z-index:9790;min-width:232px;max-height:340px;overflow:hidden;
