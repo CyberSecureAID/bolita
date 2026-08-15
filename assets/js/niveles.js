@@ -3061,10 +3061,11 @@ function panelMarea(g, MA, x1, W) {
   const verde = '#2ee86a', rojo = '#FF0000';
   const apagado = '#39414b';
 
-  const PW = Math.min(218, Math.max(150, x1 - 16));
+  const movil = x1 < 430;
+  const PW = Math.min(movil ? 206 : 218, Math.max(148, x1 - (movil ? 18 : 16)));
   const px = Math.max(8, x1 - PW - 10);
   const py = 12;
-  const pad = 13;
+  const pad = movil ? 11 : 13;
   const cx0 = px + pad;                 // margen izquierdo del contenido
   const anchoInt = PW - pad * 2;
 
@@ -3083,7 +3084,7 @@ function panelMarea(g, MA, x1, W) {
   // Alto dinámico
   const yHead = py + pad + 4;
   const yRing = yHead + 20;
-  const RING = 30;                      // radio del anillo
+  const RING = movil ? 25 : 30;         // radio del anillo (menor en móvil)
   const ringB = yRing + RING * 2 + 16;  // fin del bloque de confluencia
   const yBars = ringB + 4;
   const PH = (yBars - py) + 2 * 40 + 22;   // 40 por barra (pct+barra+falta) + zona de pie
@@ -3152,8 +3153,8 @@ function panelMarea(g, MA, x1, W) {
   // Centro del anillo: solo el número de confluencia
   g.textAlign = 'center';
   g.fillStyle = score > 0 ? '#f2f4f6' : '#5a636e';
-  g.font = 'bold 22px ui-monospace,monospace';
-  g.fillText(String(score), cx, cy + 6);
+  g.font = 'bold ' + (RING >= 28 ? 22 : 18) + 'px ui-monospace,monospace';
+  g.fillText(String(score), cx, cy + (RING >= 28 ? 6 : 5));
   // Etiqueta bajo el anillo: la dirección con más confluencia
   g.font = 'bold 8px ui-monospace,monospace';
   g.fillStyle = colDom;
@@ -3564,15 +3565,13 @@ function gestos(cv) {
    MENÚ DE HERRAMIENTAS
    ══════════════════════════════════════════════════════════════ */
 function menuHerramientas(anchor) {
-  const prev = document.getElementById('nv-herr-menu');
+  const prev = document.getElementById('nv-ind-modal');
   if (prev) { prev.remove(); return; }
 
-  /* Data-driven: añadir una herramienta nueva es meter una entrada
-     aquí. Cada fila ocupa una sola línea; la descripción vive plegada
-     y solo se abre si el usuario toca el "?". Así caben muchas
-     herramientas sin que el menú crezca sin control.
-     Cada herramienta lleva su propio ícono SVG (no emojis): se integra
-     al diseño y cambia a dorado cuando está encendida. */
+  /* Data-driven: añadir una herramienta nueva es meter una entrada aquí.
+     Cada una lleva su ícono SVG, nombre, etiqueta corta y descripción.
+     El modal (estilo TradingView) trae buscador y una lista con
+     interruptores, con espacio para muchos más indicadores en el futuro. */
   const IC = {
     limpia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6"/><path d="M18.5 6l-.9 13.1A2 2 0 0 1 15.6 21H8.4a2 2 0 0 1-2-1.9L5.5 6"/><path d="M10 10.5v6M14 10.5v6"/></svg>',
     marea: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 11c2.2 0 2.2-2.2 4.4-2.2S8.6 11 10.8 11 13 8.8 15.2 8.8 17.4 11 19.6 11 22 8.8 22 8.8"/><path d="M2 16c2.2 0 2.2-2.2 4.4-2.2S8.6 16 10.8 16 13 13.8 15.2 13.8 17.4 16 19.6 16 22 13.8 22 13.8"/></svg>',
@@ -3580,72 +3579,80 @@ function menuHerramientas(anchor) {
     alertas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>'
   };
   const HERRAS = [
-    { h: 'limpia', on: !!N.limpia, nombre: 'Gráfica limpia', tag: '', ico: IC.limpia,
-      desc: 'Deja las velas y el precio solos: apaga de golpe todo el análisis (Marea, Faro, niveles, tendencia y etiquetas). Vuelve a tocar para restaurarlo.' },
-    { h: 'marea', on: !!N.verMarea, nombre: 'Marea', tag: 'cambio de ciclo', ico: IC.marea,
-      desc: 'Detecta dónde la marea del mercado cambia de manos, de compradores a vendedores. Solo marca el giro cuando pasa varios filtros a la vez; el resto del tiempo calla. Es nuestro indicador insignia.' },
-    { h: 'estructura', on: N.verEstructura === true, nombre: 'Faro', tag: 'estructura', ico: IC.estructura,
-      desc: 'Ilumina la estructura del mercado: soportes y resistencias, la tendencia, el techo del rango, los dobles techos y dobles suelos. Enciéndelo cuando quieras ver el análisis de estructura sobre la gráfica.' },
-    { h: 'alertas', on: !!N.alertas, nombre: 'Alertas', tag: (N.alertas && N.alertaPar) ? N.alertaPar : _par, ico: IC.alertas,
-      desc: 'Te envía una notificación push (con sonido, en el móvil y en la computadora) cada vez que Marea dispara una señal LONG o SHORT en ' + _par + '. La alerta queda fijada a este par. Funciona mientras esta página siga abierta, aunque esté en segundo plano.' }
+    { h: 'marea', on: !!N.verMarea, nombre: 'Marea', tag: 'cambio de ciclo', ico: IC.marea, accion: false,
+      desc: 'Marca dónde la marea del mercado cambia de manos y avisa a qué distancia saltará la próxima señal LONG o SHORT. Nuestro indicador insignia.' },
+    { h: 'estructura', on: N.verEstructura === true, nombre: 'Faro', tag: 'estructura', ico: IC.estructura, accion: false,
+      desc: 'Ilumina la estructura del mercado: soportes y resistencias, tendencia, techo del rango, dobles techos y dobles suelos.' },
+    { h: 'alertas', on: !!N.alertas, nombre: 'Alertas', tag: (N.alertas && N.alertaPar) ? N.alertaPar : _par, ico: IC.alertas, accion: true,
+      desc: 'Recibe una notificación push (con sonido) cuando Marea dispara una señal, o pon una alerta de precio con Faro.' },
+    { h: 'limpia', on: !!N.limpia, nombre: 'Gráfica limpia', tag: 'quitar todo', ico: IC.limpia, accion: false,
+      desc: 'Apaga de golpe todos los indicadores y deja solo las velas y el precio. Vuelve a tocar para restaurar.' }
   ];
 
-  const filas = HERRAS.map((t) => `
-    <div class="nv-hm-fila">
-      <div class="nv-hm-b ${t.on ? 'on' : ''}" data-h="${t.h}" role="button" tabindex="0">
-        <span class="nv-hm-ico">${t.ico || ''}</span>
-        <div class="nv-hm-tx"><b>${esc(T(t.nombre))}</b>${t.tag ? ` <em>${esc(T(t.tag))}</em>` : ''}</div>
-        <span class="nv-hm-luz"></span>
-        <button class="nv-hm-q" data-q="${t.h}" type="button" aria-label="${esc(T('Qué hace'))}">?</button>
+  const items = HERRAS.map((t) => `
+    <div class="nv-ind-item ${t.on ? 'on' : ''}" data-h="${t.h}" data-buscar="${esc((t.nombre + ' ' + t.tag + ' ' + t.desc).toLowerCase())}" role="button" tabindex="0">
+      <span class="nv-ind-ic">${t.ico || ''}</span>
+      <div class="nv-ind-tx">
+        <div class="nv-ind-nm"><b>${esc(T(t.nombre))}</b>${t.tag ? `<em>${esc(T(t.tag))}</em>` : ''}</div>
+        <span class="nv-ind-de">${esc(T(t.desc))}</span>
       </div>
-      <div class="nv-hm-desc" data-d="${t.h}">${esc(T(t.desc))}</div>
+      ${t.accion
+        ? `<span class="nv-ind-go">›</span>`
+        : `<span class="nv-ind-sw" aria-hidden="true"><span class="nv-ind-kn"></span></span>`}
     </div>`).join('');
 
   const m = document.createElement('div');
-  m.id = 'nv-herr-menu';
+  m.id = 'nv-ind-modal';
   m.innerHTML = `
-    <div class="nv-hm-t">${esc(T('Herramientas profesionales'))}</div>
-    ${filas}
-    <div class="nv-hm-pie">${esc(T('Toca una herramienta para encenderla · el "?" explica qué hace'))}</div>`;
+    <div class="nv-ind-bg"></div>
+    <div class="nv-ind-card" role="dialog" aria-modal="true">
+      <div class="nv-ind-head">
+        <h3>Indicators</h3>
+        <button class="nv-ind-x" aria-label="${esc(T('Cerrar'))}">✕</button>
+      </div>
+      <div class="nv-ind-search">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="nv-ind-q" type="text" placeholder="${esc(T('Buscar indicador…'))}" autocomplete="off">
+      </div>
+      <div class="nv-ind-list" id="nv-ind-list">${items}</div>
+      <div class="nv-ind-nada" id="nv-ind-nada" style="display:none">${esc(T('No hay indicadores que coincidan.'))}</div>
+      <div class="nv-ind-pie">${esc(T('Más indicadores muy pronto · ¿tienes uno? Regístralo.'))}</div>
+    </div>`;
   document.body.appendChild(m);
 
-  /* Se ancla al botón que lo abrió: en móvil es el de la banda de
-     lecturas; en web, el de la cabecera. Si no se pasó, se elige el que
-     esté visible. */
-  let anc = anchor;
-  if (!anc || !anc.getBoundingClientRect || anc.offsetParent === null) {
-    anc = ($('nv-herr') && $('nv-herr').offsetParent !== null) ? $('nv-herr')
-        : ($('nv-herr-m') || $('nv-herr'));
-  }
-  const r = anc.getBoundingClientRect();
-  const w = m.offsetWidth || 300;
-  m.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
-  m.style.top = (r.bottom + 8) + 'px';
+  const cerrar = () => m.remove();
+  m.querySelector('.nv-ind-bg').onclick = cerrar;
+  m.querySelector('.nv-ind-x').onclick = cerrar;
 
-  m.addEventListener('click', (e) => {
-    e.stopPropagation();
-    // 1) El "?" abre o cierra la descripción de esa herramienta
-    const q = e.target.closest('[data-q]');
-    if (q) {
-      const d = m.querySelector(`.nv-hm-desc[data-d="${q.dataset.q}"]`);
-      if (d) d.classList.toggle('abierta');
-      return;
-    }
-    // 2) La fila enciende o apaga la herramienta
-    const b = e.target.closest('[data-h]');
-    if (!b) return;
-    const cual = b.dataset.h;
-    if (cual === 'alertas') { menuAlertas(); return; }
+  // Buscador: filtra la lista en vivo
+  const q = m.querySelector('#nv-ind-q');
+  const lista = m.querySelector('#nv-ind-list');
+  const nada = m.querySelector('#nv-ind-nada');
+  const filtrar = () => {
+    const t = q.value.trim().toLowerCase();
+    let vis = 0;
+    lista.querySelectorAll('.nv-ind-item').forEach((it) => {
+      const ok = !t || it.dataset.buscar.includes(t);
+      it.style.display = ok ? '' : 'none';
+      if (ok) vis++;
+    });
+    nada.style.display = vis ? 'none' : '';
+  };
+  q.addEventListener('input', filtrar);
+  setTimeout(() => { try { q.focus(); } catch (_) {} }, 30);
+
+  // Encender / apagar cada indicador
+  lista.addEventListener('click', (e) => {
+    const it = e.target.closest('[data-h]');
+    if (!it) return;
+    const cual = it.dataset.h;
+    if (cual === 'alertas') { cerrar(); menuAlertas(); return; }
     if (cual === 'marea') N.verMarea = !N.verMarea;
     else if (cual === 'limpia') N.limpia = !N.limpia;
     else if (cual === 'estructura') N.verEstructura = !N.verEstructura;
-    b.classList.toggle('on');
+    it.classList.toggle('on');
     dibujar(); burbujas();
   });
-
-  setTimeout(() => document.addEventListener('click', () => {
-    const x = document.getElementById('nv-herr-menu'); if (x) x.remove();
-  }, { once: true }), 10);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -3807,7 +3814,7 @@ function desactivarAlertas() {
                 son de PRECIO por clic derecho ("solo avísame").
    ══════════════════════════════════════════════════════════════ */
 function menuAlertas() {
-  document.querySelectorAll('#nv-herr-menu').forEach((x) => x.remove());
+  document.querySelectorAll('#nv-herr-menu, #nv-ind-modal').forEach((x) => x.remove());
   const prev = document.getElementById('nv-al-modal'); if (prev) { prev.remove(); return; }
 
   const dir = N.alertaDir || { long: true, short: true };
@@ -4454,9 +4461,11 @@ function estilos() {
   #nv-overlay .nv-registrar{width:auto;height:36px;padding:0 15px;gap:8px;
     border:1px solid #c79426;color:#3a2800;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 48%,#c79426);
-    box-shadow:0 2px 0 #9c7016,0 3px 8px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.4)}
-  #nv-overlay .nv-registrar:hover{color:#3a2800;filter:brightness(1.05);
-    box-shadow:0 2px 0 #9c7016,0 6px 18px rgba(232,184,75,.5),inset 0 1px 0 rgba(255,255,255,.5)}
+    box-shadow:0 2px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.4)}
+  #nv-overlay .nv-registrar:hover{color:#3a2800;filter:brightness(1.04);
+    box-shadow:0 2px 0 #9c7016,0 2px 8px rgba(232,184,75,.22),inset 0 1px 0 rgba(255,255,255,.45)}
+  #nv-overlay .nv-registrar:active{transform:translateY(1px);
+    box-shadow:0 1px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.3)}
   #nv-overlay .nv-registrar:active{transform:translateY(1px);
     box-shadow:0 1px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.3)}
   #nv-overlay .nv-rg-tx{font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;white-space:nowrap;letter-spacing:.2px;color:#3a2800}
@@ -4745,58 +4754,52 @@ function estilos() {
     #nv-herr-panel{left:8px !important;right:8px !important;width:auto !important}
   }
 
-  /* ── Menú de herramientas ── */
-  #nv-herr-menu{position:fixed;z-index:9795;box-sizing:border-box;width:min(300px, calc(100vw - 16px));padding:8px;
-    background:linear-gradient(180deg,#1b2027,#0d1117);
-    border:1px solid var(--gold-soft,#C9A84B);border-radius:14px;
-    box-shadow:0 16px 44px rgba(0,0,0,.75)}
-  #nv-herr-menu .nv-hm-t{font-family:var(--mono,monospace);font-size:9px;
-    color:var(--gold,#E8B84B);text-transform:uppercase;letter-spacing:1.4px;padding:4px 8px 8px}
-  /* Cada herramienta es una fila; la separación entre filas es real */
-  #nv-herr-menu .nv-hm-fila{margin-bottom:7px}
-  #nv-herr-menu .nv-hm-fila:last-of-type{margin-bottom:0}
-  /* La fila: una sola línea, estrecha */
-  #nv-herr-menu .nv-hm-b{display:flex;align-items:center;gap:10px;width:100%;
-    padding:9px 10px;border-radius:10px;cursor:pointer;text-align:left;
-    background:rgba(255,255,255,.035);border:1px solid #2b3139;
-    transition:border-color .15s,background .15s}
-  #nv-herr-menu .nv-hm-b:hover{border-color:var(--gold-soft,#C9A84B)}
-  #nv-herr-menu .nv-hm-b.on{background:rgba(232,184,75,.14);border-color:var(--gold,#E8B84B)}
-  /* La lucecita del interruptor: apagada gris, encendida dorada */
-  #nv-herr-menu .nv-hm-luz{width:9px;height:9px;border-radius:50%;flex:0 0 auto;
-    background:#3a424c;border:1px solid #4a525c;transition:background .18s,box-shadow .18s}
-  #nv-herr-menu .nv-hm-b.on .nv-hm-luz{background:var(--gold,#E8B84B);
-    border-color:var(--gold,#E8B84B);box-shadow:0 0 9px rgba(232,184,75,.65)}
-  /* El ícono de cada herramienta: SVG integrado, gris apagado y dorado
-     con leve resplandor cuando la herramienta está encendida */
-  #nv-herr-menu .nv-hm-ico{width:22px;height:22px;flex:0 0 auto;display:flex;
-    align-items:center;justify-content:center;color:#8b95a1;transition:color .18s}
-  #nv-herr-menu .nv-hm-ico svg{width:18px;height:18px;display:block}
-  #nv-herr-menu .nv-hm-b.on .nv-hm-ico{color:var(--gold,#E8B84B);
-    filter:drop-shadow(0 0 5px rgba(232,184,75,.5))}
-  /* Nombre + etiqueta, en la misma línea, sin desbordar */
-  #nv-herr-menu .nv-hm-tx{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;
-    text-overflow:ellipsis}
-  #nv-herr-menu .nv-hm-tx b{font-family:var(--display,sans-serif);
-    font-weight:700;font-size:13px;color:#eaecef}
-  #nv-herr-menu .nv-hm-b.on .nv-hm-tx b{color:var(--gold,#E8B84B)}
-  #nv-herr-menu .nv-hm-tx em{font-style:normal;font-family:var(--mono,monospace);
-    font-size:8.5px;color:var(--gold,#E8B84B);margin-left:6px;
-    padding:1px 5px;border-radius:4px;background:rgba(232,184,75,.16)}
-  /* El "?" que despliega la descripción a demanda */
-  #nv-herr-menu .nv-hm-q{flex:0 0 auto;width:19px;height:19px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;cursor:pointer;
-    font-family:var(--mono,monospace);font-size:11px;font-weight:700;line-height:1;
-    color:var(--gold,#E8B84B);background:transparent;
-    border:1px solid var(--gold-soft,#C9A84B);padding:0;transition:background .15s}
-  #nv-herr-menu .nv-hm-q:hover{background:rgba(232,184,75,.18)}
-  /* La descripción: plegada por defecto, no ocupa espacio permanente */
-  #nv-herr-menu .nv-hm-desc{max-height:0;overflow:hidden;opacity:0;
-    font-family:var(--sans,sans-serif);font-size:10.5px;color:#7d8794;line-height:1.45;
-    transition:max-height .22s ease,opacity .18s,padding .22s}
-  #nv-herr-menu .nv-hm-desc.abierta{max-height:120px;opacity:1;padding:7px 10px 3px}
-  #nv-herr-menu .nv-hm-pie{padding:9px 8px 3px;font-family:var(--mono,monospace);
-    font-size:8.5px;color:#4a525c;text-align:center;line-height:1.4}
+  /* ── Modal de Indicadores (estilo TradingView) ── */
+  #nv-ind-modal{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px}
+  #nv-ind-modal .nv-ind-bg{position:absolute;inset:0;background:rgba(3,5,9,.72);backdrop-filter:blur(3px)}
+  #nv-ind-modal .nv-ind-card{position:relative;display:flex;flex-direction:column;
+    width:min(440px,100%);max-height:min(560px,88vh);
+    background:linear-gradient(180deg,#12161d,#0c1016);border:1px solid rgba(232,184,75,.4);
+    border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.7);overflow:hidden;
+    font-family:var(--mono,ui-monospace,monospace);color:#eaecef}
+  #nv-ind-modal .nv-ind-head{display:flex;align-items:center;justify-content:space-between;
+    padding:16px 16px 10px}
+  #nv-ind-modal .nv-ind-head h3{margin:0;font-family:var(--display,sans-serif);font-size:18px;font-weight:800;color:#fff}
+  #nv-ind-modal .nv-ind-x{width:30px;height:30px;border-radius:9px;flex:0 0 auto;
+    border:1px solid #2b3139;background:rgba(255,255,255,.04);color:#aeb6bf;cursor:pointer;font-size:14px}
+  #nv-ind-modal .nv-ind-x:hover{border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
+  #nv-ind-modal .nv-ind-search{display:flex;align-items:center;gap:9px;margin:0 16px 10px;
+    padding:0 12px;height:42px;border-radius:11px;background:#0b0e12;border:1px solid #2b3139;color:#8b95a1}
+  #nv-ind-modal .nv-ind-search:focus-within{border-color:var(--gold-soft,#C9A84B)}
+  #nv-ind-modal .nv-ind-search svg{flex:0 0 auto}
+  #nv-ind-modal .nv-ind-search input{flex:1;min-width:0;border:none;background:transparent;outline:none;
+    color:#eaecef;font-family:var(--mono,monospace);font-size:13.5px}
+  #nv-ind-modal .nv-ind-list{overflow-y:auto;padding:0 10px 6px;display:flex;flex-direction:column;gap:6px}
+  #nv-ind-modal .nv-ind-item{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:11px;cursor:pointer;
+    background:rgba(255,255,255,.03);border:1px solid #232a32;transition:border-color .15s,background .15s}
+  #nv-ind-modal .nv-ind-item:hover{border-color:var(--gold-soft,#C9A84B);background:rgba(255,255,255,.05)}
+  #nv-ind-modal .nv-ind-item.on{background:rgba(232,184,75,.12);border-color:var(--gold,#E8B84B)}
+  #nv-ind-modal .nv-ind-ic{width:30px;height:30px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#8b95a1}
+  #nv-ind-modal .nv-ind-ic svg{width:22px;height:22px;display:block}
+  #nv-ind-modal .nv-ind-item.on .nv-ind-ic{color:var(--gold,#E8B84B);filter:drop-shadow(0 0 5px rgba(232,184,75,.45))}
+  #nv-ind-modal .nv-ind-tx{flex:1 1 auto;min-width:0}
+  #nv-ind-modal .nv-ind-nm{display:flex;align-items:center;gap:7px}
+  #nv-ind-modal .nv-ind-nm b{font-family:var(--display,sans-serif);font-weight:700;font-size:14px;color:#eaecef}
+  #nv-ind-modal .nv-ind-item.on .nv-ind-nm b{color:var(--gold,#E8B84B)}
+  #nv-ind-modal .nv-ind-nm em{font-style:normal;font-family:var(--mono,monospace);font-size:8.5px;
+    color:var(--gold,#E8B84B);padding:1px 6px;border-radius:4px;background:rgba(232,184,75,.16)}
+  #nv-ind-modal .nv-ind-de{display:block;font-family:var(--sans,sans-serif);font-size:11px;color:#8b95a1;line-height:1.4;margin-top:3px}
+  /* Interruptor tipo switch */
+  #nv-ind-modal .nv-ind-sw{flex:0 0 auto;width:38px;height:22px;border-radius:12px;position:relative;
+    background:#2b3139;border:1px solid #3a424c;transition:background .18s,border-color .18s}
+  #nv-ind-modal .nv-ind-kn{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+    background:#8b95a1;transition:left .18s,background .18s}
+  #nv-ind-modal .nv-ind-item.on .nv-ind-sw{background:rgba(232,184,75,.9);border-color:var(--gold,#E8B84B)}
+  #nv-ind-modal .nv-ind-item.on .nv-ind-kn{left:18px;background:#1a1205}
+  #nv-ind-modal .nv-ind-go{flex:0 0 auto;font-size:20px;color:var(--gold,#E8B84B);line-height:1;padding:0 4px}
+  #nv-ind-modal .nv-ind-nada{padding:20px;text-align:center;color:#7d8794;font-size:12px}
+  #nv-ind-modal .nv-ind-pie{padding:10px 16px 14px;font-family:var(--mono,monospace);
+    font-size:9px;color:#5c6672;text-align:center;border-top:1px solid #1c232b}
 
   /* ── Selector ── */
   #nv-picker{position:fixed;z-index:9790;min-width:232px;max-height:340px;overflow:hidden;
