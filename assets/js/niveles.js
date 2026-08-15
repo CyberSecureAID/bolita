@@ -2956,7 +2956,10 @@ function dibujar() {
        y su tachuela se detienen justo antes del panel (siguen a la
        derecha, pero sin pisarlo). */
     const MA = N.marea;
-    if (!MA.finde) {
+    // Las líneas de PRÓXIMA ALERTA se dibujan SIEMPRE (también en fin de
+    // semana): el umbral de precio para LONG/SHORT sigue siendo válido y el
+    // cliente quiere ver a qué distancia está en todo momento.
+    {
       const box = N._panelBox || { x: x1, y: 12, w: 0, h: 0 };
       const prox = (dato, alc) => {
         if (!dato) return;
