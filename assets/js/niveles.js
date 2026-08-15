@@ -2566,6 +2566,7 @@ function dibujar() {
         const yN = Y(nv);
         const col = alc ? '#2ee86a' : '#FF0000';
         const rgb = alc ? '46,232,106' : '255,60,80';
+        const cerca = dato.falta < 0.4;        // a punto de gatillar
 
         g.save();
         // 1) halo suave, para que la línea "respire" sin ensuciar
@@ -2580,9 +2581,8 @@ function dibujar() {
         g.strokeStyle = gl; g.lineWidth = 1.9; g.setLineDash([7, 5]);
         g.beginPath(); g.moveTo(2, yN); g.lineTo(x1 - 4, yN); g.stroke();
         g.setLineDash([]);
-        // 3) marcador triangular en el extremo derecho, apuntando en el
-        //    sentido de la operación (arriba LONG, abajo SHORT)
-        g.fillStyle = col; g.shadowColor = col; g.shadowBlur = 8;
+        // 3) marcador triangular en el extremo derecho (más glow si está cerca)
+        g.fillStyle = col; g.shadowColor = col; g.shadowBlur = cerca ? 13 : 8;
         const tx = x1 - 4;
         g.beginPath();
         if (alc) { g.moveTo(tx, yN - 6); g.lineTo(tx - 9, yN); g.lineTo(tx, yN); }
@@ -2590,21 +2590,24 @@ function dibujar() {
         g.closePath(); g.fill();
         g.restore();
 
-        // 4) pastilla a la DERECHA (pegada al eje); texto AMARILLO en SHORT,
-        //    VERDE en LONG. La pastilla LONG va sobre la línea; la SHORT,
-        //    debajo, reforzando el sentido de cada una.
+        // 4) pastilla con el PRECIO y, sobre todo, CUÁNTO FALTA (la distancia
+        //    a la que saltará la alerta). Si el nivel cae tras el panel, la
+        //    pastilla —más corta— salta a la izquierda para verse SIEMPRE.
         const flecha = alc ? '▲' : '▼';
-        const txt = `${flecha} PRÓX. ${alc ? 'LONG' : 'SHORT'} · ${fmt(nv)}`;
+        const dist = cerca ? '¡a punto!' : `falta ${dato.falta.toFixed(1)}%`;
+        const enBandaPanel = yN > 4 && yN < 12 + 250;
+        const txt = enBandaPanel
+          ? `${flecha} ${alc ? 'LONG' : 'SHORT'} · ${dist}`
+          : `${flecha} PRÓX. ${alc ? 'LONG' : 'SHORT'} · ${fmt(nv)} · ${dist}`;
         g.font = 'bold 9px ui-monospace,monospace';
         const wE = g.measureText(txt).width + 16;
         const yPill = Math.max(2, Math.min(y1 - 20, alc ? yN - 22 : yN + 4));
-        if (enPanel(yPill)) return;              // no pisar el panel
-        const xPill = Math.max(pxp + 4, x1 - 12 - wE);
+        const xPill = enBandaPanel ? 8 : Math.max(pxp + 4, x1 - 12 - wE);
         etiquetas.push({
           txt, x: xPill, y: yPill, w: wE, h: 18,
           fondo: alc ? 'rgba(6,33,15,.96)' : 'rgba(42,5,9,.96)',
-          tinta: alc ? '#2ee86a' : '#FFD400',    // SHORT en amarillo, LONG en verde
-          borde: alc ? 'rgba(46,232,106,.9)' : 'rgba(255,60,80,.9)',
+          tinta: cerca ? '#ffffff' : (alc ? '#2ee86a' : '#FFD400'),
+          borde: cerca ? col : (alc ? 'rgba(46,232,106,.9)' : 'rgba(255,60,80,.9)'),
           font: 'bold 9px ui-monospace,monospace', pad: 8
         });
       };
@@ -4451,9 +4454,9 @@ function estilos() {
   #nv-overlay .nv-registrar{width:auto;height:36px;padding:0 15px;gap:8px;
     border:1px solid #c79426;color:#3a2800;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 48%,#c79426);
-    box-shadow:0 2px 0 #9c7016,0 6px 14px rgba(232,184,75,.28),inset 0 1px 0 rgba(255,255,255,.45)}
-  #nv-overlay .nv-registrar:hover{color:#3a2800;filter:brightness(1.02);
-    box-shadow:0 2px 0 #9c7016,0 4px 10px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.4)}
+    box-shadow:0 2px 0 #9c7016,0 3px 8px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.4)}
+  #nv-overlay .nv-registrar:hover{color:#3a2800;filter:brightness(1.05);
+    box-shadow:0 2px 0 #9c7016,0 6px 18px rgba(232,184,75,.5),inset 0 1px 0 rgba(255,255,255,.5)}
   #nv-overlay .nv-registrar:active{transform:translateY(1px);
     box-shadow:0 1px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.3)}
   #nv-overlay .nv-rg-tx{font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;white-space:nowrap;letter-spacing:.2px;color:#3a2800}
