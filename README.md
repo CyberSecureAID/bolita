@@ -1,4 +1,4 @@
-# Aurex Finance
+# CriptoCuba Oficial
 
 **Plataforma de bots de trading no custodial en BNB Smart Chain.**
 El dinero del usuario **nunca sale de su wallet**. Los contratos solo tienen
@@ -12,7 +12,7 @@ permiso para mover una cantidad concreta, y ese permiso se puede quitar.
 
 > **Nota sobre el nombre.** El repositorio se llama `bot-algoritmico` y el del
 > keeper `bolita-keeper` por razones históricas: el proyecto empezó como una
-> lotería ("La Bolita") y evolucionó a Aurex. **El proyecto es Aurex Finance.**
+> lotería ("La Bolita") y evolucionó a CryptoCuba Oficial. **El proyecto es CryptoCuba Oficial.**
 > Todo lo de la lotería está desechado (ver *Historia*).
 
 ---
@@ -204,10 +204,10 @@ Cloudflare (5 $/mes, 50× más capacidad).
 
 ```
 /
-├── index.html                 App principal (Aurex)
+├── index.html                 App principal (CryptoCuba Oficial)
 ├── sw.js                      Service worker (app instalable + caché)
 ├── manifest-aurex.webmanifest App instalable
-├── favicon.svg                Logo de Aurex (transparente)
+├── favicon.svg                Logo de CryptoCuba Oficial (transparente)
 ├── diag.html                  Diagnóstico de conexión de wallet
 ├── loteria.html               Lotería antigua (sin acceso desde la web)
 ├── README.md                  Este archivo
