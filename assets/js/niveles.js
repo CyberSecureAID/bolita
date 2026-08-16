@@ -1012,11 +1012,6 @@ function marea(velas, atr) {
   const aU = adx[iU] || { adx: 0, diMas: 0, diMenos: 0 };
   const colorAhora = ha[iU].color;
   const precio = velas[iU].c;
-  let estHi = -Infinity, estLo = Infinity;
-  for (let k = Math.max(0, iU - MAR.VENTANA_EST); k < iU; k++) {
-    if (velas[k].h > estHi) estHi = velas[k].h;
-    if (velas[k].l < estLo) estLo = velas[k].l;
-  }
   const vmU = volMA(iU);
   const volU = vmU > 0 && velas[iU].v >= vmU;
   const anchoU = banda(iU);
@@ -1037,8 +1032,12 @@ function marea(velas, atr) {
      Así el recuadro, la línea de objetivo y la tachuela cuentan lo mismo. */
   const flipLong = colorAhora === 1 && runLen <= MAR.CONF;
   const flipShort = colorAhora === -1 && runLen <= MAR.CONF;
-  const nivLong = estHi + margen;      // el precio que hay que superar para gatillar LONG
-  const nivShort = estLo - margen;     // el precio que hay que perder para gatillar SHORT
+  // Nivel de disparo FIJO: la estructura de antes del tramo actual (no se
+  // mueve cuando el precio la cruza; al cruzarla queda "cruzado").
+  const iFlip = Math.max(0, iU - runLen + 1);
+  const estU = estructura(iFlip);
+  const nivLong = estU.hi + margen;      // el precio que hay que superar para gatillar LONG
+  const nivShort = estU.lo - margen;     // el precio que hay que perder para gatillar SHORT
 
   const long = {
     cicloPrevio: colorAhora === -1 ? runLen >= MAR.MIN_CICLO : runPrev >= MAR.MIN_CICLO,
@@ -1058,6 +1057,9 @@ function marea(velas, atr) {
   const cumplidosDe = (o) => Object.values(o).filter(Boolean).length;
   const faltaLong = precio > nivLong ? 0 : ((nivLong - precio) / precio) * 100;
   const faltaShort = precio < nivShort ? 0 : ((precio - nivShort) / precio) * 100;
+  // % real: mezcla los requisitos cumplidos con la cercanía al nivel de disparo
+  const proxDe = (falta) => Math.max(0, 1 - falta / 1.5);
+  const pctReal = (o, falta) => Math.round(Math.min(100, (Object.values(o).filter(Boolean).length / 5) * 55 + proxDe(falta) * 45));
   const volRel = vmU > 0 ? velas[iU].v / vmU : 0;
 
   return {
@@ -1074,8 +1076,8 @@ function marea(velas, atr) {
     panel: {
       adx: aU.adx, diMas: aU.diMas, diMenos: aU.diMenos,
       volRel, runLen, color: colorAhora, ancho: anchoU,
-      long:  { pct: pctDe(long),  cumplidos: cumplidosDe(long),  met: long,  falta: faltaLong,  nivel: nivLong },
-      short: { pct: pctDe(short), cumplidos: cumplidosDe(short), met: short, falta: faltaShort, nivel: nivShort }
+      long:  { pct: pctReal(long, faltaLong),  cumplidos: cumplidosDe(long),  met: long,  falta: faltaLong,  nivel: nivLong },
+      short: { pct: pctReal(short, faltaShort), cumplidos: cumplidosDe(short), met: short, falta: faltaShort, nivel: nivShort }
     }
   };
 }
@@ -2036,8 +2038,9 @@ export async function abrirNiveles() {
   document.body.appendChild(d);
 
   const cerrar = () => {
-    clearInterval(_reloj);
-    document.querySelectorAll('#nv-picker').forEach((x) => x.remove());
+    try { clearInterval(_reloj); } catch (_) {}
+    _reloj = null; _widgetVivo = false;
+    document.querySelectorAll('#nv-picker,#nv-ayuda-box,#nv-herr-panel,.nv-pop,#nv-ind-modal,#nv-herr-menu,.od-menu,.od-ficha').forEach((x) => x.remove());
     const e = $('nv-overlay'); if (e) e.remove();
     /* Al cerrar se vuelve a la portada de Liquidity, no se sale. */
     try { if (window.__lqpVolver) window.__lqpVolver(); } catch (_) {}
@@ -3582,6 +3585,27 @@ function panelMarea(g, MA, x1, W) {
   else if (P.color === 1) { chip = 'LADO COMPRADOR'; chipCol = verde; chipTinta = '#04210f'; }
   else { chip = 'LADO VENDEDOR'; chipCol = rojo; chipTinta = '#FFD400'; }
 
+  // ── Modo COLAPSADO: cápsula rectangular con solo "◈ MAREA · <estado>" ──
+  if (N.mareaMin) {
+    g.textBaseline = 'middle';
+    g.font = 'bold 11px ui-monospace,monospace'; const w1 = g.measureText('◈ MAREA').width;
+    g.font = 'bold 9px ui-monospace,monospace'; const w2 = g.measureText(chip).width;
+    const capW = 14 + w1 + 10 + w2 + 26, capH = 26, capX = x1 - capW - 10, capY = 12;
+    g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 14; g.shadowOffsetY = 4;
+    const gr = g.createLinearGradient(0, capY, 0, capY + capH);
+    gr.addColorStop(0, 'rgba(22,27,34,.97)'); gr.addColorStop(1, 'rgba(11,14,20,.97)');
+    g.fillStyle = gr; redondeado(g, capX, capY, capW, capH, 9); g.fill(); g.restore();
+    g.strokeStyle = oroSuave; g.lineWidth = 1.1; redondeado(g, capX, capY, capW, capH, 9); g.stroke();
+    g.textAlign = 'left';
+    g.fillStyle = oro; g.font = 'bold 11px ui-monospace,monospace'; g.fillText('◈ MAREA', capX + 12, capY + capH / 2 + 0.5);
+    g.fillStyle = chipCol; g.font = 'bold 9px ui-monospace,monospace'; g.fillText('· ' + chip, capX + 12 + w1 + 6, capY + capH / 2 + 0.5);
+    g.strokeStyle = '#8b96a3'; g.lineWidth = 1.6; const cvx = capX + capW - 14, cvy = capY + capH / 2;
+    g.beginPath(); g.moveTo(cvx - 3, cvy - 2); g.lineTo(cvx, cvy + 2); g.lineTo(cvx + 3, cvy - 2); g.stroke();
+    g.textBaseline = 'alphabetic';
+    N._mareaBtn = { x: capX, y: capY, w: capW, h: capH };
+    return;
+  }
+
   // Alto dinámico
   const yHead = py + pad + 4;
   const yRing = yHead + 20;
@@ -3620,6 +3644,8 @@ function panelMarea(g, MA, x1, W) {
   g.font = 'bold 11px ui-monospace,monospace';
   g.fillStyle = oro;
   g.fillText('◈ MAREA', cx0, yHead);
+  // chevron para colapsar (junto al título)
+  { const tw = g.measureText('◈ MAREA').width; g.strokeStyle = '#8b96a3'; g.lineWidth = 1.6; const cvx = cx0 + tw + 9, cvy = yHead - 3; g.beginPath(); g.moveTo(cvx - 3, cvy - 2); g.lineTo(cvx, cvy + 2); g.lineTo(cvx + 3, cvy - 2); g.stroke(); N._mareaBtn = { x: px, y: py, w: tw + 26, h: 24 }; }
   // chip a la derecha
   g.font = 'bold 8px ui-monospace,monospace';
   const cw = g.measureText(chip).width + 12;
@@ -4368,6 +4394,10 @@ function gestos(cv) {
     if (e.button !== 0) return;   // el clic derecho es para el menú de operar (orden.js)
     const r = cv.getBoundingClientRect();
     const lx = e.clientX - r.left, ly = e.clientY - r.top;
+    // Colapsar / desplegar el panel de Marea (cápsula)
+    if (N.marea && N.verMarea && N._mareaBtn && lx >= N._mareaBtn.x && lx <= N._mareaBtn.x + N._mareaBtn.w && ly >= N._mareaBtn.y && ly <= N._mareaBtn.y + N._mareaBtn.h) {
+      N.mareaMin = !N.mareaMin; e.preventDefault(); dibujar(); return;
+    }
     // Herramienta de dibujo activa → dibuja
     if (N.herr !== 'cursor' && N.herr !== 'borrar' && !enEscala(lx)) { if (iniciarDib(lx, ly)) { e.preventDefault(); return; } }
     // Borrador → arrastra un área y borra lo que quede dentro
@@ -5094,9 +5124,9 @@ async function ponerLogos() {
    ══════════════════════════════════════════════════════════════ */
 const PASOS_NV = [
   {
-    t: 'Dónde comprar y dónde vender',
-    d: 'Esta herramienta hace una sola cosa: analiza la estructura del mercado y <b>dibuja los niveles</b> donde el precio ha reaccionado de verdad.',
-    x: 'Sin celdas que descifrar ni indicadores que interpretar. Verde es compra, rojo es venta.'
+    t: 'Qué es Smart Levels',
+    d: 'Tu mesa de <b>análisis técnico</b> para muchas monedas: estudia la gráfica en tiempo real, <b>opera directo</b> poniendo compra o venta en zonas estratégicas (clic derecho sobre el precio) y usa nuestros <b>indicadores premium</b> creados por nosotros.',
+    x: 'Todo con las velas reales del mercado. Verde es compra, rojo es venta.'
   },
   {
     t: 'De dónde salen los niveles',
@@ -5916,7 +5946,7 @@ function estilos() {
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
   /* ── Ayuda ── */
-  #nv-ayuda-box{position:fixed;inset:0;z-index:9770;display:flex;align-items:center;justify-content:center;padding:16px}
+  #nv-ayuda-box{position:fixed;inset:0;z-index:10012;display:flex;align-items:center;justify-content:center;padding:16px}
   #nv-ayuda-box .nv-bg{position:absolute;inset:0;background:rgba(3,5,8,.93)}
   #nv-ayuda-box .nva-c{position:relative;width:100%;max-width:540px;max-height:calc(100vh - 32px);
     overflow-y:auto;background:linear-gradient(180deg,#161b22,#0b0e12);
