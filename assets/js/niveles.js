@@ -1976,8 +1976,9 @@ export async function abrirNiveles() {
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16l4.5-5 3 3L16 7"/><circle cx="19" cy="6" r="3"/><path d="M19 4.7v2.6M17.7 6h2.6"/></svg>
             <span class="nv-rg-tx">Register indicator</span>
           </button>
-          <button class="nv-ico" id="nv-widget" title="Ventana flotante" style="display:none">
+          <button class="nv-ico nv-sup" id="nv-widget" title="Superponer (ventana flotante)">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="15" rx="2"/><rect x="12" y="11" width="7" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
+            <span class="nv-sup-tx">Superponer</span>
           </button>
           <button class="nv-ico" id="nv-foto" title="Compartir">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
@@ -2048,12 +2049,81 @@ export async function abrirNiveles() {
   $('nv-herr').onclick = (e) => { e.stopPropagation(); menuHerramientas($('nv-herr')); };
   { const hm = $('nv-herr-m'); if (hm) hm.onclick = (e) => { e.stopPropagation(); menuHerramientas(hm); }; }
   $('nv-foto').onclick = () => guardarImagen();
-  /* El modo ventana flotante solo existe en navegadores de escritorio
-     que admiten Document Picture-in-Picture (Chrome/Edge). Si no está,
-     el botón no se muestra. */
-  if ('documentPictureInPicture' in window) {
+  /* ── Superponer: convierte el análisis en una ventana flotante que se
+     puede mover, agrandar/achicar y queda por encima de todo. Funciona
+     en cualquier navegador (no depende de Picture-in-Picture nativo). ── */
+  {
     const bw = $('nv-widget');
-    if (bw) { bw.style.display = ''; bw.onclick = () => abrirWidget(); }
+    const nvc = d.querySelector('.nv-c');
+    const redib = () => { if ($('nv-cv')) { dibujar(); burbujas(); } };
+    let rObs = null;
+    const activarFlotante = () => {
+      const W = Math.min(760, Math.round(innerWidth * 0.62));
+      const H = Math.min(520, Math.round(innerHeight * 0.66));
+      nvc.style.width = W + 'px'; nvc.style.height = H + 'px';
+      nvc.style.left = Math.max(8, innerWidth - W - 24) + 'px';
+      nvc.style.top = Math.max(8, innerHeight - H - 24) + 'px';
+      d.classList.add('flotante');
+      if (bw) bw.classList.add('on');
+      if (!nvc.querySelector('.nv-rz')) { const rz = document.createElement('div'); rz.className = 'nv-rz'; nvc.appendChild(rz); }
+      if ('ResizeObserver' in window) { rObs = new ResizeObserver(() => redib()); rObs.observe(nvc); }
+      redib();
+    };
+    const desactivarFlotante = () => {
+      d.classList.remove('flotante'); if (bw) bw.classList.remove('on');
+      nvc.style.left = nvc.style.top = nvc.style.width = nvc.style.height = '';
+      if (rObs) { rObs.disconnect(); rObs = null; }
+      const rz = nvc.querySelector('.nv-rz'); if (rz) rz.remove();
+      redib();
+    };
+    if (bw) bw.onclick = () => { d.classList.contains('flotante') ? desactivarFlotante() : activarFlotante(); };
+
+    // Mover la ventana arrastrando la cabecera (menos los botones)
+    const cab = d.querySelector('.nv-cab');
+    let mv = null;
+    cab.addEventListener('mousedown', (e) => {
+      if (!d.classList.contains('flotante')) return;
+      if (e.target.closest('button, .nv-tfs, .nv-sel, input')) return;
+      const r = nvc.getBoundingClientRect();
+      mv = { dx: e.clientX - r.left, dy: e.clientY - r.top }; e.preventDefault();
+      document.body.style.userSelect = 'none';
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!mv) return;
+      const W = nvc.offsetWidth, H = nvc.offsetHeight;
+      nvc.style.left = Math.max(4, Math.min(innerWidth - W - 4, e.clientX - mv.dx)) + 'px';
+      nvc.style.top = Math.max(4, Math.min(innerHeight - H - 4, e.clientY - mv.dy)) + 'px';
+    });
+    window.addEventListener('mouseup', () => { if (mv) { mv = null; document.body.style.userSelect = ''; } });
+
+    // Redimensionar con la esquina inferior derecha
+    let rs = null;
+    nvc.addEventListener('mousedown', (e) => {
+      if (!d.classList.contains('flotante') || !e.target.classList.contains('nv-rz')) return;
+      const r = nvc.getBoundingClientRect();
+      rs = { x: e.clientX, y: e.clientY, w: r.width, h: r.height }; e.preventDefault();
+      document.body.style.userSelect = 'none';
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!rs) return;
+      nvc.style.width = Math.max(340, Math.min(innerWidth - 8, rs.w + (e.clientX - rs.x))) + 'px';
+      nvc.style.height = Math.max(260, Math.min(innerHeight - 8, rs.h + (e.clientY - rs.y))) + 'px';
+      redib();
+    });
+    window.addEventListener('mouseup', () => { if (rs) { rs = null; document.body.style.userSelect = ''; redib(); } });
+    // Táctil para mover
+    cab.addEventListener('touchstart', (e) => {
+      if (!d.classList.contains('flotante') || e.touches.length !== 1) return;
+      if (e.target.closest('button, .nv-tfs, .nv-sel, input')) return;
+      const r = nvc.getBoundingClientRect(); mv = { dx: e.touches[0].clientX - r.left, dy: e.touches[0].clientY - r.top };
+    }, { passive: true });
+    window.addEventListener('touchmove', (e) => {
+      if (!mv || e.touches.length !== 1) return;
+      const W = nvc.offsetWidth, H = nvc.offsetHeight;
+      nvc.style.left = Math.max(4, Math.min(innerWidth - W - 4, e.touches[0].clientX - mv.dx)) + 'px';
+      nvc.style.top = Math.max(4, Math.min(innerHeight - H - 4, e.touches[0].clientY - mv.dy)) + 'px';
+    }, { passive: true });
+    window.addEventListener('touchend', () => { mv = null; });
   }
   $('nv-sel').onclick = (e) => { e.stopPropagation(); menuPares(); };
 
@@ -5072,6 +5142,19 @@ function estilos() {
   #nv-overlay .nv-bg{position:absolute;inset:0;background:rgba(3,5,8,.95)}
   #nv-overlay .nv-c{position:relative;width:100%;height:100vh;height:100dvh;
     display:flex;flex-direction:column;background:#0b0f16}
+  /* ── Superponer: ventana flotante ── */
+  #nv-overlay.flotante{pointer-events:none;background:transparent;display:block}
+  #nv-overlay.flotante .nv-bg{display:none}
+  #nv-overlay.flotante .nv-c{position:fixed;pointer-events:auto;height:auto;width:auto;
+    border-radius:14px;overflow:hidden;border:1px solid #2b3139;
+    box-shadow:0 26px 80px rgba(0,0,0,.78),0 0 0 1px rgba(255,255,255,.04)}
+  #nv-overlay.flotante .nv-cab{cursor:move}
+  #nv-overlay.flotante .nv-rz{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;z-index:40;
+    background:linear-gradient(135deg,transparent 46%,rgba(255,255,255,.35) 46%,rgba(255,255,255,.35) 54%,transparent 54%,transparent 70%,rgba(255,255,255,.35) 70%,rgba(255,255,255,.35) 78%,transparent 78%)}
+  #nv-overlay .nv-sup{width:auto;padding:0 12px;display:inline-flex;align-items:center}
+  #nv-overlay .nv-sup.on{background:rgba(34,211,238,.16);border-color:rgba(34,211,238,.5);color:#22d3ee}
+  #nv-overlay .nv-sup-tx{margin-left:7px;font-family:var(--mono,monospace);font-size:12px;font-weight:600}
+  @media(max-width:900px){ #nv-overlay .nv-sup{padding:0;width:36px} #nv-overlay .nv-sup-tx{display:none} }
 
   /* ── Cabecera ── */
   /* [CORREGIDO] La barra recortaba los paneles con overflow. Ahora
