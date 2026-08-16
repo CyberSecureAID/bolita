@@ -3060,6 +3060,7 @@ function dibujar() {
 
   /* ══ DOBLE SUELO / DOBLE TECHO ══ */
   if (_verBase) (N.dobles || []).forEach((d) => {
+    if (!d.confirmado) return;   // solo patrones confirmados, sin marcar todo
     const primero2 = Math.max(0, fin - ancho);
     if (d.p1.i < primero2 - 2) return;
     const suelo = d.tipo === 'dobleSuelo';
@@ -3109,7 +3110,13 @@ function dibujar() {
   /* ══ LAS ESTRUCTURAS DIBUJADAS ══
      Aquí es donde el usuario VE de lo que se le habla: la ruptura,
      la zona institucional, el barrido. No hay que creerse nada. */
-  if (_verBase) (N.estructuras || []).forEach((e) => {
+  if (_verBase) {
+    let _ultOb = null;
+    (N.estructuras || []).forEach((e) => {
+      const primero = Math.max(0, fin - ancho);
+      if ((e.tipo === 'ob' || e.tipo === 'barrido') && e.iRef >= primero - 2 && e.iRef <= fin && (!_ultOb || e.iRef > _ultOb.iRef)) _ultOb = e;
+    });
+    (N.estructuras || []).forEach((e) => {
     const primero = Math.max(0, fin - ancho);
     if (e.iRef < primero - 2 || e.iRef > fin) return;
     const col = e.dir === 'alcista' ? '#2ee86a' : '#f6465d';
@@ -3150,60 +3157,78 @@ function dibujar() {
     }
 
     if (e.tipo === 'ob' || e.tipo === 'barrido') {
-      /* La zona: un rectángulo que se extiende hacia la derecha,
-         porque sigue vigente hasta que el precio la visite. */
+      /* Banda de la zona (compacta, sin tapar velas) + una HERRAMIENTA DE
+         POSICIÓN: si es demanda (compra) → LONG; si es oferta (venta) →
+         SHORT. El stop abarca toda la franja; el objetivo va a R:R
+         proporcional al grosor de la franja (1:1 si es ancha, 1:1.5 si es
+         fina), para no ser desproporcionado. */
       const yA = Y(e.zonaA), yB = Y(e.zonaB);
       if (yB < -30 || yA > y1 + 30) return;
-      const alto = Math.max(4, Math.abs(yB - yA));
-      const yTop = Math.min(yA, yB);
+      const yTop = Math.min(yA, yB), alto = Math.max(3, Math.abs(yB - yA));
+      const x0 = Math.max(0, xR - paso / 2);
+      const largo = e.dir === 'alcista';   // demanda = compra = LONG ; oferta = venta = SHORT
 
-      g.fillStyle = col + '26';
-      g.fillRect(Math.max(0, xR - paso / 2), yTop, x1 - Math.max(0, xR - paso / 2), alto);
-      g.strokeStyle = col + '99';
-      g.setLineDash([5, 4]); g.lineWidth = 1;
-      g.strokeRect(Math.max(0, xR - paso / 2), yTop, x1 - Math.max(0, xR - paso / 2), alto);
-      g.setLineDash([]);
+      // Banda sutil de la zona
+      g.fillStyle = col + '16';
+      g.fillRect(x0, yTop, x1 - x0, alto);
+      g.strokeStyle = col + '66'; g.setLineDash([4, 4]); g.lineWidth = 1;
+      g.strokeRect(x0, yTop, x1 - x0, alto); g.setLineDash([]);
 
-      /* [CORREGIDO] La etiqueta buscaba hueco por su cuenta y
-         acababa en sitios distintos cada vez: parecía que bailaba.
-
-         Ahora va SIEMPRE pegada dentro de su rectángulo, arriba a
-         la izquierda de la zona. Si la zona es muy fina, se pone
-         justo encima. Nombres cortos, que los largos no cabían. */
-      const et = e.tipo === 'ob'
-        ? (e.dir === 'alcista' ? 'DEMANDA INSTITUCIONAL' : 'OFERTA INSTITUCIONAL')
-        : (e.dir === 'alcista' ? 'STOPS BARRIDOS ABAJO' : 'STOPS BARRIDOS ARRIBA');
-      g.font = 'bold 9px ui-monospace,monospace';
-      const w = g.measureText(et).width + 13;
-      const xEt = Math.max(3, Math.min(x1 - w - 4, Math.max(0, xR - paso / 2) + 4));
-      /* Dentro si cabe, encima si no: posición fija, sin saltos. */
-      const yEt2 = alto >= 22 ? yTop + 3 : yTop - 17;
-
+      // Etiqueta compacta, pegada a la banda
+      const et = e.tipo === 'ob' ? (largo ? 'DEMANDA' : 'OFERTA')
+                                 : (largo ? 'BARRIDO ↓' : 'BARRIDO ↑');
       etiquetas.push({
-        txt: et, x: xEt, y: yEt2, w, h: 16, r: 5,
-        fondo: col, tinta: e.dir === 'alcista' ? '#04210f' : '#2a0509',
-        borde: 'rgba(232,184,75,.85)',
-        font: 'bold 9px ui-monospace,monospace', pad: 7
+        txt: et, x: Math.max(3, Math.min(x1 - 78, x0 + 4)), y: alto >= 20 ? yTop + 3 : yTop - 16,
+        w: 0, h: 15, r: 4, fondo: col, tinta: largo ? '#04210f' : '#2a0509',
+        borde: 'rgba(232,184,75,.7)', font: 'bold 8.5px ui-monospace,monospace', pad: 6
       });
 
-      /* El volumen negociado dentro, a la DERECHA de la zona para
-         no taparle las velas. Dice quién mandó ahí dentro. */
-      if (e.volTot > 0 && alto > 14) {
-        const pctC = (e.volAlc / e.volTot) * 100;
-        const txtV = `${miles(e.volTot)}  ${pctC.toFixed(0)}%↑ ${(100 - pctC).toFixed(0)}%↓`;
-        g.font = '9px ui-monospace,monospace';
-        const wv = g.measureText(txtV).width + 12;
-        const xv = x1 - wv - 6;
-        g.fillStyle = 'rgba(11,15,22,.88)';
-        redondeado(g, xv, yTop + alto / 2 - 8, wv, 16, 4); g.fill();
-        g.strokeStyle = col + '77'; g.lineWidth = 1;
-        redondeado(g, xv, yTop + alto / 2 - 8, wv, 16, 4); g.stroke();
-        g.fillStyle = pctC >= 50 ? '#3ee88a' : '#ff6b7a';
+      // ── Herramienta de posición: solo en la zona institucional MÁS RECIENTE ──
+      if (e === _ultOb) {
+        const pHi = Math.max(e.zonaA, e.zonaB), pLo = Math.min(e.zonaA, e.zonaB);
+        const banda = pHi - pLo, buffer = Math.max(banda * 0.12, pHi * 0.0004);
+        const bandPct = pHi > 0 ? (banda / pHi) * 100 : 0;
+        const RR = bandPct > 1.0 ? 1.0 : 1.5;   // franja ancha → R:R modesto
+        let pE, pS, pT;
+        if (largo) { pE = pHi; pS = pLo - buffer; pT = pE + (pE - pS) * RR; }
+        else { pE = pLo; pS = pHi + buffer; pT = pE - (pS - pE) * RR; }
+        const yE = Y(pE), yS = Y(pS), yT = Y(pT);
+        const acc = largo ? '#2ee86a' : '#ff3b52', accRGB = largo ? '46,232,106' : '255,59,82';
+        const xs = x0;
+        // zonas ganancia / riesgo tenues
+        g.fillStyle = 'rgba(46,232,106,.09)'; g.fillRect(xs, Math.min(yE, yT), x1 - xs, Math.abs(yT - yE));
+        g.fillStyle = 'rgba(255,59,82,.09)'; g.fillRect(xs, Math.min(yE, yS), x1 - xs, Math.abs(yS - yE));
+        // líneas objetivo / entrada / stop
+        [['#2ee86a', yT], ['#eaecef', yE], ['#ff3b52', yS]].forEach((r) => {
+          g.strokeStyle = r[0]; g.lineWidth = 1.4; g.beginPath(); g.moveTo(xs, r[1]); g.lineTo(x1, r[1]); g.stroke();
+        });
+        // tarjeta compacta con dirección, R:R y %
+        const gPct = Math.abs((pT - pE) / pE) * 100, rPct = Math.abs((pS - pE) / pE) * 100;
+        const cw = 154, ch = 62;
+        let cyc = Math.min(yE, yT, yS) - 8; cyc = Math.max(4, Math.min(y1 - ch - 4, cyc));
+        let cxc = x1 - cw - 8;
+        g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 16;
+        g.fillStyle = 'rgba(12,16,23,.97)'; redondeado(g, cxc, cyc, cw, ch, 12); g.fill(); g.restore();
+        g.strokeStyle = `rgba(${accRGB},.5)`; g.lineWidth = 1.1; redondeado(g, cxc, cyc, cw, ch, 12); g.stroke();
+        g.fillStyle = acc; redondeado(g, cxc, cyc + 11, 3, ch - 22, 2); g.fill();
         g.textAlign = 'left';
-        g.fillText(txtV, xv + 6, yTop + alto / 2 + 3.5);
+        g.fillStyle = acc; g.font = '800 10px "Chakra Petch", system-ui, sans-serif';
+        g.fillText(largo ? 'COMPRA · LONG' : 'VENTA · SHORT', cxc + 12, cyc + 18);
+        const divX = cxc + cw - 44;
+        g.fillStyle = '#79838f'; g.font = 'bold 7.5px "Plus Jakarta Sans", system-ui, sans-serif';
+        g.fillText('OBJETIVO', cxc + 12, cyc + 36); g.fillText('STOP', cxc + 12, cyc + 52);
+        g.fillStyle = '#2ee86a'; g.font = '800 12px "Chakra Petch", system-ui, sans-serif'; g.fillText(`+${gPct.toFixed(2)}%`, cxc + 60, cyc + 37);
+        g.fillStyle = '#ff5b6e'; g.fillText(`−${rPct.toFixed(2)}%`, cxc + 60, cyc + 53);
+        g.strokeStyle = 'rgba(255,255,255,.09)'; g.lineWidth = 1; g.beginPath(); g.moveTo(divX, cyc + 26); g.lineTo(divX, cyc + ch - 9); g.stroke();
+        g.textAlign = 'center';
+        const rrX = divX + (cxc + cw - divX) / 2;
+        g.fillStyle = '#79838f'; g.font = 'bold 7.5px "Plus Jakarta Sans", system-ui, sans-serif'; g.fillText('R:R', rrX, cyc + 34);
+        g.fillStyle = '#E8B84B'; g.font = '800 17px "Chakra Petch", system-ui, sans-serif'; g.fillText(RR.toFixed(1), rrX, cyc + 52);
+        g.textAlign = 'left';
       }
     }
   });
+  }
 
   /* ══ LA SOGUITA ══
      Solo cuando el usuario pulsa "Señálame dónde está". Sale de
