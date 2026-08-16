@@ -2408,7 +2408,7 @@ function dibujarUno(g, d, x1, y1, sel) {
     const cn = parseInt((d.color || '#22d3ee').slice(1), 16);
     const lum = (0.299 * ((cn >> 16) & 255) + 0.587 * ((cn >> 8) & 255) + 0.114 * (cn & 255)) / 255;
     const claro = lum <= 0.55;
-    g.font = `900 ${Math.round(rr * 1.15)}px var(--display,sans-serif)`;
+    g.font = `900 ${Math.round(rr * 1.15)}px "Chakra Petch", system-ui, sans-serif`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.lineJoin = 'round'; g.lineWidth = Math.max(2.5, rr * 0.3);
     g.strokeStyle = claro ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.9)';
@@ -2419,7 +2419,7 @@ function dibujarUno(g, d, x1, y1, sel) {
     if (sel) { g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.beginPath(); g.arc(A.x, A.y, rr + 4, 0, 6.283); g.stroke(); }
   } else if (d.tipo === 'texto') {
     if (!A) return;
-    g.font = 'bold 12px var(--sans,sans-serif)';
+    g.font = 'bold 12px "Plus Jakarta Sans", system-ui, sans-serif';
     const tw = g.measureText(d.txt || '…').width;
     g.fillStyle = 'rgba(11,15,22,.82)'; redondeado(g, A.x - 5, A.y - 13, tw + 14, 22, 6); g.fill();
     g.strokeStyle = `rgba(${rgb},.55)`; g.lineWidth = 1; redondeado(g, A.x - 5, A.y - 13, tw + 14, 22, 6); g.stroke();
@@ -2458,34 +2458,43 @@ function dibujarUno(g, d, x1, y1, sel) {
     });
     const gPct = ((pT - pe) / pe) * 100, rPct = ((pS - pe) / pe) * 100;
     const rr = Math.abs(rPct) > 0 ? Math.abs(gPct / rPct) : 0;
-    // ── Tarjeta GRANDE y estética (TP/SL grandes + R:R notable) ──
-    const cw = 208, ch = 122;
+    const acc = largo ? '#2ee86a' : '#ff5b6e', accRGB = largo ? '46,232,106' : '255,91,110';
+    // ── Tarjeta de presentación: TP/SL grandes con luz, R:R grande y limpio ──
+    const cw = 220, ch = 132;
     let cx = x + w + 12; if (cx + cw > x1 - 4) cx = Math.max(4, x - cw - 12); if (cx < 4) cx = Math.min(x1 - cw - 4, x + 8);
     let cy = (Math.min(yt, ye, ys) + Math.max(yt, ye, ys)) / 2 - ch / 2;
     cy = Math.max(4, Math.min(y1 - ch - 4, cy));
-    g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 20;
-    g.fillStyle = 'rgba(13,17,24,.96)'; redondeado(g, cx, cy, cw, ch, 15); g.fill(); g.restore();
-    g.strokeStyle = largo ? 'rgba(46,232,106,.4)' : 'rgba(255,91,110,.4)'; g.lineWidth = 1.2; redondeado(g, cx, cy, cw, ch, 15); g.stroke();
+    g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 22;
+    g.fillStyle = 'rgba(12,16,23,.97)'; redondeado(g, cx, cy, cw, ch, 16); g.fill(); g.restore();
+    g.strokeStyle = `rgba(${accRGB},.45)`; g.lineWidth = 1.2; redondeado(g, cx, cy, cw, ch, 16); g.stroke();
+    // franja de color a la izquierda (acento)
+    g.fillStyle = acc; redondeado(g, cx, cy + 14, 4, ch - 28, 2); g.fill();
     g.textAlign = 'left';
-    g.fillStyle = largo ? '#2ee86a' : '#ff5b6e'; g.font = 'bold 10px ui-monospace,monospace';
-    g.fillText(largo ? '● POSICIÓN LARGA' : '● POSICIÓN CORTA', cx + 15, cy + 20);
-    // Take profit grande
-    g.fillStyle = '#7d8794'; g.font = '9px ui-monospace,monospace'; g.fillText('TAKE PROFIT', cx + 15, cy + 40);
-    g.save(); g.shadowColor = 'rgba(46,232,106,.6)'; g.shadowBlur = 12;
-    g.fillStyle = '#2ee86a'; g.font = '900 27px var(--display,sans-serif)';
-    g.fillText(`+${Math.abs(gPct).toFixed(2)}%`, cx + 15, cy + 66); g.restore();
-    // Stop loss grande
-    g.fillStyle = '#7d8794'; g.font = '9px ui-monospace,monospace'; g.fillText('STOP LOSS', cx + 15, cy + 88);
-    g.save(); g.shadowColor = 'rgba(255,91,110,.55)'; g.shadowBlur = 11;
-    g.fillStyle = '#ff5b6e'; g.font = '900 23px var(--display,sans-serif)';
-    g.fillText(`−${Math.abs(rPct).toFixed(2)}%`, cx + 15, cy + 111); g.restore();
-    // R:R notable, en caja dorada a la derecha
-    g.fillStyle = 'rgba(232,184,75,.16)'; redondeado(g, cx + cw - 66, cy + 52, 54, 50, 11); g.fill();
-    g.fillStyle = '#8b95a1'; g.font = 'bold 8px ui-monospace,monospace'; g.textAlign = 'center';
-    g.fillText('R : R', cx + cw - 39, cy + 68);
-    g.save(); g.shadowColor = 'rgba(232,184,75,.5)'; g.shadowBlur = 9;
-    g.fillStyle = '#E8B84B'; g.font = '900 22px var(--display,sans-serif)';
-    g.fillText(rr.toFixed(1), cx + cw - 39, cy + 92); g.restore();
+    g.fillStyle = acc; g.font = '800 11px "Chakra Petch", system-ui, sans-serif';
+    g.fillText(largo ? 'POSICIÓN LARGA' : 'POSICIÓN CORTA', cx + 16, cy + 24);
+    const colX = cx + 16;
+    // TAKE PROFIT (grande, verde, con luz)
+    g.fillStyle = '#79838f'; g.font = 'bold 9px "Plus Jakarta Sans", system-ui, sans-serif';
+    g.fillText('TAKE PROFIT', colX, cy + 46);
+    g.save(); g.shadowColor = 'rgba(46,232,106,.65)'; g.shadowBlur = 14;
+    g.fillStyle = '#2ee86a'; g.font = '800 30px "Chakra Petch", system-ui, sans-serif';
+    g.fillText(`+${Math.abs(gPct).toFixed(2)}%`, colX, cy + 76); g.restore();
+    // STOP LOSS (grande, rojo, con luz)
+    g.fillStyle = '#79838f'; g.font = 'bold 9px "Plus Jakarta Sans", system-ui, sans-serif';
+    g.fillText('STOP LOSS', colX, cy + 100);
+    g.save(); g.shadowColor = 'rgba(255,91,110,.6)'; g.shadowBlur = 13;
+    g.fillStyle = '#ff5b6e'; g.font = '800 25px "Chakra Petch", system-ui, sans-serif';
+    g.fillText(`−${Math.abs(rPct).toFixed(2)}%`, colX, cy + 124); g.restore();
+    // R:R grande y limpio, a la derecha con divisor sutil (sin caja fea)
+    const rx = cx + cw - 46;
+    g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(rx - 14, cy + 42); g.lineTo(rx - 14, cy + ch - 20); g.stroke();
+    g.textAlign = 'center';
+    g.fillStyle = '#79838f'; g.font = 'bold 9px "Plus Jakarta Sans", system-ui, sans-serif';
+    g.fillText('R : R', rx, cy + 62);
+    g.save(); g.shadowColor = 'rgba(232,184,75,.55)'; g.shadowBlur = 12;
+    g.fillStyle = '#E8B84B'; g.font = '800 30px "Chakra Petch", system-ui, sans-serif';
+    g.fillText(rr.toFixed(1), rx, cy + 96); g.restore();
     g.textAlign = 'left';
   }
   g.shadowBlur = 0; g.globalAlpha = 1;
@@ -2493,27 +2502,27 @@ function dibujarUno(g, d, x1, y1, sel) {
 
 /* Tarjeta de la regla, pegada a la proyección (arriba si sube, abajo si baja) */
 function tarjetaMedida(g, x, y, w, h, alza, cc, crgb, pct, pills, x1, y1) {
-  const cw = 186, chh = 82;
+  const cw = 194, chh = 86;
   let cx = x + w / 2 - cw / 2; cx = Math.max(4, Math.min(x1 - cw - 4, cx));
   let cy = alza ? y - chh - 8 : y + h + 8;
   if (cy < 4) cy = y + h + 8; if (cy + chh > y1 - 4) cy = Math.max(4, y - chh - 8);
-  g.save(); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 18;
-  g.fillStyle = 'rgba(13,17,24,.95)'; redondeado(g, cx, cy, cw, chh, 13); g.fill(); g.restore();
-  g.strokeStyle = `rgba(${crgb},.6)`; g.lineWidth = 1.3; redondeado(g, cx, cy, cw, chh, 13); g.stroke();
-  // Porcentaje GRANDE, brillante, con glow del color
+  g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 20;
+  g.fillStyle = 'rgba(12,16,23,.97)'; redondeado(g, cx, cy, cw, chh, 15); g.fill(); g.restore();
+  g.strokeStyle = `rgba(${crgb},.5)`; g.lineWidth = 1.2; redondeado(g, cx, cy, cw, chh, 15); g.stroke();
+  g.fillStyle = cc; redondeado(g, cx, cy + 13, 4, chh - 26, 2); g.fill();   // franja de acento
+  // Porcentaje ENORME con luz del color
   g.save();
-  g.shadowColor = `rgba(${crgb},.75)`; g.shadowBlur = 14;
-  g.fillStyle = cc; g.font = '900 40px var(--display,sans-serif)'; g.textAlign = 'left';
-  g.fillText(pct, cx + 15, cy + 46);
-  g.restore();
-  // Pastillas de velas / tiempo, más grandes y legibles
-  let px = cx + 15; const py = cy + 56;
+  g.shadowColor = `rgba(${crgb},.8)`; g.shadowBlur = 16;
+  g.fillStyle = cc; g.font = '800 44px "Chakra Petch", system-ui, sans-serif'; g.textAlign = 'left';
+  g.fillText(pct, cx + 16, cy + 50); g.restore();
+  // Pastillas de velas / tiempo, legibles
+  let px = cx + 16; const py = cy + 60;
   pills.forEach((p) => {
-    g.font = 'bold 12px ui-monospace,monospace';
-    const wv = Math.max(g.measureText(p[1]).width, g.measureText(p[0]).width) + 18;
-    g.fillStyle = 'rgba(255,255,255,.07)'; redondeado(g, px, py, wv, 20, 6); g.fill();
-    g.fillStyle = '#8b95a1'; g.font = '8px ui-monospace,monospace'; g.textAlign = 'left'; g.fillText(p[0], px + 9, py + 8);
-    g.fillStyle = '#eef2f6'; g.font = 'bold 12px ui-monospace,monospace'; g.fillText(p[1], px + 9, py + 17);
+    g.font = 'bold 13px "Plus Jakarta Sans", system-ui, sans-serif';
+    const wv = Math.max(g.measureText(p[1]).width, 34) + 18;
+    g.fillStyle = 'rgba(255,255,255,.06)'; redondeado(g, px, py, wv, 21, 6); g.fill();
+    g.fillStyle = '#79838f'; g.font = 'bold 8px "Plus Jakarta Sans", system-ui, sans-serif'; g.textAlign = 'left'; g.fillText(p[0], px + 9, py + 8);
+    g.fillStyle = '#eef2f6'; g.font = 'bold 12px "Plus Jakarta Sans", system-ui, sans-serif'; g.fillText(p[1], px + 9, py + 18);
     px += wv + 8;
   });
 }
@@ -3954,7 +3963,7 @@ function gestos(cv) {
     else { N.estilo[prop] = val; if (prop === 'color') N.estilo.rgb = rgbDe(val); }
     construirTopbar(); dibujar();
   };
-  const seleccionar = (h) => { if (h !== N.herr) N.fijar = false; N.herr = h; N.sel = -1; cerrarPopups(); marcarBoton(); construirTopbar(); };
+  const seleccionar = (h) => { if (h !== N.herr) N.fijar = false; if (colocando) { colocando = false; N.dib = null; } N.herr = h; N.sel = -1; cerrarPopups(); marcarBoton(); construirTopbar(); };
 
   // ── Popups flotantes (color, niveles Fibonacci, tipos de línea) ──
   const cerrarPopups = () => { if (grafEl) grafEl.querySelectorAll('.nv-pop').forEach((p) => p.remove()); };
@@ -4089,11 +4098,17 @@ function gestos(cv) {
   };
   const unPunto = (t) => t === 'rayo' || t === 'vert' || t === 'marca';
   const dosPuntos = (t) => t === 'linea' || t === 'rect' || t === 'fib' || t === 'flecha' || t === 'regla' || t === 'poslarga' || t === 'poscorta';
-  let dibujando = false;
+  let dibujando = false, colocando = false;
   const iniciarDib = (x, y) => {
     const t = N.herr;
     if (t === 'cursor' || t === 'borrar') return false;
     if (t === 'texto') { pedirTexto(x, y, (v) => { N.dibujos.push({ tipo: 'texto', pts: [dibXYa(x, y, false)], txt: v, ...estiloNuevo(t) }); guardarDib(); finDib(N.dibujos.length - 1); }); return true; }
+    // La REGLA es clic–mover–clic (no hay que mantener presionado, como en TradingView)
+    if (t === 'regla') {
+      if (!colocando) { const a = dibXYa(x, y, true); N.dib = { tipo: 'regla', pts: [a, { ...a }], ...estiloNuevo(t) }; colocando = true; dibujar(); return true; }
+      N.dib.pts[1] = dibXYa(x, y, true); const d = N.dib; N.dib = null; colocando = false;
+      N.dibujos.push(d); guardarDib(); finDib(N.dibujos.length - 1); return true;
+    }
     if (unPunto(t)) { N.dibujos.push({ tipo: t, pts: [dibXYa(x, y, true)], ...estiloNuevo(t) }); guardarDib(); finDib(N.dibujos.length - 1); return true; }
     if (t === 'brush') { N.dib = { tipo: 'brush', pts: [dibXYa(x, y, false)], ...estiloNuevo(t) }; dibujando = true; return true; }
     if (dosPuntos(t)) { const a = dibXYa(x, y, true); N.dib = { tipo: t, pts: [a, { ...a }], ...estiloNuevo(t) }; dibujando = true; return true; }
@@ -4191,6 +4206,7 @@ function gestos(cv) {
   cv.addEventListener('mousemove', (e) => {
     const p = loc(e);
     if (dibujando) { moverDib(p.x, p.y); return; }
+    if (colocando && N.dib) { N.dib.pts[1] = dibXYa(p.x, p.y, true); N.cruz = { x: Math.round(p.x), y: Math.round(p.y) }; dibujar(); return; }
     if (goma) { moverGoma(p.x, p.y); return; }
     if (arrDib >= 0 || arrLin) { moverArrastre(p.x, p.y); return; }
     if (arr) return;
@@ -5260,7 +5276,7 @@ function estilos() {
   #nv-overlay .nv-pill.sube{background:rgba(46,232,106,.16);color:#3ee88a}
   #nv-overlay .nv-pill.baja{background:rgba(246,70,93,.16);color:#ff6b7a}
   #nv-overlay .nv-pill.lat{background:rgba(139,150,163,.14);color:#9aa5b1}
-  #nv-overlay .nv-precio{font-family:var(--display,sans-serif);font-weight:800;font-size:17px;
+  #nv-overlay .nv-precio{font-family:"Chakra Petch", system-ui, sans-serif;font-weight:800;font-size:17px;
     color:var(--gold,#E8B84B)}
   #nv-overlay .nv-24h{font-family:var(--mono,monospace);font-weight:700;font-size:11px;
     padding:3px 8px;border-radius:8px;margin-left:1px;white-space:nowrap}
@@ -5289,7 +5305,7 @@ function estilos() {
     box-shadow:0 1px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.3)}
   #nv-overlay .nv-registrar:active{transform:translateY(1px);
     box-shadow:0 1px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.3)}
-  #nv-overlay .nv-rg-tx{font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;white-space:nowrap;letter-spacing:.2px;color:#3a2800}
+  #nv-overlay .nv-rg-tx{font-family:"Chakra Petch", system-ui, sans-serif;font-weight:800;font-size:12.5px;white-space:nowrap;letter-spacing:.2px;color:#3a2800}
 
   /* ══ Modal Registrar mi indicador ══ */
   #nv-reg-modal{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px}
@@ -5305,16 +5321,16 @@ function estilos() {
     margin:0 auto 14px;
     background:radial-gradient(circle at 50% 40%,rgba(232,184,75,.22),rgba(232,184,75,.05));
     border:1px solid rgba(232,184,75,.45);color:var(--gold,#E8B84B)}
-  #nv-reg-modal h3{font-family:var(--display,sans-serif);font-size:20px;font-weight:800;margin:0 0 8px;color:#fff;letter-spacing:.2px;text-align:center}
+  #nv-reg-modal h3{font-family:"Chakra Petch", system-ui, sans-serif;font-size:20px;font-weight:800;margin:0 0 8px;color:#fff;letter-spacing:.2px;text-align:center}
   #nv-reg-modal .nv-reg-lead{font-size:12.5px;line-height:1.55;color:#c4ccd4;margin:0 0 16px;text-align:center}
   #nv-reg-modal .nv-reg-pasos{display:flex;flex-direction:column;gap:11px;margin-bottom:18px}
   #nv-reg-modal .nv-reg-paso{display:flex;gap:11px;align-items:flex-start}
   #nv-reg-modal .nv-reg-paso>span{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
     font-weight:800;font-size:11px;color:#0b0f16;background:var(--gold,#E8B84B);margin-top:1px}
-  #nv-reg-modal .nv-reg-paso b{display:block;font-family:var(--display,sans-serif);font-size:12.5px;color:#eaecef;margin-bottom:2px}
+  #nv-reg-modal .nv-reg-paso b{display:block;font-family:"Chakra Petch", system-ui, sans-serif;font-size:12.5px;color:#eaecef;margin-bottom:2px}
   #nv-reg-modal .nv-reg-paso em{font-style:normal;font-size:11px;line-height:1.5;color:#98a1ab}
   #nv-reg-modal .nv-reg-cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
-    padding:12px;border-radius:12px;text-decoration:none;font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;
+    padding:12px;border-radius:12px;text-decoration:none;font-family:"Chakra Petch", system-ui, sans-serif;font-weight:800;font-size:13.5px;
     color:#3a2800;border:1px solid #c79426;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 48%,#c79426);
     box-shadow:0 3px 0 #9c7016,0 8px 22px rgba(232,184,75,.28),inset 0 1px 0 rgba(255,255,255,.45)}
@@ -5332,7 +5348,7 @@ function estilos() {
   #nv-al-modal .nv-al-x{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:9px;
     border:1px solid #2b3139;background:rgba(255,255,255,.04);color:#aeb6bf;cursor:pointer;font-size:14px}
   #nv-al-modal .nv-al-x:hover{border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
-  #nv-al-modal h3{font-family:var(--display,sans-serif);font-size:19px;font-weight:800;margin:0 0 6px;color:#fff}
+  #nv-al-modal h3{font-family:"Chakra Petch", system-ui, sans-serif;font-size:19px;font-weight:800;margin:0 0 6px;color:#fff}
   #nv-al-modal .nv-al-lead{font-size:12px;line-height:1.5;color:#c4ccd4;margin:0 0 14px}
   #nv-al-modal .nv-al-estado{font-size:11.5px;color:#c4ccd4;background:rgba(232,184,75,.1);
     border:1px solid rgba(232,184,75,.28);border-radius:10px;padding:8px 10px;margin-bottom:14px;
@@ -5348,7 +5364,7 @@ function estilos() {
   #nv-al-modal .nv-al-ic{width:26px;height:26px;color:#8b95a1;margin-bottom:4px}
   #nv-al-modal .nv-al-ic svg{width:22px;height:22px;display:block}
   #nv-al-modal .nv-al-ind.sel .nv-al-ic{color:var(--gold,#E8B84B)}
-  #nv-al-modal .nv-al-ind b{font-family:var(--display,sans-serif);font-size:14px;color:#eaecef}
+  #nv-al-modal .nv-al-ind b{font-family:"Chakra Petch", system-ui, sans-serif;font-size:14px;color:#eaecef}
   #nv-al-modal .nv-al-ind.sel b{color:var(--gold,#E8B84B)}
   #nv-al-modal .nv-al-ind em{font-style:normal;font-size:10px;color:#8b95a1}
   #nv-al-modal .nv-al-sub{font-size:12px;color:#c4ccd4;margin-bottom:9px}
@@ -5360,7 +5376,7 @@ function estilos() {
   #nv-al-modal .nv-al-cond.on{color:#eaecef;border-color:var(--gold,#E8B84B);background:rgba(232,184,75,.1)}
   #nv-al-modal .nv-al-cond.on .nv-al-dot{opacity:1;box-shadow:0 0 8px currentColor}
   #nv-al-modal .nv-al-go{width:100%;padding:12px;border-radius:12px;cursor:pointer;
-    font-family:var(--display,sans-serif);font-weight:800;font-size:13.5px;color:#3a2800;
+    font-family:"Chakra Petch", system-ui, sans-serif;font-weight:800;font-size:13.5px;color:#3a2800;
     border:1px solid #c79426;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 48%,#c79426);
     box-shadow:0 3px 0 #9c7016,0 8px 22px rgba(232,184,75,.28),inset 0 1px 0 rgba(255,255,255,.45)}
@@ -5371,7 +5387,7 @@ function estilos() {
   #nv-al-modal .nv-al-faro ol{margin:0 0 14px;padding-left:20px;display:flex;flex-direction:column;gap:6px}
   #nv-al-modal .nv-al-faro li{font-size:11.5px;line-height:1.45;color:#aeb6bf}
   #nv-al-modal .nv-al-faro li::marker{color:var(--gold,#E8B84B);font-weight:700}
-  #nv-overlay .nv-cf-tx{font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;white-space:nowrap}
+  #nv-overlay .nv-cf-tx{font-family:"Chakra Petch", system-ui, sans-serif;font-weight:700;font-size:12.5px;white-space:nowrap}
   #nv-overlay .nv-cf-s{display:none}
 
   /* ── La barra de veredicto ── */
@@ -5385,7 +5401,7 @@ function estilos() {
   #nv-overlay .nv-v-tag.vender{background:linear-gradient(180deg,#ff8a95,#e03546);color:#2a0509}
   #nv-overlay .nv-v-tag.esperar{background:rgba(232,184,75,.18);color:var(--gold,#E8B84B);
     border:1px solid rgba(232,184,75,.4)}
-  #nv-overlay .nv-v-tx{flex:1;min-width:0;font-family:var(--display,sans-serif);font-weight:700;
+  #nv-overlay .nv-v-tx{flex:1;min-width:0;font-family:"Chakra Petch", system-ui, sans-serif;font-weight:700;
     font-size:14px;color:#eaecef;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #nv-overlay .nv-v-hz,#nv-overlay .nv-v-pt{font-family:var(--mono,monospace);font-size:9.5px;
     color:#5c6672;white-space:nowrap;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.04)}
@@ -5410,7 +5426,7 @@ function estilos() {
   /* Input de texto en la propia página (no del navegador) */
   #nv-overlay .nv-txt-in{position:absolute;z-index:10002;width:190px;height:32px;padding:0 11px;border-radius:9px;
     background:rgba(13,17,24,.97);border:1px solid #22d3ee;color:#eaecef;outline:none;
-    font-family:var(--sans,sans-serif);font-size:13px;box-shadow:0 10px 28px rgba(0,0,0,.55)}
+    font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:13px;box-shadow:0 10px 28px rgba(0,0,0,.55)}
   #nv-overlay .nv-txt-in::placeholder{color:#5c6672}
   /* Barra auto-ocultable: sale al pasar el cursor por el bisel del borde */
   #nv-overlay .nv-tools.nv-oculta{transform:translate(calc(-100% - 12px),-50%);opacity:0;pointer-events:none;
@@ -5465,7 +5481,7 @@ function estilos() {
   #nv-overlay .nv-pf.on{background:rgba(34,211,238,.18);border-color:rgba(34,211,238,.5);color:#22d3ee}
   #nv-overlay .nv-pop-fly{display:flex;flex-direction:column;gap:2px;width:158px}
   #nv-overlay .nv-fl{display:flex;align-items:center;gap:9px;height:34px;padding:0 10px;border-radius:8px;border:none;
-    background:transparent;color:#c9d1d9;cursor:pointer;font-family:var(--sans,sans-serif);font-size:12.5px;font-weight:600}
+    background:transparent;color:#c9d1d9;cursor:pointer;font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:12.5px;font-weight:600}
   #nv-overlay .nv-fl:hover{background:rgba(255,255,255,.08)}
   #nv-overlay .nv-fl.on{background:rgba(34,211,238,.16);color:#22d3ee}
   #nv-overlay .nv-tool-fly{position:relative}
@@ -5483,12 +5499,12 @@ function estilos() {
     border:2.5px solid rgba(232,184,75,.16);border-top-color:var(--gold,#E8B84B);
     animation:nvGira .85s linear infinite}
   @keyframes nvGira{to{transform:rotate(360deg)}}
-  #nv-overlay .nv-esperando b{font-family:var(--display,sans-serif);font-weight:800;font-size:17px;color:#eaecef}
-  #nv-overlay .nv-esperando span{font-family:var(--sans,sans-serif);font-size:13px;color:#7d8794;
+  #nv-overlay .nv-esperando b{font-family:"Chakra Petch", system-ui, sans-serif;font-weight:800;font-size:17px;color:#eaecef}
+  #nv-overlay .nv-esperando span{font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:13px;color:#7d8794;
     max-width:36ch;line-height:1.6}
   #nv-overlay .nv-btn{min-height:44px;padding:0 22px;border-radius:11px;border:1px solid #c79426;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
-    font-family:var(--display,sans-serif);font-weight:800;font-size:13px;cursor:pointer;margin-top:6px}
+    font-family:"Chakra Petch", system-ui, sans-serif;font-weight:800;font-size:13px;cursor:pointer;margin-top:6px}
 
   /* ══════════════════════════════════════════════════════════
      LAS CÁPSULAS · arriba a la derecha, donde no hay velas
@@ -5509,7 +5525,7 @@ function estilos() {
                      50%{box-shadow:0 3px 14px rgba(0,0,0,.6),0 0 0 4px rgba(232,184,75,.16)}}
   #nv-overlay .nv-cap.abierto .nv-cap-b{animation:none}
   #nv-overlay .nv-num{width:19px;height:19px;flex:0 0 auto;border-radius:6px;
-    display:grid;place-items:center;font-family:var(--display,sans-serif);
+    display:grid;place-items:center;font-family:"Chakra Petch", system-ui, sans-serif;
     font-weight:800;font-size:11px;background:rgba(255,255,255,.1);color:#b7bdc6}
   #nv-overlay .nv-cap.plan .nv-num{background:linear-gradient(180deg,#f7db8d,#E8B84B);color:#3a2800}
   #nv-overlay .nv-cap.plan .nv-cap-b{border-width:2px}
@@ -5556,15 +5572,15 @@ function estilos() {
   #nv-overlay .nv-pm-ava{width:32px;height:32px;border-radius:50%;object-fit:cover;flex:0 0 auto;
     border:1.5px solid rgba(232,184,75,.6)}
   #nv-overlay .nv-pm-quien{flex:1;min-width:0}
-  #nv-overlay .nv-pm-quien b{display:block;font-family:var(--display,sans-serif);font-weight:800;
+  #nv-overlay .nv-pm-quien b{display:block;font-family:"Chakra Petch", system-ui, sans-serif;font-weight:800;
     font-size:12px;color:var(--gold,#E8B84B);line-height:1.1}
-  #nv-overlay .nv-pm-quien span{display:block;font-family:var(--display,sans-serif);font-weight:700;
+  #nv-overlay .nv-pm-quien span{display:block;font-family:"Chakra Petch", system-ui, sans-serif;font-weight:700;
     font-size:13.5px;color:#eaecef;line-height:1.25;overflow-wrap:anywhere}
-  #nv-overlay .nv-pm-tx{min-height:30px;font-family:var(--sans,sans-serif);font-size:12.5px;
+  #nv-overlay .nv-pm-tx{min-height:30px;font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:12.5px;
     color:#b7bdc6;line-height:1.55}
   #nv-overlay .nv-pm-hacer{margin-top:9px;padding:10px 12px;border-radius:10px;
     background:rgba(0,0,0,.38);border-left:2px solid rgba(232,184,75,.6);
-    font-family:var(--sans,sans-serif);font-size:12px;color:#e2e8ee;line-height:1.5}
+    font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:12px;color:#e2e8ee;line-height:1.5}
 
   /* La tabla del plan de operación */
   #nv-overlay .nv-plan{margin-top:10px;padding:11px;border-radius:11px;
@@ -5574,7 +5590,7 @@ function estilos() {
   #nv-overlay .nv-plan-fila{display:flex;align-items:center;gap:8px;padding:5px 0;
     border-bottom:1px solid rgba(255,255,255,.05)}
   #nv-overlay .nv-plan-fila:last-of-type{border-bottom:none}
-  #nv-overlay .nv-plan-fila span{flex:1;font-family:var(--sans,sans-serif);font-size:11.5px;color:#8b96a3}
+  #nv-overlay .nv-plan-fila span{flex:1;font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:11.5px;color:#8b96a3}
   #nv-overlay .nv-plan-fila span em{font-style:normal;font-family:var(--mono,monospace);
     font-size:9px;color:#5c6672;margin-left:3px}
   #nv-overlay .nv-plan-fila b{font-family:var(--mono,monospace);font-size:12.5px;color:#eaecef}
@@ -5599,9 +5615,9 @@ function estilos() {
   #nv-overlay .nv-herr-rej{display:flex;flex-direction:column;gap:5px}
   #nv-overlay .nv-herr-b{width:100%;padding:8px 11px;border-radius:9px;cursor:pointer;
     text-align:left;background:rgba(255,255,255,.04);border:1px solid #2b3139}
-  #nv-overlay .nv-herr-b b{display:block;font-family:var(--display,sans-serif);
+  #nv-overlay .nv-herr-b b{display:block;font-family:"Chakra Petch", system-ui, sans-serif;
     font-weight:700;font-size:12px;color:#eaecef;margin-bottom:1px}
-  #nv-overlay .nv-herr-b span{display:block;font-family:var(--sans,sans-serif);
+  #nv-overlay .nv-herr-b span{display:block;font-family:"Plus Jakarta Sans", system-ui, sans-serif;
     font-size:10px;color:#7d8794;line-height:1.3}
   #nv-overlay .nv-herr-b.on{background:rgba(232,184,75,.14);border-color:var(--gold,#E8B84B)}
   #nv-overlay .nv-herr-b.on b{color:var(--gold,#E8B84B)}
@@ -5620,7 +5636,7 @@ function estilos() {
     border-color:rgba(232,184,75,.4);color:var(--gold,#E8B84B)}
   #nv-overlay .nv-herr-btn:hover{border-color:var(--gold,#E8B84B)}
   #nv-overlay .nv-ind-ic{flex:0 0 auto}
-  #nv-overlay .nv-ind-tx{font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;white-space:nowrap}
+  #nv-overlay .nv-ind-tx{font-family:"Chakra Petch", system-ui, sans-serif;font-weight:700;font-size:12.5px;white-space:nowrap}
   /* El botón de indicadores MÓVIL vive junto a "3 lecturas"; en web se
      oculta (allí manda el de texto de la cabecera). */
   #nv-overlay .nv-herr-m{display:none}
@@ -5642,10 +5658,10 @@ function estilos() {
   #nv-herr-panel .nv-hp-b.on .nv-hp-luz{background:var(--gold,#E8B84B);
     border-color:var(--gold,#E8B84B);box-shadow:0 0 8px rgba(232,184,75,.6)}
   #nv-herr-panel .nv-hp-tx{flex:1;min-width:0}
-  #nv-herr-panel .nv-hp-tx b{display:block;font-family:var(--display,sans-serif);
+  #nv-herr-panel .nv-hp-tx b{display:block;font-family:"Chakra Petch", system-ui, sans-serif;
     font-weight:700;font-size:13px;color:#eaecef;margin-bottom:2px}
   #nv-herr-panel .nv-hp-b.on .nv-hp-tx b{color:var(--gold,#E8B84B)}
-  #nv-herr-panel .nv-hp-tx span{display:block;font-family:var(--sans,sans-serif);
+  #nv-herr-panel .nv-hp-tx span{display:block;font-family:"Plus Jakarta Sans", system-ui, sans-serif;
     font-size:10.5px;color:#7d8794;line-height:1.4}
   #nv-herr-panel .nv-hp-pie{padding:6px 8px 2px;font-family:var(--mono,monospace);
     font-size:9px;color:#4a525c;text-align:center}
@@ -5663,7 +5679,7 @@ function estilos() {
     font-family:var(--mono,ui-monospace,monospace);color:#eaecef}
   #nv-ind-modal .nv-ind-head{display:flex;align-items:center;justify-content:space-between;
     padding:16px 16px 10px}
-  #nv-ind-modal .nv-ind-head h3{margin:0;font-family:var(--display,sans-serif);font-size:18px;font-weight:800;color:#fff}
+  #nv-ind-modal .nv-ind-head h3{margin:0;font-family:"Chakra Petch", system-ui, sans-serif;font-size:18px;font-weight:800;color:#fff}
   #nv-ind-modal .nv-ind-acc{display:flex;align-items:center;gap:8px;flex:0 0 auto}
   #nv-ind-modal .nv-ind-limpia{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;
     border-radius:9px;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid #2b3139;color:#aeb6bf;
@@ -5692,11 +5708,11 @@ function estilos() {
   #nv-ind-modal .nv-ind-item.on .nv-ind-ic{color:var(--gold,#E8B84B);filter:drop-shadow(0 0 5px rgba(232,184,75,.45))}
   #nv-ind-modal .nv-ind-tx{flex:1 1 auto;min-width:0}
   #nv-ind-modal .nv-ind-nm{display:flex;align-items:center;gap:7px}
-  #nv-ind-modal .nv-ind-nm b{font-family:var(--display,sans-serif);font-weight:700;font-size:14px;color:#eaecef}
+  #nv-ind-modal .nv-ind-nm b{font-family:"Chakra Petch", system-ui, sans-serif;font-weight:700;font-size:14px;color:#eaecef}
   #nv-ind-modal .nv-ind-item.on .nv-ind-nm b{color:var(--gold,#E8B84B)}
   #nv-ind-modal .nv-ind-nm em{font-style:normal;font-family:var(--mono,monospace);font-size:8.5px;
     color:var(--gold,#E8B84B);padding:1px 6px;border-radius:4px;background:rgba(232,184,75,.16)}
-  #nv-ind-modal .nv-ind-de{display:block;font-family:var(--sans,sans-serif);font-size:11px;color:#8b95a1;line-height:1.4;margin-top:3px}
+  #nv-ind-modal .nv-ind-de{display:block;font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:11px;color:#8b95a1;line-height:1.4;margin-top:3px}
   /* Interruptor tipo switch */
   #nv-ind-modal .nv-ind-sw{flex:0 0 auto;width:38px;height:22px;border-radius:12px;position:relative;
     background:#2b3139;border:1px solid #3a424c;transition:background .18s,border-color .18s}
@@ -5726,14 +5742,14 @@ function estilos() {
     background:linear-gradient(180deg,#12161d,#0c1016);border:1px solid rgba(232,184,75,.45);
     border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.72);overflow:hidden}
   #nv-guia .nv-guia-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:16px 16px 8px}
-  #nv-guia .nv-guia-head h3{margin:0;font-family:var(--display,sans-serif);font-size:16px;font-weight:800;color:#fff;line-height:1.3}
+  #nv-guia .nv-guia-head h3{margin:0;font-family:"Chakra Petch", system-ui, sans-serif;font-size:16px;font-weight:800;color:#fff;line-height:1.3}
   #nv-guia .nv-guia-head h3 span{display:block;font-family:var(--mono,monospace);font-size:9px;font-weight:700;
     letter-spacing:1.4px;text-transform:uppercase;color:var(--gold,#E8B84B);margin-bottom:3px}
   #nv-guia .nv-guia-x{flex:0 0 auto;width:30px;height:30px;border-radius:9px;
     border:1px solid #2b3139;background:rgba(255,255,255,.04);color:#aeb6bf;cursor:pointer;font-size:14px}
   #nv-guia .nv-guia-x:hover{border-color:var(--gold,#E8B84B);color:var(--gold,#E8B84B)}
   #nv-guia .nv-guia-body{overflow-y:auto;padding:4px 18px 18px}
-  #nv-guia .nv-guia-body p{margin:0 0 12px;font-family:var(--sans,sans-serif);font-size:13px;line-height:1.6;color:#c9d1d9}
+  #nv-guia .nv-guia-body p{margin:0 0 12px;font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:13px;line-height:1.6;color:#c9d1d9}
   #nv-guia .nv-guia-body p:last-child{margin-bottom:0}
 
   /* ── Selector ── */
@@ -5743,13 +5759,13 @@ function estilos() {
     box-shadow:0 16px 44px rgba(0,0,0,.72)}
   #nv-picker .nv-buscar{width:100%;box-sizing:border-box;padding:9px 11px;margin-bottom:6px;
     border-radius:9px;border:1px solid #2b3139;background:#0b0e12;color:#eaecef;
-    font-family:var(--sans,sans-serif);font-size:13px;min-height:38px}
+    font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:13px;min-height:38px}
   #nv-picker .nv-buscar:focus{outline:none;border-color:var(--gold-soft,#C9A84B)}
   #nv-picker .nv-lista-mon{overflow-y:auto;display:flex;flex-direction:column;gap:2px}
   #nv-picker .nv-filtro{display:flex;align-items:center;gap:8px;width:100%;min-height:36px;
     padding:0 11px;margin-bottom:6px;border-radius:9px;cursor:pointer;
     background:rgba(255,255,255,.04);border:1px solid #2b3139;color:#8b96a3;
-    font-family:var(--sans,sans-serif);font-size:12px;text-align:left}
+    font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:12px;text-align:left}
   #nv-picker .nv-filtro:hover{border-color:var(--gold-soft,#C9A84B)}
   #nv-picker .nv-filtro.on{background:rgba(232,184,75,.14);border-color:var(--gold,#E8B84B);
     color:var(--gold,#E8B84B);font-weight:600}
@@ -5767,7 +5783,7 @@ function estilos() {
   #nv-picker .nv-op:hover{background:rgba(255,255,255,.05)}
   #nv-picker .nv-op.on{background:rgba(232,184,75,.1);color:var(--gold,#E8B84B)}
   #nv-picker .nv-op b{font-family:var(--mono,monospace);font-size:12px;font-weight:700;min-width:46px}
-  #nv-picker .nv-op span{flex:1;font-family:var(--sans,sans-serif);font-size:12px;color:#7d8794;
+  #nv-picker .nv-op span{flex:1;font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:12px;color:#7d8794;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
   /* ── Ayuda ── */
@@ -5787,13 +5803,13 @@ function estilos() {
   #nv-ayuda-box .nva-n{font-family:var(--mono,monospace);font-size:11px;color:var(--gold,#E8B84B);
     font-weight:700;margin-bottom:10px}
   #nv-ayuda-box .nva-n em{font-style:normal;color:#5c6672;font-weight:400}
-  #nv-ayuda-box .nva-t{font-family:var(--display,sans-serif);font-weight:800;font-size:21px;
+  #nv-ayuda-box .nva-t{font-family:"Chakra Petch", system-ui, sans-serif;font-weight:800;font-size:21px;
     color:#eaecef;margin-bottom:12px;line-height:1.25}
-  #nv-ayuda-box .nva-d{font-family:var(--sans,sans-serif);font-size:14px;color:#b7bdc6;
+  #nv-ayuda-box .nva-d{font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:14px;color:#b7bdc6;
     line-height:1.7;margin-bottom:14px}
   #nv-ayuda-box .nva-d b{color:var(--gold,#E8B84B);font-weight:700}
   #nv-ayuda-box .nva-x2{padding:12px 14px;border-radius:11px;background:rgba(255,255,255,.035);
-    border-left:2px solid var(--gold-soft,#C9A84B);font-family:var(--sans,sans-serif);
+    border-left:2px solid var(--gold-soft,#C9A84B);font-family:"Plus Jakarta Sans", system-ui, sans-serif;
     font-size:12.5px;color:#8b96a3;line-height:1.55;text-align:left}
   #nv-ayuda-box .nva-puntos{display:flex;gap:5px;justify-content:center;margin-bottom:18px;flex-wrap:wrap}
   #nv-ayuda-box .nva-puntos i{width:7px;height:7px;border-radius:50%;background:#2b3139;cursor:pointer}
@@ -5801,10 +5817,10 @@ function estilos() {
   #nv-ayuda-box .nva-acts{display:flex;gap:9px}
   #nv-ayuda-box .nva-atras{flex:0 0 auto;min-height:48px;padding:0 20px;border-radius:12px;
     background:transparent;border:1px solid #2b3139;color:#8b96a3;cursor:pointer;
-    font-family:var(--display,sans-serif);font-weight:700;font-size:13px}
+    font-family:"Chakra Petch", system-ui, sans-serif;font-weight:700;font-size:13px}
   #nv-ayuda-box .nva-b{flex:1;min-height:48px;border-radius:12px;border:1px solid #c79426;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 45%,#c79426);color:#3a2800;
-    font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;
+    font-family:"Chakra Petch", system-ui, sans-serif;font-weight:800;font-size:14px;cursor:pointer;
     box-shadow:0 4px 0 #8f6a1a}
 
   /* Pantallas muy estrechas: todo más compacto para que el plan
