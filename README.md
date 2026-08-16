@@ -517,11 +517,12 @@ del mercado sobre velas reales de Binance y da un plan de operación
 completo.
 
 > **📦 MODULARIZADO (ver sección 26).** `niveles.js` pasó de **6.221 líneas
-> a 1.832** repartiendo su código en **13 módulos** dentro de
+> a 800** repartiendo su código en **15 módulos** dentro de
 > `assets/js/niveles/`. `niveles.js` sigue siendo el punto de entrada (lo
 > importa `liquidity.js` como `./niveles.js?v=126`, sin cambios) y ahora solo
-> contiene el render y el arranque; todo lo demás vive en su módulo. **Toda
-> ampliación futura debe respetar esta modularización (ver sección 27).**
+> contiene el arranque, el selector de monedas y las animaciones; el render y
+> todo lo demás vive en su módulo. **Toda ampliación futura debe respetar esta
+> modularización (ver sección 27).**
 
 **El motor de análisis:**
 
@@ -816,8 +817,8 @@ limpia, crash, pump, lateral, doble suelo) antes de dar nada por bueno.
 
 | Archivo | Estado |
 |---|---|
-| `assets/js/niveles.js` | **Modularizado** — 6.221 → 1.832 líneas (solo render + arranque) |
-| `assets/js/niveles/` (13 módulos) | **Nuevo** — motor, asistente, interaccion, dibujo, menus, panel, burbujas, imagen, alertas, estilos, util, estado, i18n |
+| `assets/js/niveles.js` | **Modularizado** — 6.221 → 800 líneas (solo arranque + selector + animaciones) |
+| `assets/js/niveles/` (15 módulos) | **Nuevo** — motor, asistente, render, interaccion, dibujo, menus, panel, burbujas, imagen, alertas, estilos, util, estado, config, i18n |
 | `assets/js/orden.js` | Smart Levels — órdenes desde el gráfico |
 | `assets/js/muros.js` | Modificado — Radar Institucional |
 | `assets/js/liquidity.js` | Modificado — portada y Liquidity Pools |
@@ -898,19 +899,22 @@ la app cripto**.
 `niveles.js` había crecido a **6.221 líneas**, con todo embebido. Cada cambio en
 un sitio rompía otro. Se troceó, **sin cambiar la lógica y verificando cada
 paso** (compilar + render Playwright + las 7 señales del motor idénticas), en
-**13 módulos** dentro de `assets/js/niveles/`.
+**15 módulos** dentro de `assets/js/niveles/`.
 
-**Resultado: `niveles.js` de 6.221 → 1.832 líneas (‑71%).**
+**Resultado: `niveles.js` de 6.221 → 800 líneas (‑87%).**
 
 ### 26.1 Estructura
 
 ```
 assets/js/
-├── niveles.js              (1832) MAIN: arranque (abrirNiveles/recargar),
-│                                  render (dibujar), selector de monedas
-│                                  (menuPares), pintarEstado, animaciones.
+├── niveles.js              ( 800) MAIN: arranque (abrirNiveles/recargar),
+│                                  selector de monedas (menuPares),
+│                                  pintarEstado y animaciones (animarTrazo/Fibo).
 │                                  Orquesta e importa todos los módulos.
 └── niveles/
+    ├── render.js      ( 981) El render principal (dibujar): velas, niveles,
+    │                         indicadores (Marea/Faro), herramientas del usuario;
+    │                         arranca gestos y orden.js en el primer dibujado.
     ├── motor.js       (1058) Cálculo PURO: pivotes, tendencia, rango, niveles,
     │                         impulsos, estructuras (Faro), dobles, Marea, ATR,
     │                         construirPlan, traerVelas. No toca el DOM.
@@ -919,10 +923,11 @@ assets/js/
     ├── estilos.js     ( 720) Todo el CSS del overlay.
     ├── interaccion.js ( 591) gestos: cursores, herramientas de dibujo, arrastre,
     │                         zoom, popups y barra de ajustes.
-    ├── menus.js       ( 327) Guía de indicador, menú de alertas, ventana
+    ├── menus.js       ( 328) Guía de indicador, menú de alertas, ventana
     │                         flotante (PiP), registrar indicador, logos, ayuda.
-    ├── dibujo.js      ( 305) Herramientas de dibujo: coordenadas (tiempo/precio
-    │                         ↔ píxeles), posiciones, marcadores, regla, tarjetas.
+    ├── dibujo.js      ( 320) Herramientas de dibujo: coordenadas (tiempo/precio
+    │                         ↔ píxeles), posiciones, marcadores, regla, tarjetas;
+    │                         guardar/cargar dibujos.
     ├── panel.js       ( 215) Panel del indicador Marea (confluencia, HA/ADX/VOL,
     │                         barras LONG/SHORT).
     ├── burbujas.js    ( 179) Burbujas del asistente + escritura letra a letra +
@@ -930,9 +935,10 @@ assets/js/
     ├── imagen.js      ( 163) Exportar la gráfica como PNG con marca de agua.
     ├── alertas.js     ( 143) Sonido, notificaciones del sistema y sondeo del
     │                         mercado para las alertas de Marea.
+    ├── config.js      (  60) Catálogo de pares (PARES) y temporalidades (TFS).
     ├── util.js        (  50) Utilidades PURAS: fmt, miles, hora, fecha,
     │                         redondeado, _hex2rgb, esc, elegir, sembrar.
-    ├── estado.js      (  16) El objeto N compartido (estado de la app).
+    ├── estado.js      (  22) El objeto N compartido (estado de la app).
     └── i18n.js        (  13) El traductor T (carga idioma.js dinámicamente).
 ```
 
@@ -948,10 +954,16 @@ assets/js/
 - **Módulos "hoja" (sin dependencias internas):** `estado`, `util`, `i18n`,
   `motor`, `estilos`. El resto importa de ellos, nunca al revés.
 - **Para evitar imports circulares**, los módulos que necesitan `dibujar` /
-  `burbujas` / `guardarDib` **los reciben por parámetro** (ej. `gestos(cv,
-  dibujar, burbujas, guardarDib)`) o por un inicializador que fija la referencia
-  una sola vez (ej. `initBurbujas(dibujar)`). Nunca se importa `niveles.js`
-  desde un submódulo.
+  `burbujas` / `recargar` / `guardarDib` **los reciben por parámetro** (ej.
+  `gestos(cv, dibujar, burbujas, guardarDib)`) o por un inicializador que fija la
+  referencia una sola vez (ej. `initBurbujas(dibujar)`, `initRender(recargar)`).
+  Nunca se importa `niveles.js` desde un submódulo.
+- **El estado del ciclo de vida vive en `N`** (`estado.js`): `N.par`, `N.tf`,
+  `N.trazo`, `N.od`, `N.zonasOd`, `N.cerrarFichas`, `N._geo`. Antes eran
+  variables sueltas del módulo (`_par`, `_tf`…); se movieron a `N` para poder
+  extraer el render sin romper nada.
+- **La configuración estática (pares y temporalidades) está en `config.js`** y la
+  importan el render, los menús y el selector. Es la fuente única de `PARES`/`TFS`.
 - Algunas funciones ahora **reciben `par`/`tf` por parámetro** en vez de leer las
   variables de módulo (`analizar(par)`, `menuAlertas(par, tf)`,
   `abrirWidget(par, tf)`, `guardarImagen(par, tf)`, `activarAlertasMarea(...,
@@ -959,14 +971,14 @@ assets/js/
 
 ### 26.3 Qué quedó en `niveles.js` y por qué
 
-El render (`dibujar`), el arranque (`abrirNiveles`/`recargar`), `pintarEstado`,
-las animaciones y el selector de monedas (`menuPares`) **comparten el estado
-mutable del ciclo de vida** (`_par`, `_tf`, `_od`, `_zonasOd`, `_trazo`,
-`_planFijo`…) y se llaman entre sí. Son un bloque cohesionado: el "main" que une
-todo. Sacar `dibujar` obligaría a mover ese estado y tocar casi todo lo que
-queda, sobre el código más crítico (el render), fragmentando algo que va junto.
-**Se decidió dejarlo así.** Si algún día se separa, primero hay que mover ese
-estado a `estado.js` (ver reglas de la sección 27).
+Tras extraer el render a `render.js`, en `niveles.js` solo queda el **ciclo de
+vida y la orquestación**: `abrirNiveles` (monta el overlay y cablea los módulos),
+`recargar` (baja velas, corre el análisis y redibuja), `pintarEstado`, las
+animaciones (`animarTrazo`/`animarFibo`) y el selector de monedas (`menuPares`).
+Es el "main" que une todo: importa los 15 módulos, fija las referencias
+(`initRender(recargar)`, `initBurbujas(dibujar)`) y responde a los botones de la
+cabecera. Se mantiene deliberadamente fino; cualquier lógica nueva va en su
+módulo (ver sección 27), nunca aquí.
 
 ---
 
