@@ -3112,7 +3112,7 @@ function dibujar() {
      la zona institucional, el barrido. No hay que creerse nada. */
   if (_verBase) {
     let _ultOb = null;
-    N._faroSetup = null;
+    N._faroBtn = null;
     (N.estructuras || []).forEach((e) => {
       const primero = Math.max(0, fin - ancho);
       if ((e.tipo === 'ob' || e.tipo === 'barrido') && e.iRef >= primero - 2 && e.iRef <= fin && (!_ultOb || e.iRef > _ultOb.iRef)) _ultOb = e;
@@ -3203,33 +3203,50 @@ function dibujar() {
         [['#2ee86a', yT], ['#eaecef', yE], ['#ff3b52', yS]].forEach((r) => {
           g.strokeStyle = r[0]; g.lineWidth = 1.4; g.beginPath(); g.moveTo(xs, r[1]); g.lineTo(x1, r[1]); g.stroke();
         });
-        // tarjeta compacta con dirección, R:R y %
         const gPct = Math.abs((pT - pE) / pE) * 100, rPct = Math.abs((pS - pE) / pE) * 100;
-        const cw = 154, ch = 70;
-        let cyc = Math.min(yE, yT, yS) - 8; cyc = Math.max(4, Math.min(y1 - ch - 4, cyc));
-        let cxc = x1 - cw - 8;
-        g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 16;
-        g.fillStyle = 'rgba(12,16,23,.97)'; redondeado(g, cxc, cyc, cw, ch, 12); g.fill(); g.restore();
-        g.strokeStyle = `rgba(${accRGB},.5)`; g.lineWidth = 1.1; redondeado(g, cxc, cyc, cw, ch, 12); g.stroke();
-        g.fillStyle = acc; redondeado(g, cxc, cyc + 11, 3, ch - 22, 2); g.fill();
-        g.textAlign = 'left';
-        g.fillStyle = acc; g.font = '800 10px "Chakra Petch", system-ui, sans-serif';
-        g.fillText(largo ? 'COMPRA · LONG' : 'VENTA · SHORT', cxc + 12, cyc + 18);
-        const divX = cxc + cw - 44;
-        g.fillStyle = '#79838f'; g.font = 'bold 7.5px "Plus Jakarta Sans", system-ui, sans-serif';
-        g.fillText('OBJETIVO', cxc + 12, cyc + 36); g.fillText('STOP', cxc + 12, cyc + 52);
-        g.fillStyle = '#2ee86a'; g.font = '800 12px "Chakra Petch", system-ui, sans-serif'; g.fillText(`+${gPct.toFixed(2)}%`, cxc + 60, cyc + 37);
-        g.fillStyle = '#ff5b6e'; g.fillText(`−${rPct.toFixed(2)}%`, cxc + 60, cyc + 53);
-        g.strokeStyle = 'rgba(255,255,255,.09)'; g.lineWidth = 1; g.beginPath(); g.moveTo(divX, cyc + 26); g.lineTo(divX, cyc + ch - 9); g.stroke();
-        g.textAlign = 'center';
-        const rrX = divX + (cxc + cw - divX) / 2;
-        g.fillStyle = '#79838f'; g.font = 'bold 7.5px "Plus Jakarta Sans", system-ui, sans-serif'; g.fillText('R:R', rrX, cyc + 34);
-        g.fillStyle = '#E8B84B'; g.font = '800 17px "Chakra Petch", system-ui, sans-serif'; g.fillText(RR.toFixed(1), rrX, cyc + 52);
-        g.textAlign = 'left';
-        g.fillStyle = 'rgba(232,184,75,.85)'; g.font = '700 7px "Plus Jakarta Sans", system-ui, sans-serif';
-        g.fillText('clic para operar', cxc + 12, cyc + ch - 4);
-        // guardar el setup para poder MATERIALIZARLO como posición editable al hacer clic
-        N._faroSetup = { tipo: largo ? 'poslarga' : 'poscorta', pE, pS, pT, iRef: e.iRef, card: { x: cxc, y: cyc, w: cw, h: ch } };
+        if (!N._faroExp) {
+          // ── MINIMIZADO: solo una pastillita sobre la línea de entrada ──
+          g.font = '800 9.5px "Chakra Petch", system-ui, sans-serif';
+          const et = (largo ? '▲ ' : '▼ ') + 'R:R ' + RR.toFixed(1);
+          const pw = g.measureText(et).width + 24, ph = 20;
+          const px = x1 - pw - 8, py = Math.max(4, Math.min(y1 - ph - 4, yE - ph / 2));
+          g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 10;
+          g.fillStyle = 'rgba(12,16,23,.96)'; redondeado(g, px, py, pw, ph, 10); g.fill(); g.restore();
+          g.strokeStyle = `rgba(${accRGB},.6)`; g.lineWidth = 1.1; redondeado(g, px, py, pw, ph, 10); g.stroke();
+          g.fillStyle = acc; g.textAlign = 'left'; g.fillText(et, px + 9, py + ph / 2 + 3.3);
+          // signo + de "expandir"
+          g.strokeStyle = '#9aa4b0'; g.lineWidth = 1.4;
+          const plusX = px + pw - 11, plusY = py + ph / 2;
+          g.beginPath(); g.moveTo(plusX - 3, plusY); g.lineTo(plusX + 3, plusY); g.moveTo(plusX, plusY - 3); g.lineTo(plusX, plusY + 3); g.stroke();
+          N._faroBtn = { x: px, y: py, w: pw, h: ph };
+        } else {
+          // ── EXPANDIDO: recuadro completo con botón "−" para minimizar ──
+          const cw = 154, ch = 70;
+          let cyc = Math.min(yE, yT, yS) - 8; cyc = Math.max(4, Math.min(y1 - ch - 4, cyc));
+          let cxc = x1 - cw - 8;
+          g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 16;
+          g.fillStyle = 'rgba(12,16,23,.97)'; redondeado(g, cxc, cyc, cw, ch, 12); g.fill(); g.restore();
+          g.strokeStyle = `rgba(${accRGB},.5)`; g.lineWidth = 1.1; redondeado(g, cxc, cyc, cw, ch, 12); g.stroke();
+          g.fillStyle = acc; redondeado(g, cxc, cyc + 11, 3, ch - 22, 2); g.fill();
+          g.textAlign = 'left';
+          g.fillStyle = acc; g.font = '800 10px "Chakra Petch", system-ui, sans-serif';
+          g.fillText(largo ? 'COMPRA · LONG' : 'VENTA · SHORT', cxc + 12, cyc + 18);
+          const divX = cxc + cw - 44;
+          g.fillStyle = '#79838f'; g.font = 'bold 7.5px "Plus Jakarta Sans", system-ui, sans-serif';
+          g.fillText('OBJETIVO', cxc + 12, cyc + 36); g.fillText('STOP', cxc + 12, cyc + 52);
+          g.fillStyle = '#2ee86a'; g.font = '800 12px "Chakra Petch", system-ui, sans-serif'; g.fillText(`+${gPct.toFixed(2)}%`, cxc + 60, cyc + 37);
+          g.fillStyle = '#ff5b6e'; g.fillText(`−${rPct.toFixed(2)}%`, cxc + 60, cyc + 53);
+          g.strokeStyle = 'rgba(255,255,255,.09)'; g.lineWidth = 1; g.beginPath(); g.moveTo(divX, cyc + 26); g.lineTo(divX, cyc + ch - 9); g.stroke();
+          g.textAlign = 'center';
+          const rrX = divX + (cxc + cw - divX) / 2;
+          g.fillStyle = '#79838f'; g.font = 'bold 7.5px "Plus Jakarta Sans", system-ui, sans-serif'; g.fillText('R:R', rrX, cyc + 34);
+          g.fillStyle = '#E8B84B'; g.font = '800 17px "Chakra Petch", system-ui, sans-serif'; g.fillText(RR.toFixed(1), rrX, cyc + 52);
+          g.textAlign = 'left';
+          // botón "−" para minimizar, arriba a la derecha
+          const mb = { x: cxc + cw - 22, y: cyc + 6, w: 16, h: 16 };
+          g.strokeStyle = '#9aa4b0'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(mb.x + 3, mb.y + 8); g.lineTo(mb.x + 13, mb.y + 8); g.stroke();
+          N._faroBtn = { x: mb.x - 3, y: mb.y - 3, w: mb.w + 6, h: mb.h + 6 };
+        }
       }
     }
   });
@@ -4370,6 +4387,8 @@ function gestos(cv) {
   /* ¿el cursor está sobre un elemento interactivo del indicador Marea
      (la cápsula/panel para recoger, o una tachuela de disparo)? */
   const sobreMareaEn = (x, y) => (N.marea && N.verMarea) && (dentro(x, y, N._mareaBtn) || (N._proxBtns && N._proxBtns.some((r) => dentro(x, y, r))));
+  /* ¿el cursor está sobre un botón de una posición (minimizar, reabrir, mover la tarjeta)? */
+  const sobreBotonPos = (x, y) => (N.dibujos || []).some((d) => (d.tipo === 'poslarga' || d.tipo === 'poscorta') && (dentro(x, y, d._hideBtn) || dentro(x, y, d._miniBtn) || dentro(x, y, d._arrL) || dentro(x, y, d._arrR)));
   const ORDEN_POS = ['der', 'abajo', 'izq', 'arriba'];
   const girarPos = (pos, dir) => { const i = Math.max(0, ORDEN_POS.indexOf(pos || 'der')); return ORDEN_POS[(i + dir + ORDEN_POS.length) % ORDEN_POS.length]; };
 
@@ -4471,7 +4490,7 @@ function gestos(cv) {
   window.addEventListener('mousemove', (e) => {
     const cvv = $('nv-cv'); if (!cvv) return;
     const p = loc(e);
-    if (sobreMareaEn(p.x, p.y) || (N.verEstructura && N._faroSetup && dentro(p.x, p.y, N._faroSetup.card))) cvv.style.cursor = 'pointer';
+    if (sobreMareaEn(p.x, p.y) || sobreBotonPos(p.x, p.y) || (N.verEstructura && N._faroBtn && dentro(p.x, p.y, N._faroBtn))) cvv.style.cursor = 'pointer';
   });
 
   cv.addEventListener('dblclick', () => {
@@ -4499,11 +4518,9 @@ function gestos(cv) {
       if (enTog || enProx) { N.mareaMin = !N.mareaMin; e.preventDefault(); dibujar(); return; }
     }
     // Clic en la tarjeta de la posición de Faro → la materializa como posición editable
-    if (N.verEstructura && N._faroSetup && dentro(lx, ly, N._faroSetup.card) && N.herr === 'cursor') {
-      const s = N._faroSetup, tf = _tfMs();
-      const vela = N.velas[s.iRef]; const tEnt = vela ? vela.t : (N.velas[N.velas.length - 1] ? N.velas[N.velas.length - 1].t : Date.now());
-      const d = { tipo: s.tipo, pts: [{ t: tEnt, p: s.pE }, { t: tEnt + tf * 40, p: s.pE }], pTarget: s.pT, pStop: s.pS, ...estiloNuevo(s.tipo) };
-      N.dibujos.push(d); guardarDib(); finDib(N.dibujos.length - 1); e.preventDefault(); dibujar(); return;
+    // Botón del recuadro de Faro: expandir / minimizar la relación riesgo-beneficio
+    if (N.verEstructura && N._faroBtn && dentro(lx, ly, N._faroBtn)) {
+      N._faroExp = !N._faroExp; e.preventDefault(); dibujar(); return;
     }
     // Herramienta de dibujo activa → dibuja
     if (N.herr !== 'cursor' && N.herr !== 'borrar' && !enEscala(lx)) { if (iniciarDib(lx, ly)) { e.preventDefault(); return; } }
