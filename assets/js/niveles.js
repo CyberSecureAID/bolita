@@ -2410,24 +2410,20 @@ function dibujarUno(g, d, x1, y1, sel) {
     g.stroke(); g.shadowBlur = 0;
   } else if (d.tipo === 'marca') {
     if (!A) return;
-    const rr = Math.max(11, d.tam ? d.tam + 5 : 13);
+    const rr = Math.max(13, d.tam ? d.tam + 6 : 15);
+    // relleno translúcido del color + borde sólido del mismo color (se ve llamativo sin tapar)
     g.save();
-    g.shadowColor = `rgba(${rgb},.55)`; g.shadowBlur = 7;
-    g.fillStyle = col; g.beginPath(); g.arc(A.x, A.y, rr, 0, 6.283); g.fill();
+    g.shadowColor = `rgba(${rgb},.5)`; g.shadowBlur = 8;
+    g.fillStyle = `rgba(${rgb},.32)`; g.beginPath(); g.arc(A.x, A.y, rr, 0, 6.283); g.fill();
     g.restore();
-    g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 2; g.beginPath(); g.arc(A.x, A.y, rr, 0, 6.283); g.stroke();
-    // número dentro, nítido: color por contraste + halo para que se lea sobre cualquier color
+    g.strokeStyle = col; g.lineWidth = 2.4; g.beginPath(); g.arc(A.x, A.y, rr, 0, 6.283); g.stroke();
+    // número dentro, siempre legible: relleno del color + halo oscuro de contraste
     const nn = String(d._n || 1);
-    const cn = parseInt((d.color || '#22d3ee').slice(1), 16);
-    const lum = (0.299 * ((cn >> 16) & 255) + 0.587 * ((cn >> 8) & 255) + 0.114 * (cn & 255)) / 255;
-    const claro = lum <= 0.55;
-    g.font = `900 ${Math.round(rr * 1.15)}px "Chakra Petch", system-ui, sans-serif`;
+    g.font = `900 ${Math.round(rr * 1.2)}px "Chakra Petch", system-ui, sans-serif`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.lineJoin = 'round'; g.lineWidth = Math.max(2.5, rr * 0.3);
-    g.strokeStyle = claro ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.9)';
-    g.strokeText(nn, A.x, A.y + rr * 0.06);
-    g.fillStyle = claro ? '#ffffff' : '#0b0f16';
-    g.fillText(nn, A.x, A.y + rr * 0.06);
+    g.lineJoin = 'round'; g.lineWidth = Math.max(3, rr * 0.34);
+    g.strokeStyle = 'rgba(11,15,22,.92)'; g.strokeText(nn, A.x, A.y + rr * 0.06);
+    g.fillStyle = col; g.fillText(nn, A.x, A.y + rr * 0.06);
     g.textAlign = 'left'; g.textBaseline = 'alphabetic';
     if (sel) { g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.beginPath(); g.arc(A.x, A.y, rr + 4, 0, 6.283); g.stroke(); }
   } else if (d.tipo === 'texto') {
@@ -3519,7 +3515,9 @@ function dibujar() {
         g.textAlign = 'left';
         g.fillText(txt, tX + 9, tY + th / 2 + 3.2);
         g.restore();
+        N._proxBtns.push({ x: tX, y: tY, w: tw, h: th });
       };
+      N._proxBtns = [];
       prox(MA.panel.long, true);
       prox(MA.panel.short, false);
     }
@@ -4031,7 +4029,7 @@ function gestos(cv) {
     window.addEventListener('mouseup', () => { if (tb) { tb = null; document.body.style.userSelect = ''; } });
   }
   const COLORES = ['#22d3ee', '#E8B84B', '#2ee86a', '#ff3b52', '#a78bfa', '#ffffff'];
-  const COLORES_FULL = ['#22d3ee', '#38bdf8', '#2ee86a', '#a3e635', '#E8B84B', '#f59e0b', '#ff3b52', '#fb7185', '#a78bfa', '#e879f9', '#94a3b8', '#ffffff'];
+  const COLORES_FULL = ['#22d3ee', '#38bdf8', '#2ee86a', '#a3e635', '#ffd400', '#E8B84B', '#f59e0b', '#ff3b52', '#fb7185', '#a78bfa', '#e879f9', '#94a3b8', '#ffffff'];
   const FIB_TODOS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.414, 1.618, 2, 2.618];
   const rgbDe = (hex) => { const n = parseInt(hex.slice(1), 16); return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`; };
   const CON_GROSOR = ['linea', 'flecha', 'rect', 'brush', 'regla', 'poslarga', 'poscorta'];
@@ -4047,8 +4045,8 @@ function gestos(cv) {
       tools.classList.toggle('forz', N.herr !== 'cursor');   // no se oculta con herramienta activa
     }
     let cur = 'crosshair';
-    if (N.herr === 'cursor') cur = N.cursorTipo === 'flecha' ? 'default' : 'crosshair';
-    else if (N.herr === 'borrar') cur = 'pointer';
+    if (N.herr === 'cursor') cur = N.cursorTipo === 'flecha' ? 'default' : 'none';   // cruz/punto: dibujamos el nuestro
+    else if (N.herr === 'borrar') cur = 'crosshair';
     cv.style.cursor = cur;
   };
   const marcarFavs = () => {};
@@ -4081,10 +4079,12 @@ function gestos(cv) {
   const seleccionar = (h) => { if (h !== N.herr) N.fijar = false; if (colocando) { colocando = false; N.dib = null; } N.herr = h; N.sel = -1; cerrarPopups(); marcarBoton(); construirTopbar(); };
 
   // ── Popups flotantes (color, niveles Fibonacci, tipos de línea) ──
-  const cerrarPopups = () => { if (grafEl) grafEl.querySelectorAll('.nv-pop').forEach((p) => p.remove()); };
-  const crearPop = (anchor, abajo) => {
+  let popActual = null;
+  const cerrarPopups = () => { if (grafEl) grafEl.querySelectorAll('.nv-pop').forEach((p) => p.remove()); popActual = null; };
+  const crearPop = (anchor, abajo, src) => {
     cerrarPopups();
-    const pop = document.createElement('div'); pop.className = 'nv-pop';
+    popActual = src || null;
+    const pop = document.createElement('div'); pop.className = 'nv-pop'; if (src) pop.dataset.src = src;
     grafEl.appendChild(pop);
     const gr = grafEl.getBoundingClientRect(), ar = anchor.getBoundingClientRect();
     requestAnimationFrame(() => {
@@ -4092,17 +4092,19 @@ function gestos(cv) {
       pop.style.left = Math.max(6, Math.min(gr.width - pw - 6, ar.left - gr.left + (abajo ? 0 : ar.width + 6))) + 'px';
       pop.style.top = Math.max(6, Math.min(gr.height - ph - 6, abajo ? (ar.bottom - gr.top + 6) : (ar.top - gr.top))) + 'px';
     });
-    setTimeout(() => document.addEventListener('mousedown', function cerra(ev) { if (!pop.contains(ev.target)) { pop.remove(); document.removeEventListener('mousedown', cerra); } }), 0);
+    setTimeout(() => document.addEventListener('mousedown', function cerra(ev) {
+      if (!pop.contains(ev.target) && !(topbar && topbar.contains(ev.target)) && !(tools && tools.contains(ev.target))) { pop.remove(); popActual = null; document.removeEventListener('mousedown', cerra); }
+    }), 0);
     return pop;
   };
   const colorPop = (anchor) => {
-    const pop = crearPop(anchor, true); pop.classList.add('nv-pop-col');
+    const pop = crearPop(anchor, true, 'colorpop'); pop.classList.add('nv-pop-col');
     pop.innerHTML = COLORES_FULL.map((c) => `<button class="nv-pc" data-col="${c}" style="background:${c}"></button>`).join('');
-    pop.addEventListener('click', (e) => { const b = e.target.closest('[data-col]'); if (!b) return; aplicar('color', b.dataset.col); pop.remove(); });
+    pop.addEventListener('click', (e) => { const b = e.target.closest('[data-col]'); if (!b) return; aplicar('color', b.dataset.col); cerrarPopups(); });
   };
   // Color de las 3 líneas de la posición (objetivo / entrada / stop)
   const colorPopPos = (anchor) => {
-    const pop = crearPop(anchor, true); pop.classList.add('nv-pop-fib');
+    const pop = crearPop(anchor, true, 'colorpop'); pop.classList.add('nv-pop-fib');
     const o = objSel() || N.estilo;
     const filas = [['cTarget', 'Objetivo', o.cTarget || '#2ee86a'], ['cEntry', 'Entrada', o.cEntry || '#eaecef'], ['cStop', 'Stop', o.cStop || '#ff3b52']];
     pop.innerHTML = filas.map((f) => `<div class="nv-pop-t">${f[1]}</div><div class="nv-pop-col nv-pcp" data-k="${f[0]}">` +
@@ -4116,7 +4118,7 @@ function gestos(cv) {
     });
   };
   const fibPop = (anchor) => {
-    const pop = crearPop(anchor, true); pop.classList.add('nv-pop-fib');
+    const pop = crearPop(anchor, true, 'fibpop'); pop.classList.add('nv-pop-fib');
     const act = (objSel() && objSel().niveles) ? objSel().niveles : (N.estilo.fibNiveles || DIB_FIBS);
     pop.innerHTML = `<div class="nv-pop-t">Niveles Fibonacci</div><div class="nv-pf-grid">` +
       FIB_TODOS.map((f) => `<button class="nv-pf ${act.includes(f) ? 'on' : ''}" data-f="${f}">${(f * 100).toFixed(1).replace(/\.0$/, '')}%</button>`).join('') + '</div>';
@@ -4131,28 +4133,40 @@ function gestos(cv) {
     });
   };
   const flyLineas = (anchor) => {
-    const pop = crearPop(anchor, false); pop.classList.add('nv-pop-fly');
+    const pop = crearPop(anchor, false, 'lineas'); pop.classList.add('nv-pop-fly');
     const items = [['linea', 'Tendencia', 'M4 19L20 5'], ['rayo', 'Horizontal', 'M3 12h18'], ['vert', 'Vertical', 'M12 3v18']];
     pop.innerHTML = items.map((it) => `<button class="nv-fl ${N.herr === it[0] ? 'on' : ''}" data-h="${it[0]}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="${it[2]}"/></svg><span>${it[1]}</span></button>`).join('');
-    pop.addEventListener('click', (e) => { const b = e.target.closest('[data-h]'); if (!b) return; const mk = anchor; mk.dataset.h = b.dataset.h; mk.title = b.querySelector('span').textContent; seleccionar(b.dataset.h); pop.remove(); });
+    pop.addEventListener('click', (e) => { const b = e.target.closest('[data-h]'); if (!b) return; const mk = anchor; mk.dataset.h = b.dataset.h; mk.title = b.querySelector('span').textContent; seleccionar(b.dataset.h); cerrarPopups(); });
   };
   const flyCursores = (anchor) => {
-    const pop = crearPop(anchor, false); pop.classList.add('nv-pop-fly');
+    const pop = crearPop(anchor, false, 'cursores'); pop.classList.add('nv-pop-fly');
     const items = [['cruz', 'Cruz', 'M12 4v16M4 12h16'], ['punto', 'Punto', 'M12 12h.01'], ['flecha', 'Flecha', 'M5 3l7 17 2-7 7-2z']];
     pop.innerHTML = items.map((it) => `<button class="nv-fl ${N.cursorTipo === it[0] ? 'on' : ''}" data-c="${it[0]}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${it[2]}"/></svg><span>${it[1]}</span></button>`).join('');
-    pop.addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (!b) return; N.cursorTipo = b.dataset.c; seleccionar('cursor'); pop.remove(); });
+    pop.addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (!b) return; N.cursorTipo = b.dataset.c; seleccionar('cursor'); cerrarPopups(); });
   };
 
   if (tools) {
     tools.querySelectorAll('.nv-tool[data-h]').forEach((b) => b.addEventListener('click', () => {
-      if (b.dataset.fly === 'lineas') { flyLineas(b); return; }
-      if (b.dataset.fly === 'cursores') { flyCursores(b); return; }
+      if (b.dataset.fly === 'lineas') { if (popActual === 'lineas') { cerrarPopups(); return; } flyLineas(b); return; }
+      if (b.dataset.fly === 'cursores') { if (popActual === 'cursores') { cerrarPopups(); return; } flyCursores(b); return; }
       seleccionar(b.dataset.h);
     }));
     const bIman = document.getElementById('nv-iman');
     if (bIman) { bIman.classList.toggle('on', !!N.imant); bIman.addEventListener('click', () => { N.imant = !N.imant; bIman.classList.toggle('on', N.imant); }); }
     const bLimp = document.getElementById('nv-limpiar');
-    if (bLimp) bLimp.addEventListener('click', () => { N.dibujos = []; N.dib = null; N.sel = -1; guardarDib(); construirTopbar(); dibujar(); });
+    if (bLimp) bLimp.addEventListener('click', () => {
+      if (popActual === 'limpiar') { cerrarPopups(); return; }
+      const pop = crearPop(bLimp, false, 'limpiar'); pop.classList.add('nv-pop-menu');
+      pop.innerHTML =
+        `<button class="nv-pm" data-lim="dib"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>Borrar dibujos</button>` +
+        `<button class="nv-pm" data-lim="ind"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Borrar indicadores</button>`;
+      pop.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-lim]'); if (!b) return;
+        if (b.dataset.lim === 'dib') { N.dibujos = []; N.dib = null; N.sel = -1; guardarDib(); }
+        else { N.verMarea = false; N.verEstructura = false; const pm = document.querySelectorAll('#nv-herr-panel .nv-ind-row.on'); pm.forEach((r) => { if (r.dataset.h === 'marea' || r.dataset.h === 'estructura') r.classList.remove('on'); }); }
+        cerrarPopups(); construirTopbar(); dibujar();
+      });
+    });
     // Auto-ocultar: la barra sale al acercar el cursor al borde izquierdo
     tools.classList.add('nv-oculta');
     const tab = document.createElement('div'); tab.id = 'nv-tools-tab'; grafEl.appendChild(tab);
@@ -4170,8 +4184,8 @@ function gestos(cv) {
       if (b.dataset.tam) return aplicar('tam', +b.dataset.tam);
       if (b.dataset.int) return aplicar('intensidad', +b.dataset.int);
       const a = b.dataset.a;
-      if (a === 'colorpop') { const s = objSel(); return (s && (s.tipo === 'poslarga' || s.tipo === 'poscorta')) || N.herr === 'poslarga' || N.herr === 'poscorta' ? colorPopPos(b) : colorPop(b); }
-      if (a === 'fibpop') return fibPop(b);
+      if (a === 'colorpop') { if (popActual === 'colorpop') { cerrarPopups(); return; } const s = objSel(); return (s && (s.tipo === 'poslarga' || s.tipo === 'poscorta')) || N.herr === 'poslarga' || N.herr === 'poscorta' ? colorPopPos(b) : colorPop(b); }
+      if (a === 'fibpop') { if (popActual === 'fibpop') { cerrarPopups(); return; } return fibPop(b); }
       if (a === 'dash') return aplicar('punteado', !objEstilo().punteado);
       if (a === 'del') {
         if (N.sel >= 0) { N.dibujos.splice(N.sel, 1); N.sel = -1; }
@@ -4208,6 +4222,7 @@ function gestos(cv) {
   const estiloNuevo = (tipo) => {
     const e = { color: N.estilo.color, rgb: N.estilo.rgb || rgbDe(N.estilo.color), grosor: N.estilo.grosor, punteado: N.estilo.punteado, tam: N.estilo.tam };
     if (tipo === 'fib' && N.estilo.fibNiveles) e.niveles = N.estilo.fibNiveles.slice();
+    if (tipo === 'marca') { e.color = N.estilo.colorMarca || '#ffd400'; e.rgb = rgbDe(e.color); }   // amarillo intenso por defecto
     if (tipo === 'poslarga' || tipo === 'poscorta') {
       e.cTarget = N.estilo.cTarget || '#2ee86a'; e.cEntry = N.estilo.cEntry || '#eaecef'; e.cStop = N.estilo.cStop || '#ff3b52';
       e.intensidad = N.estilo.intensidad != null ? N.estilo.intensidad : 1;
@@ -4402,11 +4417,12 @@ function gestos(cv) {
     if (arr) return;
     if (p.x < 20) abrirBarra(); else if (p.x > 90) cerrarBarra();
     N.cruz = { x: Math.round(p.x), y: Math.round(p.y) };
-    // manito sobre el toggle del panel Marea (recoger/desplegar)
-    if (N.marea && N.verMarea && N._mareaBtn && p.x >= N._mareaBtn.x && p.x <= N._mareaBtn.x + N._mareaBtn.w && p.y >= N._mareaBtn.y && p.y <= N._mareaBtn.y + N._mareaBtn.h) { cv.style.cursor = 'pointer'; dibujar(); return; }
+    // manito sobre el toggle del panel Marea o sobre una tachuela de disparo (interactivos)
+    const sobreMarea = (N.marea && N.verMarea) && ((N._mareaBtn && p.x >= N._mareaBtn.x && p.x <= N._mareaBtn.x + N._mareaBtn.w && p.y >= N._mareaBtn.y && p.y <= N._mareaBtn.y + N._mareaBtn.h) || (N._proxBtns && N._proxBtns.some((r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h)));
+    if (sobreMarea) { cv.style.cursor = 'pointer'; dibujar(); return; }
     // cursor: manito sobre un dibujo, editar sobre las líneas de una posición
     if (N.herr === 'cursor' && !enEscala(p.x)) {
-      const k = dibujoEn(p.x, p.y); let cur = 'crosshair';
+      const k = dibujoEn(p.x, p.y); let cur = N.cursorTipo === 'flecha' ? 'default' : 'none';
       if (k >= 0) {
         const d = N.dibujos[k]; cur = 'grab';
         if (d.tipo === 'poslarga' || d.tipo === 'poscorta') { if (posBordeEn(d, p.x, p.y)) cur = 'ew-resize'; else if (posLineaEn(d, p.x, p.y)) cur = 'ns-resize'; }
@@ -4436,8 +4452,11 @@ function gestos(cv) {
     const r = cv.getBoundingClientRect();
     const lx = e.clientX - r.left, ly = e.clientY - r.top;
     // Colapsar / desplegar el panel de Marea (cápsula)
-    if (N.marea && N.verMarea && N._mareaBtn && lx >= N._mareaBtn.x && lx <= N._mareaBtn.x + N._mareaBtn.w && ly >= N._mareaBtn.y && ly <= N._mareaBtn.y + N._mareaBtn.h) {
-      N.mareaMin = !N.mareaMin; e.preventDefault(); dibujar(); return;
+    // Colapsar / desplegar el panel de Marea (cápsula o tachuela)
+    if (N.marea && N.verMarea) {
+      const enTog = N._mareaBtn && lx >= N._mareaBtn.x && lx <= N._mareaBtn.x + N._mareaBtn.w && ly >= N._mareaBtn.y && ly <= N._mareaBtn.y + N._mareaBtn.h;
+      const enProx = N._proxBtns && N._proxBtns.some((r) => lx >= r.x && lx <= r.x + r.w && ly >= r.y && ly <= r.y + r.h);
+      if (enTog || enProx) { N.mareaMin = !N.mareaMin; e.preventDefault(); dibujar(); return; }
     }
     // Herramienta de dibujo activa → dibuja
     if (N.herr !== 'cursor' && N.herr !== 'borrar' && !enEscala(lx)) { if (iniciarDib(lx, ly)) { e.preventDefault(); return; } }
@@ -5165,28 +5184,38 @@ async function ponerLogos() {
    ══════════════════════════════════════════════════════════════ */
 const PASOS_NV = [
   {
-    t: 'Qué es Smart Levels',
-    d: 'Tu mesa de <b>análisis técnico</b> para muchas criptomonedas: estudia el mercado en tiempo real, <b>opera directo</b> sobre la gráfica y usa nuestros <b>indicadores premium</b>.',
-    x: 'Todo con las velas reales del mercado. Verde es compra, rojo es venta.'
+    t: 'Un centro completo, no solo gráficas',
+    d: 'Smart Levels es un entorno de <b>análisis, visualización y operación</b> en un mismo lugar: estudias el mercado en tiempo real, dibujas, mides y <b>operas directo desde la gráfica</b>.',
+    x: 'Todo con velas reales del mercado. Verde es comprar, rojo es vender.'
   },
   {
-    t: 'Opera desde la gráfica',
-    d: 'Haz <b>clic derecho</b> (o mantén pulsado en el móvil) sobre el precio y elige <b>Comprar aquí</b> o <b>Vender aquí</b> en la zona estratégica que quieras. Verás el % de beneficio y de riesgo antes de confirmar.',
+    t: 'Compra y vende desde la gráfica',
+    d: 'Haz <b>clic derecho</b> (o mantén pulsado en móvil) sobre el precio y elige <b>Comprar aquí</b> o <b>Vender aquí</b> en la zona que quieras. Ves el % de beneficio y de riesgo antes de confirmar.',
     x: 'Es no custodial: operas desde tu propia wallet, sin cuenta ni intermediarios.'
   },
   {
-    t: 'Indicadores premium',
-    d: 'Desde <b>Indicators</b> activas indicadores creados por nosotros, como <b>Marea</b>, que te dice en tiempo real hacia qué lado está el mercado y cuánto falta para que salte una alerta de long o de short.',
-    x: 'El recuadro de la esquina se puede colapsar tocándolo para que no estorbe.'
+    t: 'Alertas de precio',
+    d: 'Coloca <b>alertas</b> en los niveles que te importan y recibe aviso cuando el precio llegue, sin tener que estar mirando la pantalla.',
+    x: 'Combínalas con los indicadores para no perderte una entrada.'
   },
   {
-    t: 'Dibuja y mide',
-    d: 'En la barra lateral tienes las herramientas: <b>líneas de tendencia, Fibonacci, posición larga/corta, regla, texto, marcadores</b> y más. Traza, edita y muévelo todo con el cursor.',
+    t: 'Representa posiciones en tiempo real',
+    d: 'Con las herramientas de <b>posición larga y corta</b> pintas tu entrada, tu objetivo y tu stop, y ves en vivo el <b>beneficio, el riesgo y la relación R:R</b> mientras el precio se mueve.',
+    x: 'Ajústalas arrastrando: sube el objetivo, baja el stop, amplía a los lados.'
+  },
+  {
+    t: 'Indicadores premium',
+    d: 'Desde <b>Indicators</b> activas indicadores creados por nosotros, como <b>Marea</b>, que te dice hacia qué lado está el mercado y <b>cuánto falta</b> para que salte una alerta de long o de short.',
+    x: 'El recuadro de la esquina se recoge tocándolo para que no estorbe.'
+  },
+  {
+    t: 'Herramientas modernas de dibujo',
+    d: 'Líneas, Fibonacci, regla, texto, marcadores, rectángulos… con una dinámica ágil que en varios aspectos <b>supera a plataformas como TradingView</b>. Traza, edita y mueve todo con el cursor.',
     x: 'La barra se oculta sola; acerca el cursor al borde izquierdo para desplegarla.'
   },
   {
     t: 'Cambia de moneda y de tiempo',
-    d: 'Arriba a la izquierda cambias de <b>criptomoneda</b>, y al lado eliges la <b>temporalidad</b> (15m, 1H, 4H, 1D). Arrastra para recorrer el tiempo y usa la rueda para acercar.',
+    d: 'Arriba a la izquierda cambias de <b>criptomoneda</b> y eliges la <b>temporalidad</b> (15m, 1H, 4H, 1D). Arrastra para recorrer el tiempo y usa la rueda para acercar.',
     x: 'Esto es análisis, no una promesa. Usa siempre stop y no arriesgues más de lo que puedas perder.'
   }
 ];
@@ -5663,6 +5692,11 @@ function estilos() {
   #nv-overlay .nv-pf:hover{border-color:rgba(255,255,255,.3);color:#eaecef}
   #nv-overlay .nv-pf.on{background:rgba(34,211,238,.18);border-color:rgba(34,211,238,.5);color:#22d3ee}
   #nv-overlay .nv-pop-fly{display:flex;flex-direction:column;gap:2px;width:158px}
+  #nv-overlay .nv-pop-menu{display:flex;flex-direction:column;gap:2px;width:180px}
+  #nv-overlay .nv-pm{display:flex;align-items:center;gap:10px;height:36px;padding:0 12px;border-radius:8px;border:none;
+    background:transparent;color:#d7dde4;cursor:pointer;font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:12.5px;font-weight:600;text-align:left}
+  #nv-overlay .nv-pm:hover{background:rgba(255,255,255,.08)}
+  #nv-overlay .nv-pm svg{flex:0 0 auto;color:#9aa4b0}
   #nv-overlay .nv-fl{display:flex;align-items:center;gap:9px;height:34px;padding:0 10px;border-radius:8px;border:none;
     background:transparent;color:#c9d1d9;cursor:pointer;font-family:"Plus Jakarta Sans", system-ui, sans-serif;font-size:12.5px;font-weight:600}
   #nv-overlay .nv-fl:hover{background:rgba(255,255,255,.08)}
