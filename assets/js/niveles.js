@@ -1942,6 +1942,7 @@ export async function abrirNiveles() {
   const prev = $('nv-overlay'); if (prev) prev.remove();
 
   N.velas = []; N.cargando = true; N.error = null;
+  _yaTrazado = false;   // la animación de trazado solo en la primera carga
   N.vista = { desde: 0, ancho: window.innerWidth < 760 ? 80 : 130, zoomY: 1, offsetY: 0 };
   N.herr = 'cursor';          // herramienta activa
   N.imant = (N.imant !== false); // imán a las velas (por defecto sí)
@@ -1976,9 +1977,8 @@ export async function abrirNiveles() {
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16l4.5-5 3 3L16 7"/><circle cx="19" cy="6" r="3"/><path d="M19 4.7v2.6M17.7 6h2.6"/></svg>
             <span class="nv-rg-tx">Register indicator</span>
           </button>
-          <button class="nv-ico nv-sup" id="nv-widget" title="Superponer (ventana flotante)">
+          <button class="nv-ico" id="nv-widget" title="Superponer (ventana flotante encima de todo)">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="15" rx="2"/><rect x="12" y="11" width="7" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
-            <span class="nv-sup-tx">Superponer</span>
           </button>
           <button class="nv-ico" id="nv-foto" title="Compartir">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
@@ -2103,7 +2103,12 @@ export async function abrirNiveles() {
       if (zoomBtns) { zoomBtns.remove(); zoomBtns = null; }
       redib(); guardarFlot();
     };
-    if (bw) bw.onclick = () => { d.classList.contains('flotante') ? desactivarFlotante() : activarFlotante(); };
+    if (bw) bw.onclick = () => {
+      // PiP nativo: se mantiene encima de TODO (incluso fuera del navegador).
+      // Si el navegador no lo soporta (móvil/Safari/Firefox), ventana flotante en la página.
+      if ('documentPictureInPicture' in window) { abrirWidget(); return; }
+      d.classList.contains('flotante') ? desactivarFlotante() : activarFlotante();
+    };
 
     // Mover la ventana arrastrando la cabecera (menos los botones)
     const cab = d.querySelector('.nv-cab');
@@ -2152,8 +2157,8 @@ export async function abrirNiveles() {
     }, { passive: true });
     window.addEventListener('touchend', () => { if (mv) { mv = null; guardarFlot(); } });
 
-    // Recordar entre sesiones: si estaba flotante, restaurar posición y tamaño
-    try { const gg = JSON.parse(localStorage.getItem('cco-flotante') || 'null'); if (gg && gg.on) activarFlotante(gg); } catch (_) {}
+    // Recordar entre sesiones (solo la flotante en página; el PiP nativo es aparte)
+    try { const gg = JSON.parse(localStorage.getItem('cco-flotante') || 'null'); if (gg && gg.on && !('documentPictureInPicture' in window)) activarFlotante(gg); } catch (_) {}
   }
   $('nv-sel').onclick = (e) => { e.stopPropagation(); menuPares(); };
 
@@ -2187,7 +2192,6 @@ let _operables = null;       // las que tienen contrato en BNB Chain
 async function recargar() {
   clearInterval(_reloj);
   N.cargando = true; N.error = null;
-  _yaTrazado = false;
   _planFijo = null;      // al cambiar de par o marco, se replantea
   const esp = $('nv-esperando'); if (esp) esp.style.display = '';
   const bs = $('nv-burbujas'); if (bs) bs.innerHTML = '';
@@ -2196,7 +2200,7 @@ async function recargar() {
     if (!$('nv-cv')) { clearInterval(_reloj); return; }
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
-      N.velas = await traerVelas(par.s, _tf, 400);
+      N.velas = await traerVelas(par.s, _tf, 1000);
       /* La semilla se fija por par y hora: así las frases no bailan
          en cada refresco, pero cambian con el tiempo. */
       _semilla = (_par.charCodeAt(0) + new Date().getHours()) * 1.7;
@@ -3413,13 +3417,16 @@ function dibujar() {
         const th = 19;
         const tX = Math.max(6, xFin - tw);
         const tY = Math.max(2, Math.min(y1 - th - 2, yN - th / 2));
-        g.shadowColor = col; g.shadowBlur = cerca ? 12 : 7;
-        g.fillStyle = cerca ? col : (alc ? 'rgba(6,33,15,.97)' : 'rgba(42,5,9,.97)');
+        // Siempre fondo oscuro + texto de color (el look de diario, legible en
+        // toda temporalidad). Si está a punto de gatillar, solo se resalta el
+        // borde y un glow suave, sin bloque brillante que impida leer.
+        g.shadowColor = col; g.shadowBlur = cerca ? 9 : 5;
+        g.fillStyle = alc ? 'rgba(6,26,14,.97)' : 'rgba(30,6,9,.97)';
         redondeado(g, tX, tY, tw, th, 6); g.fill();
         g.shadowBlur = 0;
-        g.strokeStyle = col; g.lineWidth = 1.3;
+        g.strokeStyle = col; g.lineWidth = cerca ? 1.9 : 1.2;
         redondeado(g, tX, tY, tw, th, 6); g.stroke();
-        g.fillStyle = cerca ? '#0b0f16' : (alc ? '#2ee86a' : '#FFD400');
+        g.fillStyle = alc ? '#4dff8f' : '#ff8f9c';
         g.textAlign = 'left';
         g.fillText(txt, tX + 9, tY + th / 2 + 3.2);
         g.restore();
@@ -3876,7 +3883,7 @@ function gestos(cv) {
   };
 
   const zoomX = (f) => {
-    N.vista.ancho = Math.max(20, Math.min(300, Math.round(N.vista.ancho * f)));
+    N.vista.ancho = Math.max(20, Math.min(600, Math.round(N.vista.ancho * f)));
     refrescar();
   };
   const zoomY = (f) => {
@@ -4491,7 +4498,7 @@ function avisoMarea(msg) {
   const a = document.createElement('div');
   a.id = 'nv-aviso-al';
   a.textContent = msg;
-  a.style.cssText = 'position:fixed;z-index:9999;left:50%;top:18px;transform:translateX(-50%);' +
+  a.style.cssText = 'position:fixed;z-index:10011;left:50%;top:18px;transform:translateX(-50%);' +
     'background:#1b2027;color:#eaecef;border:1px solid #C9A84B;border-radius:10px;' +
     'padding:10px 14px;font:600 12px/1.3 ui-monospace,monospace;max-width:82vw;text-align:center;' +
     'box-shadow:0 10px 30px rgba(0,0,0,.6)';
@@ -5580,7 +5587,7 @@ function estilos() {
   /* El botón de indicadores MÓVIL vive junto a "3 lecturas"; en web se
      oculta (allí manda el de texto de la cabecera). */
   #nv-overlay .nv-herr-m{display:none}
-  #nv-herr-panel{position:fixed;z-index:9795;width:292px;padding:8px;
+  #nv-herr-panel{position:fixed;z-index:10010;width:292px;padding:8px;
     background:linear-gradient(180deg,#1b2027,#0d1117);
     border:1px solid var(--gold-soft,#C9A84B);border-radius:14px;
     box-shadow:0 16px 44px rgba(0,0,0,.75)}
@@ -5693,7 +5700,7 @@ function estilos() {
   #nv-guia .nv-guia-body p:last-child{margin-bottom:0}
 
   /* ── Selector ── */
-  #nv-picker{position:fixed;z-index:9790;min-width:232px;max-height:340px;overflow:hidden;
+  #nv-picker{position:fixed;z-index:10010;min-width:232px;max-height:340px;overflow:hidden;
     display:flex;flex-direction:column;background:linear-gradient(180deg,#1b2027,#0d1117);
     border:1px solid var(--gold-soft,#C9A84B);border-radius:13px;padding:6px;
     box-shadow:0 16px 44px rgba(0,0,0,.72)}
