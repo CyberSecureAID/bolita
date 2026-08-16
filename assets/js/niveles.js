@@ -1955,6 +1955,7 @@ export async function abrirNiveles() {
   N.imant = (N.imant !== false); // imán a las velas (por defecto sí)
   N.fijar = !!N.fijar;        // mantener la herramienta activa tras dibujar
   N.cursorTipo = N.cursorTipo || 'cruz';   // cruz | punto | flecha
+  if (N.mareaMin == null) N.mareaMin = true;   // el panel Marea arranca recogido
   N.dib = null;               // dibujo en curso
   N.sel = -1;                 // índice del dibujo seleccionado
   if (!N.estilo) N.estilo = { color: '#22d3ee', grosor: 2, punteado: false, tam: 7 };
@@ -2431,13 +2432,15 @@ function dibujarUno(g, d, x1, y1, sel) {
     if (sel) { g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.beginPath(); g.arc(A.x, A.y, rr + 4, 0, 6.283); g.stroke(); }
   } else if (d.tipo === 'texto') {
     if (!A) return;
-    g.font = 'bold 12px "Plus Jakarta Sans", system-ui, sans-serif';
+    const fs = d.tam || 13;
+    g.font = `bold ${fs}px "Plus Jakarta Sans", system-ui, sans-serif`;
     const tw = g.measureText(d.txt || '…').width;
-    d._w = tw + 14;   // ancho de la caja, para poder agarrar el texto en toda su extensión
-    g.fillStyle = 'rgba(11,15,22,.82)'; redondeado(g, A.x - 5, A.y - 13, tw + 14, 22, 6); g.fill();
-    g.strokeStyle = `rgba(${rgb},.55)`; g.lineWidth = 1; redondeado(g, A.x - 5, A.y - 13, tw + 14, 22, 6); g.stroke();
-    g.fillStyle = col; g.fillText(d.txt || '…', A.x + 2, A.y + 4);
-    if (sel) { g.strokeStyle = '#fff'; g.lineWidth = 1.4; redondeado(g, A.x - 5, A.y - 13, tw + 14, 22, 6); g.stroke(); }
+    const bh = fs + 10, by = A.y - Math.round(fs * 0.82);
+    d._w = tw + 14; d._fs = fs;
+    g.fillStyle = 'rgba(11,15,22,.82)'; redondeado(g, A.x - 5, by, tw + 14, bh, 6); g.fill();
+    g.strokeStyle = `rgba(${rgb},.55)`; g.lineWidth = 1; redondeado(g, A.x - 5, by, tw + 14, bh, 6); g.stroke();
+    g.fillStyle = col; g.textAlign = 'left'; g.fillText(d.txt || '…', A.x + 2, A.y + Math.round(fs * 0.30));
+    if (sel) { g.strokeStyle = '#fff'; g.lineWidth = 1.4; redondeado(g, A.x - 5, by, tw + 14, bh, 6); g.stroke(); }
   } else if (d.tipo === 'regla') {
     if (!A || !B) return;
     const alza = d.pts[1].p >= d.pts[0].p;
@@ -3610,6 +3613,7 @@ function panelMarea(g, MA, x1, W) {
     g.beginPath(); g.moveTo(cvx - 3, cvy - 2); g.lineTo(cvx, cvy + 2); g.lineTo(cvx + 3, cvy - 2); g.stroke();
     g.textBaseline = 'alphabetic';
     N._mareaBtn = { x: capX, y: capY, w: capW, h: capH };
+    N._panelBox = { x: capX, y: capY, w: capW, h: capH };   // la línea solo evita la cápsula, no el panel entero
     return;
   }
 
@@ -4008,6 +4012,24 @@ function gestos(cv) {
   const grafEl = document.getElementById('nv-graf');
   let topbar = document.getElementById('nv-topbar');
   if (!topbar && grafEl) { topbar = document.createElement('div'); topbar.id = 'nv-topbar'; topbar.style.display = 'none'; grafEl.appendChild(topbar); }
+  if (topbar && grafEl && !topbar._movible) {
+    topbar._movible = true;
+    let tb = null;
+    topbar.addEventListener('mousedown', (e) => {
+      const g0 = e.target.closest('.nv-tb-grip'); if (!g0) return;
+      e.preventDefault(); const r = topbar.getBoundingClientRect(), gr = grafEl.getBoundingClientRect();
+      tb = { dx: e.clientX - r.left, dy: e.clientY - r.top, gr };
+      document.body.style.userSelect = 'none';
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!tb) return;
+      const w = topbar.offsetWidth, hh = topbar.offsetHeight;
+      let nx = e.clientX - tb.dx - tb.gr.left, ny = e.clientY - tb.dy - tb.gr.top;
+      nx = Math.max(4, Math.min(tb.gr.width - w - 4, nx)); ny = Math.max(4, Math.min(tb.gr.height - hh - 4, ny));
+      topbar.style.left = nx + 'px'; topbar.style.top = ny + 'px'; topbar.style.transform = 'none';
+    });
+    window.addEventListener('mouseup', () => { if (tb) { tb = null; document.body.style.userSelect = ''; } });
+  }
   const COLORES = ['#22d3ee', '#E8B84B', '#2ee86a', '#ff3b52', '#a78bfa', '#ffffff'];
   const COLORES_FULL = ['#22d3ee', '#38bdf8', '#2ee86a', '#a3e635', '#E8B84B', '#f59e0b', '#ff3b52', '#fb7185', '#a78bfa', '#e879f9', '#94a3b8', '#ffffff'];
   const FIB_TODOS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.414, 1.618, 2, 2.618];
@@ -4036,12 +4058,14 @@ function gestos(cv) {
     if (!t) { topbar.style.display = 'none'; cerrarPopups(); return; }
     const o = objEstilo();
     // Interruptor "mantener activa" (sustituye a la estrella de favoritos)
-    let h = `<button class="nv-tb-b nv-tb-pin ${N.fijar ? 'on' : ''}" data-a="fijar" title="${N.fijar ? 'Mantener activa: SÍ' : 'Mantener activa: NO'}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 7 3 3v2H7v-2l3-3z"/><path d="M12 16v4"/></svg></button><span class="nv-tb-sep"></span>`;
+    let h = `<span class="nv-tb-grip" title="Mover"><svg viewBox="0 0 12 20" width="11" height="18" aria-hidden="true"><circle cx="3.5" cy="4" r="1.3" fill="currentColor"/><circle cx="8.5" cy="4" r="1.3" fill="currentColor"/><circle cx="3.5" cy="10" r="1.3" fill="currentColor"/><circle cx="8.5" cy="10" r="1.3" fill="currentColor"/><circle cx="3.5" cy="16" r="1.3" fill="currentColor"/><circle cx="8.5" cy="16" r="1.3" fill="currentColor"/></svg></span>`;
+    h += `<button class="nv-tb-b nv-tb-pin ${N.fijar ? 'on' : ''}" data-a="fijar" title="${N.fijar ? 'Mantener activa: SÍ' : 'Mantener activa: NO'}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 7 3 3v2H7v-2l3-3z"/><path d="M12 16v4"/></svg></button><span class="nv-tb-sep"></span>`;
     const esPos = t === 'poslarga' || t === 'poscorta';
     const swColor = esPos ? (o.cEntry || '#eaecef') : (o.color || '#22d3ee');
     h += `<button class="nv-tb-b nv-tb-color" data-a="colorpop" title="Color"><span class="nv-tb-swatch" style="background:${swColor}"></span></button>`;
     if (CON_GROSOR.includes(t)) h += '<span class="nv-tb-sep"></span>' + [1, 2, 3, 4].map((w) => `<button class="nv-tb-b nv-tb-gr ${(o.grosor || 2) === w ? 'on' : ''}" data-gr="${w}"><i style="height:${w + 1}px"></i></button>`).join('');
     if (t === 'marca') h += '<span class="nv-tb-sep"></span>' + [['S', 5], ['M', 7], ['L', 10]].map((e) => `<button class="nv-tb-b nv-tb-tx ${(o.tam || 7) === e[1] ? 'on' : ''}" data-tam="${e[1]}">${e[0]}</button>`).join('');
+    if (t === 'texto') h += '<span class="nv-tb-sep"></span>' + [['S', 12], ['M', 17], ['L', 24]].map((e) => `<button class="nv-tb-b nv-tb-tx ${(o.tam || 13) === e[1] ? 'on' : ''}" data-tam="${e[1]}">${e[0]}</button>`).join('');
     if (CON_PUNTEADO.includes(t)) h += `<span class="nv-tb-sep"></span><button class="nv-tb-b ${o.punteado ? 'on' : ''}" data-a="dash" title="Punteado">╌</button>`;
     if (esPos || t === 'rect') h += '<span class="nv-tb-sep"></span>' + [['Suave', .45], ['Media', .7], ['Fuerte', 1]].map((e) => `<button class="nv-tb-b nv-tb-tx ${((o.intensidad != null ? o.intensidad : 1) === e[1]) ? 'on' : ''}" data-int="${e[1]}" title="Intensidad del color">${e[0]}</button>`).join('');
     if (t === 'fib') h += `<span class="nv-tb-sep"></span><button class="nv-tb-b nv-tb-niv" data-a="fibpop" title="Niveles">Niveles</button>`;
@@ -4174,7 +4198,7 @@ function gestos(cv) {
         hit = x >= x0 - 8 && x <= x1b + 8 && y >= y0 - 8 && y <= y1b + 8;
       }
       else if ((d.tipo === 'rect' || d.tipo === 'regla' || d.tipo === 'fib') && A && B) { const x0 = Math.min(A.x, B.x), x1b = Math.max(A.x, B.x), y0 = Math.min(A.y, B.y), y1b = Math.max(A.y, B.y); hit = x >= x0 - 8 && x <= x1b + 8 && y >= y0 - 8 && y <= y1b + 8; }
-      else if (d.tipo === 'texto' && A) { const w = d._w || 42; hit = x >= A.x - 7 && x <= A.x + w && y >= A.y - 15 && y <= A.y + 10; }
+      else if (d.tipo === 'texto' && A) { const w = d._w || 42, fs = d._fs || 13; hit = x >= A.x - 7 && x <= A.x + w && y >= A.y - fs - 3 && y <= A.y + 8; }
       else if (d.tipo === 'marca' && A) hit = Math.hypot(x - A.x, y - A.y) < 14;
       else if (d.tipo === 'brush') hit = d.pts.some((pt, i) => { if (!i) return false; const P = dibAxy(d.pts[i - 1]), Q = dibAxy(pt); return distSeg(x, y, P.x, P.y, Q.x, Q.y) < 8; });
       if (hit) return k;
@@ -4378,6 +4402,8 @@ function gestos(cv) {
     if (arr) return;
     if (p.x < 20) abrirBarra(); else if (p.x > 90) cerrarBarra();
     N.cruz = { x: Math.round(p.x), y: Math.round(p.y) };
+    // manito sobre el toggle del panel Marea (recoger/desplegar)
+    if (N.marea && N.verMarea && N._mareaBtn && p.x >= N._mareaBtn.x && p.x <= N._mareaBtn.x + N._mareaBtn.w && p.y >= N._mareaBtn.y && p.y <= N._mareaBtn.y + N._mareaBtn.h) { cv.style.cursor = 'pointer'; dibujar(); return; }
     // cursor: manito sobre un dibujo, editar sobre las líneas de una posición
     if (N.herr === 'cursor' && !enEscala(p.x)) {
       const k = dibujoEn(p.x, p.y); let cur = 'crosshair';
@@ -4605,7 +4631,7 @@ function menuHerramientas(anchor) {
     if (!it) return;
     const cual = it.dataset.h;
     if (cual === 'alertas') { cerrar(); menuAlertas(); return; }
-    if (cual === 'marea') N.verMarea = !N.verMarea;
+    if (cual === 'marea') { N.verMarea = !N.verMarea; if (N.verMarea && N.mareaMin == null) N.mareaMin = true; }
     else if (cual === 'limpia') N.limpia = !N.limpia;
     else if (cual === 'estructura') N.verEstructura = !N.verEstructura;
     it.classList.toggle('on');
@@ -5603,6 +5629,9 @@ function estilos() {
     border:1px solid rgba(255,255,255,.12);box-shadow:0 14px 40px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05);
     max-width:calc(100% - 96px);overflow-x:auto;scrollbar-width:none}
   #nv-overlay #nv-topbar::-webkit-scrollbar{display:none}
+  #nv-overlay .nv-tb-grip{flex:0 0 auto;width:16px;height:26px;margin-right:2px;cursor:grab;display:inline-flex;align-items:center;justify-content:center;color:#5c6672}
+  #nv-overlay .nv-tb-grip:hover{color:#9aa4b0}
+  #nv-overlay .nv-tb-grip:active{cursor:grabbing}
   #nv-overlay .nv-tb-b{height:30px;min-width:30px;padding:0 9px;border-radius:9px;border:none;background:transparent;
     color:#c9d1d9;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
     font-family:var(--mono,monospace);font-size:11px;font-weight:700;line-height:1;transition:background .13s,color .13s}
