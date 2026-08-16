@@ -2433,9 +2433,11 @@ function dibujarUno(g, d, x1, y1, sel) {
     if (!A) return;
     g.font = 'bold 12px "Plus Jakarta Sans", system-ui, sans-serif';
     const tw = g.measureText(d.txt || '…').width;
+    d._w = tw + 14;   // ancho de la caja, para poder agarrar el texto en toda su extensión
     g.fillStyle = 'rgba(11,15,22,.82)'; redondeado(g, A.x - 5, A.y - 13, tw + 14, 22, 6); g.fill();
     g.strokeStyle = `rgba(${rgb},.55)`; g.lineWidth = 1; redondeado(g, A.x - 5, A.y - 13, tw + 14, 22, 6); g.stroke();
     g.fillStyle = col; g.fillText(d.txt || '…', A.x + 2, A.y + 4);
+    if (sel) { g.strokeStyle = '#fff'; g.lineWidth = 1.4; redondeado(g, A.x - 5, A.y - 13, tw + 14, 22, 6); g.stroke(); }
   } else if (d.tipo === 'regla') {
     if (!A || !B) return;
     const alza = d.pts[1].p >= d.pts[0].p;
@@ -4172,7 +4174,8 @@ function gestos(cv) {
         hit = x >= x0 - 8 && x <= x1b + 8 && y >= y0 - 8 && y <= y1b + 8;
       }
       else if ((d.tipo === 'rect' || d.tipo === 'regla' || d.tipo === 'fib') && A && B) { const x0 = Math.min(A.x, B.x), x1b = Math.max(A.x, B.x), y0 = Math.min(A.y, B.y), y1b = Math.max(A.y, B.y); hit = x >= x0 - 8 && x <= x1b + 8 && y >= y0 - 8 && y <= y1b + 8; }
-      else if ((d.tipo === 'marca' || d.tipo === 'texto') && A) hit = Math.hypot(x - A.x, y - A.y) < 13;
+      else if (d.tipo === 'texto' && A) { const w = d._w || 42; hit = x >= A.x - 7 && x <= A.x + w && y >= A.y - 15 && y <= A.y + 10; }
+      else if (d.tipo === 'marca' && A) hit = Math.hypot(x - A.x, y - A.y) < 14;
       else if (d.tipo === 'brush') hit = d.pts.some((pt, i) => { if (!i) return false; const P = dibAxy(d.pts[i - 1]), Q = dibAxy(pt); return distSeg(x, y, P.x, P.y, Q.x, Q.y) < 8; });
       if (hit) return k;
     }
@@ -4194,17 +4197,24 @@ function gestos(cv) {
     if (N.herr !== 'marca' && !N.fijar) { N.herr = 'cursor'; N.sel = idx; marcarBoton(); }
     construirTopbar(); dibujar();
   };
-  const pedirTexto = (x, y, cb) => {
-    cerrarPopups();
+  let inputTexto = null;   // { inp, x, y } mientras se escribe, o null
+  const cerrarTexto = (guardar) => {
+    if (!inputTexto) return;
+    const { inp, x, y } = inputTexto; const v = inp.value.trim(); inputTexto = null; inp.remove();
+    if (guardar && v) { N.dibujos.push({ tipo: 'texto', pts: [dibXYa(x, y, false)], txt: v, ...estiloNuevo('texto') }); guardarDib(); }
+    if (!N.fijar) { N.herr = 'cursor'; N.sel = (guardar && v) ? N.dibujos.length - 1 : -1; marcarBoton(); }
+    construirTopbar(); dibujar();
+  };
+  const pedirTexto = (x, y) => {
+    cerrarTexto(false); cerrarPopups();
     const inp = document.createElement('input'); inp.className = 'nv-txt-in'; inp.placeholder = 'Escribe y pulsa Enter…';
     grafEl.appendChild(inp);
     inp.style.left = Math.max(4, Math.min(grafEl.clientWidth - 200, x)) + 'px';
     inp.style.top = Math.max(4, y - 14) + 'px';
+    inputTexto = { inp, x, y };
     setTimeout(() => inp.focus(), 0);
-    let done = false;
-    const cerrar = (ok) => { if (done) return; done = true; const v = inp.value.trim(); inp.remove(); if (ok && v) cb(v); else { construirTopbar(); dibujar(); } };
-    inp.addEventListener('keydown', (ev) => { ev.stopPropagation(); if (ev.key === 'Enter') cerrar(true); else if (ev.key === 'Escape') cerrar(false); });
-    inp.addEventListener('blur', () => cerrar(true));
+    inp.addEventListener('keydown', (ev) => { ev.stopPropagation(); if (ev.key === 'Enter') cerrarTexto(true); else if (ev.key === 'Escape') cerrarTexto(false); });
+    inp.addEventListener('blur', () => setTimeout(() => cerrarTexto(true), 0));
   };
   const unPunto = (t) => t === 'rayo' || t === 'vert' || t === 'marca';
   const dosPuntos = (t) => t === 'linea' || t === 'rect' || t === 'fib' || t === 'flecha' || t === 'regla' || t === 'poslarga' || t === 'poscorta';
@@ -4212,7 +4222,7 @@ function gestos(cv) {
   const iniciarDib = (x, y) => {
     const t = N.herr;
     if (t === 'cursor' || t === 'borrar') return false;
-    if (t === 'texto') { pedirTexto(x, y, (v) => { N.dibujos.push({ tipo: 'texto', pts: [dibXYa(x, y, false)], txt: v, ...estiloNuevo(t) }); guardarDib(); finDib(N.dibujos.length - 1); }); return true; }
+    if (t === 'texto') { if (inputTexto) { cerrarTexto(true); } else { pedirTexto(x, y); } return true; }
     // La REGLA es clic–mover–clic (no hay que mantener presionado, como en TradingView)
     if (t === 'regla' || t === 'rect') {
       if (!colocando) { const a = dibXYa(x, y, true); N.dib = { tipo: t, pts: [a, { ...a }], ...estiloNuevo(t) }; colocando = true; dibujar(); return true; }
@@ -5130,48 +5140,28 @@ async function ponerLogos() {
 const PASOS_NV = [
   {
     t: 'Qué es Smart Levels',
-    d: 'Tu mesa de <b>análisis técnico</b> para muchas monedas: estudia la gráfica en tiempo real, <b>opera directo</b> poniendo compra o venta en zonas estratégicas (clic derecho sobre el precio) y usa nuestros <b>indicadores premium</b> creados por nosotros.',
+    d: 'Tu mesa de <b>análisis técnico</b> para muchas criptomonedas: estudia el mercado en tiempo real, <b>opera directo</b> sobre la gráfica y usa nuestros <b>indicadores premium</b>.',
     x: 'Todo con las velas reales del mercado. Verde es compra, rojo es venta.'
   },
   {
-    t: 'De dónde salen los niveles',
-    d: 'De los <b>pivotes reales</b>: los puntos donde el precio giró. Si volvió a la misma zona dos, tres o cuatro veces sin romperla, ese nivel importa.',
-    x: 'Todo se calcula con las velas de Binance. No hay estimaciones ni datos inventados.'
+    t: 'Opera desde la gráfica',
+    d: 'Haz <b>clic derecho</b> (o mantén pulsado en el móvil) sobre el precio y elige <b>Comprar aquí</b> o <b>Vender aquí</b> en la zona estratégica que quieras. Verás el % de beneficio y de riesgo antes de confirmar.',
+    x: 'Es no custodial: operas desde tu propia wallet, sin cuenta ni intermediarios.'
   },
   {
-    t: 'Por qué unos niveles y otros no',
-    d: 'Un nivel solo se dibuja si supera el filtro: <b>al menos 2 toques confirmados</b>, volumen real negociado en la zona y fuerza suficiente.',
-    x: 'Preferimos enseñar tres niveles buenos que veinte que no sirven. La línea gruesa indica más fuerza.'
+    t: 'Indicadores premium',
+    d: 'Desde <b>Indicators</b> activas indicadores creados por nosotros, como <b>Marea</b>, que te dice en tiempo real hacia qué lado está el mercado y cuánto falta para que salte una alerta de long o de short.',
+    x: 'El recuadro de la esquina se puede colapsar tocándolo para que no estorbe.'
   },
   {
-    t: 'El asistente le habla',
-    d: 'Las burbujas que salen sobre la gráfica le dicen qué está pasando <b>en ese momento</b> y qué hacer con ello. Tóquelas para ver el porqué.',
-    x: 'Cada burbuja está anclada a su precio: si mueve la gráfica, la burbuja sigue a su nivel.'
+    t: 'Dibuja y mide',
+    d: 'En la barra lateral tienes las herramientas: <b>líneas de tendencia, Fibonacci, posición larga/corta, regla, texto, marcadores</b> y más. Traza, edita y muévelo todo con el cursor.',
+    x: 'La barra se oculta sola; acerca el cursor al borde izquierdo para desplegarla.'
   },
   {
-    t: 'Cuando no hay entrada, se lo decimos',
-    d: 'Si el mercado está lateral o el precio está lejos de todo, el asistente <b>lo dice claramente</b> en vez de inventar una señal.',
-    x: 'Saber cuándo NO entrar vale tanto como saber cuándo hacerlo. Ahí es donde se pierde el dinero.'
-  },
-  {
-    t: 'La tendencia manda',
-    d: 'Se mide por <b>estructura</b>, como lo hace un trader: máximos y mínimos crecientes es alcista; decrecientes es bajista. No usamos indicadores.',
-    x: 'Un soporte con la tendencia a favor vale mucho más que uno en contra. El asistente lo tiene en cuenta.'
-  },
-  {
-    t: 'Cómo mover la gráfica',
-    d: 'Arrastre para recorrer el tiempo. Rueda para acercar. Rueda o arrastre <b>sobre la escala de precios</b> para estirar en vertical. Doble clic reencuadra.',
-    x: 'En el móvil: un dedo mueve, dos dedos acercan o estiran según cómo los separe.'
-  },
-  {
-    t: 'Úselo con las otras dos',
-    d: 'Liquidity Pools dice <b>hacia dónde</b> va el precio. Institutional Radar dice <b>qué lo frena ahora</b>. Smart Levels dice <b>dónde entrar</b>.',
-    x: 'Un nivel de compra que coincide con un muro real del Radar es la confluencia más fuerte que va a encontrar.'
-  },
-  {
-    t: 'Una última cosa',
-    d: 'Esto es <b>análisis, no una promesa</b>. Los niveles son zonas donde el precio ha reaccionado antes, y por eso es probable que vuelva a hacerlo.',
-    x: 'Ningún análisis garantiza nada. Use siempre stop y no arriesgue más de lo que puede permitirse perder.'
+    t: 'Cambia de moneda y de tiempo',
+    d: 'Arriba a la izquierda cambias de <b>criptomoneda</b>, y al lado eliges la <b>temporalidad</b> (15m, 1H, 4H, 1D). Arrastra para recorrer el tiempo y usa la rueda para acercar.',
+    x: 'Esto es análisis, no una promesa. Usa siempre stop y no arriesgues más de lo que puedas perder.'
   }
 ];
 
