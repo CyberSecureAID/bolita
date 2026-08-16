@@ -1955,7 +1955,7 @@ export async function abrirNiveles() {
   N.imant = (N.imant !== false); // imán a las velas (por defecto sí)
   N.fijar = !!N.fijar;        // mantener la herramienta activa tras dibujar
   N.cursorTipo = N.cursorTipo || 'cruz';   // cruz | punto | flecha
-  if (N.mareaMin == null) N.mareaMin = true;   // el panel Marea arranca recogido
+  N.mareaMin = true;   // el panel Marea arranca siempre recogido
   N.dib = null;               // dibujo en curso
   N.sel = -1;                 // índice del dibujo seleccionado
   if (!N.estilo) N.estilo = { color: '#22d3ee', grosor: 2, punteado: false, tam: 7 };
@@ -3112,6 +3112,7 @@ function dibujar() {
      la zona institucional, el barrido. No hay que creerse nada. */
   if (_verBase) {
     let _ultOb = null;
+    N._faroSetup = null;
     (N.estructuras || []).forEach((e) => {
       const primero = Math.max(0, fin - ancho);
       if ((e.tipo === 'ob' || e.tipo === 'barrido') && e.iRef >= primero - 2 && e.iRef <= fin && (!_ultOb || e.iRef > _ultOb.iRef)) _ultOb = e;
@@ -3204,7 +3205,7 @@ function dibujar() {
         });
         // tarjeta compacta con dirección, R:R y %
         const gPct = Math.abs((pT - pE) / pE) * 100, rPct = Math.abs((pS - pE) / pE) * 100;
-        const cw = 154, ch = 62;
+        const cw = 154, ch = 70;
         let cyc = Math.min(yE, yT, yS) - 8; cyc = Math.max(4, Math.min(y1 - ch - 4, cyc));
         let cxc = x1 - cw - 8;
         g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 16;
@@ -3225,6 +3226,10 @@ function dibujar() {
         g.fillStyle = '#79838f'; g.font = 'bold 7.5px "Plus Jakarta Sans", system-ui, sans-serif'; g.fillText('R:R', rrX, cyc + 34);
         g.fillStyle = '#E8B84B'; g.font = '800 17px "Chakra Petch", system-ui, sans-serif'; g.fillText(RR.toFixed(1), rrX, cyc + 52);
         g.textAlign = 'left';
+        g.fillStyle = 'rgba(232,184,75,.85)'; g.font = '700 7px "Plus Jakarta Sans", system-ui, sans-serif';
+        g.fillText('clic para operar', cxc + 12, cyc + ch - 4);
+        // guardar el setup para poder MATERIALIZARLO como posición editable al hacer clic
+        N._faroSetup = { tipo: largo ? 'poslarga' : 'poscorta', pE, pS, pT, iRef: e.iRef, card: { x: cxc, y: cyc, w: cw, h: ch } };
       }
     }
   });
@@ -4070,11 +4075,10 @@ function gestos(cv) {
       tools.classList.toggle('forz', N.herr !== 'cursor');   // no se oculta con herramienta activa
     }
     let cur = 'crosshair';
-    if (N.herr === 'cursor') cur = N.cursorTipo === 'flecha' ? 'default' : 'none';   // cruz/punto: dibujamos el nuestro
+    if (N.herr === 'cursor') cur = N.cursorTipo === 'flecha' ? 'default' : (N.cursorTipo === 'punto' ? 'none' : 'crosshair');
     else if (N.herr === 'borrar') cur = 'crosshair';
     cv.style.cursor = cur;
   };
-  const marcarFavs = () => {};
   const construirTopbar = () => {
     if (!topbar) return;
     const t = tipoCtx();
@@ -4363,6 +4367,9 @@ function gestos(cv) {
     return -1;
   };
   const dentro = (x, y, r) => r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+  /* ¿el cursor está sobre un elemento interactivo del indicador Marea
+     (la cápsula/panel para recoger, o una tachuela de disparo)? */
+  const sobreMareaEn = (x, y) => (N.marea && N.verMarea) && (dentro(x, y, N._mareaBtn) || (N._proxBtns && N._proxBtns.some((r) => dentro(x, y, r))));
   const ORDEN_POS = ['der', 'abajo', 'izq', 'arriba'];
   const girarPos = (pos, dir) => { const i = Math.max(0, ORDEN_POS.indexOf(pos || 'der')); return ORDEN_POS[(i + dir + ORDEN_POS.length) % ORDEN_POS.length]; };
 
@@ -4443,21 +4450,29 @@ function gestos(cv) {
     if (p.x < 20) abrirBarra(); else if (p.x > 90) cerrarBarra();
     N.cruz = { x: Math.round(p.x), y: Math.round(p.y) };
     // manito sobre el toggle del panel Marea o sobre una tachuela de disparo (interactivos)
-    const sobreMarea = (N.marea && N.verMarea) && ((N._mareaBtn && p.x >= N._mareaBtn.x && p.x <= N._mareaBtn.x + N._mareaBtn.w && p.y >= N._mareaBtn.y && p.y <= N._mareaBtn.y + N._mareaBtn.h) || (N._proxBtns && N._proxBtns.some((r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h)));
-    if (sobreMarea) { cv.style.cursor = 'pointer'; dibujar(); return; }
+    if (sobreMareaEn(p.x, p.y)) { cv.style.cursor = 'pointer'; dibujar(); return; }
     // cursor: manito sobre un dibujo, editar sobre las líneas de una posición
     if (N.herr === 'cursor' && !enEscala(p.x)) {
-      const k = dibujoEn(p.x, p.y); let cur = N.cursorTipo === 'flecha' ? 'default' : 'none';
+      const k = dibujoEn(p.x, p.y); let cur = N.cursorTipo === 'flecha' ? 'default' : (N.cursorTipo === 'punto' ? 'none' : 'crosshair');
       if (k >= 0) {
         const d = N.dibujos[k]; cur = 'grab';
         if (d.tipo === 'poslarga' || d.tipo === 'poscorta') { if (posBordeEn(d, p.x, p.y)) cur = 'ew-resize'; else if (posLineaEn(d, p.x, p.y)) cur = 'ns-resize'; }
         else if ((d.tipo === 'regla' || d.tipo === 'rect') && extremoEn(d, p.x, p.y) >= 0) cur = 'nwse-resize';
       }
       cv.style.cursor = cur;
-    }
+    } else if (enEscala(p.x)) { cv.style.cursor = 'ns-resize'; }   // sobre la escala: cursor visible, nunca oculto
     dibujar();
   });
-  cv.addEventListener('mouseleave', () => { N.cruz = null; dibujar(); });
+  cv.addEventListener('mouseleave', () => { N.cruz = null; cv.style.cursor = 'default'; dibujar(); });
+  /* orden.js (menú clic-derecho) tiene su propio mousemove sobre el canvas que
+     repone 'crosshair' cuando el cursor está en 'pointer' y no está sobre uno de
+     sus marcadores. Como se registra después, pisa la manito de Marea. Este
+     handler a nivel window corre DESPUÉS (fase de burbujeo) y la restablece. */
+  window.addEventListener('mousemove', (e) => {
+    const cvv = $('nv-cv'); if (!cvv) return;
+    const p = loc(e);
+    if (sobreMareaEn(p.x, p.y) || (N.verEstructura && N._faroSetup && dentro(p.x, p.y, N._faroSetup.card))) cvv.style.cursor = 'pointer';
+  });
 
   cv.addEventListener('dblclick', () => {
     N.vista.ancho = window.innerWidth < 760 ? 80 : 130;
@@ -4482,6 +4497,13 @@ function gestos(cv) {
       const enTog = N._mareaBtn && lx >= N._mareaBtn.x && lx <= N._mareaBtn.x + N._mareaBtn.w && ly >= N._mareaBtn.y && ly <= N._mareaBtn.y + N._mareaBtn.h;
       const enProx = N._proxBtns && N._proxBtns.some((r) => lx >= r.x && lx <= r.x + r.w && ly >= r.y && ly <= r.y + r.h);
       if (enTog || enProx) { N.mareaMin = !N.mareaMin; e.preventDefault(); dibujar(); return; }
+    }
+    // Clic en la tarjeta de la posición de Faro → la materializa como posición editable
+    if (N.verEstructura && N._faroSetup && dentro(lx, ly, N._faroSetup.card) && N.herr === 'cursor') {
+      const s = N._faroSetup, tf = _tfMs();
+      const vela = N.velas[s.iRef]; const tEnt = vela ? vela.t : (N.velas[N.velas.length - 1] ? N.velas[N.velas.length - 1].t : Date.now());
+      const d = { tipo: s.tipo, pts: [{ t: tEnt, p: s.pE }, { t: tEnt + tf * 40, p: s.pE }], pTarget: s.pT, pStop: s.pS, ...estiloNuevo(s.tipo) };
+      N.dibujos.push(d); guardarDib(); finDib(N.dibujos.length - 1); e.preventDefault(); dibujar(); return;
     }
     // Herramienta de dibujo activa → dibuja
     if (N.herr !== 'cursor' && N.herr !== 'borrar' && !enEscala(lx)) { if (iniciarDib(lx, ly)) { e.preventDefault(); return; } }
