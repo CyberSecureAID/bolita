@@ -1032,12 +1032,17 @@ function marea(velas, atr) {
      Así el recuadro, la línea de objetivo y la tachuela cuentan lo mismo. */
   const flipLong = colorAhora === 1 && runLen <= MAR.CONF;
   const flipShort = colorAhora === -1 && runLen <= MAR.CONF;
-  // Nivel de disparo FIJO: la estructura de antes del tramo actual (no se
-  // mueve cuando el precio la cruza; al cruzarla queda "cruzado").
-  const iFlip = Math.max(0, iU - runLen + 1);
-  const estU = estructura(iFlip);
-  const nivLong = estU.hi + margen;      // el precio que hay que superar para gatillar LONG
-  const nivShort = estU.lo - margen;     // el precio que hay que perder para gatillar SHORT
+  /* Umbral REAL de disparo = estructura del mercado (máximo/mínimo reciente)
+     con un pequeño retardo de GAP velas: así el nivel AVANZA con la tendencia
+     (no se queda de cartón) pero la vela de ruptura sí llega a cerrar por
+     encima/por debajo y se registra el cruce. "Cuánto falta" es la distancia
+     real del precio a ese nivel. */
+  const M = Math.min(iU, Math.round(MAR.VENTANA_EST * 1.5)), GAP = 3;
+  let dHi = -Infinity, dLo = Infinity;
+  for (let k = Math.max(0, iU - M); k <= iU - GAP; k++) { if (velas[k].h > dHi) dHi = velas[k].h; if (velas[k].l < dLo) dLo = velas[k].l; }
+  if (dHi === -Infinity) { const e = estructura(iU); dHi = e.hi; dLo = e.lo; }
+  const nivLong = dHi + margen;      // superar para gatillar LONG
+  const nivShort = dLo - margen;     // perder para gatillar SHORT
 
   const long = {
     cicloPrevio: colorAhora === -1 ? runLen >= MAR.MIN_CICLO : runPrev >= MAR.MIN_CICLO,
