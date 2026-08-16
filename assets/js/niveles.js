@@ -3175,13 +3175,15 @@ function dibujar() {
       g.strokeStyle = col + '66'; g.setLineDash([4, 4]); g.lineWidth = 1;
       g.strokeRect(x0, yTop, x1 - x0, alto); g.setLineDash([]);
 
-      // Etiqueta compacta, pegada a la banda
+      // Etiqueta compacta y legible (fondo oscuro + texto del color), pegada a la banda
       const et = e.tipo === 'ob' ? (largo ? 'DEMANDA' : 'OFERTA')
                                  : (largo ? 'BARRIDO ↓' : 'BARRIDO ↑');
+      g.font = 'bold 8.5px ui-monospace,monospace';
+      const wLab = g.measureText(et).width + 14;
       etiquetas.push({
-        txt: et, x: Math.max(3, Math.min(x1 - 78, x0 + 4)), y: alto >= 20 ? yTop + 3 : yTop - 16,
-        w: 0, h: 15, r: 4, fondo: col, tinta: largo ? '#04210f' : '#2a0509',
-        borde: 'rgba(232,184,75,.7)', font: 'bold 8.5px ui-monospace,monospace', pad: 6
+        txt: et, x: Math.max(3, Math.min(x1 - wLab - 4, x0 + 4)), y: alto >= 20 ? yTop + 3 : yTop - 17,
+        w: wLab, h: 16, r: 5, fondo: 'rgba(11,15,22,.92)', tinta: largo ? '#3ee88a' : '#ff6b7a',
+        borde: col + '99', font: 'bold 8.5px ui-monospace,monospace', pad: 7
       });
 
       // ── Herramienta de posición: solo en la zona institucional MÁS RECIENTE ──
@@ -3193,23 +3195,33 @@ function dibujar() {
         let pE, pS, pT;
         if (largo) { pE = pHi; pS = pLo - buffer; pT = pE + (pE - pS) * RR; }
         else { pE = pLo; pS = pHi + buffer; pT = pE - (pS - pE) * RR; }
+        /* La operación ya se resolvió: el precio alcanzó el objetivo o rompió el
+           stop. No se proyecta más (deja de tener sentido); la banda de la zona
+           permanece como referencia. Cuando surja otra zona más reciente, la
+           proyección se traslada sola a ella. */
+        const resuelta = largo ? (N.precio >= pT || N.precio <= pS) : (N.precio <= pT || N.precio >= pS);
+        if (!resuelta) {
         const yE = Y(pE), yS = Y(pS), yT = Y(pT);
         const acc = largo ? '#2ee86a' : '#ff3b52', accRGB = largo ? '46,232,106' : '255,59,82';
         const xs = x0;
+        // ancho MODERADO: la proyección termina antes del borde para verse completa
+        const xFin = Math.min(x1 - 12, Math.max(x0 + 150, idxVis(N.velas.length - 1) + paso * 8));
         // zonas ganancia / riesgo tenues
-        g.fillStyle = 'rgba(46,232,106,.09)'; g.fillRect(xs, Math.min(yE, yT), x1 - xs, Math.abs(yT - yE));
-        g.fillStyle = 'rgba(255,59,82,.09)'; g.fillRect(xs, Math.min(yE, yS), x1 - xs, Math.abs(yS - yE));
+        g.fillStyle = 'rgba(46,232,106,.09)'; g.fillRect(xs, Math.min(yE, yT), xFin - xs, Math.abs(yT - yE));
+        g.fillStyle = 'rgba(255,59,82,.09)'; g.fillRect(xs, Math.min(yE, yS), xFin - xs, Math.abs(yS - yE));
         // líneas objetivo / entrada / stop
         [['#2ee86a', yT], ['#eaecef', yE], ['#ff3b52', yS]].forEach((r) => {
-          g.strokeStyle = r[0]; g.lineWidth = 1.4; g.beginPath(); g.moveTo(xs, r[1]); g.lineTo(x1, r[1]); g.stroke();
+          g.strokeStyle = r[0]; g.lineWidth = 1.4; g.beginPath(); g.moveTo(xs, r[1]); g.lineTo(xFin, r[1]); g.stroke();
         });
+        // borde derecho que cierra la posición, para que se vea dónde termina
+        g.strokeStyle = `rgba(${accRGB},.5)`; g.lineWidth = 1.2; g.beginPath(); g.moveTo(xFin, Math.min(yT, yS)); g.lineTo(xFin, Math.max(yT, yS)); g.stroke();
         const gPct = Math.abs((pT - pE) / pE) * 100, rPct = Math.abs((pS - pE) / pE) * 100;
         if (!N._faroExp) {
           // ── MINIMIZADO: solo una pastillita sobre la línea de entrada ──
           g.font = '800 9.5px "Chakra Petch", system-ui, sans-serif';
           const et = (largo ? '▲ ' : '▼ ') + 'R:R ' + RR.toFixed(1);
           const pw = g.measureText(et).width + 24, ph = 20;
-          const px = x1 - pw - 8, py = Math.max(4, Math.min(y1 - ph - 4, yE - ph / 2));
+          const px = xFin - pw, py = Math.max(4, Math.min(y1 - ph - 4, yE - ph / 2));
           g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 10;
           g.fillStyle = 'rgba(12,16,23,.96)'; redondeado(g, px, py, pw, ph, 10); g.fill(); g.restore();
           g.strokeStyle = `rgba(${accRGB},.6)`; g.lineWidth = 1.1; redondeado(g, px, py, pw, ph, 10); g.stroke();
@@ -3223,7 +3235,7 @@ function dibujar() {
           // ── EXPANDIDO: recuadro completo con botón "−" para minimizar ──
           const cw = 154, ch = 70;
           let cyc = Math.min(yE, yT, yS) - 8; cyc = Math.max(4, Math.min(y1 - ch - 4, cyc));
-          let cxc = x1 - cw - 8;
+          let cxc = Math.max(4, xFin - cw);
           g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 16;
           g.fillStyle = 'rgba(12,16,23,.97)'; redondeado(g, cxc, cyc, cw, ch, 12); g.fill(); g.restore();
           g.strokeStyle = `rgba(${accRGB},.5)`; g.lineWidth = 1.1; redondeado(g, cxc, cyc, cw, ch, 12); g.stroke();
@@ -3246,6 +3258,7 @@ function dibujar() {
           const mb = { x: cxc + cw - 22, y: cyc + 6, w: 16, h: 16 };
           g.strokeStyle = '#9aa4b0'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(mb.x + 3, mb.y + 8); g.lineTo(mb.x + 13, mb.y + 8); g.stroke();
           N._faroBtn = { x: mb.x - 3, y: mb.y - 3, w: mb.w + 6, h: mb.h + 6 };
+        }
         }
       }
     }
@@ -4549,7 +4562,7 @@ function gestos(cv) {
     const d = Math.round((e.clientX - ax) / Math.max(1, paso));
     if (d !== 0) {
       const tope = Math.max(0, N.velas.length - N.vista.ancho);
-      const suelo = -Math.floor(N.vista.ancho * 0.15);   // respiro a la derecha
+      const suelo = -Math.floor(N.vista.ancho * 0.32);   // respiro a la derecha
       N.vista.desde = Math.max(suelo, Math.min(tope, N.vista.desde + d));
       ax = e.clientX; cambio = true;
     }
@@ -4587,7 +4600,7 @@ function gestos(cv) {
       const d = Math.round((e.touches[0].clientX - tx) / Math.max(1, paso));
       if (d !== 0) {
         const tope = Math.max(0, N.velas.length - N.vista.ancho);
-        const suelo = -Math.floor(N.vista.ancho * 0.15);
+        const suelo = -Math.floor(N.vista.ancho * 0.32);
         N.vista.desde = Math.max(suelo, Math.min(tope, N.vista.desde + d));
         tx = e.touches[0].clientX; refrescar();
       }
