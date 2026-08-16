@@ -2056,25 +2056,52 @@ export async function abrirNiveles() {
     const bw = $('nv-widget');
     const nvc = d.querySelector('.nv-c');
     const redib = () => { if ($('nv-cv')) { dibujar(); burbujas(); } };
-    let rObs = null;
-    const activarFlotante = () => {
-      const W = Math.min(760, Math.round(innerWidth * 0.62));
-      const H = Math.min(520, Math.round(innerHeight * 0.66));
+    const PASO_W = 90, PASO_H = 70;
+    let rObs = null, zoomBtns = null;
+    const guardarFlot = () => {
+      try {
+        const on = d.classList.contains('flotante');
+        localStorage.setItem('cco-flotante', JSON.stringify(on
+          ? { on: 1, x: parseInt(nvc.style.left) || 0, y: parseInt(nvc.style.top) || 0, w: nvc.offsetWidth, h: nvc.offsetHeight }
+          : { on: 0 }));
+      } catch (_) {}
+    };
+    const clampPos = () => {
+      const W = nvc.offsetWidth, H = nvc.offsetHeight;
+      nvc.style.left = Math.max(4, Math.min(innerWidth - W - 4, parseInt(nvc.style.left) || 0)) + 'px';
+      nvc.style.top = Math.max(4, Math.min(innerHeight - H - 4, parseInt(nvc.style.top) || 0)) + 'px';
+    };
+    const redimPaso = (dir) => {
+      nvc.style.width = Math.max(360, Math.min(innerWidth - 8, nvc.offsetWidth + dir * PASO_W)) + 'px';
+      nvc.style.height = Math.max(260, Math.min(innerHeight - 8, nvc.offsetHeight + dir * PASO_H)) + 'px';
+      clampPos(); redib(); guardarFlot();
+    };
+    const activarFlotante = (geo) => {
+      let W = geo ? geo.w : Math.min(760, Math.round(innerWidth * 0.62));
+      let H = geo ? geo.h : Math.min(520, Math.round(innerHeight * 0.66));
+      W = Math.max(360, Math.min(innerWidth - 8, W)); H = Math.max(260, Math.min(innerHeight - 8, H));
       nvc.style.width = W + 'px'; nvc.style.height = H + 'px';
-      nvc.style.left = Math.max(8, innerWidth - W - 24) + 'px';
-      nvc.style.top = Math.max(8, innerHeight - H - 24) + 'px';
+      nvc.style.left = (geo ? Math.max(4, Math.min(innerWidth - W - 4, geo.x)) : Math.max(8, innerWidth - W - 24)) + 'px';
+      nvc.style.top = (geo ? Math.max(4, Math.min(innerHeight - H - 4, geo.y)) : Math.max(8, innerHeight - H - 24)) + 'px';
       d.classList.add('flotante');
       if (bw) bw.classList.add('on');
       if (!nvc.querySelector('.nv-rz')) { const rz = document.createElement('div'); rz.className = 'nv-rz'; nvc.appendChild(rz); }
-      if ('ResizeObserver' in window) { rObs = new ResizeObserver(() => redib()); rObs.observe(nvc); }
-      redib();
+      if (!zoomBtns && bw) {   // botones +/- en la cabecera, junto a Superponer
+        zoomBtns = document.createElement('div'); zoomBtns.className = 'nv-flot-zoom';
+        zoomBtns.innerHTML = `<button class="nv-fz" data-z="-1" title="Achicar">−</button><button class="nv-fz" data-z="1" title="Agrandar">+</button>`;
+        bw.parentNode.insertBefore(zoomBtns, bw.nextSibling);
+        zoomBtns.addEventListener('click', (e) => { const b = e.target.closest('[data-z]'); if (!b) return; e.stopPropagation(); redimPaso(+b.dataset.z); });
+      }
+      if ('ResizeObserver' in window && !rObs) { rObs = new ResizeObserver(() => redib()); rObs.observe(nvc); }
+      redib(); guardarFlot();
     };
     const desactivarFlotante = () => {
       d.classList.remove('flotante'); if (bw) bw.classList.remove('on');
       nvc.style.left = nvc.style.top = nvc.style.width = nvc.style.height = '';
       if (rObs) { rObs.disconnect(); rObs = null; }
       const rz = nvc.querySelector('.nv-rz'); if (rz) rz.remove();
-      redib();
+      if (zoomBtns) { zoomBtns.remove(); zoomBtns = null; }
+      redib(); guardarFlot();
     };
     if (bw) bw.onclick = () => { d.classList.contains('flotante') ? desactivarFlotante() : activarFlotante(); };
 
@@ -2083,7 +2110,7 @@ export async function abrirNiveles() {
     let mv = null;
     cab.addEventListener('mousedown', (e) => {
       if (!d.classList.contains('flotante')) return;
-      if (e.target.closest('button, .nv-tfs, .nv-sel, input')) return;
+      if (e.target.closest('button, .nv-tfs, .nv-sel, input, .nv-flot-zoom')) return;
       const r = nvc.getBoundingClientRect();
       mv = { dx: e.clientX - r.left, dy: e.clientY - r.top }; e.preventDefault();
       document.body.style.userSelect = 'none';
@@ -2094,7 +2121,7 @@ export async function abrirNiveles() {
       nvc.style.left = Math.max(4, Math.min(innerWidth - W - 4, e.clientX - mv.dx)) + 'px';
       nvc.style.top = Math.max(4, Math.min(innerHeight - H - 4, e.clientY - mv.dy)) + 'px';
     });
-    window.addEventListener('mouseup', () => { if (mv) { mv = null; document.body.style.userSelect = ''; } });
+    window.addEventListener('mouseup', () => { if (mv) { mv = null; document.body.style.userSelect = ''; guardarFlot(); } });
 
     // Redimensionar con la esquina inferior derecha
     let rs = null;
@@ -2110,11 +2137,11 @@ export async function abrirNiveles() {
       nvc.style.height = Math.max(260, Math.min(innerHeight - 8, rs.h + (e.clientY - rs.y))) + 'px';
       redib();
     });
-    window.addEventListener('mouseup', () => { if (rs) { rs = null; document.body.style.userSelect = ''; redib(); } });
+    window.addEventListener('mouseup', () => { if (rs) { rs = null; document.body.style.userSelect = ''; redib(); guardarFlot(); } });
     // Táctil para mover
     cab.addEventListener('touchstart', (e) => {
       if (!d.classList.contains('flotante') || e.touches.length !== 1) return;
-      if (e.target.closest('button, .nv-tfs, .nv-sel, input')) return;
+      if (e.target.closest('button, .nv-tfs, .nv-sel, input, .nv-flot-zoom')) return;
       const r = nvc.getBoundingClientRect(); mv = { dx: e.touches[0].clientX - r.left, dy: e.touches[0].clientY - r.top };
     }, { passive: true });
     window.addEventListener('touchmove', (e) => {
@@ -2123,7 +2150,10 @@ export async function abrirNiveles() {
       nvc.style.left = Math.max(4, Math.min(innerWidth - W - 4, e.touches[0].clientX - mv.dx)) + 'px';
       nvc.style.top = Math.max(4, Math.min(innerHeight - H - 4, e.touches[0].clientY - mv.dy)) + 'px';
     }, { passive: true });
-    window.addEventListener('touchend', () => { mv = null; });
+    window.addEventListener('touchend', () => { if (mv) { mv = null; guardarFlot(); } });
+
+    // Recordar entre sesiones: si estaba flotante, restaurar posición y tamaño
+    try { const gg = JSON.parse(localStorage.getItem('cco-flotante') || 'null'); if (gg && gg.on) activarFlotante(gg); } catch (_) {}
   }
   $('nv-sel').onclick = (e) => { e.stopPropagation(); menuPares(); };
 
@@ -5153,6 +5183,11 @@ function estilos() {
     background:linear-gradient(135deg,transparent 46%,rgba(255,255,255,.35) 46%,rgba(255,255,255,.35) 54%,transparent 54%,transparent 70%,rgba(255,255,255,.35) 70%,rgba(255,255,255,.35) 78%,transparent 78%)}
   #nv-overlay .nv-sup{width:auto;padding:0 12px;display:inline-flex;align-items:center}
   #nv-overlay .nv-sup.on{background:rgba(34,211,238,.16);border-color:rgba(34,211,238,.5);color:#22d3ee}
+  #nv-overlay .nv-flot-zoom{display:inline-flex;gap:4px;align-items:center;flex:0 0 auto}
+  #nv-overlay .nv-fz{width:30px;height:30px;border-radius:8px;border:1px solid #2b3139;cursor:pointer;
+    background:rgba(255,255,255,.05);color:#c9d1d9;font-size:19px;font-weight:700;line-height:1;
+    display:grid;place-items:center;font-family:var(--mono,monospace)}
+  #nv-overlay .nv-fz:hover{border-color:rgba(34,211,238,.5);background:rgba(34,211,238,.14);color:#22d3ee}
   #nv-overlay .nv-sup-tx{margin-left:7px;font-family:var(--mono,monospace);font-size:12px;font-weight:600}
   @media(max-width:900px){ #nv-overlay .nv-sup{padding:0;width:36px} #nv-overlay .nv-sup-tx{display:none} }
 
