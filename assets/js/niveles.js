@@ -2397,20 +2397,24 @@ function dibujarUno(g, d, x1, y1, sel) {
     g.stroke(); g.shadowBlur = 0;
   } else if (d.tipo === 'marca') {
     if (!A) return;
-    const rr = Math.max(9, d.tam ? d.tam + 4 : 11);
+    const rr = Math.max(11, d.tam ? d.tam + 5 : 13);
     g.save();
-    g.shadowColor = `rgba(${rgb},.5)`; g.shadowBlur = 6;
+    g.shadowColor = `rgba(${rgb},.55)`; g.shadowBlur = 7;
     g.fillStyle = col; g.beginPath(); g.arc(A.x, A.y, rr, 0, 6.283); g.fill();
     g.restore();
-    g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 1.6; g.beginPath(); g.arc(A.x, A.y, rr, 0, 6.283); g.stroke();
-    // número dentro, en color que contraste con el relleno
+    g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 2; g.beginPath(); g.arc(A.x, A.y, rr, 0, 6.283); g.stroke();
+    // número dentro, nítido: color por contraste + halo para que se lea sobre cualquier color
     const nn = String(d._n || 1);
     const cn = parseInt((d.color || '#22d3ee').slice(1), 16);
     const lum = (0.299 * ((cn >> 16) & 255) + 0.587 * ((cn >> 8) & 255) + 0.114 * (cn & 255)) / 255;
-    g.fillStyle = lum > 0.6 ? '#0b0f16' : '#ffffff';
-    g.font = `800 ${Math.round(rr * 1.05)}px var(--display,sans-serif)`;
+    const claro = lum <= 0.55;
+    g.font = `900 ${Math.round(rr * 1.15)}px var(--display,sans-serif)`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(nn, A.x, A.y + 0.5);
+    g.lineJoin = 'round'; g.lineWidth = Math.max(2.5, rr * 0.3);
+    g.strokeStyle = claro ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.9)';
+    g.strokeText(nn, A.x, A.y + rr * 0.06);
+    g.fillStyle = claro ? '#ffffff' : '#0b0f16';
+    g.fillText(nn, A.x, A.y + rr * 0.06);
     g.textAlign = 'left'; g.textBaseline = 'alphabetic';
     if (sel) { g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.beginPath(); g.arc(A.x, A.y, rr + 4, 0, 6.283); g.stroke(); }
   } else if (d.tipo === 'texto') {
@@ -2454,31 +2458,34 @@ function dibujarUno(g, d, x1, y1, sel) {
     });
     const gPct = ((pT - pe) / pe) * 100, rPct = ((pS - pe) / pe) * 100;
     const rr = Math.abs(rPct) > 0 ? Math.abs(gPct / rPct) : 0;
-    // ── Tarjeta grande y estética (TP/SL grandes + R:R notable) ──
-    const cw = 168, ch = 96;
-    let cx = x + w + 10; if (cx + cw > x1 - 4) cx = Math.max(4, x - cw - 10); if (cx < 4) cx = Math.min(x1 - cw - 4, x + 8);
+    // ── Tarjeta GRANDE y estética (TP/SL grandes + R:R notable) ──
+    const cw = 208, ch = 122;
+    let cx = x + w + 12; if (cx + cw > x1 - 4) cx = Math.max(4, x - cw - 12); if (cx < 4) cx = Math.min(x1 - cw - 4, x + 8);
     let cy = (Math.min(yt, ye, ys) + Math.max(yt, ye, ys)) / 2 - ch / 2;
     cy = Math.max(4, Math.min(y1 - ch - 4, cy));
-    g.save(); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 18;
-    g.fillStyle = 'rgba(13,17,24,.94)'; redondeado(g, cx, cy, cw, ch, 13); g.fill(); g.restore();
-    g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 1; redondeado(g, cx, cy, cw, ch, 13); g.stroke();
+    g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 20;
+    g.fillStyle = 'rgba(13,17,24,.96)'; redondeado(g, cx, cy, cw, ch, 15); g.fill(); g.restore();
+    g.strokeStyle = largo ? 'rgba(46,232,106,.4)' : 'rgba(255,91,110,.4)'; g.lineWidth = 1.2; redondeado(g, cx, cy, cw, ch, 15); g.stroke();
     g.textAlign = 'left';
-    g.fillStyle = largo ? '#2ee86a' : '#ff5b6e'; g.font = 'bold 9px ui-monospace,monospace';
-    g.fillText(largo ? '● POSICIÓN LARGA' : '● POSICIÓN CORTA', cx + 13, cy + 17);
+    g.fillStyle = largo ? '#2ee86a' : '#ff5b6e'; g.font = 'bold 10px ui-monospace,monospace';
+    g.fillText(largo ? '● POSICIÓN LARGA' : '● POSICIÓN CORTA', cx + 15, cy + 20);
     // Take profit grande
-    g.fillStyle = '#7d8794'; g.font = '8px ui-monospace,monospace'; g.fillText('TAKE PROFIT', cx + 13, cy + 33);
-    g.fillStyle = '#2ee86a'; g.font = '800 22px var(--display,sans-serif)';
-    g.fillText(`+${Math.abs(gPct).toFixed(2)}%`, cx + 13, cy + 55);
+    g.fillStyle = '#7d8794'; g.font = '9px ui-monospace,monospace'; g.fillText('TAKE PROFIT', cx + 15, cy + 40);
+    g.save(); g.shadowColor = 'rgba(46,232,106,.6)'; g.shadowBlur = 12;
+    g.fillStyle = '#2ee86a'; g.font = '900 27px var(--display,sans-serif)';
+    g.fillText(`+${Math.abs(gPct).toFixed(2)}%`, cx + 15, cy + 66); g.restore();
     // Stop loss grande
-    g.fillStyle = '#7d8794'; g.font = '8px ui-monospace,monospace'; g.fillText('STOP LOSS', cx + 13, cy + 71);
-    g.fillStyle = '#ff5b6e'; g.font = '800 19px var(--display,sans-serif)';
-    g.fillText(`−${Math.abs(rPct).toFixed(2)}%`, cx + 13, cy + 90);
-    // R:R notable, a la derecha
-    g.fillStyle = 'rgba(232,184,75,.14)'; redondeado(g, cx + cw - 58, cy + 44, 48, 40, 9); g.fill();
-    g.fillStyle = '#8b95a1'; g.font = '7px ui-monospace,monospace'; g.textAlign = 'center';
-    g.fillText('R : R', cx + cw - 34, cy + 57);
-    g.fillStyle = 'var(--gold,#E8B84B)'; g.font = '800 18px var(--display,sans-serif)';
-    g.fillText(rr.toFixed(1), cx + cw - 34, cy + 78);
+    g.fillStyle = '#7d8794'; g.font = '9px ui-monospace,monospace'; g.fillText('STOP LOSS', cx + 15, cy + 88);
+    g.save(); g.shadowColor = 'rgba(255,91,110,.55)'; g.shadowBlur = 11;
+    g.fillStyle = '#ff5b6e'; g.font = '900 23px var(--display,sans-serif)';
+    g.fillText(`−${Math.abs(rPct).toFixed(2)}%`, cx + 15, cy + 111); g.restore();
+    // R:R notable, en caja dorada a la derecha
+    g.fillStyle = 'rgba(232,184,75,.16)'; redondeado(g, cx + cw - 66, cy + 52, 54, 50, 11); g.fill();
+    g.fillStyle = '#8b95a1'; g.font = 'bold 8px ui-monospace,monospace'; g.textAlign = 'center';
+    g.fillText('R : R', cx + cw - 39, cy + 68);
+    g.save(); g.shadowColor = 'rgba(232,184,75,.5)'; g.shadowBlur = 9;
+    g.fillStyle = '#E8B84B'; g.font = '900 22px var(--display,sans-serif)';
+    g.fillText(rr.toFixed(1), cx + cw - 39, cy + 92); g.restore();
     g.textAlign = 'left';
   }
   g.shadowBlur = 0; g.globalAlpha = 1;
@@ -2486,23 +2493,28 @@ function dibujarUno(g, d, x1, y1, sel) {
 
 /* Tarjeta de la regla, pegada a la proyección (arriba si sube, abajo si baja) */
 function tarjetaMedida(g, x, y, w, h, alza, cc, crgb, pct, pills, x1, y1) {
-  const cw = 150, chh = 56;
+  const cw = 186, chh = 82;
   let cx = x + w / 2 - cw / 2; cx = Math.max(4, Math.min(x1 - cw - 4, cx));
-  let cy = alza ? y - chh - 6 : y + h + 6;
-  if (cy < 4) cy = y + h + 6; if (cy + chh > y1 - 4) cy = Math.max(4, y - chh - 6);
-  g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 14;
-  g.fillStyle = 'rgba(13,17,24,.92)'; redondeado(g, cx, cy, cw, chh, 11); g.fill(); g.restore();
-  g.strokeStyle = `rgba(${crgb},.55)`; g.lineWidth = 1.1; redondeado(g, cx, cy, cw, chh, 11); g.stroke();
-  g.textAlign = 'left'; g.fillStyle = cc; g.font = '800 24px var(--display,sans-serif)';
-  g.fillText(pct, cx + 12, cy + 30);
-  let px = cx + 12; const py = cy + 38;
+  let cy = alza ? y - chh - 8 : y + h + 8;
+  if (cy < 4) cy = y + h + 8; if (cy + chh > y1 - 4) cy = Math.max(4, y - chh - 8);
+  g.save(); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 18;
+  g.fillStyle = 'rgba(13,17,24,.95)'; redondeado(g, cx, cy, cw, chh, 13); g.fill(); g.restore();
+  g.strokeStyle = `rgba(${crgb},.6)`; g.lineWidth = 1.3; redondeado(g, cx, cy, cw, chh, 13); g.stroke();
+  // Porcentaje GRANDE, brillante, con glow del color
+  g.save();
+  g.shadowColor = `rgba(${crgb},.75)`; g.shadowBlur = 14;
+  g.fillStyle = cc; g.font = '900 40px var(--display,sans-serif)'; g.textAlign = 'left';
+  g.fillText(pct, cx + 15, cy + 46);
+  g.restore();
+  // Pastillas de velas / tiempo, más grandes y legibles
+  let px = cx + 15; const py = cy + 56;
   pills.forEach((p) => {
-    g.font = 'bold 9px ui-monospace,monospace';
-    const wv = Math.max(g.measureText(p[1]).width + 6, g.measureText(p[0]).width + 6) + 8;
-    g.fillStyle = 'rgba(255,255,255,.06)'; redondeado(g, px, py, wv, 13, 4); g.fill();
-    g.fillStyle = '#8b95a1'; g.font = '6.5px ui-monospace,monospace'; g.fillText(p[0], px + 5, py - 2 + 0);
-    g.fillStyle = '#e6eaef'; g.font = 'bold 9px ui-monospace,monospace'; g.fillText(p[1], px + 5, py + 10);
-    px += wv + 6;
+    g.font = 'bold 12px ui-monospace,monospace';
+    const wv = Math.max(g.measureText(p[1]).width, g.measureText(p[0]).width) + 18;
+    g.fillStyle = 'rgba(255,255,255,.07)'; redondeado(g, px, py, wv, 20, 6); g.fill();
+    g.fillStyle = '#8b95a1'; g.font = '8px ui-monospace,monospace'; g.textAlign = 'left'; g.fillText(p[0], px + 9, py + 8);
+    g.fillStyle = '#eef2f6'; g.font = 'bold 12px ui-monospace,monospace'; g.fillText(p[1], px + 9, py + 17);
+    px += wv + 8;
   });
 }
 
@@ -4039,7 +4051,13 @@ function gestos(cv) {
       if (d.tipo === 'rayo' && A) hit = Math.abs(y - A.y) < 8;
       else if (d.tipo === 'vert' && A) hit = Math.abs(x - A.x) < 8;
       else if ((d.tipo === 'linea' || d.tipo === 'flecha') && A && B) hit = distSeg(x, y, A.x, A.y, B.x, B.y) < 8;
-      else if ((d.tipo === 'rect' || d.tipo === 'regla' || d.tipo === 'fib' || d.tipo === 'poslarga' || d.tipo === 'poscorta') && A && B) { const x0 = Math.min(A.x, B.x), x1b = Math.max(A.x, B.x), y0 = Math.min(A.y, B.y), y1b = Math.max(A.y, B.y); hit = x >= x0 - 8 && x <= x1b + 8 && y >= y0 - 8 && y <= y1b + 8; }
+      else if ((d.tipo === 'poslarga' || d.tipo === 'poscorta') && A && B) {
+        const pe = d.pts[0].p, pT = d.pTarget != null ? d.pTarget : pe, pS = d.pStop != null ? d.pStop : pe;
+        const yy = [A.y, _geo.Y(pT), _geo.Y(pS)];
+        const x0 = Math.min(A.x, B.x), x1b = Math.max(A.x, B.x), y0 = Math.min.apply(null, yy), y1b = Math.max.apply(null, yy);
+        hit = x >= x0 - 8 && x <= x1b + 8 && y >= y0 - 8 && y <= y1b + 8;
+      }
+      else if ((d.tipo === 'rect' || d.tipo === 'regla' || d.tipo === 'fib') && A && B) { const x0 = Math.min(A.x, B.x), x1b = Math.max(A.x, B.x), y0 = Math.min(A.y, B.y), y1b = Math.max(A.y, B.y); hit = x >= x0 - 8 && x <= x1b + 8 && y >= y0 - 8 && y <= y1b + 8; }
       else if ((d.tipo === 'marca' || d.tipo === 'texto') && A) hit = Math.hypot(x - A.x, y - A.y) < 13;
       else if (d.tipo === 'brush') hit = d.pts.some((pt, i) => { if (!i) return false; const P = dibAxy(d.pts[i - 1]), Q = dibAxy(pt); return distSeg(x, y, P.x, P.y, Q.x, Q.y) < 8; });
       if (hit) return k;
@@ -4051,7 +4069,12 @@ function gestos(cv) {
     if (tipo === 'fib' && N.estilo.fibNiveles) e.niveles = N.estilo.fibNiveles.slice();
     return e;
   };
-  const finDib = (idx) => { if (!N.fijar) { N.herr = 'cursor'; N.sel = idx; marcarBoton(); } construirTopbar(); dibujar(); };
+  const finDib = (idx) => {
+    // El marcador SIEMPRE se queda activo (pones 1, 2, 3, 4… seguidos; el cesto los quita).
+    // El resto: una sola vez por defecto, salvo que "mantener activa" esté encendido.
+    if (N.herr !== 'marca' && !N.fijar) { N.herr = 'cursor'; N.sel = idx; marcarBoton(); }
+    construirTopbar(); dibujar();
+  };
   const pedirTexto = (x, y, cb) => {
     cerrarPopups();
     const inp = document.createElement('input'); inp.className = 'nv-txt-in'; inp.placeholder = 'Escribe y pulsa Enter…';
@@ -4085,7 +4108,9 @@ function gestos(cv) {
       const largo = d.tipo === 'poslarga', pe = d.pts[0].p; let pT = d.pts[1].p;
       if (Math.abs((pT - pe) / pe) < 0.0015) pT = pe * (largo ? 1.01 : 0.99);  // proyección de ejemplo
       d.pTarget = pT; d.pStop = pe - (pT - pe) * 0.5;
-      d.pts[1] = { t: d.pts[1].t, p: pe };
+      const tf = _tfMs();
+      let tW = d.pts[1].t; if (Math.abs(tW - d.pts[0].t) < tf * 6) tW = d.pts[0].t + tf * 34;  // ancho mínimo visible
+      d.pts[1] = { t: tW, p: pe };
     }
     N.dibujos.push(d); guardarDib(); finDib(N.dibujos.length - 1);
   };
@@ -4095,6 +4120,10 @@ function gestos(cv) {
     const ps = d.pts.map((pt) => dibAxy(pt)); if (!ps.length) return null;
     let x0 = Infinity, y0 = Infinity, x1b = -Infinity, y1b = -Infinity;
     ps.forEach((P) => { x0 = Math.min(x0, P.x); y0 = Math.min(y0, P.y); x1b = Math.max(x1b, P.x); y1b = Math.max(y1b, P.y); });
+    if (d.tipo === 'poslarga' || d.tipo === 'poscorta') {
+      if (d.pTarget != null) { const yT = _geo.Y(d.pTarget); y0 = Math.min(y0, yT); y1b = Math.max(y1b, yT); }
+      if (d.pStop != null) { const yS = _geo.Y(d.pStop); y0 = Math.min(y0, yS); y1b = Math.max(y1b, yS); }
+    }
     if (d.tipo === 'rayo') { x0 = -1e5; x1b = 1e5; } if (d.tipo === 'vert') { y0 = -1e5; y1b = 1e5; }
     return { x0, y0, x1: x1b, y1: y1b };
   };
@@ -4191,6 +4220,7 @@ function gestos(cv) {
      llevas donde quieras. */
   let ax = 0, ay = 0, arr = false, modo = 'x';
   cv.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;   // el clic derecho es para el menú de operar (orden.js)
     const r = cv.getBoundingClientRect();
     const lx = e.clientX - r.left, ly = e.clientY - r.top;
     // Herramienta de dibujo activa → dibuja
@@ -5176,6 +5206,13 @@ function estilos() {
   const s = document.createElement('style'); s.id = 'nv-css';
   s.textContent = `
   #nv-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center}
+  /* El menú de orden (clic derecho para comprar/vender) vive fuera del overlay:
+     debe quedar por ENCIMA de él (el overlay subió a 10000 para tapar el
+     disparador admin). Se sube aquí sin tocar orden.js. */
+  .od-menu,.od-ficha{z-index:10010 !important}
+  .od-confirmar-box{z-index:10015 !important}
+  #od-pasos{z-index:10016 !important}
+  .od-toast{z-index:10018 !important}
   #nv-overlay .nv-bg{position:absolute;inset:0;background:rgba(3,5,8,.95)}
   #nv-overlay .nv-c{position:relative;width:100%;height:100vh;height:100dvh;
     display:flex;flex-direction:column;background:#0b0f16}
