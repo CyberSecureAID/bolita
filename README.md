@@ -233,10 +233,13 @@ Cloudflare (5 $/mes, 50× más capacidad).
             ├── walletconnect.umd.js      (850 KB, se carga SOLO al conectar)
             └── qrcode.js                 ( 55 KB)
 ```
-**Archivos de la lotería que siguen ahí (no tocar, no se usan):**
-`app.js`, `contrato.js`, `comprar.js`, `draws.js`, `economics.js`, `charada.js`,
-`versos.js`, `cup.js`, `florida.js`, `prices.js`, `icons.js`, `confetti.js`,
-`notificaciones.js`, `manifest.webmanifest`, `retirar-bolita.html`.
+**Archivos de la lotería — ELIMINADOS (limpieza de repo, ver sección 25).**
+Se borraron del repo por estar desechados y sin uso: `app.js`, `contrato.js`,
+`comprar.js`, `draws.js`, `economics.js`, `charada.js`, `versos.js`, `cup.js`,
+`florida.js`, `prices.js`, `icons.js`, `confetti.js`, `notificaciones.js`,
+`manifest.webmanifest`, `loteria.html`, `diag.html`, `contracts/Bolita.sol`, y
+19 imágenes sin uso. También los huérfanos `delta.js`, `footprint.js`,
+`termometro.js`, `worker.js`, `ethers-carga.js`. La app cripto quedó intacta.
 
 ---
 
@@ -512,6 +515,13 @@ Veredictos: *Orden blindada / firme / falsa*.
 **La herramienta principal y la más trabajada.** Analiza la estructura
 del mercado sobre velas reales de Binance y da un plan de operación
 completo.
+
+> **📦 MODULARIZADO (ver sección 26).** `niveles.js` pasó de **6.221 líneas
+> a 1.832** repartiendo su código en **13 módulos** dentro de
+> `assets/js/niveles/`. `niveles.js` sigue siendo el punto de entrada (lo
+> importa `liquidity.js` como `./niveles.js?v=126`, sin cambios) y ahora solo
+> contiene el render y el arranque; todo lo demás vive en su módulo. **Toda
+> ampliación futura debe respetar esta modularización (ver sección 27).**
 
 **El motor de análisis:**
 
@@ -806,15 +816,15 @@ limpia, crash, pump, lateral, doble suelo) antes de dar nada por bueno.
 
 | Archivo | Estado |
 |---|---|
-| `assets/js/niveles.js` | **Nuevo** — Smart Levels, el más grande |
-| `assets/js/orden.js` | **Nuevo** — órdenes desde el gráfico |
+| `assets/js/niveles.js` | **Modularizado** — 6.221 → 1.832 líneas (solo render + arranque) |
+| `assets/js/niveles/` (13 módulos) | **Nuevo** — motor, asistente, interaccion, dibujo, menus, panel, burbujas, imagen, alertas, estilos, util, estado, i18n |
+| `assets/js/orden.js` | Smart Levels — órdenes desde el gráfico |
 | `assets/js/muros.js` | Modificado — Radar Institucional |
 | `assets/js/liquidity.js` | Modificado — portada y Liquidity Pools |
 | `assets/js/idioma.js` | Modificado — 1.200+ entradas en inglés |
 | `assets/js/perfil.js` | Modificado — coste por operación corregido |
 | `CriptoCubaPro.sol` | **Nuevo** — sin desplegar |
-| `assets/js/termometro.js` | **Eliminado** |
-| `assets/js/footprint.js` | **Eliminado** |
+| Archivos de lotería + huérfanos | **Eliminados** (limpieza de repo, sección 25) |
 
 ---
 
@@ -828,8 +838,190 @@ contexto suficiente. El orden recomendado:
 2. **Leer la sección 20** antes de proponer cualquier herramienta
    nueva, para no repetir una idea ya descartada.
 3. **Leer las secciones 21 y 22** antes de tocar `niveles.js`.
+   **Y las secciones 26 y 27** (modularización y sus reglas obligatorias):
+   `niveles.js` ya está troceado en `assets/js/niveles/`; todo cambio nuevo va
+   en su módulo, no en el archivo principal.
 4. **Preguntar en qué punto está** el despliegue de `CriptoCubaPro.sol`,
    porque es lo que bloquea el cobro.
 
 **Lo más urgente ahora mismo:** terminar el detector de ciclos con el
 medidor de probabilidad, aplicándolo **sin romper el archivo**.
+
+---
+---
+
+# PARTE III — LIMPIEZA Y MODULARIZACIÓN
+
+> Se añadió después de las Partes I y II. **No sustituye nada anterior.**
+> Documenta la limpieza del repo (sección 25), el troceado de `niveles.js`
+> en módulos (sección 26) y las **reglas obligatorias** para que los
+> archivos no vuelvan a crecer sin control (sección 27).
+
+---
+
+## 25. LIMPIEZA DEL REPOSITORIO
+
+El repo mezclaba **dos apps** que compartían `tokens.js` y `wallet.js`:
+
+- **CriptoCuba (CCO)** — la que funciona. Entra por `index.html → gridbot-ui.js`.
+- **Lotería "Aurex/bolita"** — desechada. Entraba por `loteria.html → app.js`.
+
+Se auditó el grafo de imports desde `index.html`, más `sw.js` y los manifests,
+y se borró todo lo que solo colgaba de la lotería o estaba huérfano, **sin tocar
+la app cripto**.
+
+**Borrado (verificado, no referenciado por la app cripto):**
+
+- **JS huérfanos (5):** `delta.js`, `footprint.js`, `termometro.js`, `worker.js`
+  (`orden.js` ya no lo importaba), `ethers-carga.js`.
+- **JS de la lotería (13):** `app.js`, `charada.js`, `comprar.js`, `confetti.js`,
+  `contrato.js`, `cup.js`, `draws.js`, `economics.js`, `florida.js`, `versos.js`,
+  `notificaciones.js`, `icons.js`, `prices.js`.
+- **Páginas / manifest / contrato:** `loteria.html`, `diag.html`,
+  `manifest.webmanifest` (solo lo usaba `loteria.html`), `contracts/Bolita.sol`.
+- **Imágenes sin uso (19):** `aurex-32/512/logo/maskable.png`, `favicon.png`,
+  `favicon.ico`, `logo.webp`, `logo-nav.webp`, `bots-bg.webp`, `hero-bg.webp`,
+  `fondo-bots.webp`, `banner.svg`, `banner.webp`, `bola-num-sm.webp`,
+  `cup-coin.webp`, `ext-logo.webp`, `modo-numero/parle/terminales.webp`.
+
+**Cuidado (NO se borraron — sí las usa la app cripto, aunque el nombre engañe):**
+`aurex-apple.png`, `aurex-og.jpg`, `aurex-192.png`, `cco-maskable.png` (los usan
+`index.html`, `orden.js` y `manifest-aurex.webmanifest`).
+
+> **Nota:** `index.html` usa `manifest-aurex.webmanifest` (no `manifest.webmanifest`).
+> El nombre "aurex" es histórico; esos archivos están en uso por la app cripto.
+
+---
+
+## 26. MODULARIZACIÓN DE `niveles.js`
+
+`niveles.js` había crecido a **6.221 líneas**, con todo embebido. Cada cambio en
+un sitio rompía otro. Se troceó, **sin cambiar la lógica y verificando cada
+paso** (compilar + render Playwright + las 7 señales del motor idénticas), en
+**13 módulos** dentro de `assets/js/niveles/`.
+
+**Resultado: `niveles.js` de 6.221 → 1.832 líneas (‑71%).**
+
+### 26.1 Estructura
+
+```
+assets/js/
+├── niveles.js              (1832) MAIN: arranque (abrirNiveles/recargar),
+│                                  render (dibujar), selector de monedas
+│                                  (menuPares), pintarEstado, animaciones.
+│                                  Orquesta e importa todos los módulos.
+└── niveles/
+    ├── motor.js       (1058) Cálculo PURO: pivotes, tendencia, rango, niveles,
+    │                         impulsos, estructuras (Faro), dobles, Marea, ATR,
+    │                         construirPlan, traerVelas. No toca el DOM.
+    ├── asistente.js   ( 731) analizar + unificar: la lectura del asistente
+    │                         (mensajes + plan). Escribe en N; no dibuja.
+    ├── estilos.js     ( 720) Todo el CSS del overlay.
+    ├── interaccion.js ( 591) gestos: cursores, herramientas de dibujo, arrastre,
+    │                         zoom, popups y barra de ajustes.
+    ├── menus.js       ( 327) Guía de indicador, menú de alertas, ventana
+    │                         flotante (PiP), registrar indicador, logos, ayuda.
+    ├── dibujo.js      ( 305) Herramientas de dibujo: coordenadas (tiempo/precio
+    │                         ↔ píxeles), posiciones, marcadores, regla, tarjetas.
+    ├── panel.js       ( 215) Panel del indicador Marea (confluencia, HA/ADX/VOL,
+    │                         barras LONG/SHORT).
+    ├── burbujas.js    ( 179) Burbujas del asistente + escritura letra a letra +
+    │                         tabla del plan.
+    ├── imagen.js      ( 163) Exportar la gráfica como PNG con marca de agua.
+    ├── alertas.js     ( 143) Sonido, notificaciones del sistema y sondeo del
+    │                         mercado para las alertas de Marea.
+    ├── util.js        (  50) Utilidades PURAS: fmt, miles, hora, fecha,
+    │                         redondeado, _hex2rgb, esc, elegir, sembrar.
+    ├── estado.js      (  16) El objeto N compartido (estado de la app).
+    └── i18n.js        (  13) El traductor T (carga idioma.js dinámicamente).
+```
+
+### 26.2 Arquitectura (cómo encajan sin romperse)
+
+- **`niveles.js` es el punto de entrada.** Lo importa `liquidity.js` como
+  `./niveles.js?v=126` (sin cambios). Exporta `abrirNiveles()`.
+- **Los submódulos se importan con `?v=1`.** Al ser archivos nuevos no hay caché
+  previa; si se editan en el futuro, se sube su `?v=`.
+- **`estado.js` exporta `N`**, el objeto de estado. `N` **solo se muta**
+  (`N.algo = ...`), **nunca se reasigna** (`N = ...`). Por eso funciona igual
+  importado que local, y no hay dependencias circulares.
+- **Módulos "hoja" (sin dependencias internas):** `estado`, `util`, `i18n`,
+  `motor`, `estilos`. El resto importa de ellos, nunca al revés.
+- **Para evitar imports circulares**, los módulos que necesitan `dibujar` /
+  `burbujas` / `guardarDib` **los reciben por parámetro** (ej. `gestos(cv,
+  dibujar, burbujas, guardarDib)`) o por un inicializador que fija la referencia
+  una sola vez (ej. `initBurbujas(dibujar)`). Nunca se importa `niveles.js`
+  desde un submódulo.
+- Algunas funciones ahora **reciben `par`/`tf` por parámetro** en vez de leer las
+  variables de módulo (`analizar(par)`, `menuAlertas(par, tf)`,
+  `abrirWidget(par, tf)`, `guardarImagen(par, tf)`, `activarAlertasMarea(...,
+  par, tf)`).
+
+### 26.3 Qué quedó en `niveles.js` y por qué
+
+El render (`dibujar`), el arranque (`abrirNiveles`/`recargar`), `pintarEstado`,
+las animaciones y el selector de monedas (`menuPares`) **comparten el estado
+mutable del ciclo de vida** (`_par`, `_tf`, `_od`, `_zonasOd`, `_trazo`,
+`_planFijo`…) y se llaman entre sí. Son un bloque cohesionado: el "main" que une
+todo. Sacar `dibujar` obligaría a mover ese estado y tocar casi todo lo que
+queda, sobre el código más crítico (el render), fragmentando algo que va junto.
+**Se decidió dejarlo así.** Si algún día se separa, primero hay que mover ese
+estado a `estado.js` (ver reglas de la sección 27).
+
+---
+
+## 27. 📌 REGLAS DE MODULARIZACIÓN (OBLIGATORIAS PARA TODO CAMBIO FUTURO)
+
+> **Estas reglas son un contrato. Cualquier implementación futura —humana o de
+> IA— debe cumplirlas para que los archivos NO vuelvan a crecer sin control.
+> Léelas antes de tocar `niveles.js`, `gridbot-ui.js` o cualquier archivo que ya
+> pase de ~800 líneas.**
+
+**R1 — Función nueva = módulo (o el módulo existente que le toque).**
+Nada nuevo se escribe dentro de `niveles.js` ni de `gridbot-ui.js`. Si es lógica
+de análisis/indicadores → `niveles/motor.js`. Herramientas de dibujo →
+`niveles/dibujo.js` o `niveles/interaccion.js`. Alertas → `niveles/alertas.js`.
+Menús/ventanas → `niveles/menus.js`. Texto del asistente → `niveles/asistente.js`.
+Si no encaja en ninguno, **se crea un módulo nuevo** en `niveles/`.
+
+**R2 — Límite de tamaño.** Si un archivo se acerca a **~800 líneas**, se trocea
+**antes** de seguir añadiendo. Ningún archivo debería superar ~1.000 líneas
+salvo el "main" (`niveles.js`), que aun así se mantiene lo más fino posible.
+
+**R3 — Estado compartido solo en `estado.js`.** El estado que necesiten varios
+módulos vive en el objeto `N` (`estado.js`) y **solo se muta, nunca se reasigna**.
+No crear variables `let` de módulo nuevas que luego bloqueen extraer código. Si
+una pieza necesita estado mutable compartido, se pone como propiedad de `N`.
+
+**R4 — Prohibido el import circular.** Un submódulo **nunca** importa de
+`niveles.js`. Si necesita `dibujar`/`burbujas`/`recargar`/etc., se le pasan por
+parámetro o por un `init...()` que fija la referencia una vez. Los módulos hoja
+(`estado`, `util`, `i18n`, `motor`, `estilos`) no importan de nadie interno.
+
+**R5 — Utilidades puras a `util.js`.** Formateo, colores, geometría de canvas y
+helpers sin estado van a `util.js` y se importan. No duplicar helpers.
+
+**R6 — Respetar el motor.** `motor.js` es cálculo puro y da las señales de Marea.
+Tras tocarlo, **las 7 señales de los escenarios sintéticos deben ser idénticas**
+(crash, pump, doble suelo, alta volatilidad…). Se prueba antes de entregar.
+
+**R7 — No tocar `?v=` de módulos ajenos.** `niveles.js` se importa como
+`?v=126`; `orden.js` e `idioma.js` van en `?v=126`. Los submódulos de `niveles/`
+usan su propio `?v=`. No cambiar versiones de otros archivos (rompe la caché y
+carga instancias dobles; ver regla 4 de la sección 6).
+
+**R8 — Editar bloque a bloque, verificando.** Nada de `replace` global sobre
+archivos grandes (ya se rompió dos veces, ver sección 22). Tras cada corte:
+`node --input-type=module --check` de **todos** los archivos afectados, render
+con Playwright y prueba de la función tocada.
+
+**R9 — Entregar todos los archivos afectados juntos.** Si un cambio toca
+`niveles.js` y un submódulo, se entregan ambos, indicando en qué carpeta va cada
+uno (`niveles.js` suelto en `assets/js/`; los módulos dentro de `assets/js/niveles/`).
+
+**R10 — Comentarios en español explicando el PORQUÉ.** Cada módulo empieza con
+una cabecera de 2-4 líneas que dice qué hace y de dónde salió.
+
+**Regla de oro:** si al terminar un cambio `niveles.js` (o cualquier archivo) es
+**más grande** que antes por lógica nueva embebida, el cambio está **mal hecho**:
+esa lógica va en un módulo.
