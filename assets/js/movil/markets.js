@@ -128,22 +128,37 @@ function selectorGrafica(par) {
   let sh = $('mv-sheet'); if (sh) sh.remove();
   sh = document.createElement('div');
   sh.id = 'mv-sheet';
+  const OPCIONES = [
+    { g: 'grafica',   ic: IC.candles, t: 'Gráfica Limpia',       s: 'Vela en vivo (TradingView), gratis' },
+    { g: 'niveles',   ic: IC.chart,   t: 'Smart Levels',         s: 'Niveles y operaciones al toque' },
+    { g: 'muros',     ic: IC.book2 || IC.candles, t: 'Radar Institucional', s: 'Flujo de órdenes y muros' },
+    { g: 'liquidity', ic: IC.pool,    t: 'Liquidity Pools',      s: 'Profundidad y liquidez' },
+  ];
+  const fila = (o) => `<button class="mv-sheet-op" data-g="${o.g}">${o.ic}<div><b>${esc(o.t)}</b><small>${esc(o.s)}</small></div></button>`;
   sh.innerHTML = `
     <div class="mv-sheet-bg"></div>
     <div class="mv-sheet-card">
-      <div class="mv-sheet-h"><b>${esc(par.id)} · ${esc(par.n)}</b><span>Elige la gráfica</span></div>
-      <button class="mv-sheet-op" data-g="niveles">${IC.chart}<div><b>Smart Levels</b><small>Niveles y operaciones al toque</small></div></button>
-      <button class="mv-sheet-op" data-g="muros">${IC.candles}<div><b>Radar Institucional</b><small>Flujo de órdenes y muros</small></div></button>
-      <button class="mv-sheet-op" data-g="liquidity">${IC.pool}<div><b>Liquidity Pools</b><small>Profundidad y liquidez</small></div></button>
+      <div class="mv-sheet-h"><b>${esc(par.id)} · ${esc(par.n)}</b><span>Elige la gráfica o indicador</span></div>
+      <div class="mv-sheet-search">${IC.search}<input id="mv-ind-q" placeholder="Buscar indicador por nombre…" autocomplete="off"></div>
+      <div class="mv-sheet-list" id="mv-ind-list">${OPCIONES.map(fila).join('')}</div>
       <button class="mv-sheet-cancel">Cancelar</button>
     </div>`;
   document.body.appendChild(sh);
   const cerrar = () => sh.remove();
   sh.querySelector('.mv-sheet-bg').onclick = cerrar;
   sh.querySelector('.mv-sheet-cancel').onclick = cerrar;
-  sh.querySelectorAll('.mv-sheet-op').forEach((b) => {
+  const lista = $('mv-ind-list');
+  const wire = () => sh.querySelectorAll('.mv-sheet-op').forEach((b) => {
     b.onclick = () => { cerrar(); api.abrirGrafica ? api.abrirGrafica(b.getAttribute('data-g'), par) : (api.abrir && api.abrir(b.getAttribute('data-g'))); };
   });
+  wire();
+  const q = $('mv-ind-q');
+  if (q) q.oninput = () => {
+    const t = q.value.trim().toLowerCase();
+    const f = OPCIONES.filter((o) => o.t.toLowerCase().includes(t) || o.s.toLowerCase().includes(t));
+    lista.innerHTML = f.length ? f.map(fila).join('') : `<div class="mv-empty" style="padding:20px">Sin indicadores para “${esc(q.value)}”.</div>`;
+    wire();
+  };
 }
 
 /* ── Datos: logos + precio + %24h ── */

@@ -200,6 +200,12 @@ export function inyectarMovil() {
   #mv-sheet .mv-sheet-card::-webkit-scrollbar,#mv-menu .mv-menu-card::-webkit-scrollbar{display:none}
   @keyframes mvUp{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
   #mv-sheet .mv-sheet-h{position:relative;text-align:center;margin-bottom:12px;padding:0 24px}
+  #mv-sheet .mv-sheet-search{display:flex;align-items:center;gap:9px;height:50px;padding:0 14px;margin-bottom:12px;background:var(--mv-card);border:1px solid var(--mv-line);border-radius:13px}
+  #mv-sheet .mv-sheet-search:focus-within{border-color:var(--mv-gold)}
+  #mv-sheet .mv-sheet-search svg{width:18px;height:18px;color:var(--mv-mut);flex:0 0 auto}
+  #mv-sheet .mv-sheet-search input{flex:1;min-width:0;height:100%;background:none;border:0;outline:none;color:var(--mv-txt);font-family:inherit;font-size:15px}
+  #mv-sheet .mv-sheet-list{display:flex;flex-direction:column;gap:9px;max-height:52vh;overflow-y:auto;scrollbar-width:none}
+  #mv-sheet .mv-sheet-list::-webkit-scrollbar{display:none}
   #mv-sheet .mv-sheet-h b{display:block;font-size:16px}
   #mv-sheet .mv-sheet-h span{display:block;color:var(--mv-mut);font-size:12.5px;margin-top:2px}
   .mv-sheet-x{position:absolute;top:12px;right:12px;width:30px;height:30px;display:grid;place-items:center;border-radius:9px;

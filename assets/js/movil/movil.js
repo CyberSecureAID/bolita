@@ -100,7 +100,8 @@ async function abrirGrafica(g, par) {
   const id = par && (par.id || par);
   inyectarFixGrafica();
   try {
-    if (g === 'niveles') { const m = await import('../niveles.js?v=126'); m.abrirNiveles && m.abrirNiveles(id); montarTfMovil(); }
+    if (g === 'grafica') { const m = await import('../tools.js?v=125'); m.abrirGraficaLimpia && m.abrirGraficaLimpia(id); inyectarFixTools(); }
+    else if (g === 'niveles') { const m = await import('../niveles.js?v=126'); m.abrirNiveles && m.abrirNiveles(id); montarTfMovil(); }
     else if (g === 'muros') { const m = await import('../muros.js?v=126'); m.abrirMuros && m.abrirMuros(id); }
     else if (g === 'liquidity') { const m = await import('../liquidity.js?v=126'); m.abrirLiquidity && m.abrirLiquidity(id); }
     else { await abrir(g); }
@@ -297,9 +298,11 @@ function inyectarFixGrafica() {
     #lqp-overlay .lqp-nom{display:block!important;padding:12px 15px 0!important;font-size:17px!important;font-weight:800!important;color:#eaecef!important;margin:0!important}
     #lqp-overlay .lqp-lema{display:block!important;padding:2px 15px 0!important;font-size:12.5px!important;color:#E8B84B!important;font-weight:700!important;margin:0!important}
     #lqp-overlay .lqp-desc{display:block!important;padding:6px 15px 0!important;font-size:12.5px!important;color:#9aa5b1!important;line-height:1.45!important;margin:0!important;overflow-wrap:anywhere!important}
-    #lqp-overlay .lqp-abrir{display:inline-block!important;margin:12px 15px 15px!important;font-size:13px!important;font-weight:800!important;color:#1a1200!important;
-      background:linear-gradient(180deg,#f7db8d,#E8B84B 60%,#d9a72f)!important;padding:9px 16px!important;border-radius:10px!important}
-    #lqp-overlay .lqp-pronto{display:inline-block!important;margin:12px 15px 15px!important;font-size:12px!important;color:#8b96a3!important;background:var(--mv-card2)!important;padding:8px 14px!important;border-radius:10px!important}
+    #lqp-overlay .lqp-abrir{display:block!important;width:calc(100% - 30px)!important;margin:12px 15px 15px!important;text-align:center!important;font-size:13px!important;font-weight:800!important;color:#1a1200!important;
+      background:linear-gradient(180deg,#f7db8d,#E8B84B 60%,#d9a72f)!important;padding:11px 16px!important;border-radius:11px!important}
+    #lqp-overlay .lqp-pronto{display:block!important;width:calc(100% - 30px)!important;margin:12px 15px 15px!important;text-align:center!important;font-size:12px!important;color:#8b96a3!important;background:var(--mv-card2)!important;padding:11px 14px!important;border-radius:11px!important}
+    /* Portada muestra SOLO los servicios; los planes aparecen al tocar "Abrir" (no-owner) */
+    #lqp-overlay:not(.lqp-verplanes) .lqp-sep,#lqp-overlay:not(.lqp-verplanes) .lqp-planes,#lqp-overlay:not(.lqp-verplanes) .lqp-pago{display:none!important}
     #lqp-overlay .lqp-serv.pronto{opacity:.7!important}
     /* Separador */
     #lqp-overlay .lqp-sep{display:flex!important;align-items:center!important;gap:12px!important;margin:6px 0 18px!important;color:#8b96a3!important;font-size:12px!important;text-transform:uppercase!important;letter-spacing:1px!important}
