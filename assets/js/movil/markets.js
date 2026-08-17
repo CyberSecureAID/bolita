@@ -12,6 +12,12 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const MEMES = new Set(['DOGE', 'PEPE', 'WIF', 'BONK', 'FLOKI', 'SHIB', 'ORDI']);
+/* Logos para pares sin CoinGecko (divisas → banderas; oro → icono). */
+const LOGO_ESPECIAL = {
+  EUR: 'https://flagcdn.com/w80/eu.png',
+  GBP: 'https://flagcdn.com/w80/gb.png',
+  PAXG: 'https://assets.coingecko.com/coins/images/9519/small/paxgold.png',
+};
 const CATS = [
   { k: 'todas',   t: 'Todas' },
   { k: 'cripto',  t: 'Cripto' },
@@ -88,9 +94,10 @@ function render() {
     const precio = d.price == null ? '—' : fmtPrecio(d.price);
     const fav = _fav.has(p.id);
     const ini = esc(p.id.slice(0, 1));
+    const logo = d.img || LOGO_ESPECIAL[p.id] || '';
     return `<div class="mv-row" data-id="${esc(p.id)}">
       <button class="mv-favb ${fav ? 'on' : ''}" data-fav="${esc(p.id)}" aria-label="Favorito">${fav ? IC.star : starOutline()}</button>
-      <div class="mv-ci" data-cg="${esc(p.cg || '')}" style="${d.img ? `background-image:url(${d.img})` : ''}"><span class="ico-fb"${d.img ? ' style="display:none"' : ''}>${ini}</span></div>
+      <div class="mv-ci" data-cg="${esc(p.cg || '')}" style="${logo ? `background-image:url(${logo})` : ''}"><span class="ico-fb"${logo ? ' style="display:none"' : ''}>${ini}</span></div>
       <div class="mv-cn"><b>${esc(p.s)}</b><small>${esc(p.n)}</small></div>
       <div class="mv-cp"><b>${precio}</b><small class="${cls}">${chgTxt}</small></div>
     </div>`;

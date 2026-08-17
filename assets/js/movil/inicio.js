@@ -1,43 +1,40 @@
-/* movil/inicio.js — Pantalla 1 (Inicio). Organiza lo que ya existe:
-   perfil, balance real (con cambio de moneda y ocultar/mostrar), buscador,
-   soporte (chatbot), accesos rápidos, servicios y prize pool. */
+/* movil/inicio.js — Pantalla 1 (Inicio). */
 
 import { IC } from './iconos.js?v=1';
 
 const $ = (id) => document.getElementById(id);
 const LS = { ojo: 'mv-ojo', denom: 'mv-denom' };
 
-/* Accesos rápidos → secciones REALES. La academia va destacada. */
+/* Accesos rápidos → secciones reales. Sin Smart Levels (ya está en "Operar").
+   Comprar y Vender van al Marketplace en su pestaña. */
 const QUICK = [
-  { k: 'market',    ic: 'market', t: 'Comprar' },
+  { k: 'buy',       ic: 'buy',    t: 'Comprar' },
+  { k: 'sell',      ic: 'coins',  t: 'Vender' },
   { k: 'bots',      ic: 'bot',    t: 'Bots', tag: 'HOT' },
   { k: 'swap',      ic: 'swap',   t: 'Swap' },
-  { k: 'niveles',   ic: 'chart',  t: 'Smart Levels' },
   { k: 'liquidity', ic: 'pool',   t: 'Liquidity' },
   { k: 'academy',   ic: 'book',   t: 'Academia', tag: 'TOP' },
   { k: 'tools',     ic: 'tools',  t: 'Herramientas' },
   { k: 'prize',     ic: 'trophy', t: 'Prize Pool' },
 ];
 
-/* Franja de servicios (rota). Incluye TODOS los servicios, con la academia destacada. */
 const PROMOS = [
   { ic: 'book',   t: 'Academia CriptoCuba', s: 'Aprende a operar y multiplica tu ventaja', go: 'academy' },
   { ic: 'trophy', t: 'Prize Pool comunitario', s: 'Participa y gana del fondo común', go: 'prize' },
   { ic: 'bot',    t: 'Bots que operan por ti', s: 'Compran abajo y venden arriba, en tu wallet', go: 'bots' },
   { ic: 'swap',   t: 'Intercambia cualquier cripto', s: 'Swap directo, sin KYC, no custodial', go: 'swap' },
   { ic: 'pool',   t: 'Liquidity Pools', s: 'Analiza profundidad y liquidez del mercado', go: 'liquidity' },
-  { ic: 'chart',  t: 'Smart Levels', s: 'Análisis técnico y operaciones al toque', go: 'niveles' },
 ];
 
-/* Dos tarjetas rotativas: los bots, con nombres claros. */
+/* Bots con su logo e identidad de color. */
 const BOTCARDS = [
-  { kick: 'Bot Acumulador', ic: 'stack',    h: 'Acumula en cada caída', p: 'Compra por tramos cuando el precio baja y arma posición sin que estés pendiente.' },
-  { kick: 'Bot DCA',        ic: 'calendar', h: 'Invierte a intervalos', p: 'Compra cantidades fijas cada cierto tiempo para promediar tu precio de entrada.' },
-  { kick: 'Bot Grid',       ic: 'grid',     h: 'Gana en el rango',      p: 'Coloca una rejilla de compras y ventas y captura cada oscilación del mercado.' },
-  { kick: 'Bot Cash Out',   ic: 'coins',    h: 'Toma beneficios solo',  p: 'Va retirando ganancias de forma escalonada a medida que el precio sube.' },
+  { k: 'bots', color: '#2ebd85', img: 'assets/img/bot-grid.webp',       kick: 'Bot Grid',       h: 'Gana en el rango',      p: 'Compra y vende en niveles; cierra cada cuadrícula solo en ganancia.' },
+  { k: 'bots', color: '#E8B84B', img: 'assets/img/bot-acumulador.webp', kick: 'Bot Acumulador', h: 'Acumula en la caída',   p: 'Compra por tramos cuando baja y arma posición sin que estés pendiente.' },
+  { k: 'bots', color: '#4c8dff', img: 'assets/img/bot-dca.webp',        kick: 'Bot DCA',        h: 'Invierte a intervalos', p: 'Compra cantidades fijas cada cierto tiempo para promediar tu entrada.' },
+  { k: 'bots', color: '#f6465d', img: 'assets/img/bot-cashout.webp',    kick: 'Bot Cash Out',   h: 'Asegura ganancias',     p: 'Retira beneficios de forma escalonada a medida que el precio sube.' },
 ];
 
-let _ojo = leer(LS.ojo) === '1';        // true = oculto
+let _ojo = leer(LS.ojo) === '1';
 let _denom = leer(LS.denom) || 'USDT';
 
 function leer(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
@@ -54,11 +51,11 @@ export function pintarInicio(host, api) {
       <button class="mv-ico-btn" id="mv-alerts" aria-label="Alertas">${IC.bell}</button>
     </div>
 
-    <div class="mv-bal-top">
-      <span class="mv-bal-lbl">Balance total ${IC.eye}</span>
-      <button class="mv-denom" id="mv-denom">${_denom} ${chev()}</button>
+    <div class="mv-bal-lbl" id="mv-bal-lbl">Balance total ${IC.eye}</div>
+    <div class="mv-bal-row">
+      <span class="mv-bal" id="mv-bal">—</span>
+      <button class="mv-denom-in" id="mv-denom">${_denom} ${chev()}</button>
     </div>
-    <div class="mv-bal" id="mv-bal">—</div>
     <div class="mv-bal-sub" id="mv-bal-sub">${con ? '' : 'Conecta tu wallet para ver tu saldo'}</div>
 
     <div class="mv-cta">
@@ -82,7 +79,6 @@ export function pintarInicio(host, api) {
     </div>`}
 
     <div class="mv-strip" id="mv-strip">
-      <span class="mv-strip-count" id="mv-strip-count"></span>
       <div class="mv-strip-ic" id="mv-strip-ic">${IC.book}</div>
       <div class="mv-strip-tx"><b id="mv-strip-t">—</b><small id="mv-strip-s">—</small></div>
       <button class="mv-strip-go" id="mv-strip-go">Ver</button>
@@ -103,36 +99,31 @@ export function pintarInicio(host, api) {
     </div>
   `;
 
-  // ── Wiring ──
   $('mv-ava').onclick = () => api.abrir('perfil');
   $('mv-search').onclick = () => api.abrir('buscar');
   $('mv-support').onclick = () => api.abrir('soporte');
   $('mv-alerts').onclick = () => api.abrir('alertas');
-  $('mv-add').onclick = () => api.abrir('swap');
+  $('mv-add').onclick = () => api.abrir('fondos');
   $('mv-trade').onclick = () => api.abrir('niveles');
   const cb = $('mv-connect-btn'); if (cb) cb.onclick = () => api.conectar();
   host.querySelectorAll('.mv-qi').forEach((el) => { el.onclick = () => api.abrir(el.getAttribute('data-k')); });
   $('mv-prize-go').onclick = $('mv-prize-more').onclick = () => api.abrir('prize');
   $('mv-viewall').onclick = () => api.abrir('menu');
 
-  // ── Balance: ojito + cambio de moneda ──
+  // Balance: ojito + cambio de moneda (junto al monto)
   const pintarBal = () => {
     const b = api.balance();
-    const bal = $('mv-bal'), sub = $('mv-bal-sub'), den = $('mv-denom');
-    if (den) den.firstChild ? (den.innerHTML = `${_denom} ${chev()}`) : null;
-    if (!b || !b.conectado) { bal.textContent = con ? '—' : '—'; return; }
-    const val = valorEn(b, _denom);
-    if (_ojo) { bal.textContent = '••••••'; sub.textContent = ''; }
-    else {
-      bal.innerHTML = fmtDenom(val, _denom) + ` <small>${_denom}</small>`;
-      sub.textContent = '≈ $' + fmt(b.totalUSD);
-    }
+    const bal = $('mv-bal'), sub = $('mv-bal-sub');
+    if (!b || !b.conectado) { bal.textContent = '—'; return; }
+    if (_ojo) { bal.textContent = '••••••'; sub.textContent = ''; return; }
+    bal.textContent = fmtDenom(valorEn(b, _denom), _denom);
+    sub.textContent = '≈ $' + fmt(b.totalUSD);
   };
-  host.querySelector('.mv-bal-lbl').onclick = () => { _ojo = !_ojo; guardar(LS.ojo, _ojo ? '1' : '0'); pintarBal(); };
-  $('mv-denom').onclick = (e) => { e.stopPropagation(); menuDenom(api, pintarBal); };
+  $('mv-bal-lbl').onclick = () => { _ojo = !_ojo; guardar(LS.ojo, _ojo ? '1' : '0'); pintarBal(); };
+  $('mv-denom').onclick = () => menuDenom(api, () => { $('mv-denom').innerHTML = `${_denom} ${chev()}`; pintarBal(); });
   pintarBal();
 
-  // ── Franja rotativa ──
+  // Franja rotativa (sin contador)
   let pi = 0;
   const pintarPromo = () => {
     const p = PROMOS[pi % PROMOS.length];
@@ -140,18 +131,20 @@ export function pintarInicio(host, api) {
     $('mv-strip-t').textContent = p.t; $('mv-strip-s').textContent = p.s;
     $('mv-strip-go').onclick = (e) => { e.stopPropagation(); api.abrir(p.go); };
     $('mv-strip').onclick = () => api.abrir(p.go);
-    const c = $('mv-strip-count'); if (c) c.textContent = ((pi % PROMOS.length) + 1) + '/' + PROMOS.length;
   };
   pintarPromo();
   const tPromo = setInterval(() => { pi++; pintarPromo(); }, 4500);
 
-  // ── Dos tarjetas (rotan de dos en dos) ──
+  // Dos tarjetas de bots (con logo y color), rotan de dos en dos
   let ti = 0;
   const pintarCards = () => {
     for (let j = 0; j < 2; j++) {
       const c = BOTCARDS[(ti * 2 + j) % BOTCARDS.length];
       const el = $('mv-tc-' + j); if (!el) continue;
-      el.innerHTML = `<div class="mv-tc-kick">${c.kick}</div><div class="mv-tc-ic">${IC[c.ic] || IC.bot}</div><h4>${c.h}</h4><p>${c.p}</p>`;
+      el.style.setProperty('--bc', c.color);
+      el.innerHTML = `<div class="mv-tc-kick" style="color:${c.color}">${c.kick}</div>
+        <div class="mv-tc-logo"><img src="${c.img}" alt="" onerror="this.style.display='none'"></div>
+        <h4>${c.h}</h4><p>${c.p}</p>`;
       el.onclick = () => api.abrir('bots');
     }
     const dots = $('mv-tdots'); const pares = Math.ceil(BOTCARDS.length / 2);
@@ -161,10 +154,9 @@ export function pintarInicio(host, api) {
   const tCards = setInterval(() => { ti++; pintarCards(); }, 6000);
 
   host._limpiar = () => { clearInterval(tPromo); clearInterval(tCards); };
-  host._pintarBal = pintarBal;   // para refrescar al llegar el balance
+  host._pintarBal = pintarBal;
 }
 
-/* Menú para cambiar la moneda del balance (solo las que el usuario tiene). */
 function menuDenom(api, cb) {
   const b = api.balance();
   const opts = ['USDT'];

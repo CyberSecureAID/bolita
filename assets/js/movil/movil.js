@@ -1,6 +1,5 @@
-/* movil/movil.js — Cáscara de la experiencia MÓVIL tipo exchange.
-   Monta #mv-app SOLO en móvil, con barra inferior y router de pantallas.
-   Reusa TODAS las secciones reales (import diferido). La web no se toca. */
+/* movil/movil.js — Cáscara MÓVIL tipo exchange. Monta #mv-app solo en móvil,
+   con barra inferior y router. Reusa las secciones reales. La web no se toca. */
 
 import * as wallet from '../wallet.js?v=125';
 import * as gb from '../gridbot.js?v=125';
@@ -16,7 +15,7 @@ const _movil = () => window.matchMedia('(max-width: 760px)').matches;
 
 let _deps = { conectarWallet: null };
 let _tab = 'home';
-let _bal = null;         // { conectado, totalUSD, activos:[{id,bal,usd}], precios:{id:usd} }
+let _bal = null;
 
 export function initMovil(deps) { _deps = Object.assign(_deps, deps || {}); }
 
@@ -24,16 +23,19 @@ export function initMovil(deps) { _deps = Object.assign(_deps, deps || {}); }
 async function abrir(clave) {
   try {
     switch (clave) {
-      case 'swap':      { const m = await import('../gridbot/swap.js?v=1'); m.abrirSwap && m.abrirSwap(); break; }
+      case 'swap':      await abrirEnCapa(async () => { const m = await import('../gridbot/swap.js?v=1'); m.abrirSwap && m.abrirSwap(); }, ['swap-modal', 'coin-modal']); break;
       case 'market':    { const m = await import('../market.js?v=125'); m.abrirMarket && m.abrirMarket(); break; }
+      case 'buy':       await abrirMarketTab('mk-t5'); break;   // Comprar
+      case 'sell':      await abrirMarketTab('mk-t2'); break;   // Vender
+      case 'fondos':    abrirMetamaskBuy(); break;
       case 'prize':     { const m = await import('../prizepool.js?v=125'); m.abrirPrizePool && m.abrirPrizePool(); break; }
-      case 'perfil':    { const m = await import('../perfil.js?v=125'); m.abrirPerfil && m.abrirPerfil(); break; }
+      case 'perfil':    { const m = await import('../perfil.js?v=125'); m.abrirPerfil && m.abrirPerfil(); if (_movil()) uidEnPerfil(); break; }
       case 'tools':     { const m = await import('../tools.js?v=125'); m.abrirTools && m.abrirTools(); break; }
       case 'academy':   { const m = await import('../academy.js?v=125'); m.abrirAcademy && m.abrirAcademy(); break; }
       case 'niveles':   await abrirGraficaConVuelta('niveles'); break;
       case 'muros':     await abrirGraficaConVuelta('muros'); break;
       case 'liquidity': await abrirGraficaConVuelta('liquidity'); break;
-      case 'bots':      revelarPortada(); break;
+      case 'bots':      modoBots(true); break;
       case 'buscar':    abrirBuscar(api()); break;
       case 'soporte':   abrirSoporte(); break;
       case 'alertas':   avisoSimple('Alertas de precio', 'Muy pronto podrás fijar alertas por moneda desde aquí.'); break;
@@ -42,55 +44,119 @@ async function abrir(clave) {
       case 'instalar':  clicWeb('c-instalar'); break;
       default: break;
     }
-  } catch (_) { /* si un módulo no carga, la cáscara sigue */ }
+  } catch (_) {}
 }
 
 async function abrirGrafica(g, par) { await abrir(g); }
 
-/* Abre una gráfica y garantiza un botón de VOLVER (Smart Levels/Radar/Pools
-   se dibujan por encima de la cáscara y en móvil el cierre no siempre es
-   alcanzable). */
+/* Abre una sección cuyo overlay queda POR DEBAJO de la cáscara (ej. Swap,
+   z-index 230). Ocultamos la cáscara para que se vea, con botón de volver que
+   cierra la sección. */
+async function abrirEnCapa(opener, ids) {
+  await opener();
+  const app = $('mv-app'); if (app) app.style.display = 'none';
+  botonVolver(() => { (ids || []).forEach((id) => { const e = $(id); if (e) e.remove(); }); }, 100000, 'bottom');
+}
+
+async function abrirMarketTab(tabId) {
+  const m = await import('../market.js?v=125');
+  if (m.abrirMarket) m.abrirMarket();
+  setTimeout(() => { const t = $(tabId); if (t) t.click(); }, 120);
+}
+
+/* Agregar fondos → comprar cripto en MetaMask. */
+function abrirMetamaskBuy() {
+  const url = 'https://portfolio.metamask.io/buy';
+  try { window.open(url, '_blank', 'noopener'); } catch (_) { location.href = url; }
+}
+
 async function abrirGraficaConVuelta(clave) {
+  inyectarFixGrafica();
   if (clave === 'niveles') { const m = await import('../niveles.js?v=126'); m.abrirNiveles && m.abrirNiveles(); }
   else if (clave === 'muros') { const m = await import('../muros.js?v=126'); m.abrirMuros && m.abrirMuros(); }
   else if (clave === 'liquidity') { const m = await import('../liquidity.js?v=126'); m.abrirLiquidity && m.abrirLiquidity(); }
   botonVolver(() => {
     ['nv-overlay', 'mu-overlay', 'lq-overlay', 'lqp-overlay', 'nv-picker', 'mu-picker', 'lq-mas-menu'].forEach((id) => { const e = $(id); if (e) e.remove(); });
-  }, 10050);
+  }, 10050, 'bottom');
 }
 
-/* Botón flotante de volver (se autolimpia al pulsarlo). */
-function botonVolver(alVolver, z) {
+/* CSS responsive para las gráficas en móvil (no toca su lógica). */
+function inyectarFixGrafica() {
+  if ($('mv-nv-fix')) return;
+  const s = document.createElement('style'); s.id = 'mv-nv-fix';
+  s.textContent = `@media(max-width:760px){
+    #nv-overlay .nv-cab,#mu-overlay .mu-cab{flex-wrap:wrap!important;gap:6px!important;padding:8px 10px 8px 12px!important;align-items:center!important}
+    #nv-overlay .nv-tfs{order:5!important;width:100%!important;overflow-x:auto!important;flex-wrap:nowrap!important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    #nv-overlay .nv-tfs::-webkit-scrollbar{display:none}
+    #nv-overlay .nv-tf{flex:0 0 auto!important}
+    #nv-overlay .nv-estado{display:none!important}
+    #nv-overlay .nv-der{margin-left:auto!important;gap:4px!important}
+    #nv-overlay .nv-rg-tx,#nv-overlay .nv-ind-tx,#nv-overlay .nv-cf-tx{display:none!important}
+    #nv-overlay .nv-sel{max-width:46vw}
+  }`;
+  document.head.appendChild(s);
+}
+
+function botonVolver(alVolver, z, pos) {
   quitarVolver();
   const v = document.createElement('button');
   v.id = 'mv-volver';
   v.innerHTML = '‹ Inicio';
   v.style.zIndex = String(z || 8600);
-  v.onclick = () => { try { alVolver && alVolver(); } catch (_) {} quitarVolver(); const app = $('mv-app'); if (app) app.style.display = 'flex'; };
+  if (pos === 'bottom') v.classList.add('abajo');
+  v.onclick = () => { try { alVolver && alVolver(); } catch (_) {} quitarVolver(); const app = $('mv-app'); if (app) app.style.display = 'flex'; salirBots(); };
   document.body.appendChild(v);
 }
 function quitarVolver() { const v = $('mv-volver'); if (v) v.remove(); }
 
-/* Deja ver la portada real (creador de bots) ocultando la cáscara. */
-function revelarPortada() {
-  const app = $('mv-app'); if (app) app.style.display = 'none';
-  const web = $('colmena-app'); if (web) web.style.visibility = 'visible';
-  if (window._mvHideWeb) window._mvHideWeb.disabled = true;
-  botonVolver(() => {
-    const web2 = $('colmena-app'); if (web2) web2.style.visibility = 'hidden';
-    if (window._mvHideWeb) window._mvHideWeb.disabled = false;
-  }, 8600);
+/* ── Modo Bots: muestra la portada real pero SIN cabecera web, cinta, logo ni
+   FAB; deja solo el creador de bots y la barra inferior del móvil. ── */
+function modoBots(on) {
+  inyectarFixBots();
+  const web = $('colmena-app');
+  if (on) {
+    document.body.classList.add('mv-bots');
+    if (web) web.style.visibility = 'visible';
+    if (window._mvHideWeb) window._mvHideWeb.disabled = true;
+    botonVolver(() => salirBots(), 8600);
+  } else salirBots();
+}
+function salirBots() {
+  if (!document.body.classList.contains('mv-bots')) return;
+  document.body.classList.remove('mv-bots');
+  const web = $('colmena-app'); if (web) web.style.visibility = 'hidden';
+  if (window._mvHideWeb) window._mvHideWeb.disabled = false;
+}
+function inyectarFixBots() {
+  if ($('mv-bots-fix')) return;
+  const s = document.createElement('style'); s.id = 'mv-bots-fix';
+  s.textContent = `
+    body.mv-bots #colmena-app{visibility:visible!important;padding-top:8px}
+    body.mv-bots #colmena-app .c-hdr,
+    body.mv-bots #colmena-app #c-ticker,
+    body.mv-bots #colmena-app .c-ticker,
+    body.mv-bots #np-fab-previo,body.mv-bots #npFab,body.mv-bots #np-chat,body.mv-bots #npChat{display:none!important}
+    body.mv-bots #mv-app{background:transparent!important;pointer-events:none;justify-content:flex-end}
+    body.mv-bots #mv-scroll{display:none!important}
+    body.mv-bots #mv-nav{pointer-events:auto;background:var(--mv-bg2)}
+    body.mv-bots #mv-volver{pointer-events:auto}
+  `;
+  document.head.appendChild(s);
 }
 
-/* Soporte = chatbot (el asistente). Dispara su botón; si el panel queda
-   detrás, ocultamos la cáscara y ofrecemos volver. */
+/* Perfil (solo móvil): etiqueta "UID:" delante de la dirección. */
+function uidEnPerfil() {
+  if ($('mv-uid-fix')) return;
+  const s = document.createElement('style'); s.id = 'mv-uid-fix';
+  s.textContent = `@media(max-width:760px){#pf-addr::before{content:"UID: ";color:var(--mv-mut,#8b96a3);font-weight:700}}`;
+  document.head.appendChild(s);
+}
+
 function abrirSoporte() {
   const fab = $('npFab') || $('np-fab-previo');
   if (fab) fab.click();
   const app = $('mv-app'); if (app) app.style.display = 'none';
-  botonVolver(() => {
-    const chat = $('npChat'); if (chat && chat.classList.contains('is-open')) { const x = $('npClose'); if (x) x.click(); }
-  }, 100000);
+  botonVolver(() => { const chat = $('npChat'); if (chat && chat.classList.contains('is-open')) { const x = $('npClose'); if (x) x.click(); } }, 100000, 'bottom');
 }
 
 function clicWeb(id) {
@@ -108,30 +174,23 @@ function avisoSimple(t, s) {
   clearTimeout(d._t); d._t = setTimeout(() => d.classList.remove('show'), 2600);
 }
 
-/* ── Balance real por moneda (valorado en USD vía CoinGecko). ── */
 async function leerBalance() {
   try {
     const cuenta = wallet.cuentaActual && wallet.cuentaActual();
     if (!cuenta) return { conectado: false };
     const tk = await import('../tokens.js?v=125');
-    const saldos = await wallet.saldosTodas(cuenta);           // { id: bal }
+    const saldos = await wallet.saldosTodas(cuenta);
     const tienen = Object.entries(saldos || {}).filter(([, v]) => Number(v) > 0);
     if (!tienen.length) return { conectado: true, totalUSD: 0, activos: [], precios: {} };
-    // precios USD por CoinGecko (una llamada)
     const cgById = {}; Object.values(tk.MONEDAS || {}).forEach((m) => { if (m.cg) cgById[m.id] = m.cg; });
     const ids = [...new Set(tienen.map(([id]) => cgById[id]).filter(Boolean))].join(',');
     let precioCg = {};
-    try {
-      const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
-      if (r.ok) precioCg = await r.json();
-    } catch (_) {}
+    try { const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`); if (r.ok) precioCg = await r.json(); } catch (_) {}
     const precios = {}; const activos = []; let total = 0;
     tienen.forEach(([id, bal]) => {
       const cg = cgById[id];
       const px = (id === 'USDT' || id === 'USDC' || id === 'USDTZ') ? 1 : (cg && precioCg[cg] ? precioCg[cg].usd : 0);
-      precios[id] = px;
-      const usd = Number(bal) * px;
-      total += usd;
+      precios[id] = px; const usd = Number(bal) * px; total += usd;
       activos.push({ id, bal: Number(bal), usd });
     });
     activos.sort((a, b) => b.usd - a.usd);
@@ -142,7 +201,7 @@ async function leerBalance() {
 function api() {
   return {
     abrir,
-    conectar: () => { _deps.conectarWallet ? _deps.conectarWallet() : revelarPortada(); },
+    conectar: () => { _deps.conectarWallet ? _deps.conectarWallet() : modoBots(true); },
     estaConectado: () => !!(wallet.cuentaActual && wallet.cuentaActual()),
     balance: () => _bal,
     abrirGrafica,
@@ -163,13 +222,13 @@ function pintarNav() {
 }
 
 async function irA(tab) {
+  salirBots();
+  const app = $('mv-app'); if (app) app.style.display = 'flex';
   const host = $('mv-scroll'); if (!host) return;
   if (host._limpiar) { try { host._limpiar(); } catch (_) {} host._limpiar = null; }
   host.scrollTop = 0;
-
   if (tab === 'home')    { _tab = 'home'; pintarNav(); pintarInicio(host, api()); refrescarBalance(); return; }
   if (tab === 'markets') { _tab = 'markets'; pintarNav(); pintarMercados(host, api()); return; }
-  // Pantallas 3 y 4 en construcción: abren la sección real para NO ocultar nada.
   if (tab === 'trade')   { abrir('niveles'); return; }
   if (tab === 'assets')  { abrir('perfil'); return; }
 }
@@ -184,15 +243,12 @@ export async function montarMovil(deps) {
   if (!_movil()) return;
   if (deps) initMovil(deps);
   if ($('mv-app')) return;
-
   inyectarMovil();
   const app = document.createElement('div');
   app.id = 'mv-app';
   app.innerHTML = `<div id="mv-scroll"></div><nav id="mv-nav"></nav>`;
   document.body.appendChild(app);
-
   pintarNav();
   irA('home');
-
   try { if (wallet.alCambiar) wallet.alCambiar(() => { _bal = null; refrescarBalance(); if (_tab === 'home') irA('home'); }); } catch (_) {}
 }

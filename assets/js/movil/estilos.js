@@ -45,14 +45,14 @@ export function inyectarMovil() {
     background:var(--mv-down);color:#fff;font-size:10px;font-weight:700;border-radius:9px;display:grid;place-items:center}
 
   /* ── Balance ── */
-  .mv-bal-top{display:flex;align-items:center;justify-content:space-between;margin:16px 0 2px}
-  .mv-bal-lbl{display:flex;align-items:center;gap:7px;color:var(--mv-mut);font-size:13px;cursor:pointer;user-select:none}
+  .mv-bal-lbl{display:inline-flex;align-items:center;gap:7px;color:var(--mv-mut);font-size:13px;cursor:pointer;user-select:none;margin:16px 0 3px}
   .mv-bal-lbl svg{width:16px;height:16px;opacity:.85}
-  .mv-denom{display:flex;align-items:center;gap:5px;background:var(--mv-card);border:1px solid var(--mv-line);
-    color:var(--mv-txt);font-size:13px;font-weight:700;padding:6px 12px;border-radius:16px}
-  .mv-bal{font-size:38px;font-weight:800;letter-spacing:-.5px;line-height:1.08;min-height:44px}
-  .mv-bal small{font-size:20px;color:var(--mv-mut);font-weight:700;margin-left:4px}
-  .mv-bal-sub{color:var(--mv-mut);font-size:13px;margin-top:3px;min-height:16px}
+  .mv-bal-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .mv-bal{font-size:38px;font-weight:800;letter-spacing:-.5px;line-height:1.08}
+  .mv-denom-in{align-self:center;display:inline-flex;align-items:center;gap:4px;background:var(--mv-card);border:1px solid var(--mv-line);
+    color:var(--mv-txt);font-size:13px;font-weight:700;padding:6px 12px;border-radius:16px;transition:border-color .15s}
+  .mv-denom-in:active{border-color:var(--mv-gold)}
+  .mv-bal-sub{color:var(--mv-mut);font-size:13px;margin-top:4px;min-height:16px}
 
   /* ── CTAs principales ── */
   .mv-cta{display:flex;gap:12px;margin:18px 0 4px}
@@ -105,6 +105,10 @@ export function inyectarMovil() {
   .mv-tcard .mv-tc-ic{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;
     background:linear-gradient(145deg,#20283300,#141a21);margin-top:4px}
   .mv-tcard .mv-tc-ic svg{width:32px;height:32px;color:var(--mv-gold)}
+  .mv-tcard .mv-tc-logo{width:60px;height:60px;border-radius:16px;display:grid;place-items:center;margin-top:4px;overflow:hidden;
+    background:radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--bc, var(--mv-gold)) 26%, transparent), transparent 70%)}
+  .mv-tcard .mv-tc-logo img{width:52px;height:52px;object-fit:contain}
+  .mv-tcard{border-top:2px solid var(--bc, var(--mv-line))}
   .mv-tcard h4{font-size:14.5px;font-weight:800;margin:2px 0 0}
   .mv-tcard p{font-size:12px;color:var(--mv-mut);line-height:1.35;margin:0}
   .mv-tcard .mv-tc-kick{position:absolute;top:12px;left:14px;font-size:11px;font-weight:800;color:var(--mv-gold)}
@@ -240,6 +244,7 @@ export function inyectarMovil() {
   #mv-volver{position:fixed;left:14px;top:calc(12px + env(safe-area-inset-top,0px));background:rgba(11,14,17,.85);
     -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:var(--mv-gold);font-weight:800;border:1px solid var(--mv-line);
     border-radius:22px;padding:10px 18px;box-shadow:0 6px 16px rgba(0,0,0,.5);font-family:inherit;font-size:15px}
+  #mv-volver.abajo{top:auto;bottom:calc(76px + env(safe-area-inset-bottom,0px))}
 
   /* ── Toast ── */
   #mv-toast{position:fixed;left:50%;top:80px;transform:translateX(-50%) translateY(-8px);z-index:9200;background:#1b222c;
