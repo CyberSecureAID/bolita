@@ -23,6 +23,7 @@ let _lado = null;         // solo para resaltar
 let _quote = 'USDT';
 let _libro = { asks: [], bids: [], precio: null, chg: null };
 let _timer = null;
+let _ws = null;
 let _api = null;
 
 export async function pintarOperar(host, api) {
@@ -122,10 +123,11 @@ export async function pintarOperar(host, api) {
   pintarPanel('pos');
 
   renderBook();
-  cargar();
+  conectarLibro();
+  cargarPrecio();
   clearInterval(_timer);
-  _timer = setInterval(cargar, 4000);
-  host._limpiar = () => { clearInterval(_timer); restaurarBotCard(); };
+  _timer = setInterval(cargarPrecio, 3000);
+  host._limpiar = () => { clearInterval(_timer); cerrarLibro(); restaurarBotCard(); };
 }
 
 function posGuardadas() { try { return JSON.parse(localStorage.getItem('mv-pos') || '[]'); } catch (_) { return []; } }
@@ -170,44 +172,51 @@ async function pintarPanel(t) {
   });
 }
 
-/* Muestra en Operar las MISMAS tarjetas reales de "Mis bots" que la web pinta
-   (con toda su dinámica y botones). Reubica el nodo vivo y lo devuelve al salir. */
-let _botCard = null;
-function reflejarBotsReales(el) {
-  const web = document.getElementById('colmena-app');
-  const card = web && web.querySelector('.colmenas.card');
-  if (!card) { botsFallback(el); return; }
-  // marcar el hueco para devolverla luego
-  if (!card._mvPh) { const ph = document.createComment('mv-bots'); card._mvPh = ph; card.parentNode.insertBefore(ph, card); }
-  el.innerHTML = '';
-  el.appendChild(card);
-  card.classList.add('mv-botcard');
-  _botCard = card;
-  // Si sigue cargando (skeleton), esperamos a que aparezcan las rejillas.
-  const rej = card.querySelector('#c-rejillas');
-  if (rej && rej.querySelector('.skel')) {
-    let n = 0; const t = setInterval(() => { n++; if (!rej.querySelector('.skel') || n > 40) clearInterval(t); }, 250);
-  }
-}
-export function restaurarBotCard() {
-  if (_botCard && _botCard._mvPh && _botCard._mvPh.parentNode) {
-    _botCard._mvPh.parentNode.insertBefore(_botCard, _botCard._mvPh);
-    _botCard.classList.remove('mv-botcard');
-  }
-  _botCard = null;
-}
-async function botsFallback(el) {
+/* Muestra los bots reales del usuario en tarjetas móviles propias (responsivas)
+   leyendo la MISMA fuente on-chain que la web: misRejillas + resumenK + modoDe.
+   No reubica el nodo de la web (eso rompía su CSS ligado a #colmena-app). */
+const BOT_META = {
+  0: { n: 'Smart Grid', c: '#4d9fff', ic: 'botGrid' },
+  1: { n: 'Acumulador', c: '#b47cff', ic: 'botAcum' },
+  2: { n: 'Cash Out',   c: '#e8b84b', ic: 'botCash' },
+  3: { n: 'DCA',        c: '#34d97b', ic: 'botDca' },
+};
+export function restaurarBotCard() { /* compat: ya no se reubica nada */ }
+async function reflejarBotsReales(el) {
   let gb, wallet;
   try { gb = await import('../gridbot.js?v=125'); wallet = await import('../wallet.js?v=125'); } catch (_) {}
   const cuenta = wallet && wallet.cuentaActual && wallet.cuentaActual();
+  if (!cuenta) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus bots.</div>`; return; }
   let claves = [];
-  try { if (cuenta) claves = await gb.misRejillas(cuenta) || []; } catch (_) {}
+  try { claves = await gb.misRejillas(cuenta) || []; } catch (_) {}
   if (!claves.length) {
     el.innerHTML = `<div class="op-empty">Aún no tienes bots activos.<br><button class="op-link" id="op-crear">Crear un bot</button></div>`;
     const c = document.getElementById('op-crear'); if (c) c.onclick = () => _api.abrir('bots'); return;
   }
-  el.innerHTML = `<div class="op-empty">Tienes ${claves.length} bot(s). <button class="op-link" id="op-crear">Ver mis bots</button></div>`;
-  const c = document.getElementById('op-crear'); if (c) c.onclick = () => _api.abrir('bots');
+  const bots = [];
+  for (const k of claves) {
+    try {
+      const [R, md] = await Promise.all([gb.resumenK(k), gb.modoDe(k).catch(() => [0])]);
+      if (!R || R.activa === false) continue;
+      const tipo = Number(Array.isArray(md) ? md[0] : md) || 0;
+      let gan = 0, vol = 0;
+      try { gan = Number(gb.fmt(R.gananciaQuote || 0n, 18)); } catch (_) {}
+      try { vol = Number(gb.fmt(R.volumenQuote || 0n, 18)); } catch (_) {}
+      bots.push({ tipo, gan, vol, ops: Number(R.totalOps || 0) });
+    } catch (_) {}
+    if (bots.length >= 12) break;
+  }
+  if (!bots.length) { el.innerHTML = `<div class="op-empty">No tienes bots activos ahora mismo.</div>`; return; }
+  el.innerHTML = bots.map((b) => {
+    const m = BOT_META[b.tipo] || BOT_META[0];
+    const cls = b.gan >= 0 ? 'up' : 'dn';
+    return `<div class="op-bot" style="--bc:${m.c}">
+      <span class="op-bot-ic" style="color:${m.c};background:color-mix(in srgb,${m.c} 16%,transparent)">${IC[m.ic] || IC.bot}</span>
+      <div class="op-bot-tx"><b>${m.n} <i class="op-bot-on">activo</i></b><small>Volumen ${money(b.vol)} · ${b.ops} ops</small></div>
+      <div class="op-bot-pnl ${cls}">${b.gan >= 0 ? '+' : ''}${money(b.gan)}</div>
+    </div>`;
+  }).join('') + `<button class="op-bot-manage" id="op-bot-manage">Ver / gestionar mis bots</button>`;
+  const mng = document.getElementById('op-bot-manage'); if (mng) mng.onclick = () => _api.abrir('bots');
 }
 
 function renderBook() {
@@ -215,23 +224,49 @@ function renderBook() {
   const asks = _libro.asks.slice(0, 6).reverse();
   const bids = _libro.bids.slice(0, 6);
   const maxV = Math.max(1, ...asks.map((r) => r[1]), ...bids.map((r) => r[1]));
-  const fila = (r, lado) => {
-    const w = Math.min(100, (r[1] / maxV) * 100);
-    return `<div class="op-row ${lado}"><span class="op-bar" style="width:${w}%"></span><em>${fmtP(r[0])}</em><i>${fmtQ(r[1])}</i></div>`;
+  if (!el._built) {
+    el.innerHTML = `<div class="op-bk-h"><span>Precio</span><span>Cantidad</span></div>`
+      + Array.from({ length: 6 }, () => `<div class="op-row ask"><span class="op-bar"></span><em></em><i></i></div>`).join('')
+      + `<div class="op-bk-mid">—</div>`
+      + Array.from({ length: 6 }, () => `<div class="op-row bid"><span class="op-bar"></span><em></em><i></i></div>`).join('');
+    el._built = true;
+  }
+  const rows = el.querySelectorAll('.op-row');
+  const fill = (start, data) => {
+    for (let i = 0; i < 6; i++) {
+      const row = rows[start + i]; if (!row) continue;
+      const r = data[i];
+      if (!r) { row.style.visibility = 'hidden'; continue; }
+      row.style.visibility = '';
+      row.querySelector('.op-bar').style.width = Math.min(100, (r[1] / maxV) * 100) + '%';
+      row.querySelector('em').textContent = fmtP(r[0]);
+      row.querySelector('i').textContent = fmtQ(r[1]);
+    }
   };
-  el.innerHTML =
-    `<div class="op-bk-h"><span>Precio</span><span>Cantidad</span></div>` +
-    asks.map((r) => fila(r, 'ask')).join('') +
-    `<div class="op-bk-mid ${_libro.chg >= 0 ? 'up' : 'dn'}">${_libro.precio == null ? '—' : fmtP(_libro.precio)}</div>` +
-    bids.map((r) => fila(r, 'bid')).join('');
+  fill(0, asks); fill(6, bids);
+  const mid = el.querySelector('.op-bk-mid');
+  if (mid) { mid.textContent = _libro.precio == null ? '—' : fmtP(_libro.precio); mid.className = 'op-bk-mid ' + (_libro.chg >= 0 ? 'up' : 'dn'); }
 }
 
-async function cargar() {
+/* Libro de órdenes en vivo por WebSocket (fluido, ~10 updates/seg). */
+function conectarLibro() {
+  cerrarLibro();
   if (!_par) return;
   try {
-    const r = await fetch(`https://api.binance.com/api/v3/depth?symbol=${_par.s}&limit=12`);
-    if (r.ok) { const j = await r.json(); _libro.asks = (j.asks || []).map((x) => [+x[0], +x[1]]); _libro.bids = (j.bids || []).map((x) => [+x[0], +x[1]]); }
+    _ws = new WebSocket(`wss://stream.binance.com:9443/ws/${_par.s.toLowerCase()}@depth20@100ms`);
+    _ws.onmessage = (ev) => {
+      try { const j = JSON.parse(ev.data);
+        if (j.asks) _libro.asks = j.asks.map((x) => [+x[0], +x[1]]);
+        if (j.bids) _libro.bids = j.bids.map((x) => [+x[0], +x[1]]);
+        renderBook();
+      } catch (_) {}
+    };
   } catch (_) {}
+}
+function cerrarLibro() { if (_ws) { try { _ws.close(); } catch (_) {} _ws = null; } }
+
+async function cargarPrecio() {
+  if (!_par) return;
   try {
     const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${_par.s}`);
     if (r.ok) { const j = await r.json(); _libro.precio = +j.lastPrice; _libro.chg = +j.priceChangePercent; }

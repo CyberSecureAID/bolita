@@ -206,8 +206,8 @@ function inyectarFixGrafica() {
     #nv-overlay #nv-widget{display:none!important}
     #nv-overlay .nv-sel{max-width:44vw}
     #nv-overlay .nv-c,#mu-overlay .mu-c{padding-bottom:64px!important}
-    #lqp-overlay,#lq-overlay,#ac-overlay{align-items:flex-start!important;padding-top:calc(8px + env(safe-area-inset-top,0px))!important;padding-bottom:70px!important}
-    #lqp-overlay>*,#lq-overlay>*,#ac-overlay>*{max-height:none!important}
+    #lqp-overlay,#lq-overlay,#ac-overlay{align-items:flex-start!important;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 70px!important}
+    #lqp-overlay .lqp-c,#lq-overlay .lq-c,#ac-overlay .ac-c{max-height:calc(100vh - 90px)!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
     #swap-modal{padding-bottom:80px!important}
   }`;
   document.head.appendChild(s);
@@ -270,7 +270,16 @@ function uidEnPerfil() {
   document.head.appendChild(s);
 }
 
-function abrirSoporte() { const fab = $('npFab') || $('np-fab-previo'); if (fab) fab.click(); }
+function abrirSoporte() {
+  // El FAB está oculto en móvil pero sigue siendo funcional: al hacer click
+  // carga el asistente y abre el chat. Si ya cargó, usamos el real (#npFab).
+  const real = $('npFab');
+  if (real) { real.click(); return; }
+  const previo = $('np-fab-previo');
+  if (previo) { previo.click(); return; }
+  // Último recurso: reintentar cuando aparezca el asistente.
+  let n = 0; const t = setInterval(() => { n++; const r = $('npFab'); if (r) { clearInterval(t); r.click(); } else if (n > 40) clearInterval(t); }, 150);
+}
 
 function clicWeb(id) {
   const b = $(id);
@@ -368,7 +377,7 @@ export async function montarMovil(deps) {
   inyectarMovil();
   // Oculta el FAB del asistente en móvil (el soporte se abre desde la cáscara).
   const st = document.createElement('style'); st.id = 'mv-fab-fix';
-  st.textContent = '@media(max-width:760px){#np-fab-previo,#npFab{display:none!important}}';
+  st.textContent = '@media(max-width:760px){#np-fab-previo,#npFab{display:none!important}#np-chat,#npChat{z-index:11500!important}}';
   document.head.appendChild(st);
 
   const app = document.createElement('div');
