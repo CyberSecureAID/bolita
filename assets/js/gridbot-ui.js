@@ -28,6 +28,18 @@ const $ = (id) => document.getElementById(id);
 
 
 const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'geo', precio: null, rutas: null, avanzado: false, saldoQuote: null, preset: 'equilibrado', tipo: 'grid', margenModo: 'cuadriculas' };
+
+/* En móvil se muestra la cáscara tipo exchange (assets/js/movil). Para que NO
+   se vea un parpadeo de la web antes de que monte, ocultamos su contenedor
+   desde ya con una regla que la propia cáscara desactiva al abrir "bots". */
+try {
+  if (window.matchMedia('(max-width: 760px)').matches && !window._mvHideWeb) {
+    const _st = document.createElement('style');
+    _st.textContent = '#colmena-app{visibility:hidden}';
+    (document.head || document.documentElement).appendChild(_st);
+    window._mvHideWeb = _st;
+  }
+} catch (_) {}
 /* Configuraciones auditadas: cada cuadrícula deja beneficio REAL después de
    pagar el gas de la red y la comisión del exchange, incluso con 50 USDT.
    Antes "Activo" (40 cuadrículas en ±12%) perdía dinero en cada vuelta: las
