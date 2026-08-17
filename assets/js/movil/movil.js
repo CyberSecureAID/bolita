@@ -10,7 +10,7 @@ import { inyectarMovil } from './estilos.js?v=1';
 import { IC } from './iconos.js?v=1';
 import { pintarInicio } from './inicio.js?v=1';
 import { pintarMercados } from './markets.js?v=1';
-import { pintarOperar } from './operar.js?v=1';
+import { pintarOperar, prepararOperar } from './operar.js?v=1';
 import { pintarActivos } from './activos.js?v=1';
 import { abrirMenu } from './menu.js?v=1';
 import { abrirBuscar } from './buscar.js?v=1';
@@ -234,5 +234,23 @@ export async function montarMovil(deps) {
 
   pintarNav();
   irA('home');
+
+  /* Puente Smart Levels → Operar (solo móvil): al tocar "Establecer posición"
+     en el menú de clic derecho, en vez de la ficha, va a Operar con esa moneda. */
+  document.addEventListener('click', (e) => {
+    if (!_movil()) return;
+    const btn = e.target.closest && e.target.closest('.od-menu .od-m-b');
+    if (!btn) return;
+    if (!$('nv-overlay')) return;                 // solo desde Smart Levels
+    const menu = btn.closest('.od-menu');
+    const vender = menu && menu.classList.contains('vender');
+    const selB = document.querySelector('#nv-sel b');
+    const coinId = selB ? selB.textContent.trim() : null;
+    e.preventDefault(); e.stopPropagation();
+    if (menu) menu.remove();
+    prepararOperar(coinId, vender ? 'sell' : 'buy');
+    irA('trade');
+  }, true);
+
   try { if (wallet.alCambiar) wallet.alCambiar(() => { _bal = null; refrescarBalance(); if (_tab === 'home') irA('home'); }); } catch (_) {}
 }

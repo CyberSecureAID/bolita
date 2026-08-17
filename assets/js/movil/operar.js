@@ -35,6 +35,7 @@ export async function pintarOperar(host, api) {
         ${chev()}
       </button>
       <div class="op-acts">
+        <button class="op-ic" id="op-alert" title="Alerta de precio">${IC.bell}</button>
         <button class="op-ic" id="op-mini" title="Gráfica">${IC.minichart}</button>
         <button class="op-ic" id="op-bots" title="Bots">${IC.bot}</button>
         <button class="op-ic" id="op-vela" title="Smart Levels">${IC.candles}</button>
@@ -80,7 +81,13 @@ export async function pintarOperar(host, api) {
   $('op-mini').onclick = $('op-vela').onclick = () => api.abrirGrafica('niveles', _par);
   $('op-bots').onclick = () => api.abrir('bots');
   $('op-tools').onclick = () => api.abrir('tools');
+  $('op-alert').onclick = () => dialogoAlerta();
   ponerLogo();
+
+  // Si se llegó desde Smart Levels con un lado, se resalta el botón.
+  if (_lado === 'sell') { const s = $('op-sell'); if (s) s.style.outline = '2px solid var(--mv-down)'; }
+  else if (_lado === 'buy') { const s = $('op-buy'); if (s) s.style.outline = '2px solid var(--mv-up)'; }
+  _lado = null;
 
   // Market/Limit
   host.querySelectorAll('.op-olt').forEach((b) => b.onclick = () => {
@@ -179,20 +186,71 @@ async function cargar() {
   renderBook();
 }
 
-function operar(lado) {
+async function operar(lado) {
+  // ¿Se puede comerciar esta moneda en la plataforma?
+  let ok = true;
+  try { const o = await import('../orden.js?v=126'); if (o.sePuedeOperar) ok = await o.sePuedeOperar(_par.id); } catch (_) {}
+  if (!ok) { mensaje('Solo para análisis', `${_par.id} está disponible para analizar en las gráficas, pero no se puede comerciar en la plataforma.`); return; }
+  // Al vender, ¿tiene saldo de esa moneda?
+  if (lado === 'sell') {
+    const b = _api.balance && _api.balance();
+    const tiene = b && b.activos && b.activos.find((a) => a.id === _par.id && a.bal > 0);
+    if (b && b.conectado && !tiene) { mensaje('Sin saldo', `No tienes ${_par.id} en tu wallet para vender.`); return; }
+  }
   if (_tipo === 'market') {
-    // Compra/venta a mercado → Swap. Si es compra, registra la posición.
     if (lado === 'buy' && _api.estaConectado && _api.estaConectado()) {
       const amt = parseFloat(($('op-in-amt') || {}).value) || 0;
-      if (amt > 0 && _libro.precio) {
-        const l = posGuardadas(); l.push({ id: _par.id, cantidad: amt, quote: _quote, entrada: _libro.precio, ts: Date.now() }); posGuardar(l);
-      }
+      if (amt > 0 && _libro.precio) { const l = posGuardadas(); l.push({ id: _par.id, cantidad: amt, quote: _quote, entrada: _libro.precio, ts: Date.now() }); posGuardar(l); }
     }
     _api.abrir('swap');
   } else {
-    // Limit → Smart Levels (poner orden a un precio).
     _api.abrirGrafica('niveles', _par);
   }
+}
+
+/* Alerta de precio para la moneda actual (mismo sistema que Smart Levels). */
+function dialogoAlerta() {
+  let sh = $('mv-sheet'); if (sh) sh.remove();
+  sh = document.createElement('div'); sh.id = 'mv-sheet';
+  const px = _libro.precio ? fmtP(_libro.precio) : '';
+  sh.innerHTML = `<div class="mv-sheet-bg"></div><div class="mv-sheet-card">
+    <div class="mv-sheet-h"><b>Alerta de precio · ${esc(_par.id)}</b><span>Te avisamos cuando el precio llegue</span></div>
+    <div class="op-field" style="background:var(--mv-card2)"><span>Precio</span><input id="op-al-price" inputmode="decimal" placeholder="${px}"><b>${esc(_quote)}</b></div>
+    <button class="mv-sheet-op" id="op-al-ok" style="justify-content:center;color:var(--mv-gold);font-weight:800">Crear alerta</button>
+    <button class="mv-sheet-cancel">Cancelar</button></div>`;
+  document.body.appendChild(sh);
+  const cerrar = () => sh.remove();
+  sh.querySelector('.mv-sheet-bg').onclick = cerrar;
+  sh.querySelector('.mv-sheet-cancel').onclick = cerrar;
+  $('op-al-ok').onclick = () => {
+    const val = parseFloat(String(($('op-al-price') || {}).value).replace(',', '.')) || 0;
+    if (!(val > 0)) return;
+    try {
+      const K = 'cco-ordenes-aviso';
+      const l = JSON.parse(localStorage.getItem(K) || '[]');
+      l.push({ par: _par.id, simbolo: _par.s, precio: val, cant: 0, vender: _libro.precio ? val > _libro.precio : false, sl: 0, cuando: Date.now(), id: Date.now() + '-' + Math.random().toString(36).slice(2, 7) });
+      localStorage.setItem(K, JSON.stringify(l.slice(-40)));
+    } catch (_) {}
+    cerrar();
+    mensaje('Alerta creada', `Te avisaremos cuando ${_par.id} llegue a ${fmtP(val)} ${_quote}.`);
+  };
+  setTimeout(() => { const i = $('op-al-price'); if (i) i.focus(); }, 60);
+}
+
+/* Mensaje responsive (no bloqueante), reutiliza el toast de la cáscara. */
+function mensaje(t, s) {
+  let d = document.getElementById('mv-toast');
+  if (!d) { d = document.createElement('div'); d.id = 'mv-toast'; document.body.appendChild(d); }
+  d.innerHTML = `<b>${esc(t)}</b><br><span>${esc(s)}</span>`;
+  d.classList.add('show');
+  clearTimeout(d._t); d._t = setTimeout(() => d.classList.remove('show'), 3200);
+}
+
+/* Llegada desde Smart Levels: fija la moneda y el lado antes de mostrar Operar. */
+export function prepararOperar(parId, lado) {
+  const set = (list) => { const p = (list || []).find((x) => x.id === parId); if (p) _par = p; _lado = lado || null; _libro = { asks: [], bids: [], precio: null, chg: null }; };
+  if (_pares.length) set(_pares);
+  else { import('../niveles/config.js?v=1').then((c) => { _pares = (c.PARES || []).slice(); set(_pares); }).catch(() => {}); }
 }
 
 function selectorMoneda() {
