@@ -125,8 +125,10 @@ export async function pintarOperar(host, api) {
 
   // Posición / órdenes / bots
   host.querySelectorAll('.op-tab').forEach((b) => b.onclick = () => {
+    const t = b.getAttribute('data-pt');
+    if (t === 'bots') { _api.abrir('bots'); return; }   // abre la sección REAL "Mis bots"
     host.querySelectorAll('.op-tab').forEach((x) => x.classList.toggle('on', x === b));
-    pintarPanel(b.getAttribute('data-pt'));
+    pintarPanel(t);
   });
   pintarPanel('pos');
 
@@ -144,13 +146,6 @@ function posGuardar(l) { try { localStorage.setItem('mv-pos', JSON.stringify(l))
 async function pintarPanel(t) {
   const el = $('op-panel'); if (!el) return;
   const con = _api && _api.estaConectado && _api.estaConectado();
-  if (t === 'bots') {
-    if (!con) { restaurarBotCard(); el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus bots activos.</div>`; return; }
-    el.innerHTML = `<div class="op-loading"><span class="op-spin"></span>Cargando tus bots…</div>`;
-    reflejarBotsReales(el);
-    return;
-  }
-  restaurarBotCard();
   if (t === 'ord') {
     if (!con) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus órdenes.</div>`; return; }
     let ordenes = [];

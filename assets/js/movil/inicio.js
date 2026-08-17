@@ -157,7 +157,7 @@ export function pintarInicio(host, api) {
   if (track) {
     const card = (c) => `<button class="mv-svc-card" data-go="${c.go}" style="--bc:${c.color}">
       <span class="mv-svc-ic" style="color:${c.color}">${IC[c.ic] || IC.bot}</span>
-      <b>${c.kick}</b><small>${c.h}</small></button>`;
+      <b>${c.kick}</b></button>`;
     track.innerHTML = (SERVICIOS.map(card).join('') + SERVICIOS.map(card).join(''));
     track.style.setProperty('--n', SERVICIOS.length);
     track.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => api.abrir(b.getAttribute('data-go')));

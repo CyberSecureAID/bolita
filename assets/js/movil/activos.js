@@ -30,10 +30,7 @@ export function pintarActivos(host, api) {
     <div class="ac-card">
       <div class="ac-card-top">
         <span class="ac-lbl" id="ac-eye">Balance total ${IC.eye}</span>
-        <div class="ac-top-r">
-          <button class="ac-share" id="ac-share" title="Compartir" aria-label="Compartir"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></button>
-          <span class="ac-brand">${esc(APP_NOMBRE)}</span>
-        </div>
+        <span class="ac-brand">${esc(APP_NOMBRE)}</span>
       </div>
       <div class="ac-bal" id="ac-bal">—</div>
       <div class="ac-sub" id="ac-sub"></div>
@@ -56,7 +53,6 @@ export function pintarActivos(host, api) {
   `;
 
   $('ac-support').onclick = () => api.abrir('soporte');
-  $('ac-share').onclick = () => compartirBalance(api);
   $('ac-alert').onclick = () => api.abrir('alertasTool');
   $('ac-recv').onclick = () => api.abrir('recibir');
   $('ac-buy').onclick = () => api.abrir('buy');

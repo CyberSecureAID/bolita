@@ -115,12 +115,12 @@ export function inyectarMovil() {
   .mv-svc-track{display:flex;gap:10px;width:max-content;animation:mvSvc calc(var(--n,11) * 3.2s) linear infinite}
   .mv-svc:active .mv-svc-track,.mv-svc-track:hover{animation-play-state:paused}
   @keyframes mvSvc{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-  .mv-svc-card{flex:0 0 auto;width:140px;height:96px;background:var(--mv-card);border:1px solid var(--mv-line);
-    border-top:2px solid var(--bc,var(--mv-line));border-radius:15px;padding:13px 12px;display:flex;flex-direction:column;
-    align-items:flex-start;gap:6px;text-align:left;color:inherit}
-  .mv-svc-ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--bc,var(--mv-gold)) 13%,transparent)}
+  .mv-svc-card{flex:0 0 auto;width:132px;height:104px;background:var(--mv-card);border:1px solid var(--mv-line);
+    border-top:2px solid var(--bc,var(--mv-line));border-radius:15px;padding:14px 13px;display:flex;flex-direction:column;
+    align-items:flex-start;justify-content:space-between;gap:10px;text-align:left;color:inherit}
+  .mv-svc-ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--mv-card2);border:1px solid var(--mv-line)}
   .mv-svc-ic svg{width:22px;height:22px}
-  .mv-svc-card b{font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%} .mv-svc-card small{font-size:11px;color:var(--mv-mut);line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .mv-svc-card b{font-size:14px;font-weight:800;line-height:1.25;white-space:nowrap;width:100%}
   .mv-tdots{display:flex;gap:4px;position:absolute;bottom:10px;left:50%;transform:translateX(-50%)}
   .mv-tdots i{width:5px;height:5px;border-radius:50%;background:var(--mv-line)}
   .mv-tdots i.on{background:var(--mv-gold);width:16px;border-radius:3px}
@@ -419,7 +419,7 @@ export function inyectarMovil() {
   .ac-share:active{background:rgba(255,255,255,.12)}
   .ac-lbl{display:inline-flex;align-items:center;gap:6px;color:var(--mv-mut);font-size:12.5px;cursor:pointer}
   .ac-lbl svg{width:15px;height:15px;opacity:.85}
-  .ac-brand{font-size:13px;font-weight:800;color:var(--mv-gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58%;letter-spacing:.2px}
+  .ac-brand{font-size:13px;font-weight:800;color:var(--mv-gold);white-space:nowrap;letter-spacing:.2px}
   .ac-bal{font-size:36px;font-weight:800;letter-spacing:-.6px;margin:10px 0 2px}
   .ac-sub{color:var(--mv-mut);font-size:12.5px;min-height:16px}
   .ac-acts{display:flex;gap:9px;margin-top:18px}

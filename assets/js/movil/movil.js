@@ -137,7 +137,16 @@ async function abrirToolDirecto(id) {
   inyectarFixTools();
   const m = await import('../tools.js?v=125');
   if (m.abrirTools) m.abrirTools();
-  setTimeout(() => { const b = document.querySelector(`[data-tool="${id}"]`); if (b) b.click(); }, 140);
+  const tl = $('tl-overlay'); if (tl) tl.style.visibility = 'hidden';   // sin flash de Tools
+  setTimeout(() => {
+    const btn = document.querySelector(`[data-tool="${id}"]`); if (btn) btn.click();
+    // cuando el overlay de la herramienta aparezca, cerrar Tools del todo
+    let n = 0; const t = setInterval(() => {
+      n++;
+      if ($('pv-overlay') || $('al-overlay')) { clearInterval(t); const e = $('tl-overlay'); if (e) e.remove(); }
+      else if (n > 40) { clearInterval(t); const e = $('tl-overlay'); if (e) e.style.visibility = ''; }
+    }, 60);
+  }, 140);
 }
 
 /* Tools en móvil: cuadrícula compacta (2 por fila), modal responsive con scroll. */
@@ -152,6 +161,9 @@ function inyectarFixTools() {
       min-height:104px!important;padding:13px!important;gap:7px!important}
     #tl-overlay .tl-item>*{text-align:left!important}
     #tl-overlay .tl-c::-webkit-scrollbar{display:none}
+    #pv-overlay{align-items:flex-start!important;padding:calc(10px + env(safe-area-inset-top,0px)) 10px 70px!important}
+    #pv-overlay .pv-c{max-width:460px!important;width:calc(100% - 20px)!important;margin:0 auto!important;max-height:calc(100vh - 90px)!important;overflow-y:auto!important;padding:20px 15px!important}
+    #pv-overlay .pv-c::-webkit-scrollbar{display:none}
   }`;
   document.head.appendChild(s);
 }
