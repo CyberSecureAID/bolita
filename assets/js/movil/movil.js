@@ -9,6 +9,8 @@ import * as gb from '../gridbot.js?v=125';
 import { inyectarMovil } from './estilos.js?v=1';
 import { IC } from './iconos.js?v=1';
 import { pintarInicio } from './inicio.js?v=1';
+import { pintarMercados } from './markets.js?v=1';
+import { abrirMenu } from './menu.js?v=1';
 
 const $ = (id) => document.getElementById(id);
 const _movil = () => window.matchMedia('(max-width: 760px)').matches;
@@ -31,13 +33,30 @@ async function abrir(clave) {
       case 'academy':   { const m = await import('../academy.js?v=125'); m.abrirAcademy && m.abrirAcademy(); break; }
       case 'prize':     { const m = await import('../prizepool.js?v=125'); m.abrirPrizePool && m.abrirPrizePool(); break; }
       case 'perfil':    { const m = await import('../perfil.js?v=125'); m.abrirPerfil && m.abrirPerfil(); break; }
+      case 'muros':     { const m = await import('../muros.js?v=126'); m.abrirMuros && m.abrirMuros(); break; }
       case 'bots':      revelarPortada(); break;   // el creador de bots es la portada
       case 'buscar':    { const m = await import('../market.js?v=125'); m.abrirMarket && m.abrirMarket(); break; }
       case 'soporte':   abrirSoporte(); break;
       case 'alertas':   abrirAlertas(); break;
+      case 'menu':      abrirMenu(api()); break;
+      case 'idioma':    clicWeb('c-idioma'); break;
+      case 'instalar':  clicWeb('c-instalar'); break;
       default: break;
     }
   } catch (e) { /* si un módulo no carga, no rompemos la cáscara */ }
+}
+
+/* Reusa un control existente de la web (idioma, instalar) disparando su click. */
+function clicWeb(id) {
+  const b = document.getElementById(id);
+  if (b) { b.click(); return; }
+  const men = document.getElementById('c-menu'); if (men) men.click();
+  setTimeout(() => { const b2 = document.getElementById(id); if (b2) b2.click(); }, 60);
+}
+
+/* Abre la gráfica elegida para una moneda (Smart Levels / Radar / Pools). */
+async function abrirGrafica(g, par) {
+  await abrir(g === 'niveles' ? 'niveles' : g === 'muros' ? 'muros' : 'liquidity');
 }
 
 /* Deja ver la portada real (creador de bots) ocultando la cáscara, con botón de volver. */
@@ -101,6 +120,7 @@ function api() {
     estaConectado: () => !!(wallet.cuentaActual && wallet.cuentaActual()),
     balance: () => _balCache,
     alertas: () => 0,
+    abrirGrafica,
   };
 }
 
@@ -124,12 +144,13 @@ async function irA(tab) {
   if (host._limpiar) { try { host._limpiar(); } catch (_) {} host._limpiar = null; }
   host.scrollTop = 0;
 
-  if (tab === 'home') { pintarInicio(host, api()); refrescarBalance(); return; }
-  // Pantallas 2/3/4: por ahora abren la sección real equivalente (se reemplazan
-  // por pantallas completas en los siguientes pasos). Volvemos a Inicio detrás.
-  if (tab === 'markets') { pintarInicio(host, api()); _tab = 'home'; pintarNav(); abrir('market'); return; }
-  if (tab === 'trade')   { pintarInicio(host, api()); _tab = 'home'; pintarNav(); abrir('niveles'); return; }
-  if (tab === 'assets')  { pintarInicio(host, api()); _tab = 'home'; pintarNav(); abrir('perfil'); return; }
+  if (tab === 'home')    { pintarInicio(host, api()); refrescarBalance(); return; }
+  if (tab === 'markets') { pintarMercados(host, api()); return; }
+  // Pantallas 3 y 4 (Operar / Activos): se construyen en los siguientes pasos.
+  // Por ahora abren la sección real equivalente para NO ocultar nada; el tab
+  // vuelve a la pantalla previa detrás.
+  if (tab === 'trade')   { _tab = 'markets'; pintarMercados(host, api()); abrir('niveles'); return; }
+  if (tab === 'assets')  { _tab = 'home'; pintarInicio(host, api()); abrir('perfil'); return; }
 }
 
 async function refrescarBalance() {

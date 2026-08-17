@@ -79,6 +79,8 @@ export function inyectarMovil() {
   .mv-strip .mv-strip-tx b{display:block;font-size:14.5px;font-weight:700}
   .mv-strip .mv-strip-tx small{display:block;color:var(--mv-mut);font-size:12px;margin-top:2px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mv-strip{position:relative}
+  .mv-strip .mv-strip-count{position:absolute;top:8px;right:12px;font-size:11px;color:var(--mv-mut2);font-weight:700}
   .mv-strip .mv-strip-go{flex:0 0 auto;font-size:12px;font-weight:800;color:#1a1200;background:var(--mv-gold);
     padding:7px 13px;border-radius:20px}
   .mv-viewall{text-align:center;color:var(--mv-mut);font-size:13px;font-weight:600;padding:12px 0 2px}
@@ -158,6 +160,41 @@ export function inyectarMovil() {
   .mv-hold{display:flex;align-items:center;gap:12px;padding:15px 2px;border-bottom:1px solid var(--mv-line)}
   .mv-hold .mv-h-nm{flex:1;min-width:0} .mv-hold .mv-h-nm b{font-size:15px} .mv-hold .mv-h-nm small{display:block;color:var(--mv-mut);font-size:12px}
   .mv-hold .mv-h-am{text-align:right} .mv-hold .mv-h-am b{font-size:15px} .mv-hold .mv-h-am small{display:block;color:var(--mv-mut);font-size:12px}
+
+  /* ── Bottom sheet (selector de gráfica) ── */
+  #mv-sheet{position:fixed;inset:0;z-index:8500;display:flex;flex-direction:column;justify-content:flex-end}
+  #mv-sheet .mv-sheet-bg{position:absolute;inset:0;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+  #mv-sheet .mv-sheet-card{position:relative;background:var(--mv-bg2);border-top-left-radius:22px;border-top-right-radius:22px;
+    border:1px solid var(--mv-line);border-bottom:0;padding:18px 16px calc(20px + env(safe-area-inset-bottom,0px));animation:mvUp .22s ease}
+  @keyframes mvUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+  #mv-sheet .mv-sheet-h{text-align:center;margin-bottom:12px}
+  #mv-sheet .mv-sheet-h b{display:block;font-size:16px}
+  #mv-sheet .mv-sheet-h span{display:block;color:var(--mv-mut);font-size:12.5px;margin-top:2px}
+  #mv-sheet .mv-sheet-op{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--mv-card);
+    border:1px solid var(--mv-line);border-radius:14px;padding:14px;margin-bottom:10px}
+  #mv-sheet .mv-sheet-op svg{width:26px;height:26px;color:var(--mv-gold);flex:0 0 auto}
+  #mv-sheet .mv-sheet-op b{display:block;font-size:15px}
+  #mv-sheet .mv-sheet-op small{display:block;color:var(--mv-mut);font-size:12px;margin-top:1px}
+  #mv-sheet .mv-sheet-op:active{background:var(--mv-card2)}
+  #mv-sheet .mv-sheet-cancel{width:100%;background:var(--mv-card2);border:1px solid var(--mv-line);border-radius:14px;
+    padding:14px;color:var(--mv-txt);font-weight:700;font-size:15px;margin-top:2px}
+
+  /* ── Menú completo de servicios ── */
+  #mv-menu{position:fixed;inset:0;z-index:8500;display:flex;flex-direction:column;justify-content:flex-end}
+  #mv-menu .mv-menu-bg{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+  #mv-menu .mv-menu-card{position:relative;background:var(--mv-bg2);border-top-left-radius:22px;border-top-right-radius:22px;
+    border:1px solid var(--mv-line);border-bottom:0;padding:16px 16px calc(20px + env(safe-area-inset-bottom,0px));max-height:82vh;overflow-y:auto;animation:mvUp .22s ease}
+  #mv-menu .mv-menu-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  #mv-menu .mv-menu-h b{font-size:17px;font-weight:800}
+  #mv-menu .mv-menu-h button{color:var(--mv-mut);font-size:22px;line-height:1;padding:4px 8px}
+  #mv-menu button,#mv-sheet button{background:none;border:0;color:inherit;font-family:inherit;cursor:pointer;box-shadow:none}
+  #mv-menu .mv-menu-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 4px}
+  #mv-menu .mv-mg-i{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px;border-radius:14px;background:none}
+  #mv-menu .mv-mg-i:active{background:var(--mv-card)}
+  #mv-menu .mv-mg-i .mv-mg-box{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;background:var(--mv-card);border:1px solid var(--mv-line)}
+  #mv-menu .mv-mg-i .mv-mg-box svg{width:23px;height:23px;color:var(--mv-gold)}
+  #mv-menu .mv-mg-i span{font-size:11.5px;color:var(--mv-mut);text-align:center;line-height:1.2}
+  #mv-menu .mv-menu-sub{color:var(--mv-mut2);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:14px 4px 4px}
   `;
   document.head.appendChild(s);
 }

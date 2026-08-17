@@ -74,11 +74,12 @@ export function pintarInicio(host, api) {
     </div>`}
 
     <div class="mv-strip" id="mv-strip">
+      <span class="mv-strip-count" id="mv-strip-count"></span>
       <div class="mv-strip-ic" id="mv-strip-ic">${IC.trophy}</div>
       <div class="mv-strip-tx"><b id="mv-strip-t">—</b><small id="mv-strip-s">—</small></div>
       <button class="mv-strip-go" id="mv-strip-go">Ver</button>
     </div>
-    <div class="mv-viewall" id="mv-viewall">Ver todo <b>→</b></div>
+    <div class="mv-viewall" id="mv-viewall">Ver todos los servicios <b>→</b></div>
 
     <div class="mv-two">
       <div class="mv-tcard" id="mv-tc-0"></div>
@@ -104,6 +105,7 @@ export function pintarInicio(host, api) {
   const cb = $('mv-connect-btn'); if (cb) cb.onclick = () => api.conectar();
   host.querySelectorAll('.mv-qi').forEach((el) => { el.onclick = () => api.abrir(el.getAttribute('data-k')); });
   $('mv-prize-go').onclick = $('mv-prize-more').onclick = () => api.abrir('prize');
+  $('mv-viewall').onclick = () => api.abrir('menu');
 
   // ── Franja de promos rotativa ──
   let pi = 0;
@@ -113,6 +115,7 @@ export function pintarInicio(host, api) {
     $('mv-strip-t').textContent = p.t; $('mv-strip-s').textContent = p.s;
     $('mv-strip-go').onclick = () => api.abrir(p.go);
     $('mv-strip').onclick = (e) => { if (e.target.id !== 'mv-strip-go') api.abrir(p.go); };
+    const c = $('mv-strip-count'); if (c) c.textContent = ((pi % PROMOS.length) + 1) + '/' + PROMOS.length;
   };
   pintarPromo();
   const tPromo = setInterval(() => { pi++; pintarPromo(); }, 4500);
