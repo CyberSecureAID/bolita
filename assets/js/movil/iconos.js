@@ -29,4 +29,12 @@ export const IC = {
   transfer: w('<path d="M4 8h13M13 4l4 4-4 4"/><path d="M20 16H7M11 20l-4-4 4-4"/>'),
   buy: w('<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><circle cx="8" cy="14" r="1.3"/>'),
   star: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 3l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>',
+  sell: w('<path d="M4 7h11l5 5-5 5H4z"/><path d="M8 12h4"/>'),
+  dollar: w('<path d="M12 3v18"/><path d="M16 7.5c0-1.7-1.8-2.5-4-2.5s-4 .9-4 2.6c0 3.9 8 2.1 8 6 0 1.8-1.9 2.9-4 2.9s-4-1-4-2.7"/>'),
+  clock: w('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+  cube: w('<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>'),
+  dots: w('<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>'),
+  book2: w('<path d="M4 5h7v14H4z"/><path d="M13 5h7v14h-7z"/><path d="M6 8h3M6 11h3M15 8h3M15 11h3"/>'),
+  minichart: w('<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M6 14l3-3 2 2 4-5"/>'),
+  bolt: w('<path d="M13 3L5 13h5l-1 8 8-11h-5z"/>'),
 };

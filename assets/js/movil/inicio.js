@@ -5,33 +5,33 @@ import { IC } from './iconos.js?v=1';
 const $ = (id) => document.getElementById(id);
 const LS = { ojo: 'mv-ojo', denom: 'mv-denom' };
 
-/* Accesos rápidos → secciones reales. Sin Smart Levels (ya está en "Operar").
-   Comprar y Vender van al Marketplace en su pestaña. */
+/* Accesos rápidos → 6 exactos. Sin Smart Levels (está en "Operar") ni Tools
+   (Tools va en la franja de servicios de abajo). */
 const QUICK = [
   { k: 'buy',       ic: 'buy',    t: 'Comprar' },
-  { k: 'sell',      ic: 'coins',  t: 'Vender' },
+  { k: 'sell',      ic: 'sell',   t: 'Vender' },
   { k: 'bots',      ic: 'bot',    t: 'Bots', tag: 'HOT' },
   { k: 'swap',      ic: 'swap',   t: 'Swap' },
   { k: 'liquidity', ic: 'pool',   t: 'Liquidity' },
   { k: 'academy',   ic: 'book',   t: 'Academia', tag: 'TOP' },
-  { k: 'tools',     ic: 'tools',  t: 'Herramientas' },
-  { k: 'prize',     ic: 'trophy', t: 'Prize Pool' },
 ];
 
 const PROMOS = [
   { ic: 'book',   t: 'Academia CriptoCuba', s: 'Aprende a operar y multiplica tu ventaja', go: 'academy' },
   { ic: 'trophy', t: 'Prize Pool comunitario', s: 'Participa y gana del fondo común', go: 'prize' },
   { ic: 'bot',    t: 'Bots que operan por ti', s: 'Compran abajo y venden arriba, en tu wallet', go: 'bots' },
+  { ic: 'tools',  t: 'Herramientas', s: 'Calculadoras y utilidades para operar mejor', go: 'tools' },
   { ic: 'swap',   t: 'Intercambia cualquier cripto', s: 'Swap directo, sin KYC, no custodial', go: 'swap' },
   { ic: 'pool',   t: 'Liquidity Pools', s: 'Analiza profundidad y liquidez del mercado', go: 'liquidity' },
 ];
 
-/* Bots con su logo e identidad de color. */
+/* Bots con su LOGO (icono) e identidad de color. En la web se ven las fotos;
+   en móvil basta el logo. */
 const BOTCARDS = [
-  { k: 'bots', color: '#2ebd85', img: 'assets/img/bot-grid.webp',       kick: 'Bot Grid',       h: 'Gana en el rango',      p: 'Compra y vende en niveles; cierra cada cuadrícula solo en ganancia.' },
-  { k: 'bots', color: '#E8B84B', img: 'assets/img/bot-acumulador.webp', kick: 'Bot Acumulador', h: 'Acumula en la caída',   p: 'Compra por tramos cuando baja y arma posición sin que estés pendiente.' },
-  { k: 'bots', color: '#4c8dff', img: 'assets/img/bot-dca.webp',        kick: 'Bot DCA',        h: 'Invierte a intervalos', p: 'Compra cantidades fijas cada cierto tiempo para promediar tu entrada.' },
-  { k: 'bots', color: '#f6465d', img: 'assets/img/bot-cashout.webp',    kick: 'Bot Cash Out',   h: 'Asegura ganancias',     p: 'Retira beneficios de forma escalonada a medida que el precio sube.' },
+  { k: 'bots', color: '#2ebd85', ic: 'cube',   kick: 'Smart Grid',  h: 'Gana en el rango',      p: 'Compra y vende en niveles; cierra cada cuadrícula solo en ganancia.' },
+  { k: 'bots', color: '#E8B84B', ic: 'stack',  kick: 'Acumulador',  h: 'Acumula en la caída',   p: 'Compra por tramos cuando baja y arma posición sin que estés pendiente.' },
+  { k: 'bots', color: '#f6465d', ic: 'dollar', kick: 'Cash Out',    h: 'Asegura ganancias',     p: 'Vende lo que ya tienes al precio o % que elijas.' },
+  { k: 'bots', color: '#4c8dff', ic: 'clock',  kick: 'DCA',         h: 'Invierte a intervalos', p: 'Compra cantidades fijas cada cierto tiempo para promediar tu entrada.' },
 ];
 
 let _ojo = leer(LS.ojo) === '1';
@@ -143,7 +143,7 @@ export function pintarInicio(host, api) {
       const el = $('mv-tc-' + j); if (!el) continue;
       el.style.setProperty('--bc', c.color);
       el.innerHTML = `<div class="mv-tc-kick" style="color:${c.color}">${c.kick}</div>
-        <div class="mv-tc-logo"><img src="${c.img}" alt="" onerror="this.style.display='none'"></div>
+        <div class="mv-tc-logo" style="color:${c.color}">${IC[c.ic] || IC.bot}</div>
         <h4>${c.h}</h4><p>${c.p}</p>`;
       el.onclick = () => api.abrir('bots');
     }
