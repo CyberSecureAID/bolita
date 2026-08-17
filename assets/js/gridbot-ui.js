@@ -35,7 +35,8 @@ const F = { baseId: 'BNB', quoteId: 'USDT', modo: 'geo', precio: null, rutas: nu
 try {
   if (window.matchMedia('(max-width: 760px)').matches && !window._mvHideWeb) {
     const _st = document.createElement('style');
-    _st.textContent = '#colmena-app{visibility:hidden}';
+    _st.textContent = '#colmena-app{visibility:hidden}#swap-modal,#coin-modal{visibility:visible!important}'
+      + '#np-fab-previo,#npFab,#np-chat,#npChat{display:none!important}';
     (document.head || document.documentElement).appendChild(_st);
     window._mvHideWeb = _st;
   }
