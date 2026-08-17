@@ -75,9 +75,9 @@ export function inyectarMovil() {
   .mv-cta .mv-second:active{background:#222b36}
 
   /* ── Accesos rápidos (carrusel) ── */
-  .mv-quick{display:flex;gap:4px;overflow-x:auto;overflow-y:visible;scrollbar-width:none;margin:6px -16px 2px;padding:12px 16px 2px}
+  .mv-quick{display:flex;gap:4px;justify-content:space-between;overflow-x:visible;overflow-y:visible;margin:6px 0 2px;padding:12px 0 2px}
   .mv-quick::-webkit-scrollbar{display:none}
-  .mv-qi{flex:0 0 auto;width:72px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer}
+  .mv-qi{flex:1 1 0;min-width:0;max-width:80px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer}
   .mv-qi .mv-qbox{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;position:relative;overflow:visible;
     background:var(--mv-card);border:1px solid var(--mv-line);transition:transform .15s,background .15s,border-color .15s}
   .mv-qi .mv-qbox svg{width:24px;height:24px;color:var(--mv-txt);transition:color .15s}

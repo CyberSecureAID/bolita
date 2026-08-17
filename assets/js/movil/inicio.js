@@ -8,10 +8,9 @@ const $ = (id) => document.getElementById(id);
 const LS = { ojo: 'mv-ojo', denom: 'mv-denom' };
 
 const QUICK = [
-  { k: 'buy',       ic: 'buy',    t: 'Comprar' },
-  { k: 'sell',      ic: 'sell',   t: 'Vender' },
-  { k: 'bots',      ic: 'bot',    t: 'Bots', tag: 'HOT' },
+  { k: 'sell',      ic: 'market', t: 'Market' },
   { k: 'swap',      ic: 'swap',   t: 'Swap' },
+  { k: 'bots',      ic: 'bot',    t: 'Bots', tag: 'HOT' },
   { k: 'liquidity', ic: 'pool',   t: 'Liquidity' },
   { k: 'academy',   ic: 'book',   t: 'Academia', tag: 'TOP' },
 ];
@@ -79,7 +78,6 @@ export function pintarInicio(host, api) {
           <span>${q.t}</span>
         </div>`).join('')}
     </div>
-    <div class="mv-dots"><i class="on"></i><i></i></div>
 
     ${con ? '' : `
     <div class="mv-connect">

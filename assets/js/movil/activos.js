@@ -36,8 +36,7 @@ export function pintarActivos(host, api) {
       <div class="ac-sub" id="ac-sub"></div>
       <div class="ac-acts">
         <button class="ac-act" id="ac-recv"><span>${IC.arrowDown}</span>Recibir</button>
-        <button class="ac-act" id="ac-buy"><span>${IC.buy}</span>Comprar</button>
-        <button class="ac-act" id="ac-sell"><span>${IC.sell}</span>Vender</button>
+        <button class="ac-act" id="ac-market"><span>${IC.market}</span>Market</button>
         <button class="ac-act" id="ac-swap"><span>${IC.swap}</span>Swap</button>
       </div>
     </div>
@@ -55,8 +54,7 @@ export function pintarActivos(host, api) {
   $('ac-support').onclick = () => api.abrir('soporte');
   $('ac-alert').onclick = () => api.abrir('alertasTool');
   $('ac-recv').onclick = () => api.abrir('recibir');
-  $('ac-buy').onclick = () => api.abrir('buy');
-  $('ac-sell').onclick = () => api.abrir('sell');
+  $('ac-market').onclick = () => api.abrir('sell');
   $('ac-swap').onclick = () => api.abrir('swap');
   $('ac-eye').onclick = () => { _ojo = !_ojo; try { localStorage.setItem('mv-ojo', _ojo ? '1' : '0'); } catch (_) {} pintar(); };
   host.querySelectorAll('#ac-tabs button').forEach((btn) => btn.onclick = () => {
