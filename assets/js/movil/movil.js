@@ -221,65 +221,57 @@ function inyectarFixGrafica() {
     #lqp-overlay,#lq-overlay,#ac-overlay{align-items:flex-start!important;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 70px!important}
     #lqp-overlay .lqp-c,#lq-overlay .lq-c,#ac-overlay .ac-c{max-height:calc(100vh - 90px)!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
     /* ── REDISEÑO COMPLETO de Liquidity (Análisis profesional) en móvil ── */
-    #lqp-overlay .lqp-c{background:linear-gradient(180deg,#12161c,#0B0E11)!important;border:1px solid #232b36!important;padding:24px 14px 20px!important;border-radius:20px!important}
+    #lqp-overlay .lqp-c{background:linear-gradient(180deg,#12161c,#0B0E11)!important;border:1px solid #232b36!important;padding:22px 13px 20px!important;border-radius:20px!important}
     #lqp-overlay .lqp-x{background:var(--mv-card2)!important;border:1px solid var(--mv-line)!important;color:var(--mv-mut)!important;width:36px!important;height:36px!important;border-radius:11px!important}
     #lqp-overlay .lqp-eyebrow{color:#E8B84B!important;font-size:11px!important;letter-spacing:1.4px!important;text-transform:uppercase!important;font-weight:800!important}
     #lqp-overlay .lqp-t{color:#eaecef!important;font-size:23px!important;margin:5px 0 4px!important}
     #lqp-overlay .lqp-s{color:#8b96a3!important;font-size:13px!important;margin-bottom:18px!important}
     #lqp-overlay .lqp-activo{background:color-mix(in srgb,#2ebd85 12%,transparent)!important;border:1px solid color-mix(in srgb,#2ebd85 40%,transparent)!important;color:#2ebd85!important;border-radius:12px!important;padding:12px!important;margin-bottom:14px!important}
-    /* Tarjetas de servicio: limpias, imagen 50px, textos ordenados */
-    #lqp-overlay .lqp-servs{display:flex!important;flex-direction:column!important;gap:11px!important;margin-bottom:22px!important}
-    #lqp-overlay .lqp-serv{position:relative!important;display:grid!important;grid-template-columns:50px minmax(0,1fr)!important;column-gap:13px!important;row-gap:3px!important;align-items:start!important;
-      background:#151b23!important;border:1px solid #232b36!important;border-radius:15px!important;padding:14px!important;text-align:left!important;transition:border-color .2s!important}
-    #lqp-overlay .lqp-serv:active{border-color:#E8B84B!important}
-    #lqp-overlay .lqp-img{grid-column:1!important;grid-row:1/span 4!important;width:50px!important;height:50px!important;border-radius:13px!important;align-self:center!important;margin:0!important;flex:0 0 auto!important;background-size:cover!important;background-position:center!important}
-    #lqp-overlay .lqp-ini{font-size:20px!important}
-    #lqp-overlay .lqp-nom{grid-column:2!important;font-size:15.5px!important;font-weight:800!important;color:#eaecef!important;margin:0!important}
-    #lqp-overlay .lqp-lema{grid-column:2!important;font-size:12px!important;color:#E8B84B!important;font-weight:700!important;margin:0!important}
-    #lqp-overlay .lqp-desc{grid-column:2!important;font-size:11.5px!important;color:#8b96a3!important;line-height:1.4!important;margin:2px 0 0!important;overflow-wrap:anywhere!important}
-    #lqp-overlay .lqp-abrir{grid-column:2!important;justify-self:start!important;margin-top:8px!important;font-size:12px!important;font-weight:800!important;color:#E8B84B!important;
-      background:color-mix(in srgb,#E8B84B 14%,transparent)!important;padding:6px 13px!important;border-radius:9px!important}
-    #lqp-overlay .lqp-pronto{grid-column:2!important;justify-self:start!important;margin-top:8px!important;font-size:11.5px!important;color:#8b96a3!important;background:var(--mv-card2)!important;padding:6px 12px!important;border-radius:9px!important}
-    #lqp-overlay .lqp-serv.pronto{opacity:.6!important}
+    /* Tarjetas de servicio: IMAGEN GRANDE arriba (hero), texto debajo */
+    #lqp-overlay .lqp-servs{display:flex!important;flex-direction:column!important;gap:14px!important;margin-bottom:24px!important}
+    #lqp-overlay .lqp-serv{display:block!important;position:relative!important;background:#151b23!important;border:1px solid #232b36!important;
+      border-radius:18px!important;padding:0!important;overflow:hidden!important;text-align:left!important;transition:border-color .2s,transform .2s!important}
+    #lqp-overlay .lqp-serv:active{border-color:#E8B84B!important;transform:scale(.99)!important}
+    #lqp-overlay .lqp-img{display:block!important;width:100%!important;height:132px!important;border-radius:0!important;margin:0!important;
+      background-size:cover!important;background-position:center!important;background-color:#0e1319!important;position:relative!important}
+    #lqp-overlay .lqp-ini{position:absolute!important;inset:0!important;display:grid!important;place-items:center!important;font-size:44px!important;font-weight:800!important;color:rgba(232,184,75,.5)!important}
+    #lqp-overlay .lqp-img.con .lqp-ini{display:none!important}
+    #lqp-overlay .lqp-nom{display:block!important;padding:12px 15px 0!important;font-size:17px!important;font-weight:800!important;color:#eaecef!important;margin:0!important}
+    #lqp-overlay .lqp-lema{display:block!important;padding:2px 15px 0!important;font-size:12.5px!important;color:#E8B84B!important;font-weight:700!important;margin:0!important}
+    #lqp-overlay .lqp-desc{display:block!important;padding:6px 15px 0!important;font-size:12.5px!important;color:#9aa5b1!important;line-height:1.45!important;margin:0!important;overflow-wrap:anywhere!important}
+    #lqp-overlay .lqp-abrir{display:inline-block!important;margin:12px 15px 15px!important;font-size:13px!important;font-weight:800!important;color:#1a1200!important;
+      background:linear-gradient(180deg,#f7db8d,#E8B84B 60%,#d9a72f)!important;padding:9px 16px!important;border-radius:10px!important}
+    #lqp-overlay .lqp-pronto{display:inline-block!important;margin:12px 15px 15px!important;font-size:12px!important;color:#8b96a3!important;background:var(--mv-card2)!important;padding:8px 14px!important;border-radius:10px!important}
+    #lqp-overlay .lqp-serv.pronto{opacity:.7!important}
     /* Separador */
-    #lqp-overlay .lqp-sep{display:flex!important;align-items:center!important;gap:12px!important;margin:4px 0 16px!important;color:#8b96a3!important;font-size:12px!important}
+    #lqp-overlay .lqp-sep{display:flex!important;align-items:center!important;gap:12px!important;margin:6px 0 18px!important;color:#8b96a3!important;font-size:12px!important;text-transform:uppercase!important;letter-spacing:1px!important}
     #lqp-overlay .lqp-sep::before,#lqp-overlay .lqp-sep::after{content:''!important;flex:1!important;height:1px!important;background:#232b36!important}
-    /* Planes: atractivos, precio grande, botón dorado */
-    #lqp-overlay .lqp-planes{display:flex!important;flex-direction:column!important;gap:12px!important;margin-bottom:16px!important}
-    #lqp-overlay .lqp-plan{position:relative!important;display:grid!important;grid-template-columns:1fr auto!important;column-gap:12px!important;row-gap:2px!important;align-items:center!important;
-      background:#151b23!important;border:1px solid #232b36!important;border-radius:16px!important;padding:16px 15px!important;text-align:left!important}
-    #lqp-overlay .lqp-plan.top{border:1.5px solid #E8B84B!important;background:linear-gradient(180deg,rgba(232,184,75,.11),rgba(232,184,75,.02))!important;box-shadow:0 8px 26px rgba(232,184,75,.1)!important}
-    #lqp-overlay .lqp-badge{position:absolute!important;top:-10px!important;left:15px!important;background:#E8B84B!important;color:#1a1200!important;font-size:10px!important;font-weight:900!important;letter-spacing:.4px!important;padding:3px 10px!important;border-radius:8px!important;text-transform:uppercase!important}
-    #lqp-overlay .lqp-plan-n{grid-column:1!important;grid-row:1!important;font-size:16px!important;font-weight:800!important;color:#eaecef!important}
-    #lqp-overlay .lqp-precio{grid-column:2!important;grid-row:1/span 2!important;display:flex!important;align-items:baseline!important;gap:3px!important;justify-self:end!important}
-    #lqp-overlay .lqp-precio b{font-size:28px!important;color:#E8B84B!important;font-weight:800!important;line-height:1!important}
-    #lqp-overlay .lqp-precio span{font-size:12px!important;color:#8b96a3!important;font-weight:700!important}
-    #lqp-overlay .lqp-ahorro{grid-column:1!important;grid-row:2!important;font-size:12.5px!important;color:#2ebd85!important;font-weight:800!important}
-    #lqp-overlay .lqp-ahorro-x{grid-column:1!important;grid-row:2!important;font-size:12px!important;color:#8b96a3!important}
-    #lqp-overlay .lqp-b{grid-column:1/3!important;grid-row:3!important;margin-top:12px!important;width:100%!important;
-      background:linear-gradient(180deg,#f7db8d,#E8B84B 55%,#c79426)!important;color:#3a2800!important;font-weight:800!important;border:0!important;border-radius:12px!important;padding:14px!important;font-size:15px!important}
+    /* Planes: centrados, precio HÉROE, botón dorado */
+    #lqp-overlay .lqp-planes{display:flex!important;flex-direction:column!important;gap:13px!important;margin-bottom:16px!important}
+    #lqp-overlay .lqp-plan{display:flex!important;flex-direction:column!important;align-items:center!important;position:relative!important;
+      background:#151b23!important;border:1px solid #232b36!important;border-radius:16px!important;padding:20px 16px 16px!important;text-align:center!important}
+    #lqp-overlay .lqp-plan.top{border:1.5px solid #E8B84B!important;background:linear-gradient(180deg,rgba(232,184,75,.1),rgba(232,184,75,.02))!important;box-shadow:0 10px 30px rgba(232,184,75,.12)!important}
+    #lqp-overlay .lqp-badge{position:absolute!important;top:-11px!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;
+      background:#E8B84B!important;color:#1a1200!important;font-size:10px!important;font-weight:900!important;letter-spacing:.5px!important;padding:4px 12px!important;border-radius:8px!important;text-transform:uppercase!important;white-space:nowrap!important}
+    #lqp-overlay .lqp-plan-n{font-size:15px!important;font-weight:800!important;color:#c7cdd6!important;margin:0 0 6px!important;text-transform:uppercase!important;letter-spacing:.5px!important}
+    #lqp-overlay .lqp-precio{display:flex!important;align-items:baseline!important;justify-content:center!important;gap:4px!important;margin:0 0 4px!important}
+    #lqp-overlay .lqp-precio b{font-size:40px!important;color:#E8B84B!important;font-weight:800!important;line-height:1!important}
+    #lqp-overlay .lqp-precio span{font-size:14px!important;color:#8b96a3!important;font-weight:700!important}
+    #lqp-overlay .lqp-ahorro{font-size:12.5px!important;color:#2ebd85!important;font-weight:800!important;margin:0 0 12px!important}
+    #lqp-overlay .lqp-ahorro-x{font-size:12px!important;color:#8b96a3!important;margin:0 0 12px!important}
+    #lqp-overlay .lqp-b{width:100%!important;background:linear-gradient(180deg,#f7db8d,#E8B84B 55%,#c79426)!important;color:#3a2800!important;
+      font-weight:800!important;border:0!important;border-radius:12px!important;padding:14px!important;font-size:15px!important}
     #lqp-overlay .lqp-b:active{filter:brightness(1.05)!important}
-    #lqp-overlay .lqp-dias{grid-column:1/3!important;grid-row:4!important;text-align:center!important;margin-top:8px!important;font-size:11.5px!important;color:#8b96a3!important}
+    #lqp-overlay .lqp-dias{margin-top:9px!important;font-size:11.5px!important;color:#8b96a3!important}
     #lqp-overlay .lqp-pago{color:#8b96a3!important;font-size:11.5px!important;line-height:1.5!important;text-align:center!important}
     #lqp-overlay .lqp-pago b{color:#E8B84B!important}
-    /* Academy: solo tonos de la app (sin rediseño estructural) */
+    /* Academy: tonos de la app */
     #ac-overlay .ac-c{background:linear-gradient(180deg,#12161c,#0B0E11)!important;border:1px solid #232b36!important}
     #ac-overlay .ac-que,#ac-overlay .ac-plan{background:#151b23!important;border:1px solid #232b36!important}
     #ac-overlay .ac-plan.top{border:1px solid #E8B84B!important;background:linear-gradient(180deg,rgba(232,184,75,.12),rgba(232,184,75,.02))!important}
     #ac-overlay .ac-eyebrow{color:#E8B84B!important}
     #ac-overlay .ac-t,#ac-overlay h2{color:#eaecef!important}
     #ac-overlay .ac-x{background:var(--mv-card2)!important;border:1px solid var(--mv-line)!important;color:var(--mv-mut)!important}
-    #lqp-overlay .lqp-c{padding:22px 14px 18px!important}
-    #lqp-overlay .lqp-servs{gap:10px!important}
-    #lqp-overlay .lqp-serv{grid-template-columns:54px minmax(0,1fr)!important;gap:2px 12px!important;padding:13px!important;align-items:center!important}
-    #lqp-overlay .lqp-img{width:54px!important;height:54px!important;border-radius:12px!important}
-    #lqp-overlay .lqp-nom{font-size:15px!important;font-weight:800!important}
-    #lqp-overlay .lqp-lema{font-size:12px!important}
-    #lqp-overlay .lqp-desc{font-size:11.5px!important;line-height:1.4!important;margin-top:2px!important}
-    #lqp-overlay .lqp-abrir{font-size:12px!important;margin-top:4px!important}
-    #lqp-overlay .lqp-sep{margin:18px 0 14px!important}
-    #lqp-overlay .lqp-planes{gap:11px!important}
-    #lqp-overlay .lqp-plan{padding:15px 14px!important;border-radius:14px!important}
     #swap-modal{padding-bottom:80px!important}
   }`;
   document.head.appendChild(s);
