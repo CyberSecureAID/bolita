@@ -350,6 +350,15 @@ export function inyectarMovil() {
   .op-buy:active,.op-sell:active{transform:translateY(1px);filter:brightness(1.06)}
 
   .op-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 2px;border-bottom:1px solid var(--mv-line)}
+  .op-ord{display:flex;align-items:center;gap:11px;padding:12px 2px;border-bottom:1px solid var(--mv-line)}
+  .op-ord-ci{width:34px;height:34px;flex:0 0 auto;border-radius:50%;background:var(--mv-card2) center/cover no-repeat;border:1px solid var(--mv-line);display:grid;place-items:center;font-size:11px;font-weight:800;color:var(--mv-gold)}
+  .op-ord-tx{flex:1;min-width:0} .op-ord-tx b{font-size:14.5px;display:flex;align-items:center;gap:7px} .op-ord-tx small{color:var(--mv-mut);font-size:12px}
+  .op-ord-tag{font-style:normal;font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px}
+  .op-ord-tag.buy{color:var(--mv-up);background:color-mix(in srgb,var(--mv-up) 15%,transparent)}
+  .op-ord-tag.sell{color:var(--mv-down);background:color-mix(in srgb,var(--mv-down) 15%,transparent)}
+  .op-ord-r{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+  .op-ord-pct{font-size:12px;font-weight:700;color:var(--mv-mut)} .op-ord-pct.up{color:var(--mv-up)} .op-ord-pct.dn{color:var(--mv-down)}
+  .op-ord-x{font-size:11.5px;font-weight:700;color:var(--mv-down);background:color-mix(in srgb,var(--mv-down) 12%,transparent);border:1px solid color-mix(in srgb,var(--mv-down) 40%,transparent);border-radius:8px;padding:5px 10px}
   .op-item b{font-size:14.5px} .op-item small{display:block;color:var(--mv-mut);font-size:12px}
   .op-item .up{color:var(--mv-up);font-weight:800} .op-item .dn{color:var(--mv-down);font-weight:800}
   .op-del{display:block;margin-top:4px;margin-left:auto;background:var(--mv-card2);border:1px solid var(--mv-line);color:var(--mv-down);

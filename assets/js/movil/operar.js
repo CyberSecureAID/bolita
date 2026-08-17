@@ -9,7 +9,7 @@
 import { IC } from './iconos.js?v=1';
 import { abrirPicker } from './picker.js?v=1';
 import { abrirAlerta } from './alerta.js?v=1';
-import { precio as fmtPrecio, money, cantidad } from './fmt.js?v=1';
+import { precio as fmtPrecio, money, cantidad, logoDe } from './fmt.js?v=1';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -152,11 +152,36 @@ async function pintarPanel(t) {
   }
   restaurarBotCard();
   if (t === 'ord') {
-    let ordenes = [];
-    try { const o = await import('../orden.js?v=126'); if (o.ordenesPuestas) ordenes = o.ordenesPuestas() || []; } catch (_) {}
     if (!con) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus órdenes.</div>`; return; }
-    if (!ordenes.length) { el.innerHTML = `<div class="op-empty">No tienes órdenes limit abiertas.<br><span style="font-size:12px">Ponlas desde Smart Levels (Limit).</span></div>`; return; }
-    el.innerHTML = ordenes.map((o) => `<div class="op-item"><div><b>${esc(o.par || o.simbolo || '')}</b><small>${o.vender ? 'Vender' : 'Comprar'} · ${esc(String(o.precio || ''))}</small></div><span class="${o.vender ? 'dn' : 'up'}">Limit</span></div>`).join('');
+    let ordenes = [];
+    try { const o = await import('../orden.js?v=126'); if (o.ordenesPuestas) ordenes = (o.ordenesPuestas() || []).filter((x) => x.modo !== 'aviso' && x.botId != null); } catch (_) {}
+    if (!ordenes.length) { el.innerHTML = `<div class="op-empty">No tienes órdenes limit abiertas.<br><span style="font-size:12px">Pon una desde la pestaña Limit.</span></div>`; return; }
+    const cache = (() => { try { const c = JSON.parse(localStorage.getItem('mv-cg') || 'null'); return (c && c.d) || {}; } catch (_) { return {}; } })();
+    el.innerHTML = ordenes.map((o, i) => {
+      const logo = logoDe(o.par || '', null, cache);
+      const lado = o.vender ? 'Vender' : 'Comprar';
+      return `<div class="op-ord">
+        <span class="op-ord-ci" style="${logo ? `background-image:url(${logo});background-size:cover` : ''}">${logo ? '' : esc(String(o.par || '').slice(0, 3))}</span>
+        <div class="op-ord-tx"><b>${esc(o.par || '')} <i class="op-ord-tag ${o.vender ? 'sell' : 'buy'}">${lado} · Limit</i></b>
+          <small>Precio ${fmtP(o.precio)}${o.cant ? ` · ${cantidad(o.cant)} ${esc(o.quote === o.base ? '' : 'USDT')}` : ''}</small></div>
+        <div class="op-ord-r"><small class="op-ord-pct" data-par="${esc(o.par || '')}" data-precio="${o.precio}" data-vender="${o.vender ? 1 : 0}">—</small>
+          <button class="op-ord-x" data-i="${i}">Cancelar</button></div>
+      </div>`;
+    }).join('');
+    // % descuento/ganancia con el precio actual (una llamada por par)
+    el.querySelectorAll('.op-ord-pct').forEach(async (span) => {
+      const par = span.getAttribute('data-par'), precio = +span.getAttribute('data-precio'), vender = span.getAttribute('data-vender') === '1';
+      try {
+        const sym = (par || '').replace('/', '');
+        const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${sym}`);
+        if (!r.ok) return; const actual = +(await r.json()).price;
+        if (!(actual > 0)) return;
+        const pct = vender ? ((precio - actual) / actual) * 100 : ((actual - precio) / actual) * 100;
+        span.textContent = (vender ? 'Ganancia ' : 'Descuento ') + Math.abs(pct).toFixed(2) + '%';
+        span.className = 'op-ord-pct ' + (vender ? 'up' : 'dn');
+      } catch (_) {}
+    });
+    el.querySelectorAll('.op-ord-x').forEach((b) => b.onclick = () => cancelarOrden(ordenes[+b.getAttribute('data-i')], el));
     return;
   }
   // Posición: compras hechas desde aquí (entrada + P/L). Eliminar = vender.
@@ -180,9 +205,25 @@ async function pintarPanel(t) {
   });
 }
 
-/* Muestra en Operar las MISMAS tarjetas reales de "Mis bots" (con toda su
-   dinámica). Reubica el nodo vivo y CLONA su CSS (que está atado a #colmena-app)
-   re-apuntándolo a #op-panel, para que se vean idénticas y responsivas. */
+/* Cancela una orden limit: cancela el bot de 1 nivel on-chain (libera cupo y no
+   queda colgada) y quita el registro local. */
+async function cancelarOrden(o, el) {
+  if (!o) return;
+  if (el) el.innerHTML = `<div class="op-loading"><span class="op-spin"></span>Cancelando la orden…</div>`;
+  try {
+    const gb = await import('../gridbot.js?v=125');
+    const w = await import('../wallet.js?v=125');
+    const cuenta = w.cuentaActual && w.cuentaActual();
+    if (cuenta && o.base && o.quote && o.botId != null && gb.claveBot && gb.cancelarRejillaK) {
+      const clave = gb.claveBot(cuenta, o.base, o.quote, o.botId);
+      await gb.cancelarRejillaK(clave);         // cancela el bot on-chain (libera cupo)
+    }
+  } catch (_) {}
+  try { const ordn = await import('../orden.js?v=126'); if (ordn.cancelar) ordn.cancelar(o.id); } catch (_) {}
+  pintarPanel('ord');
+}
+
+/* Lee los bots reales del usuario de la MISMA fuente on-chain que la web. */
 let _botCard = null;
 function reflejarBotsReales(el) {
   const web = document.getElementById('colmena-app');
