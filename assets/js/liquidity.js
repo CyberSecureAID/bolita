@@ -531,11 +531,19 @@ async function traerVelas(simbolo, tf, n = 300) {
    ABRIR
    ══════════════════════════════════════════════════════════════ */
 /** ¿Tiene esta wallet la suscripción al día? */
+/* Wallet del OWNER (en minúsculas). Mientras esté vacío, seguimos en modo
+   desarrollo (todos entran, como hasta ahora). Cuando pongas tu dirección aquí,
+   solo TÚ entras directo a las herramientas; los demás verán los planes. */
+const OWNER = '';
+
 async function tieneAccesoPro() {
-  // Sin contrato desplegado, todo el mundo entra: fase de pruebas.
-  if (!PRO) return { ok: true, prueba: true };
+  const cuenta = ((wallet.cuentaActual && wallet.cuentaActual()) || '').toLowerCase();
+  if (OWNER && cuenta === OWNER.toLowerCase()) return { ok: true, owner: true };
+  // Sin OWNER definido: modo desarrollo (comportamiento actual).
+  if (!OWNER && !PRO) return { ok: true, prueba: true };
+  // OWNER definido pero aún sin contrato: los que no son owner ven los planes.
+  if (!PRO) return { ok: false, sinPlan: true };
   try {
-    const cuenta = wallet.cuentaActual && wallet.cuentaActual();
     if (!cuenta) return { ok: false, sinWallet: true };
     const prov = await wallet.proveedor();
     const c = new ethers.Contract(PRO, ABI_PRO, prov);
@@ -588,7 +596,8 @@ const PLANES_PRO = [
   { id: 2, nombre: 'Tres meses', dias: 90, usd: 20, etiqueta: 'recomendado',    destacado: true  }
 ];
 
-export async function abrirLiquidity() {
+export async function abrirLiquidity(par) {
+  if (par) _par = par;
   estilos();
   portada();
 }
@@ -623,7 +632,7 @@ async function portada() {
             <div class="lqp-nom">${esc(sv.nombre)}</div>
             <div class="lqp-lema">${esc(sv.lema)}</div>
             <div class="lqp-desc">${esc(sv.desc)}</div>
-            ${sv.listo ? '<span class="lqp-abrir">Abrir →</span>' : '<span class="lqp-pronto">Próximamente</span>'}
+            ${sv.listo ? '<span class="lqp-abrir">Abrir</span>' : '<span class="lqp-pronto">Próximamente</span>'}
           </button>`).join('')}
       </div>
 
@@ -668,7 +677,13 @@ async function portada() {
     const sv = SERVICIOS.find((x) => x.id === b.dataset.serv);
     if (!sv || !sv.listo) return;
     const a = await tieneAccesoPro();
-    if (!a.ok) { avisoSinAcceso(); return; }
+    if (!a.ok) {
+      // No es owner / no tiene plan: mostramos los planes de suscripción.
+      d.classList.add('lqp-verplanes');
+      const pl = d.querySelector('.lqp-planes') || d.querySelector('.lqp-sep');
+      if (pl) pl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     /* [CORREGIDO] Antes se destruía la portada, así que al cerrar la
        herramienta se salía de Liquidity entero. Ahora solo se oculta
        y vuelve cuando el usuario cierra la herramienta. */

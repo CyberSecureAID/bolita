@@ -106,6 +106,14 @@ const HERRAMIENTAS = [
   }
 ];
 
+/* Abre la GRÁFICA LIMPIA (TradingView advanced chart) directamente para una
+   moneda, en su propio overlay (#w-overlay). No usa la lista de Tools, así que
+   no queda ninguna ventana de herramientas detrás. */
+export function abrirGraficaLimpia(coinId) {
+  if (coinId && MON_WIDGET.some((m) => m.id === coinId)) _wMoneda = coinId;
+  abrirWidget('grafica');
+}
+
 export function abrirTools() {
   estilos();
   const prev = $('tl-overlay'); if (prev) prev.remove();
