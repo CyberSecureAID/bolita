@@ -26,17 +26,17 @@ const PROMOS = [
 /* TODOS los servicios pasan por las tarjetas. Iconos y colores REALES (los de
    la web para los bots). */
 const SERVICIOS = [
-  { go: 'bots',      color: '#4d9fff', ic: 'botGrid', kick: 'Smart Grid',          h: 'Gana en el rango',        p: 'Compra y vende en niveles; cierra cada cuadrícula solo en ganancia.' },
-  { go: 'bots',      color: '#b47cff', ic: 'botAcum', kick: 'Acumulador',          h: 'Acumula en la caída',     p: 'Compra por tramos cuando baja y arma posición sin que estés pendiente.' },
-  { go: 'bots',      color: '#e8b84b', ic: 'botCash', kick: 'Cash Out',            h: 'Asegura ganancias',       p: 'Vende lo que ya tienes al precio o % que elijas.' },
-  { go: 'bots',      color: '#34d97b', ic: 'botDca',  kick: 'DCA',                 h: 'Invierte a intervalos',   p: 'Compra cantidades fijas cada cierto tiempo para promediar tu entrada.' },
-  { go: 'liquidity', color: '#2ebd85', ic: 'pool',    kick: 'Liquidity Pools',     h: 'Profundidad real',        p: 'Mira dónde está la liquidez y los muros del mercado.' },
-  { go: 'muros',     color: '#f6465d', ic: 'candles', kick: 'Radar Institucional', h: 'Flujo de órdenes',        p: 'Detecta la mano fuerte: órdenes grandes y absorción.' },
-  { go: 'niveles',   color: '#E8B84B', ic: 'chart',   kick: 'Smart Levels',        h: 'Analiza y opera',         p: 'Niveles, indicadores y compra/venta al toque en la gráfica.' },
-  { go: 'academy',   color: '#4c8dff', ic: 'book',    kick: 'Academia',            h: 'Aprende a operar',        p: 'Formación paso a paso para sacarle ventaja al mercado.' },
-  { go: 'swap',      color: '#2ebd85', ic: 'swap',    kick: 'Swap',                h: 'Intercambia al momento',  p: 'Cambia cualquier cripto por otra, sin KYC y no custodial.' },
-  { go: 'market',    color: '#E8B84B', ic: 'market',  kick: 'Marketplace',         h: 'Compra y vende P2P',      p: 'Órdenes de compra y venta entre personas, con garantía.' },
-  { go: 'prize',     color: '#f6465d', ic: 'trophy',  kick: 'Prize Pool',          h: 'Fondo comunitario',       p: 'Participa y gana del pozo acumulado de la comunidad.' },
+  { go: 'bots',      color: '#4d9fff', ic: 'botGrid', kick: 'Smart Grid',      h: 'Gana en el rango',   p: 'Compra y vende en niveles; cierra cada cuadrícula solo en ganancia.' },
+  { go: 'bots',      color: '#b47cff', ic: 'botAcum', kick: 'Acumulador',      h: 'Compra en caídas',   p: 'Compra por tramos cuando baja y arma posición sin que estés pendiente.' },
+  { go: 'bots',      color: '#e8b84b', ic: 'botCash', kick: 'Cash Out',        h: 'Asegura ganancia',   p: 'Vende lo que ya tienes al precio o % que elijas.' },
+  { go: 'bots',      color: '#34d97b', ic: 'botDca',  kick: 'DCA',             h: 'A intervalos',       p: 'Compra cantidades fijas cada cierto tiempo para promediar tu entrada.' },
+  { go: 'liquidity', color: '#2ebd85', ic: 'pool',    kick: 'Liquidity',       h: 'Profundidad',        p: 'Mira dónde está la liquidez y los muros del mercado.' },
+  { go: 'muros',     color: '#f6465d', ic: 'candles', kick: 'INS Radar',       h: 'Flujo órdenes',      p: 'Detecta la mano fuerte: órdenes grandes y absorción.' },
+  { go: 'niveles',   color: '#E8B84B', ic: 'chart',   kick: 'Smart Levels',    h: 'Analiza y opera',    p: 'Niveles, indicadores y compra/venta al toque en la gráfica.' },
+  { go: 'academy',   color: '#4c8dff', ic: 'book',    kick: 'Academia',        h: 'Aprende',            p: 'Formación paso a paso para sacarle ventaja al mercado.' },
+  { go: 'swap',      color: '#2ebd85', ic: 'swap',    kick: 'Swap',            h: 'Al momento',         p: 'Cambia cualquier cripto por otra, sin KYC y no custodial.' },
+  { go: 'market',    color: '#E8B84B', ic: 'market',  kick: 'Marketplace',     h: 'Compra P2P',         p: 'Órdenes de compra y venta entre personas, con garantía.' },
+  { go: 'prize',     color: '#f6465d', ic: 'trophy',  kick: 'Prize Pool',      h: 'Fondo común',        p: 'Participa y gana del pozo acumulado de la comunidad.' },
 ];
 
 let _ojo = leer(LS.ojo) === '1';

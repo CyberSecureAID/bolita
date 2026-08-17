@@ -208,6 +208,17 @@ function inyectarFixGrafica() {
     #nv-overlay .nv-c,#mu-overlay .mu-c{padding-bottom:64px!important}
     #lqp-overlay,#lq-overlay,#ac-overlay{align-items:flex-start!important;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 70px!important}
     #lqp-overlay .lqp-c,#lq-overlay .lq-c,#ac-overlay .ac-c{max-height:calc(100vh - 90px)!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
+    #lqp-overlay .lqp-c{padding:22px 14px 18px!important}
+    #lqp-overlay .lqp-servs{gap:10px!important}
+    #lqp-overlay .lqp-serv{grid-template-columns:54px minmax(0,1fr)!important;gap:2px 12px!important;padding:13px!important;align-items:center!important}
+    #lqp-overlay .lqp-img{width:54px!important;height:54px!important;border-radius:12px!important}
+    #lqp-overlay .lqp-nom{font-size:15px!important;font-weight:800!important}
+    #lqp-overlay .lqp-lema{font-size:12px!important}
+    #lqp-overlay .lqp-desc{font-size:11.5px!important;line-height:1.4!important;margin-top:2px!important}
+    #lqp-overlay .lqp-abrir{font-size:12px!important;margin-top:4px!important}
+    #lqp-overlay .lqp-sep{margin:18px 0 14px!important}
+    #lqp-overlay .lqp-planes{gap:11px!important}
+    #lqp-overlay .lqp-plan{padding:15px 14px!important;border-radius:14px!important}
     #swap-modal{padding-bottom:80px!important}
   }`;
   document.head.appendChild(s);

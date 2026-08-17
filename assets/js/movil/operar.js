@@ -229,49 +229,70 @@ async function cancelarOrden(o, el) {
   pintarPanel('ord');
 }
 
-/* Lee los bots reales del usuario de la MISMA fuente on-chain que la web. */
-let _botCard = null;
-function reflejarBotsReales(el) {
-  const web = document.getElementById('colmena-app');
-  const card = web && web.querySelector('.colmenas.card');
-  if (!card) { botsFallback(el); return; }
-  clonarEstilosBots();
-  if (!card._mvPh) { const ph = document.createComment('mv-bots'); card._mvPh = ph; card.parentNode.insertBefore(ph, card); }
-  el.innerHTML = '';
-  el.appendChild(card);
-  _botCard = card;
-  const rej = card.querySelector('#c-rejillas');
-  if (rej && rej.querySelector('.skel')) { let n = 0; const t = setInterval(() => { n++; if (!rej.querySelector('.skel') || n > 40) clearInterval(t); }, 250); }
-}
-export function restaurarBotCard() {
-  if (_botCard && _botCard._mvPh && _botCard._mvPh.parentNode) _botCard._mvPh.parentNode.insertBefore(_botCard, _botCard._mvPh);
-  _botCard = null;
-}
-/* Copia las reglas CSS de #colmena-app y las re-apunta a #op-panel, para que la
-   tarjeta reubicada conserve EXACTAMENTE su estilo (incluidas las @media). */
-function clonarEstilosBots() {
-  if (document.getElementById('mv-botcss')) return;
-  let css = '';
-  for (const sheet of Array.from(document.styleSheets)) {
-    let reglas; try { reglas = sheet.cssRules; } catch (_) { continue; }
-    if (!reglas) continue;
-    for (const rule of Array.from(reglas)) {
-      try { if (rule.cssText && rule.cssText.indexOf('#colmena-app') !== -1) css += rule.cssText.replace(/#colmena-app/g, '#op-panel') + '\n'; } catch (_) {}
-    }
-  }
-  if (css) { const s = document.createElement('style'); s.id = 'mv-botcss'; s.textContent = css; document.head.appendChild(s); }
-}
-async function botsFallback(el) {
-  let gb, wallet;
-  try { gb = await import('../gridbot.js?v=125'); wallet = await import('../wallet.js?v=125'); } catch (_) {}
+/* Muestra los bots reales del usuario en tarjetas móviles propias (compactas,
+   estilo Pionex) leyendo la MISMA fuente on-chain que la web: misRejillas +
+   resumenK + modoDe. SOLO bots activos (R.activa===true). No reubica nada de la
+   web (eso rompía el layout). Las órdenes limit se excluyen. */
+const BOT_META = {
+  0: { n: 'Smart Grid', c: '#4d9fff', ic: 'botGrid' },
+  1: { n: 'Acumulador', c: '#b47cff', ic: 'botAcum' },
+  2: { n: 'Cash Out',   c: '#e8b84b', ic: 'botCash' },
+  3: { n: 'DCA',        c: '#34d97b', ic: 'botDca' },
+};
+export function restaurarBotCard() { /* compat: ya no se reubica nada */ }
+async function reflejarBotsReales(el) {
+  let gb, wallet, tokens;
+  try { gb = await import('../gridbot.js?v=125'); wallet = await import('../wallet.js?v=125'); tokens = await import('../tokens.js?v=125'); } catch (_) {}
   const cuenta = wallet && wallet.cuentaActual && wallet.cuentaActual();
-  if (!cuenta) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus bots.</div>`; return; }
+  if (!cuenta) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus bots activos.</div>`; return; }
+  let store = {}; try { store = JSON.parse(localStorage.getItem('bot-pares') || '{}'); } catch (_) {}
+  const simDe = (addr) => {
+    if (!addr) return '';
+    try { const M = tokens && tokens.MONEDAS; if (M) { const k = Object.keys(M).find((id) => (M[id].address || '').toLowerCase() === String(addr).toLowerCase()); if (k) return M[k].simbolo || k; } } catch (_) {}
+    return '';
+  };
+  let limit = new Set();
+  try { const ords = JSON.parse(localStorage.getItem('cco-ordenes-grafico') || '[]'); for (const o of ords) { if (o && o.base && o.quote && o.botId != null) { try { limit.add(String(gb.claveBot(cuenta, o.base, o.quote, o.botId)).toLowerCase()); } catch (_) {} } } } catch (_) {}
   let claves = [];
-  try { claves = await gb.misRejillas(cuenta) || []; } catch (_) {}
-  if (!claves.length) { el.innerHTML = `<div class="op-empty">Aún no tienes bots activos.<br><button class="op-link" id="op-crear">Crear un bot</button></div>`; const c = document.getElementById('op-crear'); if (c) c.onclick = () => _api.abrir('bots'); return; }
-  el.innerHTML = `<div class="op-empty">Tienes ${claves.length} bot(s) activos. <button class="op-link" id="op-crear">Ver mis bots</button></div>`;
-  const c = document.getElementById('op-crear'); if (c) c.onclick = () => _api.abrir('bots');
+  try { claves = (await gb.misRejillas(cuenta) || []).filter((c) => !limit.has(String(c).toLowerCase())); } catch (_) {}
+  if (!claves.length) { el.innerHTML = botsVacio(); wireCrear(el); return; }
+  const bots = [];
+  for (const k of claves) {
+    try {
+      const [R, md] = await Promise.all([gb.resumenK(k), gb.modoDe(k).catch(() => [0])]);
+      if (!R || R.activa === false) continue;
+      const tipo = Number(Array.isArray(md) ? md[0] : md) || 0;
+      const p = store[k] || {};
+      const base = simDe(R.base) || (p.base && String(p.base).length < 8 ? p.base : '');
+      const quote = simDe(R.quote) || 'USDT';
+      const par = base ? base + '/' + quote : (BOT_META[tipo] || BOT_META[0]).n;
+      let inv = 0, gan = 0;
+      try { inv = Number(gb.fmt(R.costeQuote || R.ordenQuote || 0n, 18)); } catch (_) {}
+      try { gan = Number(gb.fmt(R.gananciaQuote || 0n, 18)); } catch (_) {}
+      bots.push({ tipo, par, inv, gan, ops: Number(R.totalOps || 0) });
+    } catch (_) {}
+    if (bots.length >= 20) break;
+  }
+  if (!bots.length) { el.innerHTML = botsVacio(); wireCrear(el); return; }
+  el.innerHTML = bots.map((b) => {
+    const m = BOT_META[b.tipo] || BOT_META[0];
+    const cls = b.gan >= 0 ? 'up' : 'dn';
+    return `<div class="op-botc" style="--bc:${m.c}">
+      <div class="op-botc-h">
+        <span class="op-botc-ic" style="color:${m.c};background:color-mix(in srgb,${m.c} 16%,transparent)">${IC[m.ic] || IC.bot}</span>
+        <div class="op-botc-t"><b>${esc(b.par)}</b><small>${m.n} · ${b.ops} ops</small></div>
+        <span class="op-botc-on">● activo</span>
+      </div>
+      <div class="op-botc-g">
+        <div class="op-botc-box"><span>Inversión</span><b>${money(b.inv)}</b></div>
+        <div class="op-botc-box"><span>Ganancia</span><b class="${cls}">${b.gan >= 0 ? '+' : ''}${money(b.gan)}</b></div>
+      </div>
+    </div>`;
+  }).join('') + `<button class="op-bot-manage" id="op-bot-manage">Ver / gestionar mis bots</button>`;
+  const mng = document.getElementById('op-bot-manage'); if (mng) mng.onclick = () => _api.abrir('bots');
 }
+function botsVacio() { return `<div class="op-empty">Aún no tienes bots activos.<br><button class="op-link" id="op-crear">Crear un bot</button></div>`; }
+function wireCrear(el) { const c = el.querySelector('#op-crear'); if (c) c.onclick = () => _api.abrir('bots'); }
 
 function renderBook() {
   const el = $('op-book'); if (!el) return;
