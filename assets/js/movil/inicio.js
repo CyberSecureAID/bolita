@@ -150,15 +150,17 @@ export function pintarInicio(host, api) {
   pintarPromo();
   const tPromo = setInterval(() => { pi++; pintarPromo(); }, 4500);
 
-  // Todos los servicios: carrusel continuo (CSS), fluido y sin parpadeos.
+  // Todos los servicios: tira DESLIZABLE con el dedo (el CSS hace el scroll táctil
+  // con inercia). Se renderiza UNA sola vez (ya no se duplica para el bucle
+  // automático). El usuario la mueve, la lanza y la detiene a su gusto.
   const track = $('mv-svc-track');
   if (track) {
     const card = (c) => `<button class="mv-svc-card" data-go="${c.go}" style="--bc:${c.color}">
       <span class="mv-svc-ic" style="color:${c.color}">${IC[c.ic] || IC.bot}</span>
       <b>${c.kick}</b></button>`;
-    track.innerHTML = (SERVICIOS.map(card).join('') + SERVICIOS.map(card).join(''));
-    track.style.setProperty('--n', SERVICIOS.length);
+    track.innerHTML = SERVICIOS.map(card).join('');
     track.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => api.abrir(b.getAttribute('data-go')));
+    prensarTarjetas(track);
   }
 
   host._limpiar = () => { clearInterval(tPromo); };
@@ -191,6 +193,33 @@ function menuDenom(api, cb) {
   m.querySelectorAll('[data-o]').forEach((b2) => b2.onclick = () => { _denom = b2.getAttribute('data-o'); guardar('mv-denom', _denom); cerrar(); cb(); });
 }
 function esc3(s) { return String(s || '').slice(0, 3); }
+
+/* "Mantener pulsado" en las tarjetas de servicios: al dejar el dedo puesto, la
+   tarjeta se resalta y crece un poquito (clase .press del CSS). Clave para no
+   estorbar el deslizamiento: solo se activa si es una pulsación REAL. Si el dedo
+   se mueve más de un umbral (es un scroll/flick), se cancela al instante y manda
+   el desplazamiento. Un tap normal sigue abriendo el servicio (el onclick de la
+   tarjeta no se toca). Intensidad deliberadamente sutil. */
+function prensarTarjetas(track) {
+  let card = null, sx = 0, sy = 0, hold = null;
+  const UMBRAL = 8;                                  // px de movimiento = es scroll
+  const quitar = () => {
+    if (hold) { clearTimeout(hold); hold = null; }
+    if (card) { card.classList.remove('press'); card = null; }
+  };
+  track.addEventListener('pointerdown', (e) => {
+    const c = e.target.closest && e.target.closest('.mv-svc-card');
+    if (!c) return;
+    card = c; sx = e.clientX; sy = e.clientY;
+    hold = setTimeout(() => { if (card) card.classList.add('press'); }, 70);
+  }, { passive: true });
+  track.addEventListener('pointermove', (e) => {
+    if (!card) return;
+    if (Math.abs(e.clientX - sx) > UMBRAL || Math.abs(e.clientY - sy) > UMBRAL) quitar();
+  }, { passive: true });
+  ['pointerup', 'pointercancel', 'pointerleave', 'lostpointercapture'].forEach((ev) =>
+    track.addEventListener(ev, quitar, { passive: true }));
+}
 
 function valorEn(b, denom) {
   if (denom === 'USDT' || denom === 'USDC') return b.totalUSD;

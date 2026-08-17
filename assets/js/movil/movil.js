@@ -6,9 +6,9 @@
 
 import * as wallet from '../wallet.js?v=125';
 import * as gb from '../gridbot.js?v=125';
-import { inyectarMovil } from './estilos.js?v=1';
+import { inyectarMovil } from './estilos.js?v=2';
 import { IC } from './iconos.js?v=1';
-import { pintarInicio } from './inicio.js?v=1';
+import { pintarInicio } from './inicio.js?v=2';
 import { pintarMercados } from './markets.js?v=1';
 import { pintarOperar, prepararOperar, restaurarBotCard } from './operar.js?v=1';
 import { pintarActivos } from './activos.js?v=1';
@@ -67,13 +67,13 @@ async function abrir(clave, arg) {
   if (requiereActivacion(clave)) { avisoActivacion(clave); return; }
   try {
     switch (clave) {
-      case 'swap':      { const m = await import('../gridbot/swap.js?v=1'); m.abrirSwap && m.abrirSwap(); sacarSwapDelWeb(); break; }
+      case 'swap':      { inyectarFixSwap(); const m = await import('../gridbot/swap.js?v=1'); m.abrirSwap && m.abrirSwap(); sacarSwapDelWeb(); break; }
       case 'polvo':     await abrirToolDirecto('polvo'); break;
       case 'alerta':    abrirAlerta(); break;
       case 'alertas':   abrirAlerta(); break;
       case 'alertasTool': abrirAlerta(); break;
       case 'recibir':   abrirRecibir(); break;
-      case 'market':    { const m = await import('../market.js?v=125'); m.abrirMarket && m.abrirMarket(); break; }
+      case 'market':    { inyectarFixMarket(); const m = await import('../market.js?v=125'); m.abrirMarket && m.abrirMarket(); break; }
       case 'buy':       await abrirMarketTab('mk-t5'); break;
       case 'sell':      await abrirMarketTab('mk-t2'); break;
       case 'fondos':    abrirMetamaskBuy(); break;
@@ -173,14 +173,43 @@ function sacarSwapDelWeb() {
   web._mvSwapObs = obs;
 }
 
-/* Achica los logos de moneda del swap en móvil (sin tocar el botón central). */
+/* Achica los logos de moneda del swap en móvil (sin tocar el botón central) y,
+   sobre todo, deja HUECO abajo: el modal está centrado y su parte baja (el botón)
+   quedaba PEGADA a la barra inferior perpetua. Con padding-bottom, al estar el
+   modal centrado (align-items:center), la caja sube y queda un margen limpio por
+   encima de la barra. Se aplica también al selector de moneda del swap. */
 function inyectarFixSwap() {
   if ($('mv-swap-fix')) return;
   const s = document.createElement('style'); s.id = 'mv-swap-fix';
   s.textContent = `@media(max-width:760px){
+    #swap-modal,#coin-modal{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))!important}
     #swap-modal .coin-sel-ico,#coin-modal .cm-coin-ico{width:24px!important;height:24px!important;flex:0 0 auto}
     #swap-modal .coin-sel-ico svg,#swap-modal .coin-sel-ico img,#coin-modal .cm-coin-ico svg,#coin-modal .cm-coin-ico img{width:24px!important;height:24px!important}
     #swap-modal .sw-box{max-width:400px}
+  }`;
+  document.head.appendChild(s);
+}
+
+/* Marketplace en móvil: el overlay se centra y su parte baja quedaba TAPADA por
+   la barra inferior — no se podía llegar a los campos ni al botón "Guardar
+   perfil" (salía cortado). Lo anclamos ARRIBA, con scroll propio y hueco para la
+   barra, para poder rellenar todo. Y quitamos las dos rayitas del título: una se
+   metía dentro del icono de menú de arriba a la derecha. (Solo móvil.) */
+function inyectarFixMarket() {
+  if ($('mv-mk-fix')) return;
+  const s = document.createElement('style'); s.id = 'mv-mk-fix';
+  s.textContent = `@media(max-width:760px){
+    /* Overlay como columna flex anclada arriba; el hueco de la barra se reserva
+       con padding-bottom (misma referencia que #mv-nav, que es position:fixed).
+       Nada de vh/dvh: en móvil no cuadran con la barra fija. */
+    #mk-overlay{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;
+      padding:calc(8px + env(safe-area-inset-top,0px)) 10px calc(90px + env(safe-area-inset-bottom,0px))!important}
+    /* La card encoge al espacio disponible (min-height:0) y hace scroll interno,
+       así se llega a todos los campos y al botón "Guardar perfil". */
+    #mk-overlay .mk-card{max-width:560px!important;width:calc(100% - 20px)!important;margin:0!important;
+      min-height:0!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;padding-bottom:26px!important}
+    #mk-overlay .mk-card::-webkit-scrollbar{display:none}
+    #mk-overlay .mk-title .ln{display:none!important}
   }`;
   document.head.appendChild(s);
 }
@@ -243,6 +272,7 @@ function abrirRecibir() {
 }
 
 async function abrirMarketTab(tabId) {
+  inyectarFixMarket();
   const m = await import('../market.js?v=125');
   if (m.abrirMarket) m.abrirMarket();
   setTimeout(() => { const t = $(tabId); if (t) t.click(); }, 120);

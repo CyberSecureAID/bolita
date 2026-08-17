@@ -110,14 +110,23 @@ export function inyectarMovil() {
   .mv-viewall b{color:var(--mv-gold)}
 
   /* ── Dos tarjetas rotativas ── */
-  /* Carrusel continuo de servicios (sin parpadeos) */
-  .mv-svc{overflow:hidden;margin:4px -16px 0;padding:0 16px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
-  .mv-svc-track{display:flex;gap:10px;width:max-content;animation:mvSvc calc(var(--n,11) * 3.2s) linear infinite}
-  .mv-svc:active .mv-svc-track,.mv-svc-track:hover{animation-play-state:paused}
-  @keyframes mvSvc{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-  .mv-svc-card{flex:0 0 auto;width:132px;height:104px;background:var(--mv-card);border:1px solid var(--mv-line);
+  /* Tira de servicios DESLIZABLE con el dedo (scroll táctil nativo + inercia).
+     Antes era una animación automática que no dejaba arrastrar; ahora el usuario
+     la mueve, la lanza (flick) y la detiene. scroll-snap suave para que encaje
+     bien sin sentirse pegajoso; scrollbar oculta; overscroll contenido para no
+     encadenar con la página. La animación "mantener pulsado" la controla el JS
+     (clase .press) y solo salta en pulsación real, no al deslizar. */
+  .mv-svc{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
+    scroll-snap-type:x proximity;margin:4px -16px 0;padding:2px 16px;scrollbar-width:none;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
+  .mv-svc::-webkit-scrollbar{display:none}
+  .mv-svc-track{display:flex;gap:10px;width:max-content}
+  .mv-svc-card{flex:0 0 auto;scroll-snap-align:start;width:132px;height:104px;background:var(--mv-card);border:1px solid var(--mv-line);
     border-top:2px solid var(--bc,var(--mv-line));border-radius:15px;padding:14px 13px;display:flex;flex-direction:column;
-    align-items:flex-start;justify-content:space-between;gap:10px;text-align:left;color:inherit}
+    align-items:flex-start;justify-content:space-between;gap:10px;text-align:left;color:inherit;
+    transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;will-change:transform;transform-origin:center}
+  /* Mantener el dedo puesto: resalta y crece un pelín (sutil, no rompe el scroll) */
+  .mv-svc-card.press{transform:scale(1.045);border-color:var(--mv-gold);box-shadow:0 8px 22px rgba(0,0,0,.42),0 0 0 1px rgba(232,184,75,.35)}
   .mv-svc-ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--mv-card2);border:1px solid var(--mv-line)}
   .mv-svc-ic svg{width:22px;height:22px}
   .mv-svc-card b{font-size:14px;font-weight:800;line-height:1.25;white-space:nowrap;width:100%}
