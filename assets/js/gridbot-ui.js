@@ -2221,6 +2221,7 @@ function wireMinCancel(cont) {
 
 async function refrescarRejillas() {
   const cuenta = wallet.cuentaActual(); const cont = $('c-rejillas'); if (!cuenta || !cont) return;
+  try { const _o = await import('./orden.js?v=126'); if (_o.sincronizarOrdenes) await _o.sincronizarOrdenes(cuenta); } catch (_) {}
   pararTrails();
   try {
     const claves = await gb.misRejillas(cuenta);
