@@ -27,7 +27,10 @@ export function initMovil(deps) { _deps = Object.assign(_deps, deps || {}); }
 async function abrir(clave, arg) {
   try {
     switch (clave) {
-      case 'swap':      { const m = await import('../gridbot/swap.js?v=1'); m.abrirSwap && m.abrirSwap(); break; }
+      case 'swap':      { const m = await import('../gridbot/swap.js?v=1'); m.abrirSwap && m.abrirSwap(); sacarSwapDelWeb(); break; }
+      case 'polvo':     await abrirToolDirecto('polvo'); break;
+      case 'alertasTool': await abrirToolDirecto('alertas'); break;
+      case 'recibir':   abrirRecibir(); break;
       case 'market':    { const m = await import('../market.js?v=125'); m.abrirMarket && m.abrirMarket(); break; }
       case 'buy':       await abrirMarketTab('mk-t5'); break;
       case 'sell':      await abrirMarketTab('mk-t2'); break;
@@ -53,6 +56,51 @@ async function abrir(clave, arg) {
 
 /* La gráfica Smart Levels sí se abre con moneda, desde el panel Operar. */
 async function abrirGrafica(g, par) { await abrir(g === 'niveles' ? 'niveles' : g); }
+
+/* El swap (y su selector de moneda) se insertan dentro de #colmena-app, que en
+   móvil está oculto y además crea un contexto de apilamiento (isolation) que
+   deja el modal por debajo de la cáscara. Los movemos al <body>. */
+function sacarSwapDelWeb() {
+  const mover = () => { ['swap-modal', 'coin-modal'].forEach((id) => { const e = $(id); if (e && e.parentElement !== document.body) document.body.appendChild(e); }); };
+  mover();
+  const web = $('colmena-app');
+  if (web && !web._mvSwapObs) {
+    const obs = new MutationObserver(mover);
+    obs.observe(web, { childList: true });
+    web._mvSwapObs = obs;
+    setTimeout(() => { try { obs.disconnect(); } catch (_) {} web._mvSwapObs = null; }, 120000);
+  }
+}
+
+/* Abre Tools y salta directo a una herramienta (colector de polvo, alertas). */
+async function abrirToolDirecto(id) {
+  const m = await import('../tools.js?v=125');
+  if (m.abrirTools) m.abrirTools();
+  setTimeout(() => { const b = document.querySelector(`[data-tool="${id}"]`); if (b) b.click(); }, 140);
+}
+
+/* Recibir: dirección + QR de la wallet conectada. */
+function abrirRecibir() {
+  const cuenta = wallet.cuentaActual && wallet.cuentaActual();
+  if (!cuenta) { avisoSimple('Recibir', 'Conecta tu wallet para ver tu dirección de recepción.'); return; }
+  let sh = $('mv-sheet'); if (sh) sh.remove();
+  sh = document.createElement('div'); sh.id = 'mv-sheet';
+  sh.innerHTML = `<div class="mv-sheet-bg"></div><div class="mv-sheet-card">
+    <div class="mv-sheet-h"><b>Recibir</b><span>Red BNB Smart Chain (BEP-20)</span></div>
+    <div id="mv-qr" style="display:flex;justify-content:center;padding:8px 0"></div>
+    <div style="background:var(--mv-card2);border:1px solid var(--mv-line);border-radius:12px;padding:12px;word-break:break-all;font-size:12.5px;text-align:center" id="mv-addr">${cuenta}</div>
+    <button class="mv-sheet-op" id="mv-copy" style="justify-content:center;color:var(--mv-gold);font-weight:800;margin-top:10px">Copiar dirección</button>
+    <button class="mv-sheet-cancel">Cerrar</button></div>`;
+  document.body.appendChild(sh);
+  const cerrar = () => sh.remove();
+  sh.querySelector('.mv-sheet-bg').onclick = cerrar;
+  sh.querySelector('.mv-sheet-cancel').onclick = cerrar;
+  $('mv-copy').onclick = () => { try { navigator.clipboard.writeText(cuenta); avisoSimple('Copiado', 'Dirección copiada al portapapeles.'); } catch (_) {} };
+  // QR con la librería vendor
+  const pinta = () => { try { const q = window.qrcode(0, 'M'); q.addData(cuenta); q.make(); $('mv-qr').innerHTML = q.createImgTag(4, 8); const img = $('mv-qr').querySelector('img'); if (img) { img.style.borderRadius = '10px'; img.style.background = '#fff'; img.style.padding = '8px'; } } catch (_) {} };
+  if (window.qrcode) pinta();
+  else { const sc = document.createElement('script'); sc.src = 'assets/js/vendor/qrcode.js?v=125'; sc.onload = pinta; document.body.appendChild(sc); }
+}
 
 async function abrirMarketTab(tabId) {
   const m = await import('../market.js?v=125');

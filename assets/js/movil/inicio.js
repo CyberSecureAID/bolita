@@ -1,7 +1,6 @@
 /* movil/inicio.js — Pantalla 1 (Inicio). */
 
 import { IC } from './iconos.js?v=1';
-import * as wallet from '../wallet.js?v=125';
 
 const $ = (id) => document.getElementById(id);
 const LS = { ojo: 'mv-ojo', denom: 'mv-denom' };
@@ -46,13 +45,11 @@ function guardar(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
 
 export function pintarInicio(host, api) {
   const con = api.estaConectado();
-  const winfo = (con && wallet.walletInfo && wallet.walletInfo()) || null;
-  const wlogo = winfo && (winfo.icon || winfo.icono);
 
   host.innerHTML = `
     <div class="mv-top">
       <button class="mv-ava" id="mv-ava" aria-label="Perfil">
-        ${wlogo ? `<img src="${wlogo}" alt="">` : IC.user}
+        ${IC.user}
         <i class="mv-ava-dot ${con ? 'on' : ''}"></i>
       </button>
       <div class="mv-search" id="mv-search"><span class="mv-search-ic">${IC.search}</span><span class="mv-search-ph">Busca servicios, ofertas, monedas…</span></div>
@@ -143,25 +140,23 @@ export function pintarInicio(host, api) {
   pintarPromo();
   const tPromo = setInterval(() => { pi++; pintarPromo(); }, 4500);
 
-  // Tarjetas: TODOS los servicios pasan de dos en dos con transición suave.
+  // Tarjetas: TODOS los servicios pasan de dos en dos con un crossfade suave
+  // (sin desaparecer del todo, sin cambiar la altura de la página).
   let ti = 0;
-  const pintarCards = (fade) => {
+  const pintarCards = () => {
     for (let j = 0; j < 2; j++) {
       const c = SERVICIOS[(ti * 2 + j) % SERVICIOS.length];
       const el = $('mv-tc-' + j); if (!el) continue;
-      const set = () => {
-        el.style.setProperty('--bc', c.color);
-        el.innerHTML = `<div class="mv-tc-kick" style="color:${c.color}">${c.kick}</div>
-          <div class="mv-tc-logo" style="color:${c.color}">${IC[c.ic] || IC.bot}</div>
-          <h4>${c.h}</h4><p>${c.p}</p>`;
-        el.onclick = () => api.abrir(c.go);
-        el.classList.remove('fade-out');
-      };
-      if (fade) { el.classList.add('fade-out'); setTimeout(set, 220); } else set();
+      el.style.setProperty('--bc', c.color);
+      el.innerHTML = `<div class="mv-tc-kick" style="color:${c.color}">${c.kick}</div>
+        <div class="mv-tc-logo" style="color:${c.color}">${IC[c.ic] || IC.bot}</div>
+        <h4>${c.h}</h4><p>${c.p}</p>`;
+      el.onclick = () => api.abrir(c.go);
     }
   };
-  pintarCards(false);
-  const tCards = setInterval(() => { ti++; pintarCards(true); }, 3800);
+  pintarCards();
+  const wrap = () => { const w = host.querySelector('.mv-two'); if (w) { w.classList.add('swap'); setTimeout(() => w.classList.remove('swap'), 260); } };
+  const tCards = setInterval(() => { wrap(); setTimeout(() => { ti++; pintarCards(); }, 130); }, 5200);
 
   host._limpiar = () => { clearInterval(tPromo); clearInterval(tCards); };
   host._pintarBal = pintarBal;

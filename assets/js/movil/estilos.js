@@ -101,18 +101,16 @@ export function inyectarMovil() {
   .mv-viewall b{color:var(--mv-gold)}
 
   /* ── Dos tarjetas rotativas ── */
-  .mv-two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0 0}
+  .mv-two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0 0;transition:opacity .24s ease}
+  .mv-two.swap{opacity:.35}
   .mv-tcard{background:var(--mv-card);border:1px solid var(--mv-line);border-radius:16px;padding:16px 14px;
-    min-height:150px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;position:relative;overflow:hidden}
-  .mv-tcard .mv-tc-ic{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;
-    background:linear-gradient(145deg,#20283300,#141a21);margin-top:4px}
-  .mv-tcard .mv-tc-ic svg{width:32px;height:32px;color:var(--mv-gold)}
-  .mv-tcard .mv-tc-logo{width:60px;height:60px;border-radius:16px;display:grid;place-items:center;margin-top:4px;
-    background:radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--bc, var(--mv-gold)) 22%, transparent), transparent 72%)}
-  .mv-tcard .mv-tc-logo svg{width:32px;height:32px}
+    height:184px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px;position:relative;overflow:hidden}
+  .mv-tcard .mv-tc-logo{width:56px;height:56px;border-radius:15px;display:grid;place-items:center;margin-top:12px;
+    background:color-mix(in srgb, var(--bc, var(--mv-gold)) 12%, transparent)}
+  .mv-tcard .mv-tc-logo svg{width:30px;height:30px}
   .mv-tcard{border-top:2px solid var(--bc, var(--mv-line))}
-  .mv-tcard h4{font-size:14.5px;font-weight:800;margin:2px 0 0}
-  .mv-tcard p{font-size:12px;color:var(--mv-mut);line-height:1.35;margin:0}
+  .mv-tcard h4{font-size:14px;font-weight:800;margin:2px 0 0}
+  .mv-tcard p{font-size:11.5px;color:var(--mv-mut);line-height:1.35;margin:0}
   .mv-tcard .mv-tc-kick{position:absolute;top:12px;left:14px;font-size:11px;font-weight:800;color:var(--mv-gold)}
   .mv-tdots{display:flex;gap:4px;position:absolute;bottom:10px;left:50%;transform:translateX(-50%)}
   .mv-tdots i{width:5px;height:5px;border-radius:50%;background:var(--mv-line)}
