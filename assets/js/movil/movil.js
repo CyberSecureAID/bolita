@@ -534,5 +534,51 @@ export async function montarMovil(deps) {
     irA('trade');
   }, true);
 
-  try { if (wallet.alCambiar) wallet.alCambiar(() => { _bal = null; refrescarBalance(); irA(_tab); }); } catch (_) {}
+  try { if (wallet.alCambiar) wallet.alCambiar(() => { _bal = null; refrescarBalance(); irA(_tab); revisarRed(); }); } catch (_) {}
+
+  // ── Auto-conexión en móvil (navegador de MetaMask/Trust) ──
+  autoConectarMovil();
+}
+
+/* En el navegador interno de la wallet, conecta sola: primero intenta la
+   reconexión silenciosa (si ya estaba autorizada) y, si hay wallet inyectada y
+   sigue sin cuenta, pide conexión una sola vez. Al terminar revisa la red. */
+async function autoConectarMovil() {
+  try {
+    let cuenta = wallet.cuentaActual && wallet.cuentaActual();
+    if (!cuenta && wallet.reconectarSiProcede) { try { cuenta = await wallet.reconectarSiProcede(); } catch (_) {} }
+    if (!cuenta && window.ethereum && wallet.conectar && !window._mvAutoInt) {
+      window._mvAutoInt = true;
+      try { cuenta = await wallet.conectar(); } catch (_) {}
+    }
+  } catch (_) {}
+  revisarRed();
+}
+
+/* Aviso de red: si la wallet está conectada pero NO en BNB Smart Chain, muestra
+   una barrita con instrucciones y un botón para cambiar. Se quita al corregirse. */
+function revisarRed() {
+  const conectado = wallet.cuentaActual && wallet.cuentaActual();
+  const malaRed = conectado && wallet.esRedCorrecta && !wallet.esRedCorrecta();
+  const prev = document.getElementById('mv-red');
+  if (!malaRed) { if (prev) prev.remove(); return; }
+  if (prev) return;
+  const el = document.createElement('div');
+  el.id = 'mv-red';
+  el.innerHTML = `
+    <div class="mv-red-h">
+      <span class="mv-red-ico">⚠️</span>
+      <div class="mv-red-tx"><b>Red incorrecta</b><span>Estás en otra red. Cámbiate a <b>BNB Smart Chain</b> para conectarte con CriptoCuba.</span></div>
+      <button class="mv-red-x" aria-label="Cerrar">✕</button>
+    </div>
+    <button class="mv-red-btn" id="mv-red-btn">Cambiar a BNB Smart Chain</button>
+    <div class="mv-red-ayuda">¿No cambia solo? Ábrela desde el <b>selector de red arriba a la derecha</b> de tu wallet:<br>
+      · <b>MetaMask:</b> toca el nombre de la red (arriba a la izquierda/derecha) → elige <b>BNB Smart Chain</b>.<br>
+      · <b>Trust Wallet:</b> icono de red arriba a la derecha → <b>Smart Chain</b>.</div>`;
+  document.body.appendChild(el);
+  el.querySelector('.mv-red-x').onclick = () => el.remove();
+  el.querySelector('#mv-red-btn').onclick = async () => {
+    try { if (wallet.cambiarARedCorrecta) await wallet.cambiarARedCorrecta(); } catch (_) {}
+    setTimeout(revisarRed, 600);
+  };
 }

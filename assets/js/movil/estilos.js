@@ -450,6 +450,24 @@ export function inyectarMovil() {
   .ac-nft{background:var(--mv-card);border:1px solid var(--mv-line);border-radius:14px;overflow:hidden}
   .ac-nft-img{aspect-ratio:1;background:var(--mv-card2) center/cover no-repeat;display:grid;place-items:center;font-size:30px}
   .ac-nft-nm{padding:9px 11px;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* Aviso de red incorrecta (móvil) */
+  #mv-red{position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top,0px));z-index:11800;
+    background:linear-gradient(180deg,#1c1206,#150e05);border:1px solid var(--mv-gold);border-radius:16px;padding:14px;
+    box-shadow:0 16px 40px rgba(0,0,0,.55);max-width:460px;margin:0 auto;animation:mvRedIn .25s ease}
+  @keyframes mvRedIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+  #mv-red .mv-red-h{display:flex;align-items:flex-start;gap:10px}
+  #mv-red .mv-red-ico{font-size:18px;line-height:1.2;flex:0 0 auto}
+  #mv-red .mv-red-tx{flex:1;min-width:0}
+  #mv-red .mv-red-tx>b{color:var(--mv-txt);font-size:14.5px;display:block}
+  #mv-red .mv-red-tx span{color:var(--mv-mut);font-size:12.5px;line-height:1.4}
+  #mv-red .mv-red-tx span b{display:inline;color:var(--mv-gold)}
+  #mv-red .mv-red-x{flex:0 0 auto;background:none;border:0;color:var(--mv-mut);font-size:16px;padding:0 2px;cursor:pointer}
+  #mv-red .mv-red-btn{width:100%;margin-top:12px;background:linear-gradient(180deg,#f7db8d,#E8B84B 55%,#c79426);color:#3a2800;
+    font-weight:800;font-size:14.5px;border:0;border-radius:12px;padding:13px}
+  #mv-red .mv-red-btn:active{filter:brightness(1.05)}
+  #mv-red .mv-red-ayuda{margin-top:10px;color:var(--mv-mut);font-size:11.5px;line-height:1.55}
+  #mv-red .mv-red-ayuda b{color:var(--mv-txt)}
   `;
   document.head.appendChild(s);
 }
