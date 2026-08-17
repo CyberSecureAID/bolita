@@ -29,6 +29,35 @@ export const IDIOMAS = [
    ══════════════════════════════════════════════════════════════ */
 const DIC = {
   en: {
+    /* ── App MÓVIL: barra inferior + ventana de Inicio ──
+       Estos textos van escritos en español en la cáscara móvil (assets/js/movil/)
+       y se traducen aquí, igual que el resto de la web. Solo se añaden a 'en': el
+       español y el portugués se quedan como estaban (sin regresión). */
+    'Inicio': 'Home',
+    'Mercados': 'Markets',
+    'Operar': 'Trade',
+    'Activos': 'Assets',
+    'Busca servicios, ofertas, monedas…': 'Search services, offers, coins…',
+    'Balance total': 'Total balance',
+    'Conecta tu wallet para ver tu saldo': 'Connect your wallet to see your balance',
+    'Agregar fondos': 'Add funds',
+    'Exchange no custodial.': 'Non-custodial exchange.',
+    'Tú controlas tus fondos siempre. Conecta tu wallet para operar, crear bots e intercambiar.': 'You always control your funds. Connect your wallet to trade, create bots and swap.',
+    'Ver': 'View',
+    'Ver →': 'See →',
+    'Ver todo →': 'See all →',
+    'Todos los servicios': 'All services',
+    'Ver balance en': 'View balance in',
+    'Participa y gana del pozo acumulado': 'Join and win from the accrued pool',
+    'Academia CriptoCuba': 'CriptoCuba Academy',
+    'Aprende a operar y multiplica tu ventaja': 'Learn to trade and multiply your edge',
+    'Prize Pool comunitario': 'Community Prize Pool',
+    'Participa y gana del fondo común': 'Join and win from the shared pool',
+    'Bots que operan por ti': 'Bots that trade for you',
+    'Compran abajo y venden arriba, en tu wallet': 'They buy low and sell high, in your wallet',
+    'Calculadoras y utilidades para operar mejor': 'Calculators and utilities to trade better',
+    'Acumulador': 'Accumulator',
+
     /* ── Menú principal ── */
     'Bots': 'Bots',
     'Market': 'Market',
