@@ -2,6 +2,7 @@
 
 import { IC } from './iconos.js?v=1';
 import * as wallet from '../wallet.js?v=125';
+import { money, money0, cantidad } from './fmt.js?v=1';
 
 const $ = (id) => document.getElementById(id);
 const LS = { ojo: 'mv-ojo', denom: 'mv-denom' };
@@ -39,7 +40,7 @@ const SERVICIOS = [
 ];
 
 let _ojo = leer(LS.ojo) === '1';
-let _denom = leer(LS.denom) || 'Total';
+let _denom = 'Total';   // siempre inicia en Total
 
 function leer(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
 function guardar(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
@@ -93,10 +94,7 @@ export function pintarInicio(host, api) {
     </div>
 
     <div class="mv-sec-h"><b>Todos los servicios</b><span id="mv-viewall">Ver todo →</span></div>
-    <div class="mv-two">
-      <div class="mv-tcard" id="mv-tc-0"></div>
-      <div class="mv-tcard" id="mv-tc-1"></div>
-    </div>
+    <div class="mv-svc"><div class="mv-svc-track" id="mv-svc-track"></div></div>
 
     <div class="mv-sec-h"><b>Prize Pool</b><span id="mv-prize-more">Ver →</span></div>
     <div class="mv-strip" id="mv-prize-strip">
@@ -130,12 +128,12 @@ export function pintarInicio(host, api) {
     if (!b || !b.conectado) { bal.textContent = '—'; sub.textContent = con ? '' : 'Conecta tu wallet para ver tu saldo'; return; }
     if (_ojo) { bal.textContent = '••••••'; sub.textContent = ''; return; }
     if (_denom === 'Total') {
-      bal.textContent = '$' + fmt(b.totalUSD); sub.textContent = '';
+      bal.textContent = money(b.totalUSD); sub.textContent = '';
     } else {
       const a = (b.activos || []).find((x) => x.id === _denom);
       const amt = a ? a.bal : 0, usd = a ? a.usd : 0;
-      bal.innerHTML = `${fmtAmt(amt)} <small>${_denom}</small>`;
-      sub.textContent = '$' + fmt(usd);
+      bal.innerHTML = `${cantidad(amt)} <small>${_denom}</small>`;
+      sub.textContent = '≈ ' + money(usd);
     }
   };
   $('mv-bal-lbl').onclick = () => { _ojo = !_ojo; guardar(LS.ojo, _ojo ? '1' : '0'); pintarBal(); };
@@ -154,41 +152,40 @@ export function pintarInicio(host, api) {
   pintarPromo();
   const tPromo = setInterval(() => { pi++; pintarPromo(); }, 4500);
 
-  // Tarjetas: TODOS los servicios pasan de dos en dos con un crossfade suave
-  // (sin desaparecer del todo, sin cambiar la altura de la página).
-  let ti = 0;
-  const pintarCards = () => {
-    for (let j = 0; j < 2; j++) {
-      const c = SERVICIOS[(ti * 2 + j) % SERVICIOS.length];
-      const el = $('mv-tc-' + j); if (!el) continue;
-      el.style.setProperty('--bc', c.color);
-      el.innerHTML = `<div class="mv-tc-kick" style="color:${c.color}">${c.kick}</div>
-        <div class="mv-tc-logo" style="color:${c.color}">${IC[c.ic] || IC.bot}</div>
-        <h4>${c.h}</h4><p>${c.p}</p>`;
-      el.onclick = () => api.abrir(c.go);
-    }
-  };
-  pintarCards();
-  const wrap = () => { const w = host.querySelector('.mv-two'); if (w) { w.classList.add('swap'); setTimeout(() => w.classList.remove('swap'), 260); } };
-  const tCards = setInterval(() => { wrap(); setTimeout(() => { ti++; pintarCards(); }, 130); }, 5200);
+  // Todos los servicios: carrusel continuo (CSS), fluido y sin parpadeos.
+  const track = $('mv-svc-track');
+  if (track) {
+    const card = (c) => `<button class="mv-svc-card" data-go="${c.go}" style="--bc:${c.color}">
+      <span class="mv-svc-ic" style="color:${c.color}">${IC[c.ic] || IC.bot}</span>
+      <b>${c.kick}</b><small>${c.h}</small></button>`;
+    track.innerHTML = (SERVICIOS.map(card).join('') + SERVICIOS.map(card).join(''));
+    track.style.setProperty('--n', SERVICIOS.length);
+    track.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => api.abrir(b.getAttribute('data-go')));
+  }
 
-  host._limpiar = () => { clearInterval(tPromo); clearInterval(tCards); };
+  host._limpiar = () => { clearInterval(tPromo); };
   host._pintarBal = pintarBal;
 }
 
 function menuDenom(api, cb) {
   const b = api.balance();
+  const cache = (() => { try { const c = JSON.parse(localStorage.getItem('mv-cg') || 'null'); return (c && c.d) || {}; } catch (_) { return {}; } })();
+  const cgById = {}; try { /* llena luego */ } catch (_) {}
   const opts = [{ id: 'Total', amt: null }];
-  if (b && b.activos) b.activos.forEach((a) => opts.push({ id: a.id, amt: a.bal }));
+  if (b && b.activos) b.activos.forEach((a) => opts.push({ id: a.id, amt: a.bal, cg: a.cg }));
   let m = document.getElementById('mv-denom-menu'); if (m) m.remove();
   m = document.createElement('div'); m.id = 'mv-denom-menu';
+  const LOGO_ESP = { EUR: 'https://flagcdn.com/w80/eu.png', GBP: 'https://flagcdn.com/w80/gb.png' };
   m.innerHTML = `<div class="mv-dm-bg"></div><div class="mv-dm-card">
     <div class="mv-dm-h">Ver balance en</div>
-    ${opts.map((o) => `<button data-o="${o.id}" class="${o.id === _denom ? 'on' : ''}">
-      <span class="mv-dm-lg">${o.id === 'Total' ? '∑' : esc3(o.id)}</span>
-      <span>${o.id}</span>
-      ${o.amt != null ? `<span class="mv-dm-amt">${fmtAmt(o.amt)}</span>` : ''}
-    </button>`).join('')}
+    ${opts.map((o) => {
+      const logo = o.id === 'Total' ? '' : (LOGO_ESP[o.id] || (o.cg && cache[o.cg] && cache[o.cg].img) || '');
+      return `<button data-o="${o.id}" class="${o.id === _denom ? 'on' : ''}">
+        <span class="mv-dm-lg" style="${logo ? `background-image:url(${logo})` : ''}">${o.id === 'Total' ? '∑' : (logo ? '' : esc3(o.id))}</span>
+        <span>${o.id}</span>
+        ${o.amt != null ? `<span class="mv-dm-amt">${cantidad(o.amt)}</span>` : ''}
+      </button>`;
+    }).join('')}
   </div>`;
   document.body.appendChild(m);
   const cerrar = () => m.remove();

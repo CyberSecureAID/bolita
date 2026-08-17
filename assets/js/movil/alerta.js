@@ -15,16 +15,17 @@ export async function abrirAlerta(par) {
 function dialogo(par) {
   let sh = document.getElementById('mv-sheet'); if (sh) sh.remove();
   sh = document.createElement('div'); sh.id = 'mv-sheet';
-  sh.innerHTML = `<div class="mv-sheet-bg"></div><div class="mv-sheet-card">
-    <div class="mv-sheet-h"><b>Alerta · ${esc(par.id)}</b><span>Te avisamos cuando llegue al precio</span><button class="mv-sheet-x">✕</button></div>
-    <div class="op-field" style="background:var(--mv-card2)"><span>Precio</span><input id="al-price" inputmode="decimal" placeholder="0.00"><b>USDT</b></div>
-    <button class="mv-sheet-op" id="al-ok" style="justify-content:center;color:var(--mv-gold);font-weight:800">Crear alerta</button>
-    <button class="mv-sheet-cancel">Cancelar</button></div>`;
+  sh.innerHTML = `<div class="mv-sheet-bg"></div><div class="mv-sheet-card al-card">
+    <button class="mv-sheet-x">✕</button>
+    <div class="al-h"><b>Alerta · ${esc(par.id)}</b><span>Te avisamos cuando llegue al precio</span></div>
+    <div class="op-field al-field"><span>Precio</span><input id="al-price" inputmode="decimal" placeholder="0.00"><b>USDT</b></div>
+    <button class="al-ok" id="al-ok">Crear alerta</button>
+    <button class="al-cancel">Cancelar</button></div>`;
   document.body.appendChild(sh);
   const cerrar = () => sh.remove();
   sh.querySelector('.mv-sheet-bg').onclick = cerrar;
   sh.querySelector('.mv-sheet-x').onclick = cerrar;
-  sh.querySelector('.mv-sheet-cancel').onclick = cerrar;
+  sh.querySelector('.al-cancel').onclick = cerrar;
   sh.querySelector('#al-ok').onclick = async () => {
     const val = parseFloat(String((document.getElementById('al-price') || {}).value).replace(',', '.')) || 0;
     if (!(val > 0)) return;

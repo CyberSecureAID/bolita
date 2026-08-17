@@ -9,6 +9,7 @@
 import { IC } from './iconos.js?v=1';
 import { abrirPicker } from './picker.js?v=1';
 import { abrirAlerta } from './alerta.js?v=1';
+import { precio as fmtPrecio, money, cantidad } from './fmt.js?v=1';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -38,9 +39,8 @@ export async function pintarOperar(host, api) {
       </button>
       <div class="op-acts">
         <button class="op-ic" id="op-alert" title="Alerta de precio">${IC.bell}</button>
-        <button class="op-ic" id="op-mini" title="Gráfica">${IC.minichart}</button>
+        <button class="op-ic" id="op-chart" title="Gráficas (Liquidity Pools)">${IC.candles}</button>
         <button class="op-ic" id="op-bots" title="Bots">${IC.bot}</button>
-        <button class="op-ic" id="op-vela" title="Smart Levels">${IC.candles}</button>
         <button class="op-ic" id="op-tools" title="Herramientas">${IC.dots}</button>
       </div>
     </div>
@@ -86,7 +86,7 @@ export async function pintarOperar(host, api) {
 
   // Cabecera
   $('op-sel').onclick = () => selectorMoneda();
-  $('op-mini').onclick = $('op-vela').onclick = () => api.abrirGrafica('niveles', _par);
+  $('op-chart').onclick = () => api.abrir('liquidity');   // Charts → Liquidity Pools
   $('op-bots').onclick = () => api.abrir('bots');
   $('op-tools').onclick = () => api.abrir('tools');
   $('op-alert').onclick = () => abrirAlerta(_par);
@@ -247,7 +247,11 @@ function selectorMoneda() {
   });
 }
 function selectorQuote() {
-  const quotes = [{ id: 'USDT', n: 'Tether' }, { id: 'USDC', n: 'USD Coin' }, { id: 'BNB', n: 'BNB', cg: 'binancecoin' }];
+  const quotes = [
+    { id: 'USDT', n: 'Tether', cg: 'tether' },
+    { id: 'USDC', n: 'USD Coin', cg: 'usd-coin' },
+    { id: 'BNB', n: 'BNB', cg: 'binancecoin' },
+  ];
   abrirPicker('Moneda de pago', quotes, (id) => {
     _quote = id;
     const q = $('op-qsel'); if (q) q.innerHTML = `${esc(_quote)} ${chev(10)}`;

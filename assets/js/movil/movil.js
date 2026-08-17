@@ -40,7 +40,7 @@ async function abrir(clave, arg) {
       case 'fondos':    abrirMetamaskBuy(); break;
       case 'prize':     { const m = await import('../prizepool.js?v=125'); m.abrirPrizePool && m.abrirPrizePool(); break; }
       case 'perfil':    { const m = await import('../perfil.js?v=125'); m.abrirPerfil && m.abrirPerfil(); if (_movil()) uidEnPerfil(); break; }
-      case 'tools':     { const m = await import('../tools.js?v=125'); m.abrirTools && m.abrirTools(); break; }
+      case 'tools':     { inyectarFixTools(); const m = await import('../tools.js?v=125'); m.abrirTools && m.abrirTools(); break; }
       case 'academy':   { inyectarFixGrafica(); const m = await import('../academy.js?v=125'); m.abrirAcademy && m.abrirAcademy(); break; }
       case 'niveles':   { inyectarFixGrafica(); const m = await import('../niveles.js?v=126'); m.abrirNiveles && m.abrirNiveles(); break; }
       case 'muros':     { inyectarFixGrafica(); const m = await import('../muros.js?v=126'); m.abrirMuros && m.abrirMuros(); break; }
@@ -87,9 +87,25 @@ function inyectarFixSwap() {
   document.head.appendChild(s);
 }
 async function abrirToolDirecto(id) {
+  inyectarFixTools();
   const m = await import('../tools.js?v=125');
   if (m.abrirTools) m.abrirTools();
   setTimeout(() => { const b = document.querySelector(`[data-tool="${id}"]`); if (b) b.click(); }, 140);
+}
+
+/* Tools en móvil: cuadrícula compacta (2 por fila), modal responsive con scroll. */
+function inyectarFixTools() {
+  if ($('mv-tools-fix')) return;
+  const s = document.createElement('style'); s.id = 'mv-tools-fix';
+  s.textContent = `@media(max-width:760px){
+    #tl-overlay{align-items:flex-start!important;padding:calc(10px + env(safe-area-inset-top,0px)) 10px 70px!important}
+    #tl-overlay .tl-c{max-width:460px!important;width:auto!important;margin:0 auto!important;max-height:calc(100vh - 90px)!important;overflow-y:auto!important}
+    #tl-overlay .tl-lista{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important}
+    #tl-overlay .tl-item{flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;
+      min-height:112px!important;padding:14px!important;gap:8px!important}
+    #tl-overlay .tl-item>*{text-align:left!important}
+  }`;
+  document.head.appendChild(s);
 }
 
 /* Recibir: dirección + QR de la wallet conectada. */
@@ -226,7 +242,7 @@ async function leerBalance() {
       const cg = cgById[id];
       const px = (id === 'USDT' || id === 'USDC' || id === 'USDTZ') ? 1 : (cg && precioCg[cg] ? precioCg[cg].usd : 0);
       precios[id] = px; const usd = Number(bal) * px; total += usd;
-      activos.push({ id, bal: Number(bal), usd });
+      activos.push({ id, bal: Number(bal), usd, cg });
     });
     activos.sort((a, b) => b.usd - a.usd);
     return { conectado: true, totalUSD: total, activos, precios };
