@@ -10,7 +10,7 @@ import { inyectarMovil } from './estilos.js?v=1';
 import { IC } from './iconos.js?v=1';
 import { pintarInicio } from './inicio.js?v=1';
 import { pintarMercados } from './markets.js?v=1';
-import { pintarOperar, prepararOperar } from './operar.js?v=1';
+import { pintarOperar, prepararOperar, restaurarBotCard } from './operar.js?v=1';
 import { pintarActivos } from './activos.js?v=1';
 import { abrirMenu } from './menu.js?v=1';
 import { abrirBuscar } from './buscar.js?v=1';
@@ -21,6 +21,7 @@ const _movil = () => window.matchMedia('(max-width: 760px)').matches;
 
 let _deps = { conectarWallet: null };
 let _tab = 'home';
+let _tabPrevBots = 'home';
 let _bal = null;
 
 export function initMovil(deps) { _deps = Object.assign(_deps, deps || {}); }
@@ -145,11 +146,12 @@ function inyectarFixTools() {
   const s = document.createElement('style'); s.id = 'mv-tools-fix';
   s.textContent = `@media(max-width:760px){
     #tl-overlay{align-items:flex-start!important;padding:calc(10px + env(safe-area-inset-top,0px)) 10px 70px!important}
-    #tl-overlay .tl-c{max-width:460px!important;width:auto!important;margin:0 auto!important;max-height:calc(100vh - 90px)!important;overflow-y:auto!important}
+    #tl-overlay .tl-c{max-width:440px!important;width:calc(100% - 20px)!important;margin:0 auto!important;max-height:calc(100vh - 90px)!important;overflow-y:auto!important;padding:16px!important}
     #tl-overlay .tl-lista{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important}
     #tl-overlay .tl-item{flex-direction:column!important;align-items:flex-start!important;justify-content:flex-start!important;
-      min-height:112px!important;padding:14px!important;gap:8px!important}
+      min-height:104px!important;padding:13px!important;gap:7px!important}
     #tl-overlay .tl-item>*{text-align:left!important}
+    #tl-overlay .tl-c::-webkit-scrollbar{display:none}
   }`;
   document.head.appendChild(s);
 }
@@ -214,15 +216,17 @@ function inyectarFixGrafica() {
 /* ── Modo Bots: portada real sin cabecera/cinta/logo/FAB; barra inferior visible. ── */
 function modoBots(on) {
   inyectarFixBots();
+  try { restaurarBotCard(); } catch (_) {}
   const web = $('colmena-app');
   if (on) {
+    _tabPrevBots = _tab;
     document.body.classList.add('mv-bots');
     if (web) web.style.visibility = 'visible';
     if (window._mvHideWeb) window._mvHideWeb.disabled = true;
     if (!$('mv-bots-x')) {
       const x = document.createElement('button');
       x.id = 'mv-bots-x'; x.innerHTML = '✕'; x.setAttribute('aria-label', 'Cerrar');
-      x.onclick = () => { salirBots(); irA('home'); };
+      x.onclick = () => { const dest = _tabPrevBots && _tabPrevBots !== 'home' ? _tabPrevBots : 'home'; salirBots(); irA(dest); };
       document.body.appendChild(x);
     }
   } else salirBots();
@@ -240,7 +244,7 @@ function inyectarFixBots() {
   s.textContent = `
     body.mv-bots #colmena-app{visibility:visible!important;padding-top:52px;padding-bottom:70px}
     body.mv-bots #colmena-app .c-hdr,body.mv-bots #colmena-app #c-ticker,body.mv-bots #colmena-app .c-ticker,
-    body.mv-bots #np-fab-previo,body.mv-bots #npFab,body.mv-bots #np-chat,body.mv-bots #npChat{display:none!important}
+    body.mv-bots #np-fab-previo,body.mv-bots #npFab{display:none!important}
     body.mv-bots #mv-app{background:transparent!important;pointer-events:none}
     body.mv-bots #mv-scroll{display:none!important}
     @media(max-width:760px){
@@ -364,7 +368,7 @@ export async function montarMovil(deps) {
   inyectarMovil();
   // Oculta el FAB del asistente en móvil (el soporte se abre desde la cáscara).
   const st = document.createElement('style'); st.id = 'mv-fab-fix';
-  st.textContent = '@media(max-width:760px){#np-fab-previo,#npFab,#np-chat,#npChat{display:none!important}}';
+  st.textContent = '@media(max-width:760px){#np-fab-previo,#npFab{display:none!important}}';
   document.head.appendChild(st);
 
   const app = document.createElement('div');

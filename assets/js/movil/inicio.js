@@ -2,7 +2,7 @@
 
 import { IC } from './iconos.js?v=1';
 import * as wallet from '../wallet.js?v=125';
-import { money, money0, cantidad } from './fmt.js?v=1';
+import { money, money0, cantidad, logoDe } from './fmt.js?v=1';
 
 const $ = (id) => document.getElementById(id);
 const LS = { ojo: 'mv-ojo', denom: 'mv-denom' };
@@ -108,8 +108,8 @@ export function pintarInicio(host, api) {
   $('mv-search').onclick = () => api.abrir('buscar');
   $('mv-support').onclick = () => api.abrir('soporte');
   $('mv-alerts').onclick = () => api.abrir('alertas');
-  $('mv-add').onclick = () => api.abrir('fondos');
-  $('mv-trade').onclick = () => api.abrir('niveles');
+  $('mv-add').onclick = () => api.abrir('recibir');
+  $('mv-trade').onclick = () => api.irA('trade');
   const cb = $('mv-connect-btn'); if (cb) cb.onclick = () => api.conectar();
   host.querySelectorAll('.mv-qi').forEach((el) => { el.onclick = () => api.abrir(el.getAttribute('data-k')); });
   $('mv-prize-go').onclick = $('mv-prize-more').onclick = () => api.abrir('prize');
@@ -170,22 +170,22 @@ export function pintarInicio(host, api) {
 function menuDenom(api, cb) {
   const b = api.balance();
   const cache = (() => { try { const c = JSON.parse(localStorage.getItem('mv-cg') || 'null'); return (c && c.d) || {}; } catch (_) { return {}; } })();
-  const cgById = {}; try { /* llena luego */ } catch (_) {}
   const opts = [{ id: 'Total', amt: null }];
   if (b && b.activos) b.activos.forEach((a) => opts.push({ id: a.id, amt: a.bal, cg: a.cg }));
   let m = document.getElementById('mv-denom-menu'); if (m) m.remove();
   m = document.createElement('div'); m.id = 'mv-denom-menu';
-  const LOGO_ESP = { EUR: 'https://flagcdn.com/w80/eu.png', GBP: 'https://flagcdn.com/w80/gb.png' };
   m.innerHTML = `<div class="mv-dm-bg"></div><div class="mv-dm-card">
     <div class="mv-dm-h">Ver balance en</div>
+    <div class="mv-dm-list">
     ${opts.map((o) => {
-      const logo = o.id === 'Total' ? '' : (LOGO_ESP[o.id] || (o.cg && cache[o.cg] && cache[o.cg].img) || '');
+      const logo = o.id === 'Total' ? '' : logoDe(o.id, o.cg, cache);
       return `<button data-o="${o.id}" class="${o.id === _denom ? 'on' : ''}">
         <span class="mv-dm-lg" style="${logo ? `background-image:url(${logo})` : ''}">${o.id === 'Total' ? '∑' : (logo ? '' : esc3(o.id))}</span>
         <span>${o.id}</span>
         ${o.amt != null ? `<span class="mv-dm-amt">${cantidad(o.amt)}</span>` : ''}
       </button>`;
     }).join('')}
+    </div>
   </div>`;
   document.body.appendChild(m);
   const cerrar = () => m.remove();

@@ -4,7 +4,7 @@
 
 import { IC } from './iconos.js?v=1';
 import * as wallet from '../wallet.js?v=125';
-import { money, cantidad } from './fmt.js?v=1';
+import { money, cantidad, logoDe } from './fmt.js?v=1';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -29,7 +29,7 @@ export function pintarActivos(host, api) {
 
     <div class="ac-card">
       <div class="ac-card-top">
-        <span class="ac-lbl" id="ac-eye">Balance total (USDT) ${IC.eye}</span>
+        <span class="ac-lbl" id="ac-eye">Balance total ${IC.eye}</span>
         <div class="ac-top-r">
           <button class="ac-share" id="ac-share" title="Compartir" aria-label="Compartir"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></button>
           <span class="ac-brand">${esc(APP_NOMBRE)}</span>
@@ -83,7 +83,7 @@ export function pintarActivos(host, api) {
     const act = (b.activos || []).slice().sort((x, y) => y.usd - x.usd);
     if (!act.length) { list.innerHTML = `<div class="mv-empty">Tu wallet no tiene saldo todavía.</div>`; return; }
     list.innerHTML = act.map((a) => {
-      const logo = LOGO_ESP[a.id] || (_cg[a.id] && _img[_cg[a.id]]) || '';
+      const logo = logoDe(a.id, a.cg || _cg[a.id], _img && Object.keys(_img).length ? Object.fromEntries(Object.entries(_img).map(([k, v]) => [k, { img: v }])) : {});
       return `<div class="ac-row">
         <div class="ac-ci" style="${logo ? `background-image:url(${logo});background-size:cover` : ''}">${logo ? '' : esc(a.id.slice(0, 3))}</div>
         <div class="ac-nm"><b>${esc(a.id)}</b><small>${_ojo ? '••••' : cantidad(a.bal)}</small></div>

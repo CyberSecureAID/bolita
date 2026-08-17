@@ -1,5 +1,28 @@
 /* movil/fmt.js — Formato uniforme, compacto y legible para toda la app móvil. */
 
+/* Logos conocidos (para que USDT, BNB, BabyDoge… siempre tengan icono, igual
+   que en la web). Para el resto se usa la cache de CoinGecko. */
+export const LOGOS = {
+  USDT: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+  USDC: 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
+  BUSD: 'https://assets.coingecko.com/coins/images/9576/small/BUSD.png',
+  DAI: 'https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png',
+  BNB: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+  WBNB: 'https://assets.coingecko.com/coins/images/12591/small/binance-coin-logo.png',
+  BABYDOGE: 'https://assets.coingecko.com/coins/images/16125/small/babydoge.jpg',
+  ETH: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+  BTC: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+  EUR: 'https://flagcdn.com/w80/eu.png',
+  GBP: 'https://flagcdn.com/w80/gb.png',
+  PAXG: 'https://assets.coingecko.com/coins/images/9519/small/paxgold.png',
+};
+export function logoDe(id, cg, cache) {
+  const k = String(id || '').toUpperCase().replace(/\s+/g, '');
+  if (LOGOS[k]) return LOGOS[k];
+  if (cg && cache && cache[cg] && cache[cg].img) return cache[cg].img;
+  return '';
+}
+
 /* Valor monetario en USD: 2 decimales; muy pequeños como "<$0.01". */
 export function money(v) {
   v = Number(v);

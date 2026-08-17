@@ -125,7 +125,7 @@ export async function pintarOperar(host, api) {
   cargar();
   clearInterval(_timer);
   _timer = setInterval(cargar, 4000);
-  host._limpiar = () => clearInterval(_timer);
+  host._limpiar = () => { clearInterval(_timer); restaurarBotCard(); };
 }
 
 function posGuardadas() { try { return JSON.parse(localStorage.getItem('mv-pos') || '[]'); } catch (_) { return []; } }
@@ -135,11 +135,12 @@ async function pintarPanel(t) {
   const el = $('op-panel'); if (!el) return;
   const con = _api && _api.estaConectado && _api.estaConectado();
   if (t === 'bots') {
-    if (!con) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus bots activos.</div>`; return; }
-    el.innerHTML = `<div class="op-empty">Cargando tus bots…</div>`;
-    cargarBotsReales(el);
+    if (!con) { restaurarBotCard(); el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus bots activos.</div>`; return; }
+    el.innerHTML = `<div class="op-loading"><span class="op-spin"></span>Cargando tus bots…</div>`;
+    reflejarBotsReales(el);
     return;
   }
+  restaurarBotCard();
   if (t === 'ord') {
     let ordenes = [];
     try { const o = await import('../orden.js?v=126'); if (o.ordenesPuestas) ordenes = o.ordenesPuestas() || []; } catch (_) {}
@@ -169,48 +170,44 @@ async function pintarPanel(t) {
   });
 }
 
-/* Lee los bots reales del usuario de la MISMA fuente on-chain que la web:
-   gb.misRejillas + gb.resumenK + gb.modoDe. Sin API ni backend. */
-const BOT_META = {
-  0: { n: 'Smart Grid', c: '#4d9fff', ic: 'botGrid' },
-  1: { n: 'Acumulador', c: '#b47cff', ic: 'botAcum' },
-  2: { n: 'Cash Out',   c: '#e8b84b', ic: 'botCash' },
-  3: { n: 'DCA',        c: '#34d97b', ic: 'botDca' },
-};
-async function cargarBotsReales(el) {
+/* Muestra en Operar las MISMAS tarjetas reales de "Mis bots" que la web pinta
+   (con toda su dinámica y botones). Reubica el nodo vivo y lo devuelve al salir. */
+let _botCard = null;
+function reflejarBotsReales(el) {
+  const web = document.getElementById('colmena-app');
+  const card = web && web.querySelector('.colmenas.card');
+  if (!card) { botsFallback(el); return; }
+  // marcar el hueco para devolverla luego
+  if (!card._mvPh) { const ph = document.createComment('mv-bots'); card._mvPh = ph; card.parentNode.insertBefore(ph, card); }
+  el.innerHTML = '';
+  el.appendChild(card);
+  card.classList.add('mv-botcard');
+  _botCard = card;
+  // Si sigue cargando (skeleton), esperamos a que aparezcan las rejillas.
+  const rej = card.querySelector('#c-rejillas');
+  if (rej && rej.querySelector('.skel')) {
+    let n = 0; const t = setInterval(() => { n++; if (!rej.querySelector('.skel') || n > 40) clearInterval(t); }, 250);
+  }
+}
+export function restaurarBotCard() {
+  if (_botCard && _botCard._mvPh && _botCard._mvPh.parentNode) {
+    _botCard._mvPh.parentNode.insertBefore(_botCard, _botCard._mvPh);
+    _botCard.classList.remove('mv-botcard');
+  }
+  _botCard = null;
+}
+async function botsFallback(el) {
   let gb, wallet;
   try { gb = await import('../gridbot.js?v=125'); wallet = await import('../wallet.js?v=125'); } catch (_) {}
   const cuenta = wallet && wallet.cuentaActual && wallet.cuentaActual();
-  if (!cuenta) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus bots.</div>`; return; }
   let claves = [];
-  try { claves = await gb.misRejillas(cuenta) || []; } catch (_) {}
+  try { if (cuenta) claves = await gb.misRejillas(cuenta) || []; } catch (_) {}
   if (!claves.length) {
     el.innerHTML = `<div class="op-empty">Aún no tienes bots activos.<br><button class="op-link" id="op-crear">Crear un bot</button></div>`;
     const c = document.getElementById('op-crear'); if (c) c.onclick = () => _api.abrir('bots'); return;
   }
-  const bots = [];
-  for (const k of claves) {
-    try {
-      const [R, md] = await Promise.all([gb.resumenK(k), gb.modoDe(k).catch(() => [0])]);
-      if (!R || R.activa === false) continue;
-      const tipo = Number(Array.isArray(md) ? md[0] : md) || 0;
-      let gan = 0, vol = 0;
-      try { gan = Number(gb.fmt(R.gananciaQuote || 0n, 18)); } catch (_) {}
-      try { vol = Number(gb.fmt(R.volumenQuote || 0n, 18)); } catch (_) {}
-      bots.push({ tipo, gan, vol });
-    } catch (_) {}
-  }
-  if (!bots.length) { el.innerHTML = `<div class="op-empty">No tienes bots activos ahora mismo.</div>`; return; }
-  el.innerHTML = bots.map((b) => {
-    const m = BOT_META[b.tipo] || BOT_META[0];
-    const cls = b.gan >= 0 ? 'up' : 'dn';
-    return `<div class="op-bot">
-      <span class="op-bot-ic" style="color:${m.c};background:color-mix(in srgb,${m.c} 15%,transparent)">${IC[m.ic] || IC.bot}</span>
-      <div class="op-bot-tx"><b>${m.n}</b><small>Volumen ${money(b.vol)}</small></div>
-      <div class="op-bot-pnl ${cls}">${b.gan >= 0 ? '+' : ''}${money(b.gan)}</div>
-    </div>`;
-  }).join('') + `<button class="op-bot-manage" id="op-bot-manage">Gestionar mis bots</button>`;
-  const mng = document.getElementById('op-bot-manage'); if (mng) mng.onclick = () => _api.abrir('bots');
+  el.innerHTML = `<div class="op-empty">Tienes ${claves.length} bot(s). <button class="op-link" id="op-crear">Ver mis bots</button></div>`;
+  const c = document.getElementById('op-crear'); if (c) c.onclick = () => _api.abrir('bots');
 }
 
 function renderBook() {
