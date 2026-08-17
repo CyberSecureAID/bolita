@@ -25,7 +25,45 @@ let _bal = null;
 
 export function initMovil(deps) { _deps = Object.assign(_deps, deps || {}); }
 
+/* ── Servicios con activación/pago ──
+   Estructura preparada para conectar, más adelante, el smart contract de cada
+   servicio. Hoy está vacío (todo libre). Para marcar uno como de pago:
+     SERVICIOS_PAGO['clave'] = { nombre, precio, desc, contrato? }
+   y requiereActivacion() decidirá según el contrato / activación del usuario. */
+const SERVICIOS_PAGO = {
+  // ej: academy: { nombre: 'Academia Pro', precio: '10 USDT', desc: 'Acceso completo a los cursos.' }
+};
+function activado(clave) { try { return localStorage.getItem('cco-activado-' + clave) === '1'; } catch (_) { return false; } }
+function requiereActivacion(clave) {
+  const s = SERVICIOS_PAGO[clave];
+  if (!s) return false;                 // servicio libre
+  // FUTURO: aquí se consultará el contrato (¿el usuario ya pagó/activó?).
+  return !activado(clave);
+}
+function avisoActivacion(clave) {
+  const s = SERVICIOS_PAGO[clave]; if (!s) return;
+  let sh = $('mv-sheet'); if (sh) sh.remove();
+  sh = document.createElement('div'); sh.id = 'mv-sheet';
+  sh.innerHTML = `<div class="mv-sheet-bg"></div><div class="mv-sheet-card">
+    <button class="mv-sheet-x">✕</button>
+    <div class="al-h"><b>${s.nombre || 'Servicio premium'}</b><span>${s.desc || 'Este servicio requiere activación para poder usarse.'}</span></div>
+    ${s.precio ? `<div class="op-field al-field" style="justify-content:center"><b style="color:var(--mv-gold)">${s.precio}</b></div>` : ''}
+    <button class="al-ok" id="mv-activar">Activar</button>
+    <button class="al-cancel">Ahora no</button></div>`;
+  document.body.appendChild(sh);
+  const cerrar = () => sh.remove();
+  sh.querySelector('.mv-sheet-bg').onclick = cerrar;
+  sh.querySelector('.mv-sheet-x').onclick = cerrar;
+  sh.querySelector('.al-cancel').onclick = cerrar;
+  sh.querySelector('#mv-activar').onclick = () => {
+    // FUTURO: disparar el pago/activación vía el contrato del servicio.
+    avisoSimple('Activación', 'La activación de pago se conectará con su contrato próximamente.');
+    cerrar();
+  };
+}
+
 async function abrir(clave, arg) {
+  if (requiereActivacion(clave)) { avisoActivacion(clave); return; }
   try {
     switch (clave) {
       case 'swap':      { const m = await import('../gridbot/swap.js?v=1'); m.abrirSwap && m.abrirSwap(); sacarSwapDelWeb(); break; }
@@ -200,11 +238,23 @@ function inyectarFixBots() {
   if ($('mv-bots-fix')) return;
   const s = document.createElement('style'); s.id = 'mv-bots-fix';
   s.textContent = `
-    body.mv-bots #colmena-app{visibility:visible!important;padding-top:8px;padding-bottom:70px}
+    body.mv-bots #colmena-app{visibility:visible!important;padding-top:52px;padding-bottom:70px}
     body.mv-bots #colmena-app .c-hdr,body.mv-bots #colmena-app #c-ticker,body.mv-bots #colmena-app .c-ticker,
     body.mv-bots #np-fab-previo,body.mv-bots #npFab,body.mv-bots #np-chat,body.mv-bots #npChat{display:none!important}
     body.mv-bots #mv-app{background:transparent!important;pointer-events:none}
     body.mv-bots #mv-scroll{display:none!important}
+    @media(max-width:760px){
+      body.mv-bots #colmena-app .rej{padding:13px!important;margin-top:12px!important;border-radius:14px!important}
+      body.mv-bots #colmena-app .rej-top{margin-bottom:9px!important}
+      body.mv-bots #colmena-app .rej-par{font-size:15px!important}
+      body.mv-bots #colmena-app .pio-box{padding:9px 11px!important}
+      body.mv-bots #colmena-app .pio-box .v{font-size:14px!important}
+      body.mv-bots #colmena-app .rej .l,body.mv-bots #colmena-app .rej .r{padding:11px 13px!important}
+      body.mv-bots #colmena-app .rej .v{font-size:16px!important;line-height:1.1!important}
+      body.mv-bots #colmena-app .rej .k{font-size:11px!important}
+      body.mv-bots #colmena-app .rej-btns{margin-top:10px!important}
+      body.mv-bots #colmena-app .rej-btns button{padding:11px!important}
+    }
   `;
   document.head.appendChild(s);
 }
