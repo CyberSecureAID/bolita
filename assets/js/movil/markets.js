@@ -7,6 +7,7 @@
    cacheado 5 min). Binance de respaldo para precio. Todo defensivo. */
 
 import { IC } from './iconos.js?v=1';
+import { logoDe } from './fmt.js?v=1';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -94,10 +95,10 @@ function render() {
     const precio = d.price == null ? '—' : fmtPrecio(d.price);
     const fav = _fav.has(p.id);
     const ini = esc(p.id.slice(0, 1));
-    const logo = d.img || LOGO_ESPECIAL[p.id] || '';
+    const logo = logoDe(p.id, p.cg, _datos) || d.img || LOGO_ESPECIAL[p.id] || '';
     return `<div class="mv-row" data-id="${esc(p.id)}">
       <button class="mv-favb ${fav ? 'on' : ''}" data-fav="${esc(p.id)}" aria-label="Favorito">${fav ? IC.star : starOutline()}</button>
-      <div class="mv-ci" data-cg="${esc(p.cg || '')}" style="${logo ? `background-image:url(${logo})` : ''}"><span class="ico-fb"${logo ? ' style="display:none"' : ''}>${ini}</span></div>
+      <div class="mv-ci" data-cg="${esc(p.cg || '')}"><span class="ico-fb">${ini}</span>${logo ? `<img src="${logo}" alt="" loading="lazy" onload="this.previousElementSibling.style.display='none'" onerror="this.remove()">` : ''}</div>
       <div class="mv-cn"><b>${esc(p.s)}</b><small>${esc(p.n)}</small></div>
       <div class="mv-cp"><b>${precio}</b><small class="${cls}">${chgTxt}</small></div>
     </div>`;
