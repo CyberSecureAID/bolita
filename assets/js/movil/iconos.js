@@ -1,0 +1,32 @@
+/* movil/iconos.js — Iconos SVG inline (sin librerías). Trazo fino, heredan
+   color con currentColor. Usados por toda la cáscara móvil. */
+
+const w = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+
+export const IC = {
+  user: w('<circle cx="12" cy="8" r="4"/><path d="M4 20c0-3.3 3.6-5 8-5s8 1.7 8 5"/>'),
+  search: w('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>'),
+  support: w('<path d="M4 13a8 8 0 0116 0"/><rect x="2" y="13" width="4" height="6" rx="1.5"/><rect x="18" y="13" width="4" height="6" rx="1.5"/><path d="M20 19a5 5 0 01-5 4h-2"/>'),
+  bell: w('<path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 004 0"/>'),
+  eye: w('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+  market: w('<rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="1.5"/><path d="M3 8h18"/>'),
+  bot: w('<rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4M8 4h8"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/>'),
+  swap: w('<path d="M7 4L3 8l4 4"/><path d="M3 8h13a4 4 0 014 4"/><path d="M17 20l4-4-4-4"/><path d="M21 16H8a4 4 0 01-4-4"/>'),
+  chart: w('<path d="M4 19V5"/><path d="M4 19h16"/><path d="M7 15l3-4 3 2 4-6"/>'),
+  pool: w('<path d="M4 12c2 0 2 2 4 2s2-2 4-2 2 2 4 2 2-2 4-2"/><path d="M4 17c2 0 2 2 4 2s2-2 4-2 2 2 4 2 2-2 4-2"/><path d="M12 3v6"/><circle cx="12" cy="4" r="1.5"/>'),
+  tools: w('<path d="M14 7a4 4 0 00-5 5l-6 6 2 2 6-6a4 4 0 005-5l-2 2-2-2 2-2z"/>'),
+  trophy: w('<path d="M7 4h10v4a5 5 0 01-10 0V4z"/><path d="M7 6H4v2a3 3 0 003 3M17 6h3v2a3 3 0 01-3 3"/><path d="M12 13v4M9 21h6M10 21v-2h4v2"/>'),
+  book: w('<path d="M4 5a2 2 0 012-2h12v16H6a2 2 0 00-2 2V5z"/><path d="M8 3v14"/>'),
+  stack: w('<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>'),
+  calendar: w('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/>'),
+  grid: w('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
+  coins: w('<ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v5c0 1.7 2.7 3 6 3s6-1.3 6-3V7"/><ellipse cx="15" cy="14" rx="6" ry="3"/><path d="M9 14v3c0 1.7 2.7 3 6 3s6-1.3 6-3v-3"/>'),
+  home: w('<path d="M4 11l8-7 8 7"/><path d="M6 10v9a1 1 0 001 1h10a1 1 0 001-1v-9"/>'),
+  candles: w('<path d="M7 4v3M7 15v5M7 7h0M7 7a2 2 0 012 2v4a2 2 0 01-4 0V9a2 2 0 012-2z"/><path d="M17 3v4M17 17v4M17 7a2 2 0 012 2v6a2 2 0 01-4 0V9a2 2 0 012-2z"/>'),
+  wallet: w('<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/><circle cx="17" cy="13.5" r="1.3"/>'),
+  arrowDown: w('<path d="M12 4v14M6 12l6 6 6-6"/>'),
+  arrowUp: w('<path d="M12 20V6M6 12l6-6 6 6"/>'),
+  transfer: w('<path d="M4 8h13M13 4l4 4-4 4"/><path d="M20 16H7M11 20l-4-4 4-4"/>'),
+  buy: w('<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><circle cx="8" cy="14" r="1.3"/>'),
+  star: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 3l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>',
+};

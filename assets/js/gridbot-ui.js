@@ -3030,6 +3030,7 @@ async function arrancar() {
   clearTimeout(_tBoot);
   _arrancando = false;
   render(); iniciarReloj();
+  if (_movil()) { import('./movil/movil.js?v=1').then((m) => m.montarMovil({ conectarWallet })).catch(() => {}); }
   if (walletMuda && !wallet.cuentaActual()) {
     setTimeout(() => {
       const el = $('c-hero-msg') || $('c-msg');
