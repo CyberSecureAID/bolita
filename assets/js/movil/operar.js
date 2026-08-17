@@ -125,10 +125,8 @@ export async function pintarOperar(host, api) {
 
   // Posición / órdenes / bots
   host.querySelectorAll('.op-tab').forEach((b) => b.onclick = () => {
-    const t = b.getAttribute('data-pt');
-    if (t === 'bots') { _api.abrir('bots'); return; }   // abre la sección REAL "Mis bots"
     host.querySelectorAll('.op-tab').forEach((x) => x.classList.toggle('on', x === b));
-    pintarPanel(t);
+    pintarPanel(b.getAttribute('data-pt'));
   });
   pintarPanel('pos');
 
@@ -146,6 +144,13 @@ function posGuardar(l) { try { localStorage.setItem('mv-pos', JSON.stringify(l))
 async function pintarPanel(t) {
   const el = $('op-panel'); if (!el) return;
   const con = _api && _api.estaConectado && _api.estaConectado();
+  if (t === 'bots') {
+    if (!con) { restaurarBotCard(); el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus bots activos.</div>`; return; }
+    el.innerHTML = `<div class="op-loading"><span class="op-spin"></span>Cargando tus bots…</div>`;
+    reflejarBotsReales(el);
+    return;
+  }
+  restaurarBotCard();
   if (t === 'ord') {
     if (!con) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus órdenes.</div>`; return; }
     let ordenes = [];
@@ -224,70 +229,54 @@ async function cancelarOrden(o, el) {
   pintarPanel('ord');
 }
 
-/* Muestra los bots reales del usuario en tarjetas móviles propias (compactas,
-   estilo Pionex) leyendo la MISMA fuente on-chain que la web: misRejillas +
-   resumenK + modoDe. SOLO bots activos (R.activa===true). No reubica nada de la
-   web (eso rompía el layout). Las órdenes limit se excluyen. */
-const BOT_META = {
-  0: { n: 'Smart Grid', c: '#4d9fff', ic: 'botGrid' },
-  1: { n: 'Acumulador', c: '#b47cff', ic: 'botAcum' },
-  2: { n: 'Cash Out',   c: '#e8b84b', ic: 'botCash' },
-  3: { n: 'DCA',        c: '#34d97b', ic: 'botDca' },
-};
-export function restaurarBotCard() { /* compat: ya no se reubica nada */ }
-async function reflejarBotsReales(el) {
-  let gb, wallet, tokens;
-  try { gb = await import('../gridbot.js?v=125'); wallet = await import('../wallet.js?v=125'); tokens = await import('../tokens.js?v=125'); } catch (_) {}
-  const cuenta = wallet && wallet.cuentaActual && wallet.cuentaActual();
-  if (!cuenta) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus bots activos.</div>`; return; }
-  let store = {}; try { store = JSON.parse(localStorage.getItem('bot-pares') || '{}'); } catch (_) {}
-  const simDe = (addr) => {
-    if (!addr) return '';
-    try { const M = tokens && tokens.MONEDAS; if (M) { const k = Object.keys(M).find((id) => (M[id].address || '').toLowerCase() === String(addr).toLowerCase()); if (k) return M[k].simbolo || k; } } catch (_) {}
-    return '';
-  };
-  let limit = new Set();
-  try { const ords = JSON.parse(localStorage.getItem('cco-ordenes-grafico') || '[]'); for (const o of ords) { if (o && o.base && o.quote && o.botId != null) { try { limit.add(String(gb.claveBot(cuenta, o.base, o.quote, o.botId)).toLowerCase()); } catch (_) {} } } } catch (_) {}
-  let claves = [];
-  try { claves = (await gb.misRejillas(cuenta) || []).filter((c) => !limit.has(String(c).toLowerCase())); } catch (_) {}
-  if (!claves.length) { el.innerHTML = botsVacio(); wireCrear(el); return; }
-  const bots = [];
-  for (const k of claves) {
-    try {
-      const [R, md] = await Promise.all([gb.resumenK(k), gb.modoDe(k).catch(() => [0])]);
-      if (!R || R.activa === false) continue;
-      const tipo = Number(Array.isArray(md) ? md[0] : md) || 0;
-      const p = store[k] || {};
-      const base = simDe(R.base) || (p.base && String(p.base).length < 8 ? p.base : '');
-      const quote = simDe(R.quote) || 'USDT';
-      const par = base ? base + '/' + quote : (BOT_META[tipo] || BOT_META[0]).n;
-      let inv = 0, gan = 0;
-      try { inv = Number(gb.fmt(R.costeQuote || R.ordenQuote || 0n, 18)); } catch (_) {}
-      try { gan = Number(gb.fmt(R.gananciaQuote || 0n, 18)); } catch (_) {}
-      bots.push({ tipo, par, inv, gan, ops: Number(R.totalOps || 0) });
-    } catch (_) {}
-    if (bots.length >= 20) break;
-  }
-  if (!bots.length) { el.innerHTML = botsVacio(); wireCrear(el); return; }
-  el.innerHTML = bots.map((b) => {
-    const m = BOT_META[b.tipo] || BOT_META[0];
-    const cls = b.gan >= 0 ? 'up' : 'dn';
-    return `<div class="op-botc" style="--bc:${m.c}">
-      <div class="op-botc-h">
-        <span class="op-botc-ic" style="color:${m.c};background:color-mix(in srgb,${m.c} 16%,transparent)">${IC[m.ic] || IC.bot}</span>
-        <div class="op-botc-t"><b>${esc(b.par)}</b><small>${m.n} · ${b.ops} ops</small></div>
-        <span class="op-botc-on">● activo</span>
-      </div>
-      <div class="op-botc-g">
-        <div class="op-botc-box"><span>Inversión</span><b>${money(b.inv)}</b></div>
-        <div class="op-botc-box"><span>Ganancia</span><b class="${cls}">${b.gan >= 0 ? '+' : ''}${money(b.gan)}</b></div>
-      </div>
-    </div>`;
-  }).join('') + `<button class="op-bot-manage" id="op-bot-manage">Ver / gestionar mis bots</button>`;
-  const mng = document.getElementById('op-bot-manage'); if (mng) mng.onclick = () => _api.abrir('bots');
+/* Muestra en Operar, INLINE (abajo), la MISMA sección real "Mis bots" de la web
+   (con sus tarjetas .rej, cápsulas, botones y dinámica). Reubica el nodo vivo y
+   clona SOLO el CSS de las tarjetas (descendientes de #colmena-app) re-apuntado
+   a #op-panel — NO el contenedor de la portada (eso causaba el fondo negro). */
+let _botCard = null;
+function reflejarBotsReales(el) {
+  const web = document.getElementById('colmena-app');
+  const card = web && web.querySelector('.colmenas.card');
+  if (!card) { el.innerHTML = `<div class="op-empty">Abre la secci\u00f3n de bots una vez para cargarlos.<br><button class="op-link" id="op-crear">Ir a bots</button></div>`; const c = el.querySelector('#op-crear'); if (c) c.onclick = () => _api.abrir('bots'); return; }
+  clonarEstilosBots();
+  if (!card._mvPh) { const ph = document.createComment('mv-bots'); card._mvPh = ph; card.parentNode.insertBefore(ph, card); }
+  el.innerHTML = '';
+  el.appendChild(card);
+  _botCard = card;
 }
-function botsVacio() { return `<div class="op-empty">Aún no tienes bots activos.<br><button class="op-link" id="op-crear">Crear un bot</button></div>`; }
-function wireCrear(el) { const c = el.querySelector('#op-crear'); if (c) c.onclick = () => _api.abrir('bots'); }
+export function restaurarBotCard() {
+  if (_botCard && _botCard._mvPh && _botCard._mvPh.parentNode) _botCard._mvPh.parentNode.insertBefore(_botCard, _botCard._mvPh);
+  _botCard = null;
+}
+/* Copia SOLO las reglas que apuntan a DESCENDIENTES de #colmena-app (las de las
+   tarjetas de bots) + sus @media, re-apuntadas a #op-panel. Salta la regla del
+   contenedor #colmena-app{...} (fondo/altura) que rompía el layout, y salta mis
+   propias inyecciones (id que empieza por 'mv-'). */
+function clonarEstilosBots() {
+  if (document.getElementById('mv-botcss')) return;
+  let css = '';
+  for (const sheet of Array.from(document.styleSheets)) {
+    const owner = sheet.ownerNode;
+    if (owner && owner.id && owner.id.indexOf('mv-') === 0) continue;
+    let reglas; try { reglas = sheet.cssRules; } catch (_) { continue; }
+    if (!reglas) continue;
+    for (const rule of Array.from(reglas)) {
+      try {
+        const txt = rule.cssText;
+        if (!txt || txt.indexOf('#colmena-app') === -1) continue;
+        if (rule.type === 4) { css += txt.replace(/#colmena-app/g, '#op-panel') + '\n'; continue; }  // @media
+        const sel = txt.split('{')[0];
+        if (!/#colmena-app\s*[>~+\s]\s*[^\s{]/.test(sel)) continue;   // solo descendientes, no el contenedor
+        css += txt.replace(/#colmena-app/g, '#op-panel') + '\n';
+      } catch (_) {}
+    }
+  }
+  // Además, dentro de Operar la tarjeta debe verse limpia y responsiva.
+  css += `#op-panel .colmenas.card{background:none!important;border:0!important;padding:0!important;margin:0!important;box-shadow:none!important}
+    #op-panel .mb-cab h3{font-size:16px!important}
+    #op-panel .rej{margin-top:12px!important}`;
+  const s = document.createElement('style'); s.id = 'mv-botcss'; s.textContent = css; document.head.appendChild(s);
+}
 
 function renderBook() {
   const el = $('op-book'); if (!el) return;

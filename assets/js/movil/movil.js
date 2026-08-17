@@ -220,6 +220,13 @@ function inyectarFixGrafica() {
     #nv-overlay .nv-c,#mu-overlay .mu-c{padding-bottom:64px!important}
     #lqp-overlay,#lq-overlay,#ac-overlay{align-items:flex-start!important;padding:calc(8px + env(safe-area-inset-top,0px)) 10px 70px!important}
     #lqp-overlay .lqp-c,#lq-overlay .lq-c,#ac-overlay .ac-c{max-height:calc(100vh - 90px)!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
+    /* Re-skin oscuro (tonos de la app) */
+    #lqp-overlay .lqp-c,#lq-overlay .lq-c,#ac-overlay .ac-c{background:linear-gradient(180deg,#12161c,#0B0E11)!important;border:1px solid #232b36!important}
+    #lqp-overlay .lqp-serv,#lqp-overlay .lqp-plan,#ac-overlay .ac-que,#ac-overlay .ac-plan{background:#151b23!important;border:1px solid #232b36!important}
+    #lqp-overlay .lqp-plan.top,#ac-overlay .ac-plan.top{border:1px solid #E8B84B!important;background:linear-gradient(180deg,rgba(232,184,75,.12),rgba(232,184,75,.02))!important}
+    #lqp-overlay .lqp-eyebrow,#ac-overlay .ac-eyebrow{color:#E8B84B!important}
+    #lqp-overlay .lqp-t,#ac-overlay .ac-t,#ac-overlay h2{color:#eaecef!important}
+    #lqp-overlay .lqp-x,#ac-overlay .ac-x{background:var(--mv-card2)!important;border:1px solid var(--mv-line)!important;color:var(--mv-mut)!important}
     #lqp-overlay .lqp-c{padding:22px 14px 18px!important}
     #lqp-overlay .lqp-servs{gap:10px!important}
     #lqp-overlay .lqp-serv{grid-template-columns:54px minmax(0,1fr)!important;gap:2px 12px!important;padding:13px!important;align-items:center!important}

@@ -86,8 +86,8 @@ export function inyectarMovil() {
   .mv-qi:active .mv-qbox{transform:scale(.92);background:var(--mv-card2);border-color:var(--mv-gold)}
   .mv-qi:active .mv-qbox svg{color:var(--mv-gold)}
   .mv-qi span{font-size:11.5px;color:var(--mv-mut);text-align:center;line-height:1.2}
-  .mv-qtag{position:absolute;top:-6px;right:-4px;background:#E8B84B;color:#1a1200;font-size:7.5px;
-    font-weight:900;padding:2px 5px;border-radius:7px;line-height:1;white-space:nowrap;letter-spacing:.3px;box-shadow:0 2px 6px rgba(0,0,0,.4);z-index:2}
+  .mv-qi .mv-qtag{position:absolute;top:-6px;right:-4px;background:#E8B84B;color:#1a1200;font-size:8px;
+    font-weight:900;padding:2px 6px;border-radius:7px;line-height:1;white-space:nowrap;letter-spacing:.3px;box-shadow:0 2px 6px rgba(0,0,0,.4);z-index:2}
   .mv-dots{display:flex;justify-content:center;gap:5px;margin:8px 0 2px}
   .mv-dots i{width:14px;height:3px;border-radius:2px;background:var(--mv-line)}
   .mv-dots i.on{background:var(--mv-gold);width:20px}
