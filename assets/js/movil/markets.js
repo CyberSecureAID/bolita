@@ -1,7 +1,10 @@
 /* movil/markets.js — Pantalla 2 (Mercados). Lista TODAS las monedas de la
-   plataforma (las que usan las gráficas), categorizadas. Al tocar una moneda
-   se abre un selector para ir a Liquidity Pools / Radar Institucional /
-   Smart Levels. Precios y % de 24h en vivo desde Binance (con fallback). */
+   plataforma (las de las gráficas), con logo real, precio y % 24h en vivo.
+   Búsqueda que FILTRA la lista (no sale de la pantalla), favoritos, categorías,
+   y al tocar una moneda un selector para ir a Smart Levels / Radar / Pools.
+
+   Datos: CoinGecko /coins/markets (logo + precio + %24h, una sola llamada,
+   cacheado 5 min). Binance de respaldo para precio. Todo defensivo. */
 
 import { IC } from './iconos.js?v=1';
 
@@ -9,8 +12,6 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const MEMES = new Set(['DOGE', 'PEPE', 'WIF', 'BONK', 'FLOKI', 'SHIB', 'ORDI']);
-
-/* categorías de la barra superior */
 const CATS = [
   { k: 'todas',   t: 'Todas' },
   { k: 'cripto',  t: 'Cripto' },
@@ -21,21 +22,23 @@ const CATS = [
 
 let _pares = [];
 let _cat = 'todas';
+let _tab = 'spot';
+let _q = '';
 let _fav = cargarFav();
-let _tab = 'spot';          // favoritos | spot
-let _precios = {};          // symbol -> { p, chg }
+let _datos = {};             // cg -> { img, price, chg }
+let _apiRef = null;
 
 function cargarFav() { try { return new Set(JSON.parse(localStorage.getItem('mv-fav') || '[]')); } catch (_) { return new Set(); } }
 function guardarFav() { try { localStorage.setItem('mv-fav', JSON.stringify([..._fav])); } catch (_) {} }
 
 export async function pintarMercados(host, api) {
+  _apiRef = api;
   if (!_pares.length) {
     try { const c = await import('../niveles/config.js?v=1'); _pares = (c.PARES || []).slice(); } catch (_) { _pares = []; }
   }
-
   host.innerHTML = `
     <div class="mv-top" style="padding-left:0;padding-right:0">
-      <button class="mv-search" id="mv-mk-search" style="flex:1">${IC.search}<span>Busca una moneda…</span></button>
+      <div class="mv-search" style="flex:1;cursor:text">${IC.search}<input id="mv-mk-q" placeholder="Busca una moneda…" autocomplete="off" value="${esc(_q)}"></div>
       <button class="mv-ico-btn" id="mv-mk-alert">${IC.bell}</button>
     </div>
     <div class="mv-mk-tabs">
@@ -49,13 +52,14 @@ export async function pintarMercados(host, api) {
     <div id="mv-mk-list"></div>
   `;
 
-  $('mv-mk-search').onclick = () => { api.abrir && api.abrir('buscar'); };
-  $('mv-mk-alert').onclick = () => { api.abrir && api.abrir('alertas'); };
-  host.querySelectorAll('.mv-mk-tabs button').forEach((b) => b.onclick = () => { _tab = b.getAttribute('data-t'); pintarMercados(host, api); });
-  host.querySelectorAll('.mv-mk-cats button').forEach((b) => b.onclick = () => { _cat = b.getAttribute('data-c'); render(api); });
+  const inp = $('mv-mk-q');
+  inp.oninput = () => { _q = inp.value.trim().toLowerCase(); render(); };
+  $('mv-mk-alert').onclick = () => api.abrir && api.abrir('alertas');
+  host.querySelectorAll('.mv-mk-tabs button').forEach((b) => b.onclick = () => { _tab = b.getAttribute('data-t'); host.querySelectorAll('.mv-mk-tabs button').forEach((x) => x.classList.toggle('on', x === b)); render(); });
+  host.querySelectorAll('.mv-mk-cats button').forEach((b) => b.onclick = () => { _cat = b.getAttribute('data-c'); host.querySelectorAll('.mv-mk-cats button').forEach((x) => x.classList.toggle('on', x === b)); render(); });
 
-  render(api);
-  cargarPrecios(api);          // en vivo, actualiza cuando llegan
+  render();
+  cargarDatos();          // logos + precios (en vivo, refresca al llegar)
 }
 
 function filtrar() {
@@ -65,26 +69,28 @@ function filtrar() {
   else if (_cat === 'meme') l = l.filter((p) => MEMES.has(p.id));
   else if (_cat === 'divisa') l = l.filter((p) => p.grupo === 'divisa');
   else if (_cat === 'materia') l = l.filter((p) => p.grupo === 'materia');
+  if (_q) l = l.filter((p) => (p.id + ' ' + p.n + ' ' + p.s).toLowerCase().includes(_q));
   return l;
 }
 
-function render(api) {
+function render() {
   const cont = $('mv-mk-list'); if (!cont) return;
   const l = filtrar();
   if (!l.length) {
-    cont.innerHTML = `<div class="mv-empty">${_tab === 'fav' ? 'Aún no tienes favoritos. Toca la estrella en una moneda.' : 'Sin monedas en esta categoría.'}</div>`;
+    cont.innerHTML = `<div class="mv-empty">${_tab === 'fav' ? 'Aún no tienes favoritos. Toca la estrella en una moneda.' : (_q ? 'Sin resultados para “' + esc(_q) + '”.' : 'Sin monedas en esta categoría.')}</div>`;
     return;
   }
   cont.innerHTML = l.map((p) => {
-    const pr = _precios[p.s] || {};
-    const chg = pr.chg;
+    const d = _datos[p.cg] || {};
+    const chg = d.chg;
     const cls = chg == null ? 'fl' : (chg > 0 ? 'up' : (chg < 0 ? 'dn' : 'fl'));
-    const chgTxt = chg == null ? '—' : (chg > 0 ? '+' : '') + chg.toFixed(2) + '%';
-    const precio = pr.p == null ? '—' : fmtPrecio(pr.p);
+    const chgTxt = chg == null ? '—' : (chg > 0 ? '+' : '') + Number(chg).toFixed(2) + '%';
+    const precio = d.price == null ? '—' : fmtPrecio(d.price);
     const fav = _fav.has(p.id);
+    const ini = esc(p.id.slice(0, 1));
     return `<div class="mv-row" data-id="${esc(p.id)}">
-      <button class="mv-fav-b" data-fav="${esc(p.id)}" style="background:none;border:0;padding:0;color:${fav ? 'var(--mv-gold)' : 'var(--mv-mut2)'}">${fav ? IC.star : starOutline()}</button>
-      <div class="mv-ci"><span class="ico-fb">${esc(p.id.slice(0, 3))}</span><i data-cg="${esc(p.cg || '')}"></i></div>
+      <button class="mv-favb ${fav ? 'on' : ''}" data-fav="${esc(p.id)}" aria-label="Favorito">${fav ? IC.star : starOutline()}</button>
+      <div class="mv-ci" data-cg="${esc(p.cg || '')}" style="${d.img ? `background-image:url(${d.img})` : ''}"><span class="ico-fb"${d.img ? ' style="display:none"' : ''}>${ini}</span></div>
       <div class="mv-cn"><b>${esc(p.s)}</b><small>${esc(p.n)}</small></div>
       <div class="mv-cp"><b>${precio}</b><small class="${cls}">${chgTxt}</small></div>
     </div>`;
@@ -94,20 +100,25 @@ function render(api) {
     row.onclick = (e) => {
       if (e.target.closest('[data-fav]')) return;
       const id = row.getAttribute('data-id');
-      selectorGrafica(l.find((x) => x.id === id), api);
+      const par = _pares.find((x) => x.id === id);
+      selectorGrafica(par);
     };
   });
   cont.querySelectorAll('[data-fav]').forEach((b) => {
-    b.onclick = (e) => { e.stopPropagation(); const id = b.getAttribute('data-fav'); if (_fav.has(id)) _fav.delete(id); else _fav.add(id); guardarFav(); render(api); };
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const id = b.getAttribute('data-fav');
+      if (_fav.has(id)) _fav.delete(id); else _fav.add(id);
+      guardarFav();
+      render();                 // re-render seguro (sin recargar datos)
+    };
   });
-  ponerLogos(cont);
 }
 
-/* Selector: a qué gráfica ir con la moneda tocada */
-function selectorGrafica(par, api) {
+function selectorGrafica(par) {
   if (!par) return;
-  let sh = $('mv-sheet');
-  if (sh) sh.remove();
+  const api = _apiRef || {};
+  let sh = $('mv-sheet'); if (sh) sh.remove();
   sh = document.createElement('div');
   sh.id = 'mv-sheet';
   sh.innerHTML = `
@@ -124,37 +135,46 @@ function selectorGrafica(par, api) {
   sh.querySelector('.mv-sheet-bg').onclick = cerrar;
   sh.querySelector('.mv-sheet-cancel').onclick = cerrar;
   sh.querySelectorAll('.mv-sheet-op').forEach((b) => {
-    b.onclick = () => { cerrar(); api.abrirGrafica ? api.abrirGrafica(b.getAttribute('data-g'), par) : api.abrir(b.getAttribute('data-g')); };
+    b.onclick = () => { cerrar(); api.abrirGrafica ? api.abrirGrafica(b.getAttribute('data-g'), par) : (api.abrir && api.abrir(b.getAttribute('data-g'))); };
   });
 }
 
-/* Precios 24h en vivo (Binance). Silencioso si falla (sandbox/red). */
-async function cargarPrecios(api) {
+/* ── Datos: logos + precio + %24h ── */
+async function cargarDatos() {
+  // 1) CoinGecko markets: logo + precio + %24h (crypto). Cache 5 min.
+  try {
+    const cache = JSON.parse(localStorage.getItem('mv-cg') || 'null');
+    if (cache && Date.now() - cache.t < 300000) { _datos = cache.d; render(); }
+  } catch (_) {}
+  try {
+    const ids = [...new Set(_pares.map((p) => p.cg).filter(Boolean))].join(',');
+    const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&per_page=250`);
+    if (r.ok) {
+      const j = await r.json();
+      j.forEach((x) => { _datos[x.id] = { img: x.image, price: x.current_price, chg: x.price_change_percentage_24h }; });
+      try { localStorage.setItem('mv-cg', JSON.stringify({ t: Date.now(), d: _datos })); } catch (_) {}
+      render();
+    }
+  } catch (_) {}
+  // 2) Binance de respaldo para precio/%24h de TODOS los pares (incluye divisas/materias).
   try {
     const syms = _pares.map((p) => p.s).filter(Boolean);
-    const url = 'https://api.binance.com/api/v3/ticker/24hr?symbols=' + encodeURIComponent(JSON.stringify(syms));
-    const r = await fetch(url);
-    if (!r.ok) return;
-    const arr = await r.json();
-    arr.forEach((x) => { _precios[x.symbol] = { p: Number(x.lastPrice), chg: Number(x.priceChangePercent) }; });
-    const host = document.getElementById('mv-scroll');
-    if (host && $('mv-mk-list')) render(api);
-  } catch (_) { /* red bloqueada: quedan en — */ }
-}
-
-/* Logos: intenta el logo real por coingecko id (mismo criterio que la web). */
-function ponerLogos(cont) {
-  cont.querySelectorAll('i[data-cg]').forEach((i) => {
-    const cg = i.getAttribute('data-cg'); if (!cg) return;
-    const img = new Image();
-    img.onload = () => { const box = i.closest('.mv-ci'); if (box) { box.innerHTML = ''; box.appendChild(img); } };
-    img.onerror = () => {};
-    img.src = `https://assets.coingecko.com/coins/images/thumb/${cg}.png`;
-    // coingecko no expone por slug directo; si falla, se queda el fallback de 3 letras.
-  });
+    const r = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbols=' + encodeURIComponent(JSON.stringify(syms)));
+    if (r.ok) {
+      const arr = await r.json();
+      const bySym = {}; arr.forEach((x) => bySym[x.symbol] = x);
+      _pares.forEach((p) => {
+        const b = bySym[p.s]; if (!b) return;
+        const cur = _datos[p.cg] || {};
+        _datos[p.cg] = { img: cur.img, price: Number(b.lastPrice), chg: Number(b.priceChangePercent) };
+      });
+      render();
+    }
+  } catch (_) {}
 }
 
 function fmtPrecio(p) {
+  p = Number(p);
   if (!isFinite(p)) return '—';
   if (p >= 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 1 });
   if (p >= 1) return p.toLocaleString('en-US', { maximumFractionDigits: 3 });
