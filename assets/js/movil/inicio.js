@@ -1,6 +1,7 @@
 /* movil/inicio.js — Pantalla 1 (Inicio). */
 
 import { IC } from './iconos.js?v=1';
+import * as wallet from '../wallet.js?v=125';
 
 const $ = (id) => document.getElementById(id);
 const LS = { ojo: 'mv-ojo', denom: 'mv-denom' };
@@ -38,7 +39,7 @@ const SERVICIOS = [
 ];
 
 let _ojo = leer(LS.ojo) === '1';
-let _denom = leer(LS.denom) || 'USDT';
+let _denom = leer(LS.denom) || 'Total';
 
 function leer(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
 function guardar(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
@@ -61,6 +62,7 @@ export function pintarInicio(host, api) {
     <div class="mv-bal-row">
       <span class="mv-bal" id="mv-bal">—</span>
       <button class="mv-denom-in" id="mv-denom">${_denom} ${chev()}</button>
+      <span class="mv-wlogo" id="mv-wlogo"></span>
     </div>
     <div class="mv-bal-sub" id="mv-bal-sub">${con ? '' : 'Conecta tu wallet para ver tu saldo'}</div>
 
@@ -115,14 +117,26 @@ export function pintarInicio(host, api) {
   $('mv-prize-go').onclick = $('mv-prize-more').onclick = () => api.abrir('prize');
   $('mv-viewall').onclick = () => api.abrir('menu');
 
-  // Balance
+  // Balance: ojito + moneda seleccionada (Total o una moneda concreta)
   const pintarBal = () => {
     const b = api.balance();
-    const bal = $('mv-bal'), sub = $('mv-bal-sub');
-    if (!b || !b.conectado) { bal.textContent = '—'; return; }
+    const bal = $('mv-bal'), sub = $('mv-bal-sub'), wl = $('mv-wlogo');
+    // logo de la wallet conectada, junto al selector
+    if (wl) {
+      const wi = (con && wallet.walletInfo && wallet.walletInfo()) || null;
+      const wlogo = wi && (wi.icon || wi.icono);
+      wl.innerHTML = wlogo ? `<img src="${wlogo}" alt="">` : '';
+    }
+    if (!b || !b.conectado) { bal.textContent = '—'; sub.textContent = con ? '' : 'Conecta tu wallet para ver tu saldo'; return; }
     if (_ojo) { bal.textContent = '••••••'; sub.textContent = ''; return; }
-    bal.textContent = fmtDenom(valorEn(b, _denom), _denom);
-    sub.textContent = '≈ $' + fmt(b.totalUSD);
+    if (_denom === 'Total') {
+      bal.textContent = '$' + fmt(b.totalUSD); sub.textContent = '';
+    } else {
+      const a = (b.activos || []).find((x) => x.id === _denom);
+      const amt = a ? a.bal : 0, usd = a ? a.usd : 0;
+      bal.innerHTML = `${fmtAmt(amt)} <small>${_denom}</small>`;
+      sub.textContent = '$' + fmt(usd);
+    }
   };
   $('mv-bal-lbl').onclick = () => { _ojo = !_ojo; guardar(LS.ojo, _ojo ? '1' : '0'); pintarBal(); };
   $('mv-denom').onclick = () => menuDenom(api, () => { $('mv-denom').innerHTML = `${_denom} ${chev()}`; pintarBal(); });
@@ -164,19 +178,24 @@ export function pintarInicio(host, api) {
 
 function menuDenom(api, cb) {
   const b = api.balance();
-  const opts = ['USDT'];
-  if (b && b.activos) b.activos.forEach((a) => { if (!opts.includes(a.id)) opts.push(a.id); });
+  const opts = [{ id: 'Total', amt: null }];
+  if (b && b.activos) b.activos.forEach((a) => opts.push({ id: a.id, amt: a.bal }));
   let m = document.getElementById('mv-denom-menu'); if (m) m.remove();
   m = document.createElement('div'); m.id = 'mv-denom-menu';
   m.innerHTML = `<div class="mv-dm-bg"></div><div class="mv-dm-card">
     <div class="mv-dm-h">Ver balance en</div>
-    ${opts.map((o) => `<button data-o="${o}" class="${o === _denom ? 'on' : ''}">${o}</button>`).join('')}
+    ${opts.map((o) => `<button data-o="${o.id}" class="${o.id === _denom ? 'on' : ''}">
+      <span class="mv-dm-lg">${o.id === 'Total' ? '∑' : esc3(o.id)}</span>
+      <span>${o.id}</span>
+      ${o.amt != null ? `<span class="mv-dm-amt">${fmtAmt(o.amt)}</span>` : ''}
+    </button>`).join('')}
   </div>`;
   document.body.appendChild(m);
   const cerrar = () => m.remove();
   m.querySelector('.mv-dm-bg').onclick = cerrar;
   m.querySelectorAll('[data-o]').forEach((b2) => b2.onclick = () => { _denom = b2.getAttribute('data-o'); guardar('mv-denom', _denom); cerrar(); cb(); });
 }
+function esc3(s) { return String(s || '').slice(0, 3); }
 
 function valorEn(b, denom) {
   if (denom === 'USDT' || denom === 'USDC') return b.totalUSD;
@@ -189,4 +208,6 @@ function fmtDenom(v, denom) {
   return v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 function fmt(v) { const n = Number(v); return isFinite(n) ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'; }
+function fmtAmt(v) { v = Number(v) || 0; if (v >= 1e9) return (v / 1e9).toLocaleString('en-US', { maximumFractionDigits: 2 }) + 'B'; if (v >= 1e6) return (v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 2 }) + 'M'; return v >= 1 ? v.toLocaleString('en-US', { maximumFractionDigits: 4 }) : v.toLocaleString('en-US', { maximumFractionDigits: 8 }); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function chev() { return '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" style="vertical-align:middle"><path d="M6 9l6 6 6-6"/></svg>'; }

@@ -7,6 +7,8 @@
    Accesos arriba: mini-gráfica, bots, velas (Smart Levels) y ⋮ (Herramientas). */
 
 import { IC } from './iconos.js?v=1';
+import { abrirPicker } from './picker.js?v=1';
+import { abrirAlerta } from './alerta.js?v=1';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -62,6 +64,12 @@ export async function pintarOperar(host, api) {
           <span>Importe</span><input id="op-in-amt" inputmode="decimal" placeholder="0.00">
           <button class="op-qsel" id="op-qsel">${esc(_quote)} ${chev(10)}</button>
         </div>
+        <input class="op-range" id="op-range" type="range" min="0" max="100" value="0">
+        <div class="op-pcts">${[25, 50, 75, 100].map((p) => `<button data-p="${p}">${p}%</button>`).join('')}</div>
+        <button class="op-sltoggle" id="op-sltoggle"><span>Stop-loss <em>(opcional)</em></span><i>▾</i></button>
+        <div class="op-field op-slbox" id="op-slbox" style="display:none">
+          <span>Stop</span><input id="op-in-sl" inputmode="decimal" placeholder="0.00"><b>${esc(_quote)}</b>
+        </div>
         <div class="op-avail" id="op-avail">Disponible: — ${esc(_quote)}</div>
         <button class="op-buy" id="op-buy">Comprar ${esc(_par ? _par.id : '')}</button>
         <button class="op-sell" id="op-sell">Vender ${esc(_par ? _par.id : '')}</button>
@@ -81,8 +89,14 @@ export async function pintarOperar(host, api) {
   $('op-mini').onclick = $('op-vela').onclick = () => api.abrirGrafica('niveles', _par);
   $('op-bots').onclick = () => api.abrir('bots');
   $('op-tools').onclick = () => api.abrir('tools');
-  $('op-alert').onclick = () => dialogoAlerta();
+  $('op-alert').onclick = () => abrirAlerta(_par);
   ponerLogo();
+
+  // Slider % y stop-loss
+  const slider = $('op-range');
+  if (slider) slider.oninput = () => { /* visual; el cálculo real usa el saldo en vivo */ };
+  host.querySelectorAll('.op-pcts button').forEach((b) => b.onclick = () => { if (slider) slider.value = b.getAttribute('data-p'); });
+  const slt = $('op-sltoggle'); if (slt) slt.onclick = () => { const box = $('op-slbox'); const ab = box.style.display === 'none'; box.style.display = ab ? '' : 'none'; slt.classList.toggle('on', ab); };
 
   // Si se llegó desde Smart Levels con un lado, se resalta el botón.
   if (_lado === 'sell') { const s = $('op-sell'); if (s) s.style.outline = '2px solid var(--mv-down)'; }
@@ -208,34 +222,6 @@ async function operar(lado) {
   }
 }
 
-/* Alerta de precio para la moneda actual (mismo sistema que Smart Levels). */
-function dialogoAlerta() {
-  let sh = $('mv-sheet'); if (sh) sh.remove();
-  sh = document.createElement('div'); sh.id = 'mv-sheet';
-  const px = _libro.precio ? fmtP(_libro.precio) : '';
-  sh.innerHTML = `<div class="mv-sheet-bg"></div><div class="mv-sheet-card">
-    <div class="mv-sheet-h"><b>Alerta de precio · ${esc(_par.id)}</b><span>Te avisamos cuando el precio llegue</span></div>
-    <div class="op-field" style="background:var(--mv-card2)"><span>Precio</span><input id="op-al-price" inputmode="decimal" placeholder="${px}"><b>${esc(_quote)}</b></div>
-    <button class="mv-sheet-op" id="op-al-ok" style="justify-content:center;color:var(--mv-gold);font-weight:800">Crear alerta</button>
-    <button class="mv-sheet-cancel">Cancelar</button></div>`;
-  document.body.appendChild(sh);
-  const cerrar = () => sh.remove();
-  sh.querySelector('.mv-sheet-bg').onclick = cerrar;
-  sh.querySelector('.mv-sheet-cancel').onclick = cerrar;
-  $('op-al-ok').onclick = () => {
-    const val = parseFloat(String(($('op-al-price') || {}).value).replace(',', '.')) || 0;
-    if (!(val > 0)) return;
-    try {
-      const K = 'cco-ordenes-aviso';
-      const l = JSON.parse(localStorage.getItem(K) || '[]');
-      l.push({ par: _par.id, simbolo: _par.s, precio: val, cant: 0, vender: _libro.precio ? val > _libro.precio : false, sl: 0, cuando: Date.now(), id: Date.now() + '-' + Math.random().toString(36).slice(2, 7) });
-      localStorage.setItem(K, JSON.stringify(l.slice(-40)));
-    } catch (_) {}
-    cerrar();
-    mensaje('Alerta creada', `Te avisaremos cuando ${_par.id} llegue a ${fmtP(val)} ${_quote}.`);
-  };
-  setTimeout(() => { const i = $('op-al-price'); if (i) i.focus(); }, 60);
-}
 
 /* Mensaje responsive (no bloqueante), reutiliza el toast de la cáscara. */
 function mensaje(t, s) {
@@ -254,31 +240,19 @@ export function prepararOperar(parId, lado) {
 }
 
 function selectorMoneda() {
-  hoja('Elige un par', _pares.map((p) => ({ id: p.id, t: p.s, s: p.n, cg: p.cg })), (id) => {
+  abrirPicker('Elige un par', _pares, (id) => {
     _par = _pares.find((x) => x.id === id) || _par;
     _libro = { asks: [], bids: [], precio: null, chg: null };
-    pintarOperar($('mv-scroll'), _api);
+    pintarOperar(document.getElementById('mv-scroll'), _api);
   });
 }
 function selectorQuote() {
-  hoja('Moneda de pago', [{ id: 'USDT', t: 'USDT', s: 'Tether' }, { id: 'USDC', t: 'USDC', s: 'USD Coin' }, { id: 'BNB', t: 'BNB', s: 'BNB' }], (id) => {
+  const quotes = [{ id: 'USDT', n: 'Tether' }, { id: 'USDC', n: 'USD Coin' }, { id: 'BNB', n: 'BNB', cg: 'binancecoin' }];
+  abrirPicker('Moneda de pago', quotes, (id) => {
     _quote = id;
     const q = $('op-qsel'); if (q) q.innerHTML = `${esc(_quote)} ${chev(10)}`;
     const a = $('op-avail'); if (a) a.textContent = `Disponible: — ${esc(_quote)}`;
   });
-}
-function hoja(titulo, items, onPick) {
-  let sh = $('mv-sheet'); if (sh) sh.remove();
-  sh = document.createElement('div'); sh.id = 'mv-sheet';
-  sh.innerHTML = `<div class="mv-sheet-bg"></div><div class="mv-sheet-card" style="max-height:70vh;overflow:auto">
-    <div class="mv-sheet-h"><b>${esc(titulo)}</b></div>
-    ${items.map((it) => `<button class="mv-sheet-op" data-id="${esc(it.id)}"><div><b>${esc(it.t)}</b>${it.s ? `<small>${esc(it.s)}</small>` : ''}</div></button>`).join('')}
-    <button class="mv-sheet-cancel">Cancelar</button></div>`;
-  document.body.appendChild(sh);
-  const cerrar = () => sh.remove();
-  sh.querySelector('.mv-sheet-bg').onclick = cerrar;
-  sh.querySelector('.mv-sheet-cancel').onclick = cerrar;
-  sh.querySelectorAll('[data-id]').forEach((b) => b.onclick = () => { cerrar(); onPick(b.getAttribute('data-id')); });
 }
 
 function ponerLogo() {

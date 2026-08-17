@@ -14,6 +14,7 @@ import { pintarOperar, prepararOperar } from './operar.js?v=1';
 import { pintarActivos } from './activos.js?v=1';
 import { abrirMenu } from './menu.js?v=1';
 import { abrirBuscar } from './buscar.js?v=1';
+import { abrirAlerta } from './alerta.js?v=1';
 
 const $ = (id) => document.getElementById(id);
 const _movil = () => window.matchMedia('(max-width: 760px)').matches;
@@ -29,7 +30,9 @@ async function abrir(clave, arg) {
     switch (clave) {
       case 'swap':      { const m = await import('../gridbot/swap.js?v=1'); m.abrirSwap && m.abrirSwap(); sacarSwapDelWeb(); break; }
       case 'polvo':     await abrirToolDirecto('polvo'); break;
-      case 'alertasTool': await abrirToolDirecto('alertas'); break;
+      case 'alerta':    abrirAlerta(); break;
+      case 'alertas':   abrirAlerta(); break;
+      case 'alertasTool': abrirAlerta(); break;
       case 'recibir':   abrirRecibir(); break;
       case 'market':    { const m = await import('../market.js?v=125'); m.abrirMarket && m.abrirMarket(); break; }
       case 'buy':       await abrirMarketTab('mk-t5'); break;
@@ -38,14 +41,13 @@ async function abrir(clave, arg) {
       case 'prize':     { const m = await import('../prizepool.js?v=125'); m.abrirPrizePool && m.abrirPrizePool(); break; }
       case 'perfil':    { const m = await import('../perfil.js?v=125'); m.abrirPerfil && m.abrirPerfil(); if (_movil()) uidEnPerfil(); break; }
       case 'tools':     { const m = await import('../tools.js?v=125'); m.abrirTools && m.abrirTools(); break; }
-      case 'academy':   { const m = await import('../academy.js?v=125'); m.abrirAcademy && m.abrirAcademy(); break; }
+      case 'academy':   { inyectarFixGrafica(); const m = await import('../academy.js?v=125'); m.abrirAcademy && m.abrirAcademy(); break; }
       case 'niveles':   { inyectarFixGrafica(); const m = await import('../niveles.js?v=126'); m.abrirNiveles && m.abrirNiveles(); break; }
       case 'muros':     { inyectarFixGrafica(); const m = await import('../muros.js?v=126'); m.abrirMuros && m.abrirMuros(); break; }
       case 'liquidity': { inyectarFixGrafica(); const m = await import('../liquidity.js?v=126'); m.abrirLiquidity && m.abrirLiquidity(); break; }
       case 'bots':      modoBots(true); break;
       case 'buscar':    abrirBuscar(api()); break;
       case 'soporte':   abrirSoporte(); break;
-      case 'alertas':   avisoSimple('Alertas de precio', 'Muy pronto podrás fijar alertas por moneda desde aquí.'); break;
       case 'menu':      abrirMenu(api()); break;
       case 'idioma':    clicWeb('c-idioma'); break;
       case 'instalar':  clicWeb('c-instalar'); break;
@@ -61,6 +63,7 @@ async function abrirGrafica(g, par) { await abrir(g === 'niveles' ? 'niveles' : 
    móvil está oculto y además crea un contexto de apilamiento (isolation) que
    deja el modal por debajo de la cáscara. Los movemos al <body>. */
 function sacarSwapDelWeb() {
+  inyectarFixSwap();
   const mover = () => { ['swap-modal', 'coin-modal'].forEach((id) => { const e = $(id); if (e && e.parentElement !== document.body) document.body.appendChild(e); }); };
   mover();
   const web = $('colmena-app');
@@ -72,7 +75,17 @@ function sacarSwapDelWeb() {
   }
 }
 
-/* Abre Tools y salta directo a una herramienta (colector de polvo, alertas). */
+/* Achica los logos de moneda del swap en móvil (sin tocar el botón central). */
+function inyectarFixSwap() {
+  if ($('mv-swap-fix')) return;
+  const s = document.createElement('style'); s.id = 'mv-swap-fix';
+  s.textContent = `@media(max-width:760px){
+    #swap-modal .coin-sel-ico,#coin-modal .cm-coin-ico{width:24px!important;height:24px!important;flex:0 0 auto}
+    #swap-modal .coin-sel-ico svg,#swap-modal .coin-sel-ico img,#coin-modal .cm-coin-ico svg,#coin-modal .cm-coin-ico img{width:24px!important;height:24px!important}
+    #swap-modal .sw-box{max-width:400px}
+  }`;
+  document.head.appendChild(s);
+}
 async function abrirToolDirecto(id) {
   const m = await import('../tools.js?v=125');
   if (m.abrirTools) m.abrirTools();
@@ -128,7 +141,9 @@ function inyectarFixGrafica() {
     #nv-overlay .nv-rg-tx,#nv-overlay .nv-ind-tx,#nv-overlay .nv-cf-tx{display:none!important}
     #nv-overlay #nv-widget{display:none!important}
     #nv-overlay .nv-sel{max-width:44vw}
-    #nv-overlay .nv-c,#mu-overlay .mu-c,#lqp-overlay,#lq-overlay{padding-bottom:64px!important}
+    #nv-overlay .nv-c,#mu-overlay .mu-c{padding-bottom:64px!important}
+    #lqp-overlay,#lq-overlay,#ac-overlay{align-items:flex-start!important;padding-top:calc(8px + env(safe-area-inset-top,0px))!important;padding-bottom:70px!important}
+    #lqp-overlay>*,#lq-overlay>*,#ac-overlay>*{max-height:none!important}
     #swap-modal{padding-bottom:80px!important}
   }`;
   document.head.appendChild(s);
@@ -142,9 +157,16 @@ function modoBots(on) {
     document.body.classList.add('mv-bots');
     if (web) web.style.visibility = 'visible';
     if (window._mvHideWeb) window._mvHideWeb.disabled = true;
+    if (!$('mv-bots-x')) {
+      const x = document.createElement('button');
+      x.id = 'mv-bots-x'; x.innerHTML = '✕'; x.setAttribute('aria-label', 'Cerrar');
+      x.onclick = () => { salirBots(); irA('home'); };
+      document.body.appendChild(x);
+    }
   } else salirBots();
 }
 function salirBots() {
+  const x = $('mv-bots-x'); if (x) x.remove();
   if (!document.body.classList.contains('mv-bots')) return;
   document.body.classList.remove('mv-bots');
   const web = $('colmena-app'); if (web) web.style.visibility = 'hidden';
