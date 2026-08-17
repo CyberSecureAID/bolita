@@ -66,8 +66,7 @@ export function pintarActivos(host, api) {
   host.querySelectorAll('#ac-tabs button').forEach((btn) => btn.onclick = () => {
     const t = btn.getAttribute('data-t');
     if (t === 'polvo') { api.abrir('polvo'); return; }               // colector de polvo (tools)
-    if (t === 'activity') { const c = wallet.cuentaActual && wallet.cuentaActual(); if (c) { try { window.open('https://bscscan.com/address/' + c, '_blank', 'noopener'); } catch (_) {} } else api.abrir('perfil'); return; }
-    _tab = t; host.querySelectorAll('#ac-tabs button[data-t="spot"],#ac-tabs button[data-t="nfts"]').forEach((x) => x.classList.toggle('on', x === btn)); pintar();
+    _tab = t; host.querySelectorAll('#ac-tabs button[data-t="spot"],#ac-tabs button[data-t="nfts"],#ac-tabs button[data-t="activity"]').forEach((x) => x.classList.toggle('on', x === btn)); pintar();
   });
 
   cargarCg();
@@ -76,10 +75,8 @@ export function pintarActivos(host, api) {
     if (!con || !b || !b.conectado) { bal.textContent = '—'; sub.textContent = ''; list.innerHTML = `<div class="mv-empty">Conecta tu wallet para ver tus activos.</div>`; return; }
     bal.textContent = _ojo ? '••••••' : money(b.totalUSD);
     sub.textContent = _ojo ? '' : 'Capital disponible en tu wallet';
-    if (_tab === 'nfts') {
-      list.innerHTML = `<div class="mv-empty">Tus NFTs aparecerán aquí.<br><span style="font-size:12px">Requiere activar el indexador de NFTs de la wallet.</span></div>`;
-      return;
-    }
+    if (_tab === 'nfts') { pintarNFTs(list); return; }
+    if (_tab === 'activity') { pintarActividad(list); return; }
     const act = (b.activos || []).slice().sort((x, y) => y.usd - x.usd);
     if (!act.length) { list.innerHTML = `<div class="mv-empty">Tu wallet no tiene saldo todavía.</div>`; return; }
     list.innerHTML = act.map((a) => {
@@ -93,6 +90,48 @@ export function pintarActivos(host, api) {
   };
   pintar();
   host._pintarBal = pintar;
+}
+
+let _nftCache = null, _actCache = null;
+async function pintarNFTs(list) {
+  const c = wallet.cuentaActual && wallet.cuentaActual();
+  if (!c) { list.innerHTML = `<div class="mv-empty">Conecta tu wallet para ver tus NFTs.</div>`; return; }
+  if (_nftCache) { if (_nftCache.length) renderNFTs(list, _nftCache); else list.innerHTML = `<div class="mv-empty">No encontramos NFTs en tu wallet.</div>`; return; }
+  list.innerHTML = `<div class="op-loading" style="padding:34px"><span class="op-spin"></span>Buscando tus NFTs en la red…</div>`;
+  try {
+    const m = await import('./nfts.js?v=1');
+    const nfts = await m.leerNFTs(c, (parcial) => { if (_tab === 'nfts' && parcial.length) renderNFTs(list, parcial); });
+    _nftCache = nfts;
+    if (!nfts.length) { list.innerHTML = `<div class="mv-empty">No encontramos NFTs en tu wallet en BSC.</div>`; return; }
+    renderNFTs(list, nfts);
+  } catch (_) { list.innerHTML = `<div class="mv-empty">No se pudo leer los NFTs ahora. Intenta de nuevo.</div>`; }
+}
+function renderNFTs(list, nfts) {
+  list.innerHTML = `<div class="ac-nft-grid">${nfts.map((n) => `
+    <div class="ac-nft">
+      <div class="ac-nft-img" style="${n.image ? `background-image:url(${n.image})` : ''}">${n.image ? '' : '🖼️'}</div>
+      <div class="ac-nft-nm">${esc(n.name)}</div>
+    </div>`).join('')}</div>`;
+}
+async function pintarActividad(list) {
+  const c = wallet.cuentaActual && wallet.cuentaActual();
+  if (!c) { list.innerHTML = `<div class="mv-empty">Conecta tu wallet para ver tu actividad.</div>`; return; }
+  if (_actCache) { renderAct(list, _actCache); return; }
+  list.innerHTML = `<div class="op-loading" style="padding:34px"><span class="op-spin"></span>Cargando tu actividad…</div>`;
+  try {
+    const m = await import('./nfts.js?v=1');
+    const ev = await m.leerActividad(c);
+    _actCache = ev;
+    if (!ev.length) { list.innerHTML = `<div class="mv-empty">Sin actividad reciente de tokens.</div>`; return; }
+    renderAct(list, ev);
+  } catch (_) { list.innerHTML = `<div class="mv-empty">No se pudo leer la actividad ahora.</div>`; }
+}
+function renderAct(list, ev) {
+  list.innerHTML = ev.map((e) => `<div class="ac-row">
+    <div class="ac-ci" style="color:${e.dir === 'in' ? 'var(--mv-up)' : 'var(--mv-down)'}">${e.dir === 'in' ? '↓' : '↑'}</div>
+    <div class="ac-nm"><b>${e.dir === 'in' ? 'Recibido' : 'Enviado'}${e.erc721 ? ' · NFT' : ''}</b><small>Bloque ${e.bloque}</small></div>
+    <div class="ac-am"><small style="color:var(--mv-mut)">${esc(e.addr.slice(0, 6))}…${esc(e.addr.slice(-4))}</small></div>
+  </div>`).join('');
 }
 
 async function cargarCg() {

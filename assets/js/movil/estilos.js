@@ -415,6 +415,10 @@ export function inyectarMovil() {
     border:1px solid var(--mv-line);font-size:12px;font-weight:800;color:var(--mv-gold)}
   .ac-nm{flex:1;min-width:0} .ac-nm b{font-size:15px} .ac-nm small{display:block;color:var(--mv-mut);font-size:12.5px}
   .ac-am{text-align:right} .ac-am b{font-size:15px}
+  .ac-nft-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:8px}
+  .ac-nft{background:var(--mv-card);border:1px solid var(--mv-line);border-radius:14px;overflow:hidden}
+  .ac-nft-img{aspect-ratio:1;background:var(--mv-card2) center/cover no-repeat;display:grid;place-items:center;font-size:30px}
+  .ac-nft-nm{padding:9px 11px;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   `;
   document.head.appendChild(s);
 }
