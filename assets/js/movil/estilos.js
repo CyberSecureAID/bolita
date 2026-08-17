@@ -51,10 +51,10 @@ export function inyectarMovil() {
     background:var(--mv-down);color:#fff;font-size:10px;font-weight:700;border-radius:9px;display:grid;place-items:center}
 
   /* ── Balance ── */
-  .mv-bal-lbl{display:inline-flex;align-items:center;gap:7px;color:var(--mv-mut);font-size:13px;cursor:pointer;user-select:none;margin:16px 0 3px}
+  .mv-bal-lbl{display:inline-flex;align-items:center;gap:7px;color:var(--mv-mut);font-size:13px;cursor:pointer;user-select:none;margin:10px 0 3px}
   .mv-bal-lbl svg{width:16px;height:16px;opacity:.85}
   .mv-bal-row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
-  .mv-bal{font-size:38px;font-weight:800;letter-spacing:-.5px;line-height:1.08}
+  .mv-bal{font-size:34px;font-weight:800;letter-spacing:-.5px;line-height:1.08}
   .mv-denom-in{align-self:center;display:inline-flex;align-items:center;gap:4px;background:var(--mv-card);border:1px solid var(--mv-line);
     color:var(--mv-txt);font-size:13px;font-weight:700;padding:6px 12px;border-radius:16px;transition:border-color .15s}
   .mv-denom-in:active{border-color:var(--mv-gold)}
@@ -75,7 +75,7 @@ export function inyectarMovil() {
   .mv-cta .mv-second:active{background:#222b36}
 
   /* ── Accesos rápidos (carrusel) ── */
-  .mv-quick{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:22px -16px 6px;padding:10px 16px 4px}
+  .mv-quick{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:10px -16px 2px;padding:4px 16px 2px}
   .mv-quick::-webkit-scrollbar{display:none}
   .mv-qi{flex:0 0 auto;width:72px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer}
   .mv-qi .mv-qbox{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;position:relative;overflow:visible;
@@ -93,9 +93,9 @@ export function inyectarMovil() {
   .mv-dots i.on{background:var(--mv-gold);width:20px}
 
   /* ── Franja/lista rotativa (promos) ── */
-  .mv-strip{margin:16px 0 0;background:var(--mv-card);border:1px solid var(--mv-line);border-radius:16px;
-    padding:14px 14px;display:flex;align-items:center;gap:12px;overflow:hidden}
-  .mv-strip .mv-strip-ic{width:44px;height:44px;flex:0 0 auto;border-radius:12px;display:grid;place-items:center;
+  .mv-strip{margin:12px 0 0;background:var(--mv-card);border:1px solid var(--mv-line);border-radius:16px;
+    padding:12px 13px;display:flex;align-items:center;gap:12px;overflow:hidden}
+  .mv-strip .mv-strip-ic{width:40px;height:40px;flex:0 0 auto;border-radius:12px;display:grid;place-items:center;
     background:linear-gradient(145deg,#1f2731,#141a21);border:1px solid var(--mv-line)}
   .mv-strip .mv-strip-ic svg{width:24px;height:24px;color:var(--mv-gold)}
   .mv-strip .mv-strip-tx{flex:1;min-width:0}
@@ -111,11 +111,11 @@ export function inyectarMovil() {
 
   /* ── Dos tarjetas rotativas ── */
   /* Carrusel continuo de servicios (sin parpadeos) */
-  .mv-svc{overflow:hidden;margin:6px -16px 0;padding:0 16px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+  .mv-svc{overflow:hidden;margin:4px -16px 0;padding:0 16px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
   .mv-svc-track{display:flex;gap:10px;width:max-content;animation:mvSvc calc(var(--n,11) * 3.2s) linear infinite}
   .mv-svc:active .mv-svc-track,.mv-svc-track:hover{animation-play-state:paused}
   @keyframes mvSvc{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-  .mv-svc-card{flex:0 0 auto;width:150px;height:118px;background:var(--mv-card);border:1px solid var(--mv-line);
+  .mv-svc-card{flex:0 0 auto;width:140px;height:96px;background:var(--mv-card);border:1px solid var(--mv-line);
     border-top:2px solid var(--bc,var(--mv-line));border-radius:15px;padding:13px 12px;display:flex;flex-direction:column;
     align-items:flex-start;gap:6px;text-align:left;color:inherit}
   .mv-svc-ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--bc,var(--mv-gold)) 13%,transparent)}
@@ -125,16 +125,16 @@ export function inyectarMovil() {
   .mv-tdots i{width:5px;height:5px;border-radius:50%;background:var(--mv-line)}
   .mv-tdots i.on{background:var(--mv-gold);width:16px;border-radius:3px}
 
-  .mv-sec-h{display:flex;align-items:center;justify-content:space-between;margin:22px 0 10px}
+  .mv-sec-h{display:flex;align-items:center;justify-content:space-between;margin:12px 0 7px}
   .mv-sec-h b{font-size:16px;font-weight:800}
   .mv-sec-h span{font-size:13px;color:var(--mv-gold);font-weight:600}
 
   /* ── Aviso conectar ── */
-  .mv-connect{margin:16px 0 0;background:linear-gradient(180deg,#1a212b,#141a21);border:1px solid var(--mv-line);
-    border-radius:16px;padding:18px 16px;text-align:center}
-  .mv-connect p{margin:0 0 12px;color:var(--mv-mut);font-size:13.5px;line-height:1.45}
+  .mv-connect{margin:12px 0 0;background:linear-gradient(180deg,#1a212b,#141a21);border:1px solid var(--mv-line);
+    border-radius:16px;padding:14px 14px;text-align:center}
+  .mv-connect p{margin:0 0 10px;color:var(--mv-mut);font-size:12.5px;line-height:1.4}
   .mv-connect b{color:var(--mv-txt)}
-  .mv-connect button{height:46px;width:100%;border-radius:24px;font-weight:800;font-size:15px;
+  .mv-connect button{height:44px;width:100%;border-radius:22px;font-weight:800;font-size:15px;
     background:linear-gradient(180deg,#f2ca63,var(--mv-gold-d));color:#1a1200}
 
   /* ── Barra inferior PERPETUA (encima de todo) ── */
