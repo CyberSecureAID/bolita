@@ -96,7 +96,57 @@ async function abrir(clave, arg) {
 }
 
 /* La gráfica Smart Levels sí se abre con moneda, desde el panel Operar. */
-async function abrirGrafica(g, par) { await abrir(g === 'niveles' ? 'niveles' : g); }
+async function abrirGrafica(g, par) {
+  const id = par && (par.id || par);
+  inyectarFixGrafica();
+  try {
+    if (g === 'niveles') { const m = await import('../niveles.js?v=126'); m.abrirNiveles && m.abrirNiveles(id); montarTfMovil(); }
+    else if (g === 'muros') { const m = await import('../muros.js?v=126'); m.abrirMuros && m.abrirMuros(id); }
+    else if (g === 'liquidity') { const m = await import('../liquidity.js?v=126'); m.abrirLiquidity && m.abrirLiquidity(id); }
+    else { await abrir(g); }
+  } catch (_) { await abrir(g === 'niveles' ? 'niveles' : g); }
+}
+
+/* Temporalidad en móvil: oculta la franja y pone un chip junto a la moneda que
+   despliega una lista con TODAS las temporalidades. Maneja los botones reales
+   ocultos (.nv-tf) para no duplicar lógica. */
+function montarTfMovil() {
+  let intentos = 0;
+  const t = setInterval(() => {
+    intentos++;
+    const sel = document.querySelector('#nv-overlay .nv-sel');
+    const tfs = document.querySelector('#nv-overlay .nv-tfs');
+    if (sel && tfs) {
+      clearInterval(t);
+      if (document.getElementById('mv-tf')) return;
+      const activo = tfs.querySelector('.nv-tf.on') || tfs.querySelector('.nv-tf');
+      const chip = document.createElement('button');
+      chip.id = 'mv-tf'; chip.type = 'button'; chip.className = 'mv-tf-chip';
+      chip.innerHTML = `<b>${activo ? activo.textContent : '1H'}</b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>`;
+      sel.insertAdjacentElement('afterend', chip);
+      chip.onclick = (e) => { e.stopPropagation(); abrirTfMenu(chip, tfs); };
+    } else if (intentos > 40) clearInterval(t);
+  }, 60);
+}
+function abrirTfMenu(chip, tfs) {
+  const ya = document.getElementById('mv-tf-menu'); if (ya) { ya.remove(); return; }
+  const botones = [...tfs.querySelectorAll('.nv-tf')];
+  const menu = document.createElement('div'); menu.id = 'mv-tf-menu';
+  menu.innerHTML = botones.map((b) => `<button type="button" class="mv-tf-item ${b.classList.contains('on') ? 'on' : ''}" data-tf="${b.dataset.ntf}">${b.textContent}</button>`).join('');
+  document.body.appendChild(menu);
+  const r = chip.getBoundingClientRect();
+  const w = menu.offsetWidth || 190;
+  menu.style.top = (r.bottom + 6) + 'px';
+  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+  menu.querySelectorAll('.mv-tf-item').forEach((it) => it.onclick = () => {
+    const orig = botones.find((b) => b.dataset.ntf === it.getAttribute('data-tf'));
+    if (orig) orig.click();                         // dispara el handler real de niveles
+    chip.querySelector('b').textContent = it.textContent;
+    menu.remove();
+  });
+  const cerrar = (ev) => { if (!menu.contains(ev.target) && ev.target !== chip && !chip.contains(ev.target)) { menu.remove(); document.removeEventListener('click', cerrar); } };
+  setTimeout(() => document.addEventListener('click', cerrar), 10);
+}
 
 /* El swap (y su selector de moneda) se insertan dentro de #colmena-app, que en
    móvil está oculto y además crea un contexto de apilamiento (isolation) que
@@ -209,11 +259,19 @@ function inyectarFixGrafica() {
   const s = document.createElement('style'); s.id = 'mv-nv-fix';
   s.textContent = `@media(max-width:760px){
     #nv-overlay .nv-cab,#mu-overlay .mu-cab{flex-wrap:wrap!important;gap:6px!important;padding:8px 10px 8px 12px!important}
-    #nv-overlay .nv-tfs{order:5!important;width:100%!important;overflow-x:auto!important;flex-wrap:nowrap!important;scrollbar-width:none}
-    #nv-overlay .nv-tfs::-webkit-scrollbar{display:none}
-    #nv-overlay .nv-tf{flex:0 0 auto!important}
+    #nv-overlay .nv-tfs{display:none!important}
     #nv-overlay .nv-estado{display:none!important}
     #nv-overlay .nv-der{margin-left:auto!important;gap:4px!important}
+    /* Chip de temporalidad junto al selector de moneda */
+    #nv-overlay .mv-tf-chip{display:inline-flex!important;align-items:center!important;gap:5px!important;height:36px!important;padding:0 11px!important;
+      background:var(--mv-card2,#1b222c)!important;border:1px solid var(--mv-line,#232b36)!important;border-radius:11px!important;color:#eaecef!important;font-weight:800!important;font-size:13.5px!important}
+    #nv-overlay .mv-tf-chip svg{width:15px!important;height:15px!important;color:var(--mv-mut,#8b96a3)!important}
+    #mv-tf-menu{position:fixed!important;z-index:12000!important;background:#151b23!important;border:1px solid #232b36!important;border-radius:13px!important;
+      padding:6px!important;box-shadow:0 16px 40px rgba(0,0,0,.55)!important;max-height:60vh!important;overflow-y:auto!important;display:grid!important;grid-template-columns:1fr 1fr 1fr!important;gap:5px!important;min-width:180px!important}
+    #mv-tf-menu::-webkit-scrollbar{display:none}
+    #mv-tf-menu .mv-tf-item{background:var(--mv-card2,#1b222c)!important;border:1px solid transparent!important;border-radius:9px!important;color:#c7cdd6!important;
+      font-weight:700!important;font-size:13px!important;padding:10px 6px!important;text-align:center!important}
+    #mv-tf-menu .mv-tf-item.on{background:linear-gradient(180deg,#f7db8d,#E8B84B 55%,#c79426)!important;color:#1a1200!important;border-color:#E8B84B!important}
     #nv-overlay .nv-rg-tx,#nv-overlay .nv-ind-tx,#nv-overlay .nv-cf-tx{display:none!important}
     #nv-overlay #nv-widget{display:none!important}
     #nv-overlay .nv-sel{max-width:44vw}
