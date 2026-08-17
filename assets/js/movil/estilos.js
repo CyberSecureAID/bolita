@@ -350,6 +350,13 @@ export function inyectarMovil() {
   .op-panel{padding:6px 0}
   .op-empty{text-align:center;color:var(--mv-mut);padding:28px 16px;font-size:13.5px}
   .op-link{color:var(--mv-gold);font-weight:700;background:none;border:0;text-decoration:underline}
+  .op-bot{display:flex;align-items:center;gap:11px;padding:12px 2px;border-bottom:1px solid var(--mv-line)}
+  .op-bot-ic{width:38px;height:38px;flex:0 0 auto;border-radius:11px;display:grid;place-items:center}
+  .op-bot-ic svg{width:21px;height:21px}
+  .op-bot-tx{flex:1;min-width:0} .op-bot-tx b{font-size:14.5px;display:block} .op-bot-tx small{color:var(--mv-mut);font-size:12px}
+  .op-bot-pnl{font-weight:800;font-size:14px} .op-bot-pnl.up{color:var(--mv-up)} .op-bot-pnl.dn{color:var(--mv-down)}
+  .op-bot-manage{width:100%;margin-top:14px;background:var(--mv-card2);border:1px solid var(--mv-gold);color:var(--mv-gold);
+    font-weight:800;font-size:14px;border-radius:12px;padding:12px}
 
   /* ── Activos (pantalla 4) ── */
   .ac-card{position:relative;background:
@@ -360,6 +367,9 @@ export function inyectarMovil() {
   .ac-card::after{content:'';position:absolute;right:-40px;bottom:-60px;width:180px;height:180px;border-radius:50%;
     background:radial-gradient(circle,rgba(232,184,75,.10),transparent 70%);pointer-events:none}
   .ac-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .ac-top-r{display:flex;align-items:center;gap:8px}
+  .ac-share{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--mv-gold)}
+  .ac-share:active{background:rgba(255,255,255,.12)}
   .ac-lbl{display:inline-flex;align-items:center;gap:6px;color:var(--mv-mut);font-size:12.5px;cursor:pointer}
   .ac-lbl svg{width:15px;height:15px;opacity:.85}
   .ac-brand{font-size:11.5px;font-weight:800;color:#0f141b;background:linear-gradient(180deg,#f7db8d,#E8B84B);
@@ -374,6 +384,10 @@ export function inyectarMovil() {
   .ac-tabs{display:flex;gap:18px;border-bottom:1px solid var(--mv-line);margin:20px 0 4px}
   .ac-tabs button{padding:10px 0;font-size:15px;font-weight:800;color:var(--mv-txt);position:relative}
   .ac-tabs button.on::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--mv-gold);border-radius:2px}
+  .ac-tabs .ac-dust{display:inline-flex;align-items:center;gap:5px;background:color-mix(in srgb,var(--mv-gold) 14%,transparent);
+    border:1px solid var(--mv-gold);color:var(--mv-gold);font-size:12px;font-weight:800;padding:6px 12px;border-radius:20px;margin-bottom:4px}
+  .ac-tabs .ac-dust::after{display:none}
+  .ac-tabs .ac-dust svg{width:14px;height:14px}
   .ac-row{display:flex;align-items:center;gap:12px;padding:14px 2px;border-bottom:1px solid var(--mv-line)}
   .ac-ci{width:36px;height:36px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;background:var(--mv-card2);
     border:1px solid var(--mv-line);font-size:12px;font-weight:800;color:var(--mv-gold)}

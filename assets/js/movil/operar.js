@@ -112,6 +112,7 @@ export async function pintarOperar(host, api) {
   $('op-qsel').onclick = () => selectorQuote();
   $('op-buy').onclick = () => operar('buy');
   $('op-sell').onclick = () => operar('sell');
+  actualizarDisponible();
 
   // Posición / órdenes / bots
   host.querySelectorAll('.op-tab').forEach((b) => b.onclick = () => {
@@ -134,9 +135,9 @@ async function pintarPanel(t) {
   const el = $('op-panel'); if (!el) return;
   const con = _api && _api.estaConectado && _api.estaConectado();
   if (t === 'bots') {
-    el.innerHTML = con ? `<div class="op-empty">Aún no tienes bots activos. <button class="op-link" id="op-crear">Crear bot</button></div>`
-                       : `<div class="op-empty">Conecta tu wallet para ver tus bots activos.</div>`;
-    const c = $('op-crear'); if (c) c.onclick = () => _api.abrir('bots');
+    if (!con) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus bots activos.</div>`; return; }
+    el.innerHTML = `<div class="op-empty">Cargando tus bots…</div>`;
+    cargarBotsReales(el);
     return;
   }
   if (t === 'ord') {
@@ -166,6 +167,50 @@ async function pintarPanel(t) {
     _api.abrir('swap');                 // vender = intercambiar de vuelta a USDT
     pintarPanel('pos');
   });
+}
+
+/* Lee los bots reales del usuario de la MISMA fuente on-chain que la web:
+   gb.misRejillas + gb.resumenK + gb.modoDe. Sin API ni backend. */
+const BOT_META = {
+  0: { n: 'Smart Grid', c: '#4d9fff', ic: 'botGrid' },
+  1: { n: 'Acumulador', c: '#b47cff', ic: 'botAcum' },
+  2: { n: 'Cash Out',   c: '#e8b84b', ic: 'botCash' },
+  3: { n: 'DCA',        c: '#34d97b', ic: 'botDca' },
+};
+async function cargarBotsReales(el) {
+  let gb, wallet;
+  try { gb = await import('../gridbot.js?v=125'); wallet = await import('../wallet.js?v=125'); } catch (_) {}
+  const cuenta = wallet && wallet.cuentaActual && wallet.cuentaActual();
+  if (!cuenta) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus bots.</div>`; return; }
+  let claves = [];
+  try { claves = await gb.misRejillas(cuenta) || []; } catch (_) {}
+  if (!claves.length) {
+    el.innerHTML = `<div class="op-empty">Aún no tienes bots activos.<br><button class="op-link" id="op-crear">Crear un bot</button></div>`;
+    const c = document.getElementById('op-crear'); if (c) c.onclick = () => _api.abrir('bots'); return;
+  }
+  const bots = [];
+  for (const k of claves) {
+    try {
+      const [R, md] = await Promise.all([gb.resumenK(k), gb.modoDe(k).catch(() => [0])]);
+      if (!R || R.activa === false) continue;
+      const tipo = Number(Array.isArray(md) ? md[0] : md) || 0;
+      let gan = 0, vol = 0;
+      try { gan = Number(gb.fmt(R.gananciaQuote || 0n, 18)); } catch (_) {}
+      try { vol = Number(gb.fmt(R.volumenQuote || 0n, 18)); } catch (_) {}
+      bots.push({ tipo, gan, vol });
+    } catch (_) {}
+  }
+  if (!bots.length) { el.innerHTML = `<div class="op-empty">No tienes bots activos ahora mismo.</div>`; return; }
+  el.innerHTML = bots.map((b) => {
+    const m = BOT_META[b.tipo] || BOT_META[0];
+    const cls = b.gan >= 0 ? 'up' : 'dn';
+    return `<div class="op-bot">
+      <span class="op-bot-ic" style="color:${m.c};background:color-mix(in srgb,${m.c} 15%,transparent)">${IC[m.ic] || IC.bot}</span>
+      <div class="op-bot-tx"><b>${m.n}</b><small>Volumen ${money(b.vol)}</small></div>
+      <div class="op-bot-pnl ${cls}">${b.gan >= 0 ? '+' : ''}${money(b.gan)}</div>
+    </div>`;
+  }).join('') + `<button class="op-bot-manage" id="op-bot-manage">Gestionar mis bots</button>`;
+  const mng = document.getElementById('op-bot-manage'); if (mng) mng.onclick = () => _api.abrir('bots');
 }
 
 function renderBook() {
@@ -246,6 +291,14 @@ function selectorMoneda() {
     pintarOperar(document.getElementById('mv-scroll'), _api);
   });
 }
+function actualizarDisponible() {
+  const el = $('op-avail'); if (!el) return;
+  const b = _api && _api.balance && _api.balance();
+  if (!b || !b.conectado) { el.textContent = `Disponible: — ${esc(_quote)}`; return; }
+  const a = (b.activos || []).find((x) => x.id === _quote);
+  el.textContent = `Disponible: ${a ? cantidad(a.bal) : '0'} ${esc(_quote)}`;
+}
+
 function selectorQuote() {
   const quotes = [
     { id: 'USDT', n: 'Tether', cg: 'tether' },
@@ -255,7 +308,7 @@ function selectorQuote() {
   abrirPicker('Moneda de pago', quotes, (id) => {
     _quote = id;
     const q = $('op-qsel'); if (q) q.innerHTML = `${esc(_quote)} ${chev(10)}`;
-    const a = $('op-avail'); if (a) a.textContent = `Disponible: — ${esc(_quote)}`;
+    actualizarDisponible();
   });
 }
 

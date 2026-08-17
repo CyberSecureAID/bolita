@@ -62,17 +62,25 @@ async function abrirGrafica(g, par) { await abrir(g === 'niveles' ? 'niveles' : 
 /* El swap (y su selector de moneda) se insertan dentro de #colmena-app, que en
    móvil está oculto y además crea un contexto de apilamiento (isolation) que
    deja el modal por debajo de la cáscara. Los movemos al <body>. */
+/* El swap se inserta en #colmena-app, que en móvil está oculto y con
+   isolation:isolate (contexto de apilamiento) queda por debajo de la cáscara.
+   En vez de mover el modal (rompe su CSS ligado a #colmena-app), elevamos el
+   z-index de #colmena-app mientras el swap está abierto y lo restauramos al
+   cerrarse. Así se ve por encima de la cáscara y conserva todo su estilo. */
 function sacarSwapDelWeb() {
-  inyectarFixSwap();
-  const mover = () => { ['swap-modal', 'coin-modal'].forEach((id) => { const e = $(id); if (e && e.parentElement !== document.body) document.body.appendChild(e); }); };
-  mover();
   const web = $('colmena-app');
-  if (web && !web._mvSwapObs) {
-    const obs = new MutationObserver(mover);
-    obs.observe(web, { childList: true });
-    web._mvSwapObs = obs;
-    setTimeout(() => { try { obs.disconnect(); } catch (_) {} web._mvSwapObs = null; }, 120000);
-  }
+  if (!web) return;
+  web.style.zIndex = '9500';                 // encima de la cáscara (100), debajo del nav (10100)
+  web.style.pointerEvents = 'auto';
+  if (web._mvSwapObs) return;
+  const obs = new MutationObserver(() => {
+    if (!$('swap-modal') && !$('coin-modal')) {   // swap cerrado → restaurar
+      web.style.zIndex = ''; web.style.pointerEvents = '';
+      obs.disconnect(); web._mvSwapObs = null;
+    }
+  });
+  obs.observe(web, { childList: true, subtree: true });
+  web._mvSwapObs = obs;
 }
 
 /* Achica los logos de moneda del swap en móvil (sin tocar el botón central). */
@@ -338,5 +346,5 @@ export async function montarMovil(deps) {
     irA('trade');
   }, true);
 
-  try { if (wallet.alCambiar) wallet.alCambiar(() => { _bal = null; refrescarBalance(); if (_tab === 'home') irA('home'); }); } catch (_) {}
+  try { if (wallet.alCambiar) wallet.alCambiar(() => { _bal = null; refrescarBalance(); irA(_tab); }); } catch (_) {}
 }

@@ -23,13 +23,17 @@ export function pintarActivos(host, api) {
     <div class="mv-top" style="padding-left:0;padding-right:0">
       <b style="font-size:20px;font-weight:800">Activos</b>
       <div style="flex:1"></div>
+      <button class="mv-ico-btn" id="ac-support" title="Soporte">${IC.support}</button>
       <button class="mv-ico-btn" id="ac-alert" title="Alertas de precio">${IC.bell}</button>
     </div>
 
     <div class="ac-card">
       <div class="ac-card-top">
         <span class="ac-lbl" id="ac-eye">Balance total (USDT) ${IC.eye}</span>
-        <span class="ac-brand">${esc(APP_NOMBRE)}</span>
+        <div class="ac-top-r">
+          <button class="ac-share" id="ac-share" title="Compartir" aria-label="Compartir"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></button>
+          <span class="ac-brand">${esc(APP_NOMBRE)}</span>
+        </div>
       </div>
       <div class="ac-bal" id="ac-bal">—</div>
       <div class="ac-sub" id="ac-sub"></div>
@@ -43,12 +47,16 @@ export function pintarActivos(host, api) {
 
     <div class="ac-tabs" id="ac-tabs">
       <button data-t="spot" class="${_tab === 'spot' ? 'on' : ''}">Spot</button>
-      <button data-t="polvo" class="${_tab === 'polvo' ? 'on' : ''}">Colector de polvo</button>
+      <button data-t="nfts" class="${_tab === 'nfts' ? 'on' : ''}">NFTs</button>
       <button data-t="activity" class="${_tab === 'activity' ? 'on' : ''}">Actividad</button>
+      <div style="flex:1"></div>
+      <button class="ac-dust" data-t="polvo">${IC.bolt} Polvo</button>
     </div>
     <div id="ac-list"></div>
   `;
 
+  $('ac-support').onclick = () => api.abrir('soporte');
+  $('ac-share').onclick = () => compartirBalance(api);
   $('ac-alert').onclick = () => api.abrir('alertasTool');
   $('ac-recv').onclick = () => api.abrir('recibir');
   $('ac-buy').onclick = () => api.abrir('buy');
@@ -59,7 +67,7 @@ export function pintarActivos(host, api) {
     const t = btn.getAttribute('data-t');
     if (t === 'polvo') { api.abrir('polvo'); return; }               // colector de polvo (tools)
     if (t === 'activity') { const c = wallet.cuentaActual && wallet.cuentaActual(); if (c) { try { window.open('https://bscscan.com/address/' + c, '_blank', 'noopener'); } catch (_) {} } else api.abrir('perfil'); return; }
-    _tab = t; host.querySelectorAll('#ac-tabs button').forEach((x) => x.classList.toggle('on', x === btn)); pintar();
+    _tab = t; host.querySelectorAll('#ac-tabs button[data-t="spot"],#ac-tabs button[data-t="nfts"]').forEach((x) => x.classList.toggle('on', x === btn)); pintar();
   });
 
   cargarCg();
@@ -68,6 +76,10 @@ export function pintarActivos(host, api) {
     if (!con || !b || !b.conectado) { bal.textContent = '—'; sub.textContent = ''; list.innerHTML = `<div class="mv-empty">Conecta tu wallet para ver tus activos.</div>`; return; }
     bal.textContent = _ojo ? '••••••' : money(b.totalUSD);
     sub.textContent = _ojo ? '' : 'Capital disponible en tu wallet';
+    if (_tab === 'nfts') {
+      list.innerHTML = `<div class="mv-empty">Tus NFTs aparecerán aquí.<br><span style="font-size:12px">Requiere activar el indexador de NFTs de la wallet.</span></div>`;
+      return;
+    }
     const act = (b.activos || []).slice().sort((x, y) => y.usd - x.usd);
     if (!act.length) { list.innerHTML = `<div class="mv-empty">Tu wallet no tiene saldo todavía.</div>`; return; }
     list.innerHTML = act.map((a) => {
@@ -95,6 +107,57 @@ async function cargarCg() {
     }
   } catch (_) {}
 }
+
+/* Genera una imagen (canvas) de la tarjeta de balance y la comparte/descarga.
+   Sin librerías ni backend. */
+async function compartirBalance(api) {
+  const b = api.balance();
+  const total = (b && b.conectado) ? money(b.totalUSD) : '$0.00';
+  const W = 1080, H = 1080, s = 1;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const x = cv.getContext('2d');
+  // Fondo degradado
+  const g = x.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#1c2530'); g.addColorStop(.5, '#141a22'); g.addColorStop(1, '#0b0e11');
+  x.fillStyle = g; roundRect(x, 0, 0, W, H, 0); x.fill();
+  // Glow dorado
+  const rg = x.createRadialGradient(W, 0, 40, W, 0, 620);
+  rg.addColorStop(0, 'rgba(232,184,75,.22)'); rg.addColorStop(1, 'rgba(232,184,75,0)');
+  x.fillStyle = rg; x.fillRect(0, 0, W, H);
+  // Tarjeta interior
+  x.fillStyle = 'rgba(255,255,255,.03)'; roundRect(x, 70, 150, W - 140, H - 380, 44); x.fill();
+  x.strokeStyle = 'rgba(232,184,75,.35)'; x.lineWidth = 2; roundRect(x, 70, 150, W - 140, H - 380, 44); x.stroke();
+  // Marca
+  x.fillStyle = '#E8B84B'; x.font = '700 40px "Plus Jakarta Sans", system-ui, sans-serif';
+  x.fillText('CriptoCuba Oficial', 120, 250);
+  // Etiqueta
+  x.fillStyle = '#8b96a3'; x.font = '400 34px system-ui, sans-serif';
+  x.fillText('Balance total', 120, 470);
+  // Monto
+  x.fillStyle = '#ffffff'; x.font = '800 130px "Plus Jakarta Sans", system-ui, sans-serif';
+  x.fillText(total, 118, 610);
+  // Pie
+  x.fillStyle = '#5b6572'; x.font = '400 30px system-ui, sans-serif';
+  x.fillText('Exchange no custodial · BNB Smart Chain', 120, H - 320 + 40);
+  x.fillStyle = '#E8B84B'; x.font = '700 32px system-ui, sans-serif';
+  x.fillText('criptocubaoficial.com', 120, H - 200);
+
+  cv.toBlob(async (blob) => {
+    if (!blob) return;
+    const file = new File([blob], 'balance-criptocuba.png', { type: 'image/png' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Mi balance en CriptoCuba Oficial' });
+        return;
+      }
+    } catch (_) {}
+    // Fallback: descargar
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'balance-criptocuba.png'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }, 'image/png');
+}
+function roundRect(x, X, Y, w, h, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); }
 
 function fmt(v) { const n = Number(v); return isFinite(n) ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'; }
 function fmtAmt(v) { v = Number(v) || 0; return v >= 1 ? v.toLocaleString('en-US', { maximumFractionDigits: 4 }) : v.toLocaleString('en-US', { maximumFractionDigits: 8 }); }
