@@ -154,7 +154,13 @@ async function pintarPanel(t) {
   if (t === 'ord') {
     if (!con) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus órdenes.</div>`; return; }
     let ordenes = [];
-    try { const o = await import('../orden.js?v=126'); if (o.ordenesPuestas) ordenes = (o.ordenesPuestas() || []).filter((x) => x.modo !== 'aviso' && x.botId != null); } catch (_) {}
+    try {
+      const o = await import('../orden.js?v=126');
+      const w = await import('../wallet.js?v=125');
+      const cuenta = w.cuentaActual && w.cuentaActual();
+      if (o.sincronizarOrdenes && cuenta) await o.sincronizarOrdenes(cuenta);   // limpia las ya llenadas
+      if (o.ordenesPuestas) ordenes = (o.ordenesPuestas() || []).filter((x) => x.modo !== 'aviso' && x.botId != null);
+    } catch (_) {}
     if (!ordenes.length) { el.innerHTML = `<div class="op-empty">No tienes órdenes limit abiertas.<br><span style="font-size:12px">Pon una desde la pestaña Limit.</span></div>`; return; }
     const cache = (() => { try { const c = JSON.parse(localStorage.getItem('mv-cg') || 'null'); return (c && c.d) || {}; } catch (_) { return {}; } })();
     el.innerHTML = ordenes.map((o, i) => {
