@@ -1,12 +1,11 @@
 /* movil/inicio.js — Pantalla 1 (Inicio). */
 
 import { IC } from './iconos.js?v=1';
+import * as wallet from '../wallet.js?v=125';
 
 const $ = (id) => document.getElementById(id);
 const LS = { ojo: 'mv-ojo', denom: 'mv-denom' };
 
-/* Accesos rápidos → 6 exactos. Sin Smart Levels (está en "Operar") ni Tools
-   (Tools va en la franja de servicios de abajo). */
 const QUICK = [
   { k: 'buy',       ic: 'buy',    t: 'Comprar' },
   { k: 'sell',      ic: 'sell',   t: 'Vender' },
@@ -21,17 +20,22 @@ const PROMOS = [
   { ic: 'trophy', t: 'Prize Pool comunitario', s: 'Participa y gana del fondo común', go: 'prize' },
   { ic: 'bot',    t: 'Bots que operan por ti', s: 'Compran abajo y venden arriba, en tu wallet', go: 'bots' },
   { ic: 'tools',  t: 'Herramientas', s: 'Calculadoras y utilidades para operar mejor', go: 'tools' },
-  { ic: 'swap',   t: 'Intercambia cualquier cripto', s: 'Swap directo, sin KYC, no custodial', go: 'swap' },
-  { ic: 'pool',   t: 'Liquidity Pools', s: 'Analiza profundidad y liquidez del mercado', go: 'liquidity' },
 ];
 
-/* Bots con su LOGO (icono) e identidad de color. En la web se ven las fotos;
-   en móvil basta el logo. */
-const BOTCARDS = [
-  { k: 'bots', color: '#2ebd85', ic: 'cube',   kick: 'Smart Grid',  h: 'Gana en el rango',      p: 'Compra y vende en niveles; cierra cada cuadrícula solo en ganancia.' },
-  { k: 'bots', color: '#E8B84B', ic: 'stack',  kick: 'Acumulador',  h: 'Acumula en la caída',   p: 'Compra por tramos cuando baja y arma posición sin que estés pendiente.' },
-  { k: 'bots', color: '#f6465d', ic: 'dollar', kick: 'Cash Out',    h: 'Asegura ganancias',     p: 'Vende lo que ya tienes al precio o % que elijas.' },
-  { k: 'bots', color: '#4c8dff', ic: 'clock',  kick: 'DCA',         h: 'Invierte a intervalos', p: 'Compra cantidades fijas cada cierto tiempo para promediar tu entrada.' },
+/* TODOS los servicios pasan por las tarjetas. Iconos y colores REALES (los de
+   la web para los bots). */
+const SERVICIOS = [
+  { go: 'bots',      color: '#4d9fff', ic: 'botGrid', kick: 'Smart Grid',          h: 'Gana en el rango',        p: 'Compra y vende en niveles; cierra cada cuadrícula solo en ganancia.' },
+  { go: 'bots',      color: '#b47cff', ic: 'botAcum', kick: 'Acumulador',          h: 'Acumula en la caída',     p: 'Compra por tramos cuando baja y arma posición sin que estés pendiente.' },
+  { go: 'bots',      color: '#e8b84b', ic: 'botCash', kick: 'Cash Out',            h: 'Asegura ganancias',       p: 'Vende lo que ya tienes al precio o % que elijas.' },
+  { go: 'bots',      color: '#34d97b', ic: 'botDca',  kick: 'DCA',                 h: 'Invierte a intervalos',   p: 'Compra cantidades fijas cada cierto tiempo para promediar tu entrada.' },
+  { go: 'liquidity', color: '#2ebd85', ic: 'pool',    kick: 'Liquidity Pools',     h: 'Profundidad real',        p: 'Mira dónde está la liquidez y los muros del mercado.' },
+  { go: 'muros',     color: '#f6465d', ic: 'candles', kick: 'Radar Institucional', h: 'Flujo de órdenes',        p: 'Detecta la mano fuerte: órdenes grandes y absorción.' },
+  { go: 'niveles',   color: '#E8B84B', ic: 'chart',   kick: 'Smart Levels',        h: 'Analiza y opera',         p: 'Niveles, indicadores y compra/venta al toque en la gráfica.' },
+  { go: 'academy',   color: '#4c8dff', ic: 'book',    kick: 'Academia',            h: 'Aprende a operar',        p: 'Formación paso a paso para sacarle ventaja al mercado.' },
+  { go: 'swap',      color: '#2ebd85', ic: 'swap',    kick: 'Swap',                h: 'Intercambia al momento',  p: 'Cambia cualquier cripto por otra, sin KYC y no custodial.' },
+  { go: 'market',    color: '#E8B84B', ic: 'market',  kick: 'Marketplace',         h: 'Compra y vende P2P',      p: 'Órdenes de compra y venta entre personas, con garantía.' },
+  { go: 'prize',     color: '#f6465d', ic: 'trophy',  kick: 'Prize Pool',          h: 'Fondo comunitario',       p: 'Participa y gana del pozo acumulado de la comunidad.' },
 ];
 
 let _ojo = leer(LS.ojo) === '1';
@@ -42,10 +46,15 @@ function guardar(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
 
 export function pintarInicio(host, api) {
   const con = api.estaConectado();
+  const winfo = (con && wallet.walletInfo && wallet.walletInfo()) || null;
+  const wlogo = winfo && (winfo.icon || winfo.icono);
 
   host.innerHTML = `
     <div class="mv-top">
-      <button class="mv-ava" id="mv-ava" aria-label="Perfil">${IC.user}<i class="mv-ava-dot ${con ? 'on' : ''}"></i></button>
+      <button class="mv-ava" id="mv-ava" aria-label="Perfil">
+        ${wlogo ? `<img src="${wlogo}" alt="">` : IC.user}
+        <i class="mv-ava-dot ${con ? 'on' : ''}"></i>
+      </button>
       <div class="mv-search" id="mv-search"><span class="mv-search-ic">${IC.search}</span><span class="mv-search-ph">Busca servicios, ofertas, monedas…</span></div>
       <button class="mv-ico-btn" id="mv-support" aria-label="Soporte">${IC.support}</button>
       <button class="mv-ico-btn" id="mv-alerts" aria-label="Alertas">${IC.bell}</button>
@@ -83,13 +92,12 @@ export function pintarInicio(host, api) {
       <div class="mv-strip-tx"><b id="mv-strip-t">—</b><small id="mv-strip-s">—</small></div>
       <button class="mv-strip-go" id="mv-strip-go">Ver</button>
     </div>
-    <div class="mv-viewall" id="mv-viewall">Ver todos los servicios <b>→</b></div>
 
+    <div class="mv-sec-h"><b>Todos los servicios</b><span id="mv-viewall">Ver todo →</span></div>
     <div class="mv-two">
       <div class="mv-tcard" id="mv-tc-0"></div>
       <div class="mv-tcard" id="mv-tc-1"></div>
     </div>
-    <div class="mv-tdots" id="mv-tdots"></div>
 
     <div class="mv-sec-h"><b>Prize Pool</b><span id="mv-prize-more">Ver →</span></div>
     <div class="mv-strip" id="mv-prize-strip">
@@ -110,7 +118,7 @@ export function pintarInicio(host, api) {
   $('mv-prize-go').onclick = $('mv-prize-more').onclick = () => api.abrir('prize');
   $('mv-viewall').onclick = () => api.abrir('menu');
 
-  // Balance: ojito + cambio de moneda (junto al monto)
+  // Balance
   const pintarBal = () => {
     const b = api.balance();
     const bal = $('mv-bal'), sub = $('mv-bal-sub');
@@ -123,7 +131,7 @@ export function pintarInicio(host, api) {
   $('mv-denom').onclick = () => menuDenom(api, () => { $('mv-denom').innerHTML = `${_denom} ${chev()}`; pintarBal(); });
   pintarBal();
 
-  // Franja rotativa (sin contador)
+  // Franja rotativa (promos)
   let pi = 0;
   const pintarPromo = () => {
     const p = PROMOS[pi % PROMOS.length];
@@ -135,23 +143,25 @@ export function pintarInicio(host, api) {
   pintarPromo();
   const tPromo = setInterval(() => { pi++; pintarPromo(); }, 4500);
 
-  // Dos tarjetas de bots (con logo y color), rotan de dos en dos
+  // Tarjetas: TODOS los servicios pasan de dos en dos con transición suave.
   let ti = 0;
-  const pintarCards = () => {
+  const pintarCards = (fade) => {
     for (let j = 0; j < 2; j++) {
-      const c = BOTCARDS[(ti * 2 + j) % BOTCARDS.length];
+      const c = SERVICIOS[(ti * 2 + j) % SERVICIOS.length];
       const el = $('mv-tc-' + j); if (!el) continue;
-      el.style.setProperty('--bc', c.color);
-      el.innerHTML = `<div class="mv-tc-kick" style="color:${c.color}">${c.kick}</div>
-        <div class="mv-tc-logo" style="color:${c.color}">${IC[c.ic] || IC.bot}</div>
-        <h4>${c.h}</h4><p>${c.p}</p>`;
-      el.onclick = () => api.abrir('bots');
+      const set = () => {
+        el.style.setProperty('--bc', c.color);
+        el.innerHTML = `<div class="mv-tc-kick" style="color:${c.color}">${c.kick}</div>
+          <div class="mv-tc-logo" style="color:${c.color}">${IC[c.ic] || IC.bot}</div>
+          <h4>${c.h}</h4><p>${c.p}</p>`;
+        el.onclick = () => api.abrir(c.go);
+        el.classList.remove('fade-out');
+      };
+      if (fade) { el.classList.add('fade-out'); setTimeout(set, 220); } else set();
     }
-    const dots = $('mv-tdots'); const pares = Math.ceil(BOTCARDS.length / 2);
-    dots.innerHTML = Array.from({ length: pares }, (_, k) => `<i class="${k === ti % pares ? 'on' : ''}"></i>`).join('');
   };
-  pintarCards();
-  const tCards = setInterval(() => { ti++; pintarCards(); }, 6000);
+  pintarCards(false);
+  const tCards = setInterval(() => { ti++; pintarCards(true); }, 3800);
 
   host._limpiar = () => { clearInterval(tPromo); clearInterval(tCards); };
   host._pintarBal = pintarBal;

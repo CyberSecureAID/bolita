@@ -11,6 +11,7 @@ import { IC } from './iconos.js?v=1';
 import { pintarInicio } from './inicio.js?v=1';
 import { pintarMercados } from './markets.js?v=1';
 import { pintarOperar } from './operar.js?v=1';
+import { pintarActivos } from './activos.js?v=1';
 import { abrirMenu } from './menu.js?v=1';
 import { abrirBuscar } from './buscar.js?v=1';
 
@@ -77,6 +78,7 @@ function inyectarFixGrafica() {
     #nv-overlay .nv-estado{display:none!important}
     #nv-overlay .nv-der{margin-left:auto!important;gap:4px!important}
     #nv-overlay .nv-rg-tx,#nv-overlay .nv-ind-tx,#nv-overlay .nv-cf-tx{display:none!important}
+    #nv-overlay #nv-widget{display:none!important}
     #nv-overlay .nv-sel{max-width:44vw}
     #nv-overlay .nv-c,#mu-overlay .mu-c,#lqp-overlay,#lq-overlay{padding-bottom:64px!important}
     #swap-modal{padding-bottom:80px!important}
@@ -202,7 +204,7 @@ async function irA(tab) {
   if (tab === 'home')    { pintarInicio(host, api()); refrescarBalance(); return; }
   if (tab === 'markets') { pintarMercados(host, api()); return; }
   if (tab === 'trade')   { pintarOperar(host, api()); return; }
-  if (tab === 'assets')  { abrir('perfil'); return; }
+  if (tab === 'assets')  { pintarActivos(host, api()); refrescarBalance(); return; }
 }
 
 async function refrescarBalance() {
@@ -218,7 +220,7 @@ export async function montarMovil(deps) {
   inyectarMovil();
   // Oculta el FAB del asistente en móvil (el soporte se abre desde la cáscara).
   const st = document.createElement('style'); st.id = 'mv-fab-fix';
-  st.textContent = '@media(max-width:760px){#np-fab-previo{display:none!important}}';
+  st.textContent = '@media(max-width:760px){#np-fab-previo,#npFab,#np-chat,#npChat{display:none!important}}';
   document.head.appendChild(st);
 
   const app = document.createElement('div');

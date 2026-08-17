@@ -25,7 +25,7 @@ let _api = null;
 export async function pintarOperar(host, api) {
   _api = api;
   if (!_pares.length) { try { const c = await import('../niveles/config.js?v=1'); _pares = (c.PARES || []).slice(); } catch (_) { _pares = []; } }
-  if (!_par) _par = _pares.find((p) => p.id === 'BTC') || _pares[0];
+  if (!_par) _par = _pares.find((p) => p.id === 'BNB') || _pares.find((p) => p.id === 'BTC') || _pares[0];
 
   host.innerHTML = `
     <div class="op-head">
@@ -106,13 +106,45 @@ export async function pintarOperar(host, api) {
   host._limpiar = () => clearInterval(_timer);
 }
 
-function pintarPanel(t) {
+function posGuardadas() { try { return JSON.parse(localStorage.getItem('mv-pos') || '[]'); } catch (_) { return []; } }
+function posGuardar(l) { try { localStorage.setItem('mv-pos', JSON.stringify(l)); } catch (_) {} }
+
+async function pintarPanel(t) {
   const el = $('op-panel'); if (!el) return;
   const con = _api && _api.estaConectado && _api.estaConectado();
-  if (!con) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tu ${t === 'ord' ? 'órdenes' : t === 'bots' ? 'bots activos' : 'posición'}.</div>`; return; }
-  if (t === 'bots') { el.innerHTML = `<div class="op-empty">Aún no tienes bots activos. <button class="op-link" id="op-crear">Crear bot</button></div>`; const c = $('op-crear'); if (c) c.onclick = () => _api.abrir('bots'); return; }
-  if (t === 'ord') { el.innerHTML = `<div class="op-empty">No tienes órdenes abiertas.</div>`; return; }
-  el.innerHTML = `<div class="op-empty">Sin posiciones por ahora.</div>`;
+  if (t === 'bots') {
+    el.innerHTML = con ? `<div class="op-empty">Aún no tienes bots activos. <button class="op-link" id="op-crear">Crear bot</button></div>`
+                       : `<div class="op-empty">Conecta tu wallet para ver tus bots activos.</div>`;
+    const c = $('op-crear'); if (c) c.onclick = () => _api.abrir('bots');
+    return;
+  }
+  if (t === 'ord') {
+    let ordenes = [];
+    try { const o = await import('../orden.js?v=126'); if (o.ordenesPuestas) ordenes = o.ordenesPuestas() || []; } catch (_) {}
+    if (!con) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tus órdenes.</div>`; return; }
+    if (!ordenes.length) { el.innerHTML = `<div class="op-empty">No tienes órdenes limit abiertas.<br><span style="font-size:12px">Ponlas desde Smart Levels (Limit).</span></div>`; return; }
+    el.innerHTML = ordenes.map((o) => `<div class="op-item"><div><b>${esc(o.par || o.simbolo || '')}</b><small>${o.vender ? 'Vender' : 'Comprar'} · ${esc(String(o.precio || ''))}</small></div><span class="${o.vender ? 'dn' : 'up'}">Limit</span></div>`).join('');
+    return;
+  }
+  // Posición: compras hechas desde aquí (entrada + P/L). Eliminar = vender.
+  if (!con) { el.innerHTML = `<div class="op-empty">Conecta tu wallet para ver tu posición.</div>`; return; }
+  const pos = posGuardadas();
+  if (!pos.length) { el.innerHTML = `<div class="op-empty">Sin posiciones. Cuando compres a mercado desde aquí, tu entrada aparece con su ganancia en vivo.</div>`; return; }
+  el.innerHTML = pos.map((p, i) => {
+    const actual = (p.id === _par.id && _libro.precio) ? _libro.precio : p.entrada;
+    const pl = p.entrada ? ((actual - p.entrada) / p.entrada) * 100 : 0;
+    const cls = pl >= 0 ? 'up' : 'dn';
+    return `<div class="op-item">
+      <div><b>${esc(p.id)}</b><small>Entrada ${fmtP(p.entrada)} · ${p.cantidad} ${esc(p.quote || 'USDT')}</small></div>
+      <div style="text-align:right"><span class="${cls}">${pl >= 0 ? '+' : ''}${pl.toFixed(2)}%</span>
+      <button class="op-del" data-i="${i}">Eliminar</button></div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.op-del').forEach((b) => b.onclick = () => {
+    const i = +b.getAttribute('data-i'); const l = posGuardadas(); l.splice(i, 1); posGuardar(l);
+    _api.abrir('swap');                 // vender = intercambiar de vuelta a USDT
+    pintarPanel('pos');
+  });
 }
 
 function renderBook() {
@@ -148,9 +180,19 @@ async function cargar() {
 }
 
 function operar(lado) {
-  // Market → Swap (al momento). Limit → Smart Levels (orden a un precio).
-  if (_tipo === 'market') _api.abrir('swap');
-  else _api.abrirGrafica('niveles', _par);
+  if (_tipo === 'market') {
+    // Compra/venta a mercado → Swap. Si es compra, registra la posición.
+    if (lado === 'buy' && _api.estaConectado && _api.estaConectado()) {
+      const amt = parseFloat(($('op-in-amt') || {}).value) || 0;
+      if (amt > 0 && _libro.precio) {
+        const l = posGuardadas(); l.push({ id: _par.id, cantidad: amt, quote: _quote, entrada: _libro.precio, ts: Date.now() }); posGuardar(l);
+      }
+    }
+    _api.abrir('swap');
+  } else {
+    // Limit → Smart Levels (poner orden a un precio).
+    _api.abrirGrafica('niveles', _par);
+  }
 }
 
 function selectorMoneda() {

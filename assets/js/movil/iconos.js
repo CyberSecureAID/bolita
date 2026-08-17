@@ -37,4 +37,8 @@ export const IC = {
   book2: w('<path d="M4 5h7v14H4z"/><path d="M13 5h7v14h-7z"/><path d="M6 8h3M6 11h3M15 8h3M15 11h3"/>'),
   minichart: w('<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M6 14l3-3 2 2 4-5"/>'),
   bolt: w('<path d="M13 3L5 13h5l-1 8 8-11h-5z"/>'),
+  botGrid: w('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
+  botAcum: w('<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>'),
+  botCash: w('<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
+  botDca: w('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>'),
 };
