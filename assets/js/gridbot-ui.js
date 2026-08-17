@@ -1571,10 +1571,30 @@ function estilosRiesgo() {
    de TODOS los usuarios cada minuto). */
 
 /** Cuenta los bots activos del usuario, por tipo. */
+/* Claves de las ÓRDENES LIMIT (creadas desde Liquidity/Institutional/Smart
+   Levels). Se guardan en 'cco-ordenes-grafico' con su botId; un Cash Out creado
+   desde la sección de Bots NO deja ese registro. Regla del producto: una orden
+   limit NO se muestra ni se cuenta como bot (se ve en "Mis órdenes"). */
+function clavesOrdenLimit(cuenta) {
+  const set = new Set();
+  try {
+    const ords = JSON.parse(localStorage.getItem('cco-ordenes-grafico') || '[]');
+    for (const o of ords) {
+      if (o && o.base && o.quote && o.botId != null) {
+        try { set.add(String(gb.claveBot(cuenta, o.base, o.quote, o.botId)).toLowerCase()); } catch (_) {}
+      }
+    }
+  } catch (_) {}
+  return set;
+}
+
 async function contarBots(cuenta) {
   const r = { total: 0, grid: 0, acum: 0, cash: 0, dca: 0 };
   try {
-    const claves = await gb.misRejillas(cuenta);
+    const todas = await gb.misRejillas(cuenta);
+    const _limit = clavesOrdenLimit(cuenta);
+    // Las órdenes limit no cuentan como bots (regla del producto).
+    const claves = todas.filter((c) => !_limit.has(String(c).toLowerCase()));
     /* Antes se preguntaba por cada bot ESPERANDO la respuesta del anterior.
        Con 8 bots eran 16 viajes en fila: en una conexión lenta, eterno, y
        el usuario veía "cargando" sin fin. Ahora se preguntan todos a la vez
@@ -2236,7 +2256,8 @@ async function refrescarRejillas() {
        cancelación se confirma. Quien decide si un bot existe es el
        CONTRATO, siempre: más abajo se comprueba R.activa.
        ══════════════════════════════════════════════════════════════ */
-    const _visibles = claves;
+    const _limit = clavesOrdenLimit(cuenta);
+    const _visibles = claves.filter((c) => !_limit.has(String(c).toLowerCase()));
     const LOTE = 4;
     const _cards = [];
     let _sinLeer = 0;
