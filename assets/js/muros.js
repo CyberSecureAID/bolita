@@ -138,7 +138,7 @@ const M = {
   zoom: 1,
   cruzY: -1,
   velas: [],          // las velas del gráfico
-  tf: '5m',           // temporalidad
+  tf: '15m',          // temporalidad por defecto del radar
   ancho: window.innerWidth < 760 ? 65 : 100,  // cuántas velas se ven
   filtro: 'todos',
   maxMuro: 1,
@@ -148,7 +148,7 @@ const M = {
 
 const CADA = 1500;          // una foto cada 1,5 segundos
 const MAX_FOTOS = 220;      // ~5,5 minutos de historia
-const MIN_TOMAS = 4;        // antes de juzgar, hay que mirar un poco
+const MIN_TOMAS = 2;        // en cuanto hay un par de fotos, ya se muestran los muros
 
 /* ══════════════════════════════════════════════════════════════
    LOS DATOS — profundidad del libro, API pública sin clave
@@ -295,7 +295,7 @@ function juzgar() {
   const fuera = [];
 
   M.niveles.forEach((nv) => {
-    if (nv.tomas < 3) return;
+    if (nv.tomas < 2) return;
     const vivo = nv.ausente === 0;
     const segundos = (nv.visto - nv.nacio) / 1000;
     const consumidoPct = nv.vInicial > 0 ? nv.consumido / nv.vInicial : 0;
@@ -326,7 +326,12 @@ function juzgar() {
       nota = 'Esta orden lleva ahí sin moverse desde que empezamos a vigilar. Todavía no ha llegado el precio a probarla.';
       prioridad = 80;
 
-    } else if (vivo && segundos > 10) {
+    } else if (vivo) {
+      /* Muro grande recién visto: se muestra YA como "en observación" (un
+         muro de millones es real desde que aparece; no hay que esperar 10-20 s
+         para dibujarlo). Su veredicto se afina solo con los segundos: si
+         aguanta pasa a firme/probado, si huye pasa a falso. El filtro de zonas
+         de más abajo evita que esto sea un chorro. */
       tipo = 'vigilando';
       titulo = 'En observación';
       nota = 'Orden nueva. Aún no sabemos si aguantará: hay que ver qué hace cuando el precio se acerque.';
@@ -606,6 +611,7 @@ export async function abrirMuros() {
 let _reloj = null, _relojVelas = null;
 let _fallos = 0;
 let _wsL = null, _wsLibro = null, _wsPar = null;   // libro por WebSocket (respaldo)
+let _ultDibujoWS = 0;                              // throttle del redibujo en vivo
 let _huella = '';
 let _ultPintado = 0;
 
@@ -716,6 +722,18 @@ function conectarWSLibro(sym) {
           compras: b.map((x) => ({ p: Number(x[0]), q: Number(x[1]) })).filter((x) => x.q > 0),
           ventas: a.map((x) => ({ p: Number(x[0]), q: Number(x[1]) })).filter((x) => x.q > 0)
         };
+        /* PRECIO EN TIEMPO REAL. El libro (REST) solo llega cada 1,5 s, y por
+           eso la vela y la línea de precio se veían "atrasadas". El WebSocket
+           llega ~10 veces/segundo: con él movemos el precio y la última vela al
+           instante (redibujo suave, máx ~6/seg) para que vayan siempre pegados
+           al mercado. */
+        const mb = _wsLibro.compras[0], ms = _wsLibro.ventas[0];
+        if (mb && ms) {
+          M.precio = (mb.p + ms.p) / 2;
+          const px = $('mu-px-v'); if (px) px.textContent = fmt(M.precio);
+          const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+          if (now - _ultDibujoWS > 160 && $('mu-cv') && !M.cargando) { _ultDibujoWS = now; dibujar(); }
+        }
       } catch (_) {}
     };
   } catch (_) {}
@@ -887,36 +905,57 @@ function dibujar() {
     const c = COLORES[m.tipo];
     const sel = M.seleccionado === m.p;
 
-    /* [CORREGIDO] El color venía del veredicto, y por eso todas salían
-       azules. En el gráfico manda el LADO: rojo si es venta, verde si
-       es compra. Sin confirmar quedan grises, como en las tarjetas. */
-    const sinProbar = m.tipo === 'vigilando' || m.tipo === 'ido';
-    const col = sinProbar ? '#6b7681' : (m.p > M.precio ? '#f6465d' : '#2ee86a');
+    /* El color lo manda el LADO desde el primer momento: verde = soporte
+       (compra, debajo del precio), rojo = resistencia (venta, encima). Así el
+       mapa se entiende al instante. La CONFIANZA se ve en el trazo: punteado
+       mientras se observa, sólido y con glow cuando ya está confirmado. Solo
+       lo que YA desapareció se pinta gris. */
+    const ido = m.tipo === 'ido';
+    const sinProbar = m.tipo === 'vigilando' || ido;
+    const fuerte = m.tipo === 'recargable' || m.tipo === 'probado';
+    const col = ido ? '#6b7681' : (m.p > M.precio ? '#f6465d' : '#2ee86a');
 
-    // La banda: su grosor dice cuánto dinero hay
-    const alto = Math.max(4, Math.min(18, (m.v / (M.maxMuro || m.v)) * 18));
-    g.fillStyle = col + (sel ? '3a' : '1e');
-    g.fillRect(0, y - alto / 2, x1, alto);
+    /* ZONA: banda con degradado que se desvanece arriba y abajo — se lee como
+       un área de liquidez, no como una raya. Su grosor dice cuánto dinero hay. */
+    const alto = Math.max(7, Math.min(26, (m.v / (M.maxMuro || m.v)) * 26));
+    const gr = g.createLinearGradient(0, y - alto, 0, y + alto);
+    gr.addColorStop(0, col + '00');
+    gr.addColorStop(0.5, col + (sel ? '4d' : (fuerte ? '38' : '22')));
+    gr.addColorStop(1, col + '00');
+    g.fillStyle = gr;
+    g.fillRect(0, y - alto, xVelas, alto * 2);
 
+    /* LÍNEA central: nítida, con glow si el muro es fuerte (blindado/probado);
+       punteada si aún no está probado o es falso. */
+    g.save();
+    if (fuerte && !sinProbar) { g.shadowColor = col; g.shadowBlur = 9; }
     g.strokeStyle = col;
-    g.lineWidth = sel ? 2.2 : 1.4;
-    if (m.tipo === 'falso' || m.tipo === 'vigilando' || m.tipo === 'ido') g.setLineDash([7, 5]);
-    g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
+    g.lineWidth = sel ? 2.4 : (fuerte ? 2 : 1.3);
+    if (sinProbar || m.tipo === 'falso') g.setLineDash([7, 5]);
+    g.beginPath(); g.moveTo(0, y); g.lineTo(xVelas, y); g.stroke();
+    g.restore();
     g.setLineDash([]);
 
-    // La etiqueta con el importe
+    /* ETIQUETA: pastilla con relieve (sombra), icono de veredicto e importe. */
     const et = dinero(m.v);
     g.font = 'bold 11px ui-monospace,monospace';
-    const wCaja = g.measureText(et).width + 32;
+    const wCaja = g.measureText(et).width + 34;
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 7; g.shadowOffsetY = 1.5;
     g.fillStyle = col;
-    redondeado(g, xVelas + 12, y - 10, wCaja, 20, 5); g.fill();
-    g.fillStyle = sinProbar ? '#0b0e12' : (m.p > M.precio ? '#2a0509' : '#04210f');
+    redondeado(g, xVelas + 12, y - 11, wCaja, 22, 6); g.fill();
+    g.restore();
+    if (fuerte && !sinProbar) {
+      g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1;
+      redondeado(g, xVelas + 12, y - 11, wCaja, 22, 6); g.stroke();
+    }
+    g.fillStyle = ido ? '#0b0e12' : (m.p > M.precio ? '#2a0509' : '#04210f');
     g.font = 'bold 10px system-ui,sans-serif';
     g.textAlign = 'center';
-    g.fillText(c.icono, xVelas + 23, y + 3.5);
-    g.font = 'bold 11px ui-monospace,monospace';
+    g.fillText(c.icono, xVelas + 24, y + 3.5);
+    g.font = 'bold 11.5px ui-monospace,monospace';
     g.textAlign = 'left';
-    g.fillText(et, xVelas + 33, y + 4);
+    g.fillText(et, xVelas + 34, y + 4);
   });
 
   /* ── LAS VELAS ── */
@@ -958,11 +997,11 @@ function dibujar() {
   M.muros.forEach((m) => {
     if (m.p < pMin || m.p > pMax) return;
     const y = Y(m.p);
-    const sinProbar = m.tipo === 'vigilando' || m.tipo === 'ido';
-    const col = sinProbar ? '#6b7681' : (m.p > M.precio ? '#f6465d' : '#2ee86a');
+    const ido = m.tipo === 'ido';
+    const col = ido ? '#6b7681' : (m.p > M.precio ? '#f6465d' : '#2ee86a');
     g.fillStyle = col;
     redondeado(g, x1 + 2, y - 9, mDer - 5, 18, 4); g.fill();
-    g.fillStyle = sinProbar ? '#0b0e12' : (m.p > M.precio ? '#2a0509' : '#04210f');
+    g.fillStyle = ido ? '#0b0e12' : (m.p > M.precio ? '#2a0509' : '#04210f');
     g.font = 'bold 10px ui-monospace,monospace';
     g.fillText(fmt(m.p), x1 + 7, y + 3.5);
   });
@@ -1151,7 +1190,10 @@ function calor(v) {
    la distancia del precio y sube la tensión cuando se acerca.
    ══════════════════════════════════════════════════════════════ */
 function narrar(m, esVenta, dist) {
-  const cerca = dist < 0.12, muyCerca = dist < 0.05;
+  /* 'muyCerca' = el precio está de verdad ENCIMA del nivel (a ~0,015%). Antes
+     estaba en 0,05% y por eso decía "tocando este nivel" cuando el precio aún
+     estaba lejos: una mentira que un trader detecta al instante. */
+  const cerca = dist < 0.12, muyCerca = dist < 0.015;
 
   if (m.tipo === 'falso') {
     return 'Se retira cada vez que el precio se acerca. <b>Es humo</b>: no cuente con este nivel.';
