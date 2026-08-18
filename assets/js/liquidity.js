@@ -1536,7 +1536,7 @@ function dibujar() {
       const fmtV = fmtVol;
       const volT = volC + volV || 1;
       const pw = Math.min(212, x1 - 12);
-      const ph = 134;
+      const ph = 150;
       const px = Math.max(6, Math.min(x1 - pw - 6, carta.x));
       let py = carta.y + carta.h + 8;
       if (py + ph > y1 - 4) py = Math.max(4, carta.y - ph - 8);
@@ -1554,36 +1554,74 @@ function dibujar() {
       redondeadoLq(g, px, py, pw, ph, 12); g.clip();
 
       const tx = px + 12;
+      const dist = ((z.precio - precioAhora) / precioAhora) * 100;
+      const signo = dist >= 0 ? '+' : '';
       g.textAlign = 'left';
-      g.fillStyle = col; g.font = 'bold 10px ui-monospace,monospace';
-      g.fillText((alcista ? '\u25b2 SOPORTE' : '\u25bc RESISTENCIA') + ' \u00b7 ALTA LIQUIDEZ', tx, py + 18);
-      g.fillStyle = '#e6eaef';
-      g.fillText(fmt(z.precio), tx, py + 33);
 
+      /* Encabezado por ROL (no cambia el indicador; solo lo explica bien):
+         soporte = muro DEBAJO del precio = DEMANDA (compras);
+         resistencia = muro ENCIMA del precio = OFERTA (ventas). */
+      g.fillStyle = col; g.font = 'bold 10px ui-monospace,monospace';
+      g.fillText(alcista ? '\u25b2 SOPORTE \u00b7 DEMANDA'
+                         : '\u25bc RESISTENCIA \u00b7 OFERTA', tx, py + 17);
+
+      // Precio del muro (izq) + distancia al precio actual (der, mismo renglón)
+      g.fillStyle = '#eef1f4'; g.font = 'bold 11px ui-monospace,monospace';
+      g.fillText(fmt(z.precio), tx, py + 34);
+      g.textAlign = 'right'; g.fillStyle = col; g.font = 'bold 8.5px ui-monospace,monospace';
+      g.fillText(signo + dist.toFixed(2) + '%', px + pw - 12, py + 33);
+      g.textAlign = 'left';
+
+      /* Qué es, con la lógica correcta: por encima del precio son ventas
+         (oferta); por debajo, compras (demanda). */
       g.fillStyle = '#c4ccd4'; g.font = '9px ui-monospace,monospace';
-      g.fillText('Muchas \u00f3rdenes juntas aqu\u00ed: el', tx, py + 48);
-      g.fillText('precio suele frenar o rebotar.', tx, py + 59);
+      if (alcista) {
+        g.fillText('Compra acumulada DEBAJO del', tx, py + 50);
+        g.fillText('precio. Piso: frena las ca\u00eddas.', tx, py + 61);
+      } else {
+        g.fillText('Venta acumulada ENCIMA del', tx, py + 50);
+        g.fillText('precio. Techo: frena las subidas.', tx, py + 61);
+      }
       g.fillStyle = '#9aa4af';
       g.fillText(alcista ? '\u00datil para entradas o tu stop.'
-                         : '\u00datil para salidas o tu stop.', tx, py + 72);
+                         : '\u00datil para salidas o tu stop.', tx, py + 74);
 
+      // separador sutil
+      g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(tx, py + 82); g.lineTo(px + pw - 12, py + 82); g.stroke();
+
+      /* Flujo que FORMÓ el muro: volumen de velas verdes (subida) vs rojas
+         (bajada) que pasó por la zona. No son órdenes colgadas: por eso se
+         etiqueta como flujo ▲/▼, no como "compras/ventas" puestas ahí. */
       g.fillStyle = '#8b95a1'; g.font = '8.5px ui-monospace,monospace';
-      g.fillText('Vol. negociado (' + z.filas + ' muros):', tx, py + 88);
-      const bx = tx, by = py + 93, bw = pw - 24, bh = 9;
+      g.fillText('Flujo que lo form\u00f3 (' + z.filas + ' muros):', tx, py + 96);
+      const bx = tx, by = py + 101, bw = pw - 24, bh = 9;
       const wc = bw * (volC / volT);
       g.fillStyle = 'rgba(46,232,106,.95)'; g.fillRect(bx, by, wc, bh);
       g.fillStyle = 'rgba(255,70,90,.95)'; g.fillRect(bx + wc, by, bw - wc, bh);
       g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 1; g.strokeRect(bx, by, bw, bh);
       g.font = 'bold 8.5px ui-monospace,monospace';
       g.fillStyle = '#2ee86a'; g.textAlign = 'left';
-      g.fillText('Compras ' + fmtV(volC), bx, by + bh + 12);
+      g.fillText('\u25b2 ' + fmtV(volC), bx, by + bh + 12);
       g.fillStyle = '#ff6b7a'; g.textAlign = 'right';
-      g.fillText('Ventas ' + fmtV(volV), bx + bw, by + bh + 12);
-      const dom = volC > volV * 1.25 ? ['Dominan compradores', '#2ee86a']
-        : volV > volC * 1.25 ? ['Dominan vendedores', '#ff6b7a']
-        : ['Compras y ventas parejas', '#c4ccd4'];
-      g.textAlign = 'left'; g.fillStyle = dom[1]; g.font = '8.5px ui-monospace,monospace';
-      g.fillText(dom[0], tx, py + ph - 9);
+      g.fillText(fmtV(volV) + ' \u25bc', bx + bw, by + bh + 12);
+
+      /* Lectura CONTEXTUAL: nunca contradice el rol del muro. En una
+         resistencia (encima), si predominó la subida es porque hubo
+         compradores que quedaron atrapados arriba → generan oferta. En un
+         soporte (debajo), lo simétrico con los vendedores. */
+      let dom;
+      if (!alcista) {
+        dom = volV > volC * 1.25 ? ['Vendedores firmes \u00b7 techo', '#ff6b7a']
+            : volC > volV * 1.25 ? ['Compradores atrapados arriba', '#f5b74a']
+            : ['Fuerzas parejas', '#c4ccd4'];
+      } else {
+        dom = volC > volV * 1.25 ? ['Compradores firmes \u00b7 piso', '#2ee86a']
+            : volV > volC * 1.25 ? ['Vendedores atrapados abajo', '#f5b74a']
+            : ['Fuerzas parejas', '#c4ccd4'];
+      }
+      g.textAlign = 'left'; g.fillStyle = dom[1]; g.font = 'bold 8.5px ui-monospace,monospace';
+      g.fillText(dom[0], tx, py + ph - 11);
       g.restore();
 
       // X para cerrar (esquina superior derecha)
