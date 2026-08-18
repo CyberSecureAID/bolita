@@ -1679,6 +1679,7 @@ function dibujar() {
   const yChips = repartir(vis2.map((z) => Y(Math.min(pMax, z.pHigh)) + 11), 20, 20, y1 - 6);
 
   vis2.forEach((z, k) => {
+    if (M._pos && bandaSolo && z !== bandaSolo.z) return;   // con herramienta activa, solo la zona de la operación
     const yPoc = Y(z.pPoc);
     const yCreal = Y(z.p);
     const yC = yLabels[k];                 // posición de la etiqueta (ya sin solape)
@@ -3597,25 +3598,42 @@ function mXt(t) { const g = M._geo; if (!g) return 0; const i = (t - g.t0) / g.t
 function mTx(x) { const g = M._geo; if (!g) return 0; const iF = (x - g.paso / 2) / g.paso + g.pri; return g.t0 + iF * g.tfMs; }
 function mYp(p) { const g = M._geo; if (!g) return 0; return g.y1 - g.y1 * ((p - g.pMin) / Math.max(1e-9, g.pMax - g.pMin)); }
 function mPy(y) { const g = M._geo; if (!g) return 0; return g.pMin + (g.pMax - g.pMin) * ((g.y1 - y) / g.y1); }
+/* Punto de origen de la guía = la píldora Analyst, proyectada sobre el lienzo. */
+function _origenGuia() {
+  const g = M._geo; const def = { x: (g ? g.xVelas : 400) * 0.92, y: 2 };
+  const pill = document.getElementById('mu-analista'), cv = document.getElementById('mu-cv');
+  if (!pill || !cv || !g) return def;
+  const pr = pill.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+  if (!pr.width) return def;
+  return {
+    x: Math.max(8, Math.min(g.xVelas - 6, pr.left + pr.width / 2 - cr.left)),
+    y: Math.max(2, Math.min(g.y1 - 20, pr.bottom - cr.top + 2))
+  };
+}
 
-/* Construye una operación long/short desde la zona más relevante de ese lado. */
+/* Construye una operación long/short en una zona de ALTA PROBABILIDAD:
+   la entrada debe caer en el lado correcto del precio y con recorrido —
+   · short → una RESISTENCIA (oferta) por ENCIMA del precio,
+   · long  → un SOPORTE (demanda) por DEBAJO del precio.
+   Dentro de una ventana operable se prioriza la de mayor confianza; si no hay
+   ninguna cerca, se usa la más cercana del lado correcto (nunca una pegada al
+   precio ni una del lado equivocado, que es lo que bajaba la probabilidad). */
 function construirOp(tipo) {
   const px = M.precio || (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
   const zonas = (M.zonas || []).filter((z) => !z.rota);
   const lado = tipo === 'long' ? 'demanda' : 'oferta';
   const cand = zonas.filter((x) => x.lado === lado);
   if (!cand.length || !px) return null;
-  // Elegir la zona RELEVANTE más cercana al precio (no la de mayor confianza global):
-  //  · long  → el soporte (demanda) más cercano al precio, preferentemente en/por debajo
-  //  · short → la resistencia (oferta) más cercana al precio, preferentemente en/por encima
-  let z;
-  if (tipo === 'long') {
-    const enOAbajo = cand.filter((x) => x.pPoc <= px * 1.004).sort((a, b) => b.pPoc - a.pPoc);
-    z = enOAbajo[0] || cand.sort((a, b) => Math.abs(a.pPoc - px) - Math.abs(b.pPoc - px))[0];
-  } else {
-    const enOArriba = cand.filter((x) => x.pPoc >= px * 0.996).sort((a, b) => a.pPoc - b.pPoc);
-    z = enOArriba[0] || cand.sort((a, b) => Math.abs(a.pPoc - px) - Math.abs(b.pPoc - px))[0];
-  }
+  const dist = (z) => Math.abs(z.pPoc - px) / px;
+  const ROOM = 0.004;   // la entrada necesita al menos ~0.4% de recorrido (no pegada al precio)
+  const correcto = tipo === 'long'
+    ? cand.filter((z) => z.pPoc <= px * (1 - ROOM))     // soporte por debajo
+    : cand.filter((z) => z.pPoc >= px * (1 + ROOM));    // resistencia por encima
+  const base = correcto.length ? correcto : cand;
+  const cerca = base.filter((z) => dist(z) <= 0.03);    // ventana operable ≤3%
+  const z = cerca.length
+    ? cerca.sort((a, b) => b.confianza - a.confianza)[0]  // la MÁS fuerte dentro de la ventana
+    : base.sort((a, b) => dist(a) - dist(b))[0];          // si no, la más cercana del lado correcto
   if (!z) return null;
   const minR = px * 0.004, maxR = px * 0.018;   // riesgo sensato: 0.4%–1.8%, R:R 1:1
   if (tipo === 'long') {
@@ -3678,7 +3696,7 @@ function dibujarPosicion(g) {
   // Línea GUÍA punteada (desde arriba-derecha hasta la entrada). Se quita al primer toque.
   if (P.guia) {
     g.save(); g.strokeStyle = acc; g.lineWidth = 1.7; g.setLineDash([6, 5]);
-    const gx = x1 * 0.9, gy = 2; g.beginPath(); g.moveTo(gx, gy);
+    const og = _origenGuia(); const gx = og.x, gy = og.y; g.beginPath(); g.moveTo(gx, gy);
     g.quadraticCurveTo((gx + x + w) / 2, gy + (ye - gy) * 0.16, x + w, ye); g.stroke();
     g.setLineDash([]); g.fillStyle = acc; g.beginPath(); g.arc(x + w, ye, 4, 0, 6.283); g.fill(); g.restore();
   }
@@ -3737,7 +3755,8 @@ function dibujarPosicion(g) {
   g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('R : R', rx, cy + 58);
   g.save(); g.shadowColor = 'rgba(232,184,75,.55)'; g.shadowBlur = 12;
   g.fillStyle = '#E8B84B'; g.font = '800 26px system-ui,sans-serif';
-  g.fillText(`1:${rr % 1 === 0 ? rr.toFixed(0) : rr.toFixed(1)}`, rx, cy + 90); g.restore();
+  const rrTxt = Math.abs(rr - Math.round(rr)) < 0.06 ? String(Math.round(rr)) : rr.toFixed(1);
+  g.fillText(`1:${rrTxt}`, rx, cy + 90); g.restore();
   const ay2 = cy + ch - 20;
   const alF = { x: rx - 24, y: ay2 - 9, w: 18, h: 18 }, arF = { x: rx + 6, y: ay2 - 9, w: 18, h: 18 };
   [[alF, -1], [arF, 1]].forEach((f) => {
@@ -3791,7 +3810,7 @@ function dibujarTendencia(g) {
     const ult0 = T.segs[T.segs.length - 1];
     const px2 = mXt(ult0.t1), py2 = mYp(ult0.p1);
     g.save(); g.strokeStyle = T.color; g.lineWidth = 1.7; g.setLineDash([6, 5]);
-    const gx = geo.xVelas * 0.9, gy = 2; g.beginPath(); g.moveTo(gx, gy);
+    const og = _origenGuia(); const gx = og.x, gy = og.y; g.beginPath(); g.moveTo(gx, gy);
     g.quadraticCurveTo((gx + px2) / 2, gy + (py2 - gy) * 0.16, px2, py2); g.stroke();
     g.setLineDash([]); g.fillStyle = T.color; g.beginPath(); g.arc(px2, py2, 4, 0, 6.283); g.fill(); g.restore();
   }
