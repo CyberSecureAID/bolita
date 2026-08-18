@@ -513,7 +513,17 @@ async function irA(tab) {
   if (host._limpiar) { try { host._limpiar(); } catch (_) {} host._limpiar = null; }
   host.scrollTop = 0;
   _tab = tab; pintarNav();
-  if (tab === 'home')    { pintarInicio(host, api()); refrescarBalance(); return; }
+  if (tab === 'home')    { pintarInicio(host, api()); refrescarBalance();
+    // Precarga Operar EN SEGUNDO PLANO: al entrar a Home calentamos el libro de
+    // órdenes del par por defecto, para que Operar se abra al instante. Con
+    // retardo para no competir con el pintado de Home. Import DINÁMICO y
+    // protegido: operar.js ya está cargado (import de arriba), así que resuelve
+    // al instante; y si por caché llegara una versión sin el export, m.precargar
+    // sería undefined y NO rompe nada.
+    setTimeout(() => {
+      import('./operar.js?v=1').then((m) => { try { m.precargarOperar && m.precargarOperar(); } catch (_) {} }).catch(() => {});
+    }, 1200);
+    return; }
   if (tab === 'markets') { pintarMercados(host, api()); return; }
   if (tab === 'trade')   { pintarOperar(host, api()); return; }
   if (tab === 'assets')  { pintarActivos(host, api()); refrescarBalance(); return; }

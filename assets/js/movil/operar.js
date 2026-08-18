@@ -24,6 +24,7 @@ let _quote = 'USDT';
 let _libro = { asks: [], bids: [], precio: null, chg: null };
 let _timer = null;
 let _ws = null;
+let _wsPar = null;                 // par al que está conectado el WS (para reutilizar)
 let _api = null;
 
 export async function pintarOperar(host, api) {
@@ -304,13 +305,22 @@ function renderBook() {
   };
   fill(0, asks); fill(6, bids);
   const mid = el.querySelector('.op-bk-mid');
-  if (mid) { mid.textContent = _libro.precio == null ? '—' : fmtP(_libro.precio); mid.className = 'op-bk-mid ' + (_libro.chg >= 0 ? 'up' : 'dn'); }
+  const vacio = !asks.length && !bids.length;   // libro aún sin datos (ej. al cambiar de moneda)
+  if (mid) {
+    if (vacio) { mid.textContent = 'Cargando libro\u2026'; mid.className = 'op-bk-mid load'; }
+    else { mid.textContent = _libro.precio == null ? '\u2014' : fmtP(_libro.precio); mid.className = 'op-bk-mid ' + (_libro.chg >= 0 ? 'up' : 'dn'); }
+  }
 }
 
-/* Libro de órdenes en vivo por WebSocket (fluido, ~10 updates/seg). */
+/* Libro de órdenes en vivo por WebSocket (fluido, ~10 updates/seg).
+   Idempotente: si ya está conectado (o conectando) a ESTE mismo par, no lo
+   reabre — así el precargado desde Home se reutiliza y el libro sale al
+   instante al entrar a Operar. Solo reconecta si cambió la moneda. */
 function conectarLibro() {
-  cerrarLibro();
   if (!_par) return;
+  if (_ws && _wsPar === _par.s && (_ws.readyState === 0 || _ws.readyState === 1)) { renderBook(); return; }
+  cerrarLibro();
+  _wsPar = _par.s;
   try {
     _ws = new WebSocket(`wss://stream.binance.com:9443/ws/${_par.s.toLowerCase()}@depth20@100ms`);
     _ws.onmessage = (ev) => {
@@ -322,7 +332,21 @@ function conectarLibro() {
     };
   } catch (_) {}
 }
-function cerrarLibro() { if (_ws) { try { _ws.close(); } catch (_) {} _ws = null; } }
+function cerrarLibro() { if (_ws) { try { _ws.close(); } catch (_) {} _ws = null; } _wsPar = null; }
+
+/* PRECARGA (llamada desde Home): abre el libro y pide el precio del par por
+   defecto EN SEGUNDO PLANO, sin tocar el DOM. Cuando el usuario entra a Operar,
+   los datos ya están calientes y renderBook los muestra al instante. Todo va en
+   try/catch: si algo falla, no afecta a Home ni a nada más. */
+export async function precargarOperar() {
+  try {
+    if (!_pares.length) { const c = await import('../niveles/config.js?v=1'); _pares = (c.PARES || []).slice(); }
+    if (!_par) _par = _pares.find((p) => p.id === 'BNB') || _pares.find((p) => p.id === 'BTC') || _pares[0];
+    if (!_par) return;
+    conectarLibro();     // abre (o reutiliza) el WS → _libro se va llenando solo
+    cargarPrecio();      // precio/cambio por REST (sus escrituras al DOM no-op si no existe)
+  } catch (_) {}
+}
 
 async function cargarPrecio() {
   if (!_par) return;
