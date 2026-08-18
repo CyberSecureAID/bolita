@@ -439,6 +439,10 @@ export async function abrirMuros() {
         <div class="mu-tfs">
           ${TFS.map((t) => `<button class="mu-tf ${t.id === M.tf ? 'on' : ''}" data-tf="${t.id}">${t.n}</button>`).join('')}
         </div>
+        <button class="mu-tfchip" id="mu-tfchip" type="button" aria-label="Temporalidad">
+          <b id="mu-tfchip-t">${esc((TFS.find((t) => t.id === M.tf) || TFS[0]).n)}</b>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
 
         <div class="mu-px">
           <span>Precio ahora</span>
@@ -459,7 +463,12 @@ export async function abrirMuros() {
         </div>
       </div>
 
-      <div class="mu-cuerpo">
+      <div class="mu-mtabs" id="mu-mtabs">
+        <button class="mu-mtab on" data-vista="graf" type="button">Gr\u00e1fica</button>
+        <button class="mu-mtab" data-vista="ord" type="button">\u00d3rdenes <i id="mu-mtab-n">0</i></button>
+      </div>
+
+      <div class="mu-cuerpo m-graf" id="mu-cuerpo">
         <div class="mu-graf" id="mu-graf">
           <canvas class="mu-cv" id="mu-cv"></canvas>
           <div class="mu-esperando" id="mu-esperando">
@@ -495,7 +504,8 @@ export async function abrirMuros() {
 
   const cerrar = () => {
     clearInterval(_reloj); clearInterval(_relojVelas);
-    document.querySelectorAll('#mu-picker').forEach((x) => x.remove());
+    cerrarWSLibro();
+    document.querySelectorAll('#mu-picker, #mu-tfmenu').forEach((x) => x.remove());
     const e = $('mu-overlay'); if (e) e.remove();
     /* Al cerrar se vuelve a la portada de Liquidity, no se sale. */
     try { if (window.__lqpVolver) window.__lqpVolver(); } catch (_) {}
@@ -510,7 +520,42 @@ export async function abrirMuros() {
   d.querySelectorAll('[data-tf]').forEach((b) => b.onclick = () => {
     M.tf = b.dataset.tf;
     d.querySelectorAll('[data-tf]').forEach((x) => x.classList.toggle('on', x.dataset.tf === M.tf));
+    const ch = $('mu-tfchip-t'); if (ch) ch.textContent = b.textContent;   // refleja en el chip móvil
     cargarVelas();
+  });
+
+  /* Temporalidad en móvil: el chip muestra solo la activa y despliega una
+     lista con TODAS. Reutiliza los botones reales .mu-tf (dispara su click),
+     así no duplicamos la lógica de carga. */
+  const chip = $('mu-tfchip');
+  if (chip) chip.onclick = (e) => {
+    e.stopPropagation();
+    const ya = $('mu-tfmenu'); if (ya) { ya.remove(); return; }
+    const menu = document.createElement('div'); menu.id = 'mu-tfmenu';
+    menu.innerHTML = TFS.map((t) => `<button type="button" class="mu-tfmenu-it ${t.id === M.tf ? 'on' : ''}" data-mtf="${t.id}">${t.n}</button>`).join('');
+    document.body.appendChild(menu);
+    const r = chip.getBoundingClientRect();
+    const w = menu.offsetWidth || 200;
+    menu.style.top = (r.bottom + 6) + 'px';
+    menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+    menu.querySelectorAll('.mu-tfmenu-it').forEach((it) => it.onclick = () => {
+      const real = d.querySelector(`.mu-tf[data-tf="${it.dataset.mtf}"]`);
+      if (real) real.click();                 // dispara el handler real (carga la vela)
+      menu.remove();
+    });
+    const cerrarM = (ev) => { if (!menu.contains(ev.target) && ev.target !== chip && !chip.contains(ev.target)) { menu.remove(); document.removeEventListener('click', cerrarM); } };
+    setTimeout(() => document.addEventListener('click', cerrarM), 10);
+  };
+
+  /* Pestañas de móvil: Gráfica / Órdenes. Le dan al panel de órdenes TODO el
+     alto de la pantalla, para que las tarjetas se vean cómodas. En escritorio
+     estas pestañas están ocultas y se ve todo a la vez. */
+  d.querySelectorAll('.mu-mtab').forEach((b) => b.onclick = () => {
+    const vista = b.dataset.vista;
+    d.querySelectorAll('.mu-mtab').forEach((x) => x.classList.toggle('on', x === b));
+    const cuerpo = $('mu-cuerpo');
+    if (cuerpo) { cuerpo.classList.toggle('m-graf', vista === 'graf'); cuerpo.classList.toggle('m-ord', vista === 'ord'); }
+    if (vista === 'graf') { requestAnimationFrame(() => { if ($('mu-cv')) dibujar(); }); }
   });
   /* Los filtros se apagan al volver a pulsarlos: sin ninguno activo
      se ven todas las órdenes, que es lo natural. */
@@ -536,6 +581,7 @@ export async function abrirMuros() {
    ══════════════════════════════════════════════════════════════ */
 let _reloj = null, _relojVelas = null;
 let _fallos = 0;
+let _wsL = null, _wsLibro = null, _wsPar = null;   // libro por WebSocket (respaldo)
 let _huella = '';
 let _ultPintado = 0;
 
@@ -577,11 +623,22 @@ async function cargarVelas() {
 function arrancar() {
   clearInterval(_reloj);
   _fallos = 0;
+  const par0 = PARES.find((p) => p.id === _par) || PARES[0];
+  conectarWSLibro(par0.s);              // libro en vivo por WebSocket (respaldo)
   const tomar = async () => {
     if (!$('mu-cv')) { clearInterval(_reloj); return; }
+    const par = PARES.find((p) => p.id === _par) || PARES[0];
+    let foto = null;
     try {
-      const par = PARES.find((p) => p.id === _par) || PARES[0];
-      const foto = await traerLibro(par.s);
+      foto = await traerLibro(par.s);   // REST (multi-host) — libro profundo
+    } catch (_) {
+      /* Si el REST no llega (Binance bloquea/limita ese endpoint), usamos el
+         libro del WebSocket, que es la MISMA fuente que sí funciona en Trade.
+         Da menos niveles, pero suficientes para ver los muros cerca del precio,
+         y el radar deja de quedarse "sin órdenes". */
+      if (_wsLibro && (Date.now() - _wsLibro.t) < 8000) foto = _wsLibro;
+    }
+    if (foto) {
       procesar(foto);
       _fallos = 0;
       M.cargando = M.fotos.length < MIN_TOMAS;
@@ -591,18 +648,9 @@ function arrancar() {
       if (px) px.textContent = fmt(M.precio);
       dibujar();
 
-      /* [CORREGIDO] El panel se repintaba entero en cada toma, y por
-         eso las tarjetas parpadeaban. Ahora solo se reconstruye si de
-         verdad cambió algo relevante: qué muros hay y en qué estado. */
-      /* [CORREGIDO] La huella incluía el importe, que cambia en cada
-         foto: por eso el panel se repintaba siempre y las tarjetas
-         parpadeaban. Ahora solo cuenta QUÉ muros hay y en qué estado.
-         Los números se actualizan sin tocar el HTML. */
-      /* [CORREGIDO de nuevo] Aún parpadeaba: la huella cambiaba porque
-         el orden de la lista bailaba entre tomas. Ahora se ordena
-         antes de comparar, y además hay una espera mínima de 3
-         segundos entre repintados: si un muro entra y sale, el panel
-         no se reconstruye a cada segundo. */
+      /* El panel solo se reconstruye si cambió QUÉ muros hay y en qué estado
+         (con 3 s mínimo entre repintados), para que las tarjetas no parpadeen.
+         Si no, solo se refrescan los números. */
       const huella = M.muros.map((m) => `${m.p.toFixed(6)}|${m.tipo}`).sort().join(',');
       const ahora2 = Date.now();
       if (huella !== _huella && ahora2 - _ultPintado > 3000) {
@@ -611,9 +659,8 @@ function arrancar() {
       } else {
         refrescarNumeros();
       }
-    } catch (_) {
-      /* Un fallo suelto no rompe nada: se sigue con lo que hay. Solo
-         tras varios seguidos se avisa, porque entonces sí pasa algo. */
+    } else {
+      /* Un fallo suelto no rompe nada. Solo tras varios seguidos se avisa. */
       _fallos++;
       if (_fallos >= 4) {
         M.error = 'Sin conexión con el mercado. Reintentando…';
@@ -624,6 +671,32 @@ function arrancar() {
   tomar();
   _reloj = setInterval(tomar, CADA);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   LIBRO EN VIVO POR WEBSOCKET — respaldo con la misma fuente que Trade
+   (stream.binance.com). Mantiene los 20 niveles por lado más cercanos al
+   precio; se usa solo si el REST del libro no llega.
+   ══════════════════════════════════════════════════════════════ */
+function conectarWSLibro(sym) {
+  cerrarWSLibro();
+  _wsPar = sym;
+  try {
+    _wsL = new WebSocket(`wss://stream.binance.com:9443/ws/${sym.toLowerCase()}@depth20@100ms`);
+    _wsL.onmessage = (ev) => {
+      try {
+        const j = JSON.parse(ev.data);
+        const b = j.bids || j.b, a = j.asks || j.a;
+        if (!b || !a) return;
+        _wsLibro = {
+          t: Date.now(),
+          compras: b.map((x) => ({ p: Number(x[0]), q: Number(x[1]) })).filter((x) => x.q > 0),
+          ventas: a.map((x) => ({ p: Number(x[0]), q: Number(x[1]) })).filter((x) => x.q > 0)
+        };
+      } catch (_) {}
+    };
+  } catch (_) {}
+}
+function cerrarWSLibro() { if (_wsL) { try { _wsL.close(); } catch (_) {} _wsL = null; } _wsLibro = null; }
 
 /* ══════════════════════════════════════════════════════════════
    EL DIBUJO — mapa de profundidad en el tiempo
@@ -1101,6 +1174,7 @@ function pintarPanel() {
   cuenta('venta', (m) => m.p > M.precio);
   cuenta('fuertes', (m) => m.tipo === 'recargable' || m.tipo === 'probado');
   cuenta('falsos', (m) => m.tipo === 'falso' || m.tipo === 'ido');
+  const mtn = $('mu-mtab-n'); if (mtn) mtn.textContent = M.muros.length;   // contador de la pestaña móvil
 
   if (M.error) { if (estado) estado.textContent = M.error; return; }
 
@@ -1568,6 +1642,36 @@ function estilos() {
   #mu-overlay .mu-tf{min-height:30px;padding:0 11px;border-radius:7px;border:none;background:transparent;
     color:#7d8794;font-family:var(--mono,monospace);font-size:11px;font-weight:700;cursor:pointer}
   #mu-overlay .mu-tf.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
+
+  /* Chip de temporalidad (solo móvil) + su desplegable. En escritorio se ve la
+     fila .mu-tfs completa y el chip está oculto. */
+  #mu-overlay .mu-tfchip{display:none;align-items:center;gap:6px;min-height:36px;padding:0 12px;
+    border-radius:11px;background:#12161c;border:1px solid #2b3139;color:#eaecef;cursor:pointer;
+    font-family:var(--mono,monospace);font-weight:800;font-size:13.5px;flex:0 0 auto}
+  #mu-overlay .mu-tfchip svg{width:14px;height:14px;opacity:.65}
+  #mu-tfmenu{position:fixed;z-index:12000;background:#12161c;border:1px solid #2b3139;border-radius:14px;
+    padding:6px;box-shadow:0 18px 44px rgba(0,0,0,.6);display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;
+    min-width:210px;max-height:60vh;overflow-y:auto;animation:muMenu .16s ease}
+  @keyframes muMenu{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  #mu-tfmenu .mu-tfmenu-it{min-height:42px;border-radius:10px;border:1px solid transparent;
+    background:rgba(255,255,255,.04);color:#c7cdd6;font-family:var(--mono,monospace);font-weight:700;
+    font-size:13px;cursor:pointer}
+  #mu-tfmenu .mu-tfmenu-it:hover{border-color:#3a424c;color:#eaecef}
+  #mu-tfmenu .mu-tfmenu-it.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);
+    color:#3a2800;border-color:var(--gold,#E8B84B)}
+
+  /* Pestañas móvil Gráfica/Órdenes (ocultas en escritorio) */
+  #mu-overlay .mu-mtabs{display:none;flex:0 0 auto;gap:6px;padding:8px 10px;background:#0b0e12;
+    border-bottom:1px solid #1c2128}
+  #mu-overlay .mu-mtab{flex:1;min-height:40px;border-radius:11px;border:1px solid #232a33;
+    background:rgba(255,255,255,.03);color:#8b96a3;font-family:var(--display,sans-serif);font-weight:800;
+    font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+  #mu-overlay .mu-mtab i{font-style:normal;min-width:20px;height:20px;padding:0 5px;border-radius:20px;
+    display:inline-grid;place-items:center;background:rgba(255,255,255,.08);color:#c7cdd6;
+    font-family:var(--mono,monospace);font-size:11px;font-weight:700}
+  #mu-overlay .mu-mtab.on{background:linear-gradient(180deg,rgba(232,184,75,.16),rgba(232,184,75,.06));
+    border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  #mu-overlay .mu-mtab.on i{background:rgba(232,184,75,.2);color:var(--gold,#E8B84B)}
   #mu-overlay .mu-px{display:flex;flex-direction:column;gap:1px;flex:0 0 auto;padding-left:6px}
   #mu-overlay .mu-px span{font-family:var(--mono,monospace);font-size:8.5px;color:#5c6672;
     text-transform:uppercase;letter-spacing:1.1px}
@@ -1920,20 +2024,27 @@ function estilos() {
     font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;
     box-shadow:0 4px 0 #8f6a1a}
 
-  /* ── Móvil: el panel pasa abajo ── */
+  /* ── Móvil: temporalidad en chip + pestañas Gráfica/Órdenes ── */
   @media(max-width:860px){
     #mu-overlay .mu-cuerpo{flex-direction:column}
-    #mu-overlay .mu-graf{flex:0 0 auto;height:46vh;min-height:230px}
-    #mu-overlay .mu-panel{width:100%;flex:1;min-height:0;border-left:none;border-top:1px solid #1c2128}
-    /* La barra ya NO desborda: se ajusta y, si no cabe, envuelve en dos filas.
-       El "Precio ahora" se oculta aquí porque ya se ve grande en la propia
-       gráfica (marcador dorado), así que era información repetida que solo
-       robaba espacio y hacía que la barra se cortara a la derecha. */
+    #mu-overlay .mu-tfs{display:none}          /* la fila se reemplaza por el chip */
+    #mu-overlay .mu-tfchip{display:inline-flex}
+    #mu-overlay .mu-mtabs{display:flex}
+    /* La barra ya NO desborda. El "Precio ahora" se oculta (ya está grande en
+       la gráfica). */
     #mu-overlay .mu-barra{flex-wrap:wrap;gap:8px;padding:8px 96px 8px 10px}
     #mu-overlay .mu-px{display:none}
     #mu-overlay .mu-vivo{flex:0 0 auto}
     #mu-overlay .mu-vivo span{display:none}
-    #mu-overlay .mu-tfs{flex:0 0 auto}
+    /* Una vista a la vez, a pantalla completa: así las tarjetas de órdenes
+       tienen TODO el alto para verse cómodas. */
+    #mu-overlay .mu-cuerpo.m-graf .mu-graf{display:block;flex:1 1 auto;height:auto;min-height:0}
+    #mu-overlay .mu-cuerpo.m-graf .mu-panel{display:none}
+    #mu-overlay .mu-cuerpo.m-ord .mu-graf{display:none}
+    #mu-overlay .mu-cuerpo.m-ord .mu-panel{display:flex;flex:1 1 auto;width:100%;border-left:none}
+    #mu-overlay .mu-panel{width:100%;border-left:none;border-top:none}
+    #mu-overlay .mu-chips{padding:11px 12px}
+    #mu-overlay .mu-lista{padding:10px 12px 16px}
     #mu-overlay .mu-marca{height:24px;left:10px;bottom:26px}
     #mu-overlay .mu-precio{font-size:19px}
     #mu-ayuda-box .mua-c{padding:20px 14px}
