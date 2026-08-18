@@ -1535,104 +1535,121 @@ function dibujar() {
       const { z, alcista, col, cRGB, volC, volV } = carta;
       const fmtV = fmtVol;
       const volT = volC + volV || 1;
-      const pw = Math.min(212, x1 - 12);
-      const ph = 150;
+      const pctC = Math.round((volC / volT) * 100);
+      const pctV = 100 - pctC;
+      const dist = ((z.precio - precioAhora) / precioAhora) * 100;
+      const signo = dist >= 0 ? '+' : '';
+
+      const pw = Math.min(236, x1 - 12);
+      const ph = 188;
       const px = Math.max(6, Math.min(x1 - pw - 6, carta.x));
       let py = carta.y + carta.h + 8;
       if (py + ph > y1 - 4) py = Math.max(4, carta.y - ph - 8);
 
+      // sombra + cuerpo
       g.save();
-      g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 14; g.shadowOffsetY = 4;
-      g.fillStyle = 'rgba(15,19,26,.99)';
-      redondeadoLq(g, px, py, pw, ph, 12); g.fill();
+      g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 18; g.shadowOffsetY = 6;
+      g.fillStyle = 'rgba(17,21,28,.995)';
+      redondeadoLq(g, px, py, pw, ph, 14); g.fill();
       g.restore();
-      g.strokeStyle = `rgba(${cRGB},.5)`; g.lineWidth = 1.2;
-      redondeadoLq(g, px, py, pw, ph, 12); g.stroke();
 
-      // recorte para que NADA se desborde de la tarjeta
+      // recorte al cuerpo (nada se desborda)
       g.save();
-      redondeadoLq(g, px, py, pw, ph, 12); g.clip();
+      redondeadoLq(g, px, py, pw, ph, 14); g.clip();
 
-      const tx = px + 12;
-      const dist = ((z.precio - precioAhora) / precioAhora) * 100;
-      const signo = dist >= 0 ? '+' : '';
+      // ── CABECERA con degradado del color del rol ──
+      const hb = 28;
+      const gh = g.createLinearGradient(px, py, px, py + hb);
+      gh.addColorStop(0, `rgba(${cRGB},.30)`);
+      gh.addColorStop(1, `rgba(${cRGB},.05)`);
+      g.fillStyle = gh; g.fillRect(px, py, pw, hb);
+      g.strokeStyle = `rgba(${cRGB},.45)`; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(px, py + hb + .5); g.lineTo(px + pw, py + hb + .5); g.stroke();
+
+      const tx = px + 13;
       g.textAlign = 'left';
-
-      /* Encabezado por ROL (no cambia el indicador; solo lo explica bien):
-         soporte = muro DEBAJO del precio = DEMANDA (compras);
-         resistencia = muro ENCIMA del precio = OFERTA (ventas). */
-      g.fillStyle = col; g.font = 'bold 10px ui-monospace,monospace';
+      g.fillStyle = col; g.font = 'bold 10.5px ui-monospace,monospace';
       g.fillText(alcista ? '\u25b2 SOPORTE \u00b7 DEMANDA'
-                         : '\u25bc RESISTENCIA \u00b7 OFERTA', tx, py + 17);
+                         : '\u25bc RESISTENCIA \u00b7 OFERTA', tx, py + 18);
 
-      // Precio del muro (izq) + distancia al precio actual (der, mismo renglón)
-      g.fillStyle = '#eef1f4'; g.font = 'bold 11px ui-monospace,monospace';
-      g.fillText(fmt(z.precio), tx, py + 34);
-      g.textAlign = 'right'; g.fillStyle = col; g.font = 'bold 8.5px ui-monospace,monospace';
-      g.fillText(signo + dist.toFixed(2) + '%', px + pw - 12, py + 33);
+      // ── PRECIO (hero) + píldora de distancia al precio actual ──
+      g.fillStyle = '#f2f5f8'; g.font = 'bold 16px ui-monospace,monospace';
+      g.fillText(fmt(z.precio), tx, py + hb + 22);
+      g.font = 'bold 9px ui-monospace,monospace';
+      const dtxt = signo + dist.toFixed(2) + '%';
+      const dpw = g.measureText(dtxt).width + 16;
+      const dpx = px + pw - dpw - 12, dpy = py + hb + 8;
+      g.fillStyle = `rgba(${cRGB},.16)`; redondeadoLq(g, dpx, dpy, dpw, 17, 8); g.fill();
+      g.strokeStyle = `rgba(${cRGB},.5)`; g.lineWidth = 1; redondeadoLq(g, dpx, dpy, dpw, 17, 8); g.stroke();
+      g.fillStyle = col; g.textAlign = 'center';
+      g.fillText(dtxt, dpx + dpw / 2, dpy + 12);
       g.textAlign = 'left';
 
-      /* Qué es, con la lógica correcta: por encima del precio son ventas
-         (oferta); por debajo, compras (demanda). */
-      g.fillStyle = '#c4ccd4'; g.font = '9px ui-monospace,monospace';
+      // ── RANGO de la zona + nº de muros ──
+      g.fillStyle = '#8b95a1'; g.font = '9px ui-monospace,monospace';
+      const rango = (z.pLow && z.pHigh && Math.abs(z.pHigh - z.pLow) > 1e-9)
+        ? 'Zona ' + fmt(z.pLow) + '\u2013' + fmt(z.pHigh) + ' \u00b7 ' + z.filas + ' muros'
+        : z.filas + ' muros de liquidez';
+      g.fillText(rango, tx, py + hb + 40);
+
+      // ── QUÉ ES (lógica correcta: encima=venta/oferta, debajo=compra/demanda) ──
+      g.fillStyle = '#c8d0d8'; g.font = '9.5px ui-monospace,monospace';
       if (alcista) {
-        g.fillText('Compra acumulada DEBAJO del', tx, py + 50);
-        g.fillText('precio. Piso: frena las ca\u00eddas.', tx, py + 61);
+        g.fillText('Compra acumulada DEBAJO del precio.', tx, py + hb + 58);
+        g.fillText('Piso que sostiene las ca\u00eddas.', tx, py + hb + 71);
       } else {
-        g.fillText('Venta acumulada ENCIMA del', tx, py + 50);
-        g.fillText('precio. Techo: frena las subidas.', tx, py + 61);
+        g.fillText('Venta acumulada ENCIMA del precio.', tx, py + hb + 58);
+        g.fillText('Techo que frena las subidas.', tx, py + hb + 71);
       }
-      g.fillStyle = '#9aa4af';
-      g.fillText(alcista ? '\u00datil para entradas o tu stop.'
-                         : '\u00datil para salidas o tu stop.', tx, py + 74);
 
-      // separador sutil
-      g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1;
-      g.beginPath(); g.moveTo(tx, py + 82); g.lineTo(px + pw - 12, py + 82); g.stroke();
-
-      /* Flujo que FORMÓ el muro: volumen de velas verdes (subida) vs rojas
-         (bajada) que pasó por la zona. No son órdenes colgadas: por eso se
-         etiqueta como flujo ▲/▼, no como "compras/ventas" puestas ahí. */
+      // ── FLUJO que lo formó, con % (velas verdes vs rojas por la zona) ──
       g.fillStyle = '#8b95a1'; g.font = '8.5px ui-monospace,monospace';
-      g.fillText('Flujo que lo form\u00f3 (' + z.filas + ' muros):', tx, py + 96);
-      const bx = tx, by = py + 101, bw = pw - 24, bh = 9;
-      const wc = bw * (volC / volT);
+      g.fillText('Flujo que lo form\u00f3', tx, py + hb + 90);
+      g.textAlign = 'right'; g.fillText('Total ' + fmtV(volT), px + pw - 13, py + hb + 90);
+      g.textAlign = 'left';
+      const bx = tx, by = py + hb + 96, bw = pw - 26, bh = 10;
+      const wc = Math.max(0, Math.min(bw, bw * (volC / volT)));
+      g.save(); redondeadoLq(g, bx, by, bw, bh, 5); g.clip();
       g.fillStyle = 'rgba(46,232,106,.95)'; g.fillRect(bx, by, wc, bh);
       g.fillStyle = 'rgba(255,70,90,.95)'; g.fillRect(bx + wc, by, bw - wc, bh);
-      g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 1; g.strokeRect(bx, by, bw, bh);
+      g.restore();
+      g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 1; redondeadoLq(g, bx, by, bw, bh, 5); g.stroke();
       g.font = 'bold 8.5px ui-monospace,monospace';
       g.fillStyle = '#2ee86a'; g.textAlign = 'left';
-      g.fillText('\u25b2 ' + fmtV(volC), bx, by + bh + 12);
+      g.fillText('\u25b2 ' + fmtV(volC) + '  ' + pctC + '%', bx, by + bh + 13);
       g.fillStyle = '#ff6b7a'; g.textAlign = 'right';
-      g.fillText(fmtV(volV) + ' \u25bc', bx + bw, by + bh + 12);
+      g.fillText(pctV + '%  ' + fmtV(volV) + ' \u25bc', bx + bw, by + bh + 13);
 
-      /* Lectura CONTEXTUAL: nunca contradice el rol del muro. En una
-         resistencia (encima), si predominó la subida es porque hubo
-         compradores que quedaron atrapados arriba → generan oferta. En un
-         soporte (debajo), lo simétrico con los vendedores. */
+      // ── CHIP de lectura contextual (nunca contradice el rol del muro) ──
       let dom;
       if (!alcista) {
-        dom = volV > volC * 1.25 ? ['Vendedores firmes \u00b7 techo', '#ff6b7a']
-            : volC > volV * 1.25 ? ['Compradores atrapados arriba', '#f5b74a']
-            : ['Fuerzas parejas', '#c4ccd4'];
+        dom = volV > volC * 1.25 ? ['Vendedores firmes: techo s\u00f3lido', '255,107,122']
+            : volC > volV * 1.25 ? ['Compradores atrapados arriba', '245,183,74']
+            : ['Fuerzas parejas en el muro', '196,204,212'];
       } else {
-        dom = volC > volV * 1.25 ? ['Compradores firmes \u00b7 piso', '#2ee86a']
-            : volV > volC * 1.25 ? ['Vendedores atrapados abajo', '#f5b74a']
-            : ['Fuerzas parejas', '#c4ccd4'];
+        dom = volC > volV * 1.25 ? ['Compradores firmes: piso s\u00f3lido', '46,232,106']
+            : volV > volC * 1.25 ? ['Vendedores atrapados abajo', '245,183,74']
+            : ['Fuerzas parejas en el muro', '196,204,212'];
       }
-      g.textAlign = 'left'; g.fillStyle = dom[1]; g.font = 'bold 8.5px ui-monospace,monospace';
-      g.fillText(dom[0], tx, py + ph - 11);
-      g.restore();
+      const chy = py + ph - 26, chh = 18, chx = px + 10, chw = pw - 20;
+      g.fillStyle = `rgba(${dom[1]},.14)`; redondeadoLq(g, chx, chy, chw, chh, 7); g.fill();
+      g.strokeStyle = `rgba(${dom[1]},.42)`; g.lineWidth = 1; redondeadoLq(g, chx, chy, chw, chh, 7); g.stroke();
+      g.fillStyle = `rgb(${dom[1]})`;
+      g.beginPath(); g.arc(chx + 11, chy + chh / 2, 2.6, 0, Math.PI * 2); g.fill();
+      g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left';
+      g.fillText(dom[0], chx + 19, chy + chh / 2 + 3.2);
 
-      // X para cerrar (esquina superior derecha)
-      const xw = 16, xx = px + pw - xw - 6, xy = py + 6;
-      g.strokeStyle = 'rgba(200,208,216,.8)'; g.lineWidth = 1.4; g.lineCap = 'round';
+      g.restore();   // fin recorte
+
+      // ── X para cerrar (en la cabecera) ──
+      const xw = 15, xx = px + pw - xw - 8, xy = py + 7;
+      g.strokeStyle = 'rgba(220,226,232,.85)'; g.lineWidth = 1.5; g.lineCap = 'round';
       g.beginPath();
-      g.moveTo(xx + 4, xy + 4); g.lineTo(xx + xw - 4, xy + xw - 4);
-      g.moveTo(xx + xw - 4, xy + 4); g.lineTo(xx + 4, xy + xw - 4);
+      g.moveTo(xx + 3, xy + 3); g.lineTo(xx + xw - 3, xy + xw - 3);
+      g.moveTo(xx + xw - 3, xy + 3); g.lineTo(xx + 3, xy + xw - 3);
       g.stroke(); g.lineCap = 'butt';
 
-      V.tachCerrar = { x: xx, y: xy, w: xw, h: xw };
+      V.tachCerrar = { x: xx - 5, y: xy - 5, w: xw + 10, h: xw + 10 };
       V.tachPanel = { x: px, y: py, w: pw, h: ph };
     }
   }
