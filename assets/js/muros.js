@@ -1493,7 +1493,9 @@ function dibujar() {
   const Y = (p) => y1 - y1 * ((p - pMin) / Math.max(1e-12, pMax - pMin));
   /* Se guarda para que el módulo de órdenes sepa qué precio hay a
      cada altura del gráfico. */
-  M._geo = { pMin, pMax, y1, xVelas, n: vis.length, vis };
+  M._geo = { pMin, pMax, y1, xVelas, n: vis.length, vis,
+             paso: xVelas / (ancho || vis.length), pri: fin - ancho, fin, ancho,
+             tfMs: (M.velas.length > 1 ? (M.velas[1].t - M.velas[0].t) : 60000), t0: M.velas[0].t };
 
   /* Tus órdenes y alertas, con el estilo común de las tres. */
   if (_od) {
@@ -1837,11 +1839,8 @@ function dibujar() {
   g.textAlign = 'left';
 
   /* ── Herramienta de posición y línea de tendencia (viven en el radar) ── */
-  if (M._pos || M._tend) {
-    const Xi = (i) => i * paso + paso / 2;
-    if (M._tend) dibujarTendencia(g, Y, Xi, y1);
-    if (M._pos) dibujarPosicion(g, Y, x1, y1, xVelas);
-  }
+  if (M._tend) dibujarTendencia(g);
+  if (M._pos) dibujarPosicion(g);
 
   /* ── CROSSHAIR: cruz + precio del cursor en el eje ── */
   if (M._cursor && M._cursor.x < x1 && M._cursor.y < y1 && M._cursor.x > 0 && M._cursor.y > 0) {
@@ -1882,6 +1881,41 @@ function dibujar() {
    precio se amontonan. La rueda y el pellizco cambian el rango que
    se muestra; el doble clic vuelve a verlo todo.
    ══════════════════════════════════════════════════════════════ */
+/* Arrastres de la herramienta de posición (misma dinámica que Smart Levels).
+   Todo se convierte a tiempo/precio para que quede pegado al gráfico. */
+function arrastrarLinea(e, cual) {
+  const cv = $('mu-cv'); const r = cv.getBoundingClientRect();
+  const mover = (ev) => { const p = mPy(ev.clientY - r.top); const P = M._pos; if (!P) return;
+    if (cual === 'entry') P.pe = p; else if (cual === 'target') P.pTarget = p; else P.pStop = p; dibujar(); posPosCfg(); };
+  const soltar = () => { window.removeEventListener('mousemove', mover); window.removeEventListener('mouseup', soltar); };
+  window.addEventListener('mousemove', mover); window.addEventListener('mouseup', soltar);
+}
+function arrastrarBorde(e, lado) {
+  const cv = $('mu-cv'); const r = cv.getBoundingClientRect();
+  const mover = (ev) => { const t = mTx(ev.clientX - r.left); const P = M._pos; if (!P) return;
+    if (lado === 'izq') P.t0 = t; else P.t1 = t; dibujar(); posPosCfg(); };
+  const soltar = () => { window.removeEventListener('mousemove', mover); window.removeEventListener('mouseup', soltar); };
+  window.addEventListener('mousemove', mover); window.addEventListener('mouseup', soltar);
+}
+function arrastrarPosEntera(e) {
+  const cv = $('mu-cv'); const r = cv.getBoundingClientRect();
+  let ax = e.clientX - r.left, ay = e.clientY - r.top;
+  const mover = (ev) => { const P = M._pos; if (!P) return;
+    const nx = ev.clientX - r.left, ny = ev.clientY - r.top;
+    const dt = mTx(nx) - mTx(ax), dp = mPy(ny) - mPy(ay);
+    P.t0 += dt; P.t1 += dt; P.pe += dp; P.pTarget += dp; P.pStop += dp;
+    ax = nx; ay = ny; dibujar(); posPosCfg(); };
+  const soltar = () => { window.removeEventListener('mousemove', mover); window.removeEventListener('mouseup', soltar); };
+  window.addEventListener('mousemove', mover); window.addEventListener('mouseup', soltar);
+}
+function arrastrarTend(e) {
+  const cv = $('mu-cv'); const r = cv.getBoundingClientRect(); let ay = e.clientY - r.top;
+  const mover = (ev) => { const T = M._tend; if (!T) return; const ny = ev.clientY - r.top;
+    const dp = mPy(ny) - mPy(ay); T.segs.forEach((s) => { s.p0 += dp; s.p1 += dp; }); ay = ny; dibujar(); posTendCfg(); };
+  const soltar = () => { window.removeEventListener('mousemove', mover); window.removeEventListener('mouseup', soltar); };
+  window.addEventListener('mousemove', mover); window.addEventListener('mouseup', soltar);
+}
+
 function engancharGestos(cv) {
   const zoom = (f) => {
     M.ancho = Math.max(20, Math.min(140, Math.round((M.ancho || 70) * f)));
@@ -1897,15 +1931,40 @@ function engancharGestos(cv) {
   cv.addEventListener('mousedown', (e) => {
     const r = cv.getBoundingClientRect();
     const lx = e.clientX - r.left, ly = e.clientY - r.top;
-    // ¿tocó la herramienta de posición? (línea de entrada o su franja)
-    if (M._pos && M._posGeo) {
-      const G = M._posGeo;
-      if (lx >= G.xs - 6 && lx <= G.xf + 6 && ly >= Math.min(G.yT, G.yS) - 8 && ly <= Math.max(G.yT, G.yS) + 8) {
-        arrastrarPos(e); mostrarPosCfg(); return;
+    const dentroR = (rc) => rc && lx >= rc.x && lx <= rc.x + rc.w && ly >= rc.y && ly <= rc.y + rc.h;
+
+    // Al primer toque en el gráfico, la línea guía de sugerencia se retira.
+    if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
+
+    // ── Herramienta de posición (misma dinámica que Smart Levels) ──
+    if (M._pos) {
+      const P = M._pos;
+      // 1) botones de la tarjeta (ocultar / mini / flechas)
+      if (P.oculto && dentroR(P._miniBtn)) { P.oculto = false; cerrarPosCfg(); dibujar(); return; }
+      if (!P.oculto && dentroR(P._hideBtn)) { P.oculto = true; cerrarPosCfg(); dibujar(); return; }
+      const ORD = ['der', 'abajo', 'izq', 'arriba'];
+      if (!P.oculto && dentroR(P._arrL)) { P.cardPos = ORD[(ORD.indexOf(P.cardPos || 'der') + 3) % 4]; dibujar(); return; }
+      if (!P.oculto && dentroR(P._arrR)) { P.cardPos = ORD[(ORD.indexOf(P.cardPos || 'der') + 1) % 4]; dibujar(); return; }
+      const G = P._pos;
+      if (G) {
+        const dentroX = lx >= G.x - 7 && lx <= G.x + G.w + 7;
+        // 2) borde izq/der → redimensionar (cambia t0/t1)
+        if (dentroX && ly >= Math.min(G.yt, G.ye, G.ys) - 6 && ly <= Math.max(G.yt, G.ye, G.ys) + 6) {
+          if (Math.abs(lx - G.x) < 7) return arrastrarBorde(e, 'izq');
+          if (Math.abs(lx - (G.x + G.w)) < 7) return arrastrarBorde(e, 'der');
+          // 3) sobre una de las 3 líneas → arrastrar esa línea
+          if (Math.abs(ly - G.yt) < 7) return arrastrarLinea(e, 'target');
+          if (Math.abs(ly - G.ye) < 7) return arrastrarLinea(e, 'entry');
+          if (Math.abs(ly - G.ys) < 7) return arrastrarLinea(e, 'stop');
+          // 4) dentro de la franja → arrastrar toda la posición + mostrar config
+          mostrarPosCfg(); return arrastrarPosEntera(e);
+        }
       }
     }
-    // ¿tocó la línea de tendencia?
-    if (M._tend && cercaTend(lx, ly)) { arrastrarTend(e); mostrarTendCfg(); return; }
+    // ── Tendencia ──
+    if (M._tend && cercaTend(lx, ly)) { mostrarTendCfg(); return arrastrarTend(e); }
+
+    cerrarPosCfg(); cerrarTendCfg();
     modoG = enEscalaM(lx) ? 'y' : 'libre';
     arr = true; ax = e.clientX; ay = e.clientY;
     cv.style.cursor = modoG === 'y' ? 'ns-resize' : 'grabbing';
@@ -1979,7 +2038,33 @@ function engancharGestos(cv) {
   /* Táctil: un dedo mueve, dos hacen zoom. */
   let d0 = 0, tx = 0;
   cv.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) { tx = e.touches[0].clientX; arr = true; }
+    if (e.touches.length === 1) {
+      const r = cv.getBoundingClientRect();
+      const lx = e.touches[0].clientX - r.left, ly = e.touches[0].clientY - r.top;
+      if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
+      const dR = (rc) => rc && lx >= rc.x && lx <= rc.x + rc.w && ly >= rc.y && ly <= rc.y + rc.h;
+      if (M._pos) {
+        const P = M._pos, ORD = ['der', 'abajo', 'izq', 'arriba'];
+        if (P.oculto && dR(P._miniBtn)) { P.oculto = false; cerrarPosCfg(); dibujar(); return; }
+        if (!P.oculto && dR(P._hideBtn)) { P.oculto = true; cerrarPosCfg(); dibujar(); return; }
+        if (!P.oculto && dR(P._arrL)) { P.cardPos = ORD[(ORD.indexOf(P.cardPos || 'der') + 3) % 4]; dibujar(); return; }
+        if (!P.oculto && dR(P._arrR)) { P.cardPos = ORD[(ORD.indexOf(P.cardPos || 'der') + 1) % 4]; dibujar(); return; }
+        const G = P._pos;
+        if (G && lx >= G.x - 9 && lx <= G.x + G.w + 9 && ly >= Math.min(G.yt, G.ye, G.ys) - 9 && ly <= Math.max(G.yt, G.ye, G.ys) + 9) {
+          let act;
+          if (Math.abs(lx - G.x) < 10) act = { k: 'borde', lado: 'izq' };
+          else if (Math.abs(lx - (G.x + G.w)) < 10) act = { k: 'borde', lado: 'der' };
+          else if (Math.abs(ly - G.yt) < 10) act = { k: 'linea', cual: 'target' };
+          else if (Math.abs(ly - G.ye) < 10) act = { k: 'linea', cual: 'entry' };
+          else if (Math.abs(ly - G.ys) < 10) act = { k: 'linea', cual: 'stop' };
+          else act = { k: 'entera', lx, ly };
+          M._touchArr = act; mostrarPosCfg(); return;
+        }
+      }
+      if (M._tend && cercaTend(lx, ly)) { M._touchArr = { k: 'tend', ly }; mostrarTendCfg(); return; }
+      cerrarPosCfg(); cerrarTendCfg();
+      tx = e.touches[0].clientX; arr = true;
+    }
     else if (e.touches.length === 2) {
       arr = false;
       d0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
@@ -1987,6 +2072,17 @@ function engancharGestos(cv) {
     }
   }, { passive: true });
   cv.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1 && M._touchArr) {
+      e.preventDefault();
+      const r = cv.getBoundingClientRect();
+      const lx = e.touches[0].clientX - r.left, ly = e.touches[0].clientY - r.top;
+      const A = M._touchArr, P = M._pos, T = M._tend;
+      if (A.k === 'linea' && P) { const p = mPy(ly); if (A.cual === 'entry') P.pe = p; else if (A.cual === 'target') P.pTarget = p; else P.pStop = p; posPosCfg(); }
+      else if (A.k === 'borde' && P) { const t = mTx(lx); if (A.lado === 'izq') P.t0 = t; else P.t1 = t; posPosCfg(); }
+      else if (A.k === 'entera' && P) { const dt = mTx(lx) - mTx(A.lx), dp = mPy(ly) - mPy(A.ly); P.t0 += dt; P.t1 += dt; P.pe += dp; P.pTarget += dp; P.pStop += dp; A.lx = lx; A.ly = ly; posPosCfg(); }
+      else if (A.k === 'tend' && T) { const dp = mPy(ly) - mPy(A.ly); T.segs.forEach((s) => { s.p0 += dp; s.p1 += dp; }); A.ly = ly; posTendCfg(); }
+      dibujar(); return;
+    }
     if (e.touches.length === 1 && arr) {
       e.preventDefault();
       const paso = (cv.clientWidth * 0.7) / (M.ancho || 70);
@@ -2005,7 +2101,7 @@ function engancharGestos(cv) {
       if (Math.abs(d - d0) > 8) { zoom(d0 / d); d0 = d; }
     }
   }, { passive: false });
-  cv.addEventListener('touchend', () => { arr = false; d0 = 0; });
+  cv.addEventListener('touchend', () => { arr = false; d0 = 0; M._touchArr = null; });
 
   cv.style.cursor = 'grab';
 }
@@ -3465,17 +3561,13 @@ let _anaT = null, _analisis = null, _planFuera = null, _anaCache = null;
    hasta el nivel de entrada, y proyecta una herramienta de posición (long/short)
    con R:R 1:1 (entrada, stop y objetivo), POR ENCIMA de toda la interfaz. Se
    cierra con un clic fuera. */
-function mostrarPlan(a, tipoForzado) {
-  // Fija la posición en el ESTADO del radar: se dibuja en el lienzo (no como
-  // overlay que se filtra fuera). tipoForzado: 'long' | 'short' | undefined.
-  const op = tipoForzado ? construirOp(tipoForzado) : (a && a.op);
-  if (!op) return;
-  const tabChart = [...document.querySelectorAll('.mu-mtab')].find((x) => /hart|r\u00e1fic|gr\u00e1fic/i.test(x.textContent));
-  if (tabChart && !tabChart.classList.contains('on')) tabChart.click();
-  M._pos = { tipo: op.tipo, entrada: op.entrada, sl: op.sl, tp: op.tp, off: 0, cerca: true };
-  cerrarPosCfg();
-  dibujar();
-}
+function _hex2rgb(hex) { const n = parseInt((hex || '#22d3ee').slice(1), 16); return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`; }
+/* tiempo/precio <-> pantalla (mismo mapeo que Smart Levels: anclado a TIMESTAMP,
+   por eso las herramientas se PEGAN al gráfico al moverlo o hacer zoom). */
+function mXt(t) { const g = M._geo; if (!g) return 0; const i = (t - g.t0) / g.tfMs; return (i - g.pri) * g.paso + g.paso / 2; }
+function mTx(x) { const g = M._geo; if (!g) return 0; const iF = (x - g.paso / 2) / g.paso + g.pri; return g.t0 + iF * g.tfMs; }
+function mYp(p) { const g = M._geo; if (!g) return 0; return g.y1 - g.y1 * ((p - g.pMin) / Math.max(1e-9, g.pMax - g.pMin)); }
+function mPy(y) { const g = M._geo; if (!g) return 0; return g.pMin + (g.pMax - g.pMin) * ((g.y1 - y) / g.y1); }
 
 /* Construye una operación long/short desde la zona más relevante de ese lado. */
 function construirOp(tipo) {
@@ -3494,201 +3586,212 @@ function construirOp(tipo) {
 }
 function hayOp(tipo) { return !!construirOp(tipo); }
 
-/* Dibuja la herramienta de posición SOBRE el lienzo (estilo Smart Levels):
-   zonas de ganancia/riesgo tenues, líneas objetivo/entrada/stop, y una
-   pastilla con el R:R. Vive dentro del radar; al cerrar desaparece. */
-function dibujarPosicion(g, Y, x1, y1, xVelas) {
-  const P = M._pos; if (!P) return;
-  const largo = P.tipo === 'long';
-  const acc = largo ? '#2ee86a' : '#ff3b52', accRGB = largo ? '46,232,106' : '255,59,82';
-  const yE = Y(P.entrada), yS = Y(P.sl), yT = Y(P.tp);
-  const xs = Math.max(6, xVelas * 0.52);
-  const xf = xVelas - 8;
-  M._posGeo = { xs, xf, yE, yS, yT };
-  // zonas ganancia / riesgo
-  g.fillStyle = 'rgba(46,232,106,.10)'; g.fillRect(xs, Math.min(yE, yT), xf - xs, Math.abs(yT - yE));
-  g.fillStyle = 'rgba(255,59,82,.10)'; g.fillRect(xs, Math.min(yE, yS), xf - xs, Math.abs(yS - yE));
-  // líneas objetivo / entrada / stop
-  [[ '#2ee86a', yT, 'TP ' + fmt(P.tp)], ['#eaecef', yE, 'Entrada ' + fmt(P.entrada)], ['#ff3b52', yS, 'SL ' + fmt(P.sl)]].forEach((r) => {
-    g.strokeStyle = r[0]; g.lineWidth = 1.4; g.setLineDash(r[0] === '#eaecef' ? [] : [5, 4]);
-    g.beginPath(); g.moveTo(xs, r[1]); g.lineTo(xf, r[1]); g.stroke(); g.setLineDash([]);
-    g.font = 'bold 9.5px ui-monospace,monospace';
-    const w = g.measureText(r[2]).width + 12;
-    g.fillStyle = r[0]; redondeado(g, xf - w, r[1] - 8, w, 15, 4); g.fill();
-    g.fillStyle = r[0] === '#eaecef' ? '#0b0e12' : (r[0] === '#2ee86a' ? '#04210f' : '#2a0509');
-    g.textAlign = 'left'; g.fillText(r[2], xf - w + 6, r[1] + 3.4);
-  });
-  // borde derecho
-  g.strokeStyle = 'rgba(' + accRGB + ',.5)'; g.lineWidth = 1.2;
-  g.beginPath(); g.moveTo(xf, Math.min(yT, yS)); g.lineTo(xf, Math.max(yT, yS)); g.stroke();
-  // pastilla cabecera con R:R y lado
-  g.font = '800 9.5px ui-monospace,monospace';
-  const et = (largo ? '\u25b2 LONG' : '\u25bc SHORT') + ' \u00b7 R:R 1:1';
-  const pw = g.measureText(et).width + 16;
-  g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 8;
-  g.fillStyle = acc; redondeado(g, xs, Math.min(yE, yT, yS) - 22, pw, 17, 6); g.fill(); g.restore();
-  g.fillStyle = largo ? '#04210f' : '#2a0509'; g.textAlign = 'left';
-  g.fillText(et, xs + 8, Math.min(yE, yT, yS) - 22 + 12);
-  g.textAlign = 'left';
+/* Proyecta la MISMA herramienta de posición de Smart Levels (poslarga/poscorta),
+   anclada a tiempo+precio. Vive en el estado del radar; al cerrar desaparece. */
+function mostrarPlan(a, tipoForzado) {
+  const op = tipoForzado ? construirOp(tipoForzado) : (a && a.op);
+  if (!op) return;
+  const tabChart = [...document.querySelectorAll('.mu-mtab')].find((x) => /hart|r\u00e1fic|gr\u00e1fic/i.test(x.textContent));
+  if (tabChart && !tabChart.classList.contains('on')) tabChart.click();
+  const g = M._geo; if (!g || !g.vis.length) return;
+  const vis = g.vis;
+  const t0 = vis[Math.max(0, vis.length - 20)].t;
+  const t1 = vis[vis.length - 1].t + 8 * g.tfMs;
+  M._pos = { tipo: op.tipo === 'long' ? 'poslarga' : 'poscorta',
+    pe: op.entrada, pTarget: op.tp, pStop: op.sl, t0, t1,
+    cTarget: '#2ee86a', cEntry: '#eaecef', cStop: '#ff3b52', grosor: 2, intensidad: 1,
+    cardPos: 'der', oculto: false, guia: true };
+  cerrarPosCfg(); dibujar();
 }
 
-/* ══ TENDENCIA (estilo Faro) ══
-   Se traza uniendo los MÍNIMOS si es alcista o los MÁXIMOS si es bajista, en
-   varios tramos (envolvente): cada vez que el precio se separa, nace un nuevo
-   pivote y otro tramo. Vive en el estado del radar y se dibuja en el lienzo. */
+/* Ancla de la tarjeta (idéntica a Smart Levels). */
+function _anclaTarjetaMu(pos, x, w, yt, ye, ys, cw, ch, x1, y1) {
+  const yTop = Math.min(yt, ye, ys), yBot = Math.max(yt, ye, ys), cyMid = (yTop + yBot) / 2;
+  let cx, cy; pos = pos || 'der';
+  if (pos === 'izq') { cx = x - cw - 12; cy = cyMid - ch / 2; }
+  else if (pos === 'arriba') { cx = x + w / 2 - cw / 2; cy = yTop - ch - 10; }
+  else if (pos === 'abajo') { cx = x + w / 2 - cw / 2; cy = yBot + 10; }
+  else { cx = x + w + 12; cy = cyMid - ch / 2; }
+  cx = Math.max(4, Math.min(x1 - cw - 4, cx)); cy = Math.max(4, Math.min(y1 - ch - 4, cy));
+  return { cx, cy };
+}
+
+/* Dibujo FIEL de la herramienta de posición de Smart Levels. */
+function dibujarPosicion(g) {
+  const P = M._pos, geo = M._geo; if (!P || !geo) return;
+  const largo = P.tipo === 'poslarga';
+  const x1 = geo.xVelas, y1 = geo.y1;
+  const Ax = mXt(P.t0), Bx = mXt(P.t1);
+  const pe = P.pe, pT = P.pTarget, pS = P.pStop;
+  const ye = mYp(pe), yt = mYp(pT), ys = mYp(pS);
+  const x = Math.min(Ax, Bx), w = Math.abs(Bx - Ax) || 130;
+  const gr = P.grosor || 2, inten = P.intensidad != null ? P.intensidad : 1;
+  const cT = P.cTarget || '#2ee86a', cE = P.cEntry || '#eaecef', cS = P.cStop || '#ff3b52';
+  const rgbT = _hex2rgb(cT), rgbS = _hex2rgb(cS);
+  const acc = largo ? '#2ee86a' : '#ff3b52', accRGB = largo ? '46,232,106' : '255,59,82';
+
+  // Línea GUÍA punteada (desde arriba-derecha hasta la entrada). Se quita al primer toque.
+  if (P.guia) {
+    g.save(); g.strokeStyle = acc; g.lineWidth = 1.7; g.setLineDash([6, 5]);
+    const gx = x1 - 12, gy = 10; g.beginPath(); g.moveTo(gx, gy);
+    g.quadraticCurveTo((gx + x + w) / 2, gy + (ye - gy) * 0.18, x + w, ye); g.stroke();
+    g.setLineDash([]); g.fillStyle = acc; g.beginPath(); g.arc(x + w, ye, 4, 0, 6.283); g.fill(); g.restore();
+  }
+
+  // zonas ganancia / riesgo
+  g.fillStyle = `rgba(${rgbT},${(0.16 * inten).toFixed(3)})`; g.fillRect(x, Math.min(ye, yt), w, Math.abs(yt - ye));
+  g.fillStyle = `rgba(${rgbS},${(0.16 * inten).toFixed(3)})`; g.fillRect(x, Math.min(ye, ys), w, Math.abs(ys - ye));
+  // 3 líneas objetivo / entrada / stop
+  [[cT, yt], [cE, ye], [cS, ys]].forEach((r) => {
+    g.strokeStyle = r[0]; g.lineWidth = gr; g.beginPath(); g.moveTo(x, r[1]); g.lineTo(x + w, r[1]); g.stroke();
+  });
+  P._pos = { x, w, yt, ye, ys };
+  const gPct = ((pT - pe) / pe) * 100, rPct = ((pS - pe) / pe) * 100;
+  const rr = Math.abs(rPct) > 0 ? Math.abs(gPct / rPct) : 0;
+
+  if (P.oculto) {
+    const mp = _anclaTarjetaMu(P.cardPos, x, w, yt, ye, ys, 20, 20, x1, y1);
+    g.save(); g.shadowColor = `rgba(${accRGB},.55)`; g.shadowBlur = 9;
+    g.fillStyle = acc; redondeado(g, mp.cx, mp.cy, 20, 20, 6); g.fill(); g.restore();
+    g.fillStyle = '#0b0f16'; g.font = '800 12px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(largo ? 'L' : 'S', mp.cx + 10, mp.cy + 10.5); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    P._miniBtn = { x: mp.cx, y: mp.cy, w: 20, h: 20 }; P._hideBtn = P._arrL = P._arrR = null;
+    return;
+  }
+  P._miniBtn = null;
+
+  // ── Tarjeta de presentación (idéntica a Smart Levels) ──
+  const cw = 226, ch = 140;
+  const ap = _anclaTarjetaMu(P.cardPos, x, w, yt, ye, ys, cw, ch, x1, y1);
+  const cx = ap.cx, cy = ap.cy;
+  g.save(); g.shadowColor = 'rgba(0,0,0,.62)'; g.shadowBlur = 22;
+  g.fillStyle = 'rgba(12,16,23,.97)'; redondeado(g, cx, cy, cw, ch, 16); g.fill(); g.restore();
+  g.strokeStyle = `rgba(${accRGB},.45)`; g.lineWidth = 1.2; redondeado(g, cx, cy, cw, ch, 16); g.stroke();
+  g.fillStyle = acc; redondeado(g, cx, cy + 14, 4, ch - 28, 2); g.fill();
+  g.textAlign = 'left';
+  g.fillStyle = acc; g.font = '800 11px system-ui,sans-serif';
+  g.fillText(largo ? 'POSICI\u00d3N LARGA' : 'POSICI\u00d3N CORTA', cx + 16, cy + 23);
+  const hb = { x: cx + cw - 30, y: cy + 10, w: 20, h: 16 };
+  g.fillStyle = 'rgba(255,255,255,.07)'; redondeado(g, hb.x, hb.y, hb.w, hb.h, 5); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.3;
+  g.beginPath(); g.moveTo(hb.x + 5, hb.y + 8); g.lineTo(hb.x + 15, hb.y + 8); g.stroke();
+  P._hideBtn = hb;
+  const colX = cx + 16;
+  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('TAKE PROFIT', colX, cy + 46);
+  g.save(); g.shadowColor = 'rgba(46,232,106,.65)'; g.shadowBlur = 14;
+  g.fillStyle = cT; g.font = '800 29px system-ui,sans-serif';
+  g.fillText(`+${Math.abs(gPct).toFixed(2)}%`, colX, cy + 75); g.restore();
+  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('STOP LOSS', colX, cy + 99);
+  g.save(); g.shadowColor = `rgba(${rgbS},.65)`; g.shadowBlur = 14;
+  g.fillStyle = cS; g.font = '800 25px system-ui,sans-serif';
+  g.fillText(`\u2212${Math.abs(rPct).toFixed(2)}%`, colX, cy + 125); g.restore();
+  const rx = cx + cw - 42, divX = cx + cw - 78;
+  g.strokeStyle = 'rgba(255,255,255,.09)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(divX, cy + 40); g.lineTo(divX, cy + ch - 34); g.stroke();
+  g.textAlign = 'center';
+  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('R : R', rx, cy + 58);
+  g.save(); g.shadowColor = 'rgba(232,184,75,.55)'; g.shadowBlur = 12;
+  g.fillStyle = '#E8B84B'; g.font = '800 30px system-ui,sans-serif';
+  g.fillText(rr.toFixed(1), rx, cy + 90); g.restore();
+  const ay2 = cy + ch - 20;
+  const alF = { x: rx - 24, y: ay2 - 9, w: 18, h: 18 }, arF = { x: rx + 6, y: ay2 - 9, w: 18, h: 18 };
+  [[alF, -1], [arF, 1]].forEach((f) => {
+    g.fillStyle = 'rgba(255,255,255,.06)'; redondeado(g, f[0].x, f[0].y, 18, 18, 5); g.fill();
+    g.strokeStyle = '#aeb6bf'; g.lineWidth = 1.6; g.beginPath();
+    const mx = f[0].x + 9, my = f[0].y + 9;
+    if (f[1] < 0) { g.moveTo(mx + 3, my - 4); g.lineTo(mx - 3, my); g.lineTo(mx + 3, my + 4); }
+    else { g.moveTo(mx - 3, my - 4); g.lineTo(mx + 3, my); g.lineTo(mx - 3, my + 4); }
+    g.stroke();
+  });
+  P._arrL = alF; P._arrR = arF; g.textAlign = 'left';
+}
+
+/* ══ TENDENCIA (Faro) anclada a timestamps: se PEGA al gráfico ══
+   Une los MÍNIMOS si es alcista o los MÁXIMOS si es bajista, por tramos. */
 function mostrarTendencia() {
-  if (!M._geo || !M._geo.vis || M._geo.vis.length < 6) return;
-  const vis = M._geo.vis;
-  const n = vis.length;
-  // dirección por regresión de cierres
+  const g = M._geo; if (!g || !g.vis || g.vis.length < 6) return;
+  const vis = g.vis, n = vis.length;
   let sx = 0, sy = 0, sxy = 0, sxx = 0;
   vis.forEach((v, i) => { sx += i; sy += v.c; sxy += i * v.c; sxx += i * i; });
   const m = (n * sxy - sx * sy) / Math.max(1e-9, n * sxx - sx * sx);
   const alcista = m >= 0;
-  // puntos: mínimos (alcista) o máximos (bajista)
-  const pts = vis.map((v, i) => ({ i, p: alcista ? v.l : v.h }));
-  // envolvente inferior (alcista) o superior (bajista) por cadena monótona
+  const pts = vis.map((v) => ({ t: v.t, p: alcista ? v.l : v.h }));
   const hull = [];
-  const giro = (o, a, b) => (a.i - o.i) * (b.p - o.p) - (a.p - o.p) * (b.i - o.i);
+  const giro = (o, a, b) => (a.t - o.t) * (b.p - o.p) - (a.p - o.p) * (b.t - o.t);
   for (const pt of pts) {
-    while (hull.length >= 2) {
-      const c = giro(hull[hull.length - 2], hull[hull.length - 1], pt);
-      if (alcista ? c <= 0 : c >= 0) hull.pop(); else break;
-    }
+    while (hull.length >= 2) { const c = giro(hull[hull.length - 2], hull[hull.length - 1], pt); if (alcista ? c <= 0 : c >= 0) hull.pop(); else break; }
     hull.push(pt);
   }
-  // tramos entre pivotes consecutivos del hull
   const segs = [];
-  for (let k = 0; k < hull.length - 1; k++) segs.push({ i0: hull[k].i, p0: hull[k].p, i1: hull[k + 1].i, p1: hull[k + 1].p });
+  for (let k = 0; k < hull.length - 1; k++) segs.push({ t0: hull[k].t, p0: hull[k].p, t1: hull[k + 1].t, p1: hull[k + 1].p });
   if (!segs.length) return;
   M._tend = { segs, dir: alcista ? 'alcista' : 'bajista', color: alcista ? '#2ee86a' : '#f6465d', grosor: 2 };
   const tabChart = [...document.querySelectorAll('.mu-mtab')].find((x) => /hart|r\u00e1fic|gr\u00e1fic/i.test(x.textContent));
   if (tabChart && !tabChart.classList.contains('on')) tabChart.click();
-  cerrarTendCfg();
-  dibujar();
+  cerrarTendCfg(); dibujar();
 }
-
-/* Dibuja la tendencia multi-tramo en el lienzo + tachuela alcista/bajista. */
-function dibujarTendencia(g, Y, X, y1) {
-  const T = M._tend; if (!T || !T.segs.length) return;
-  g.save();
-  g.strokeStyle = T.color; g.lineWidth = T.grosor; g.lineJoin = 'round';
-  g.shadowColor = T.color; g.shadowBlur = 5;
+function dibujarTendencia(g) {
+  const T = M._tend, geo = M._geo; if (!T || !T.segs.length || !geo) return;
+  g.save(); g.strokeStyle = T.color; g.lineWidth = T.grosor; g.lineJoin = 'round'; g.shadowColor = T.color; g.shadowBlur = 5;
   g.beginPath();
-  T.segs.forEach((s, k) => {
-    const x0 = X(s.i0), yy0 = Y(s.p0), x1p = X(s.i1), yy1 = Y(s.p1);
-    if (k === 0) g.moveTo(x0, yy0);
-    g.lineTo(x1p, yy1);
-  });
-  g.stroke();
-  // pivotes
-  g.shadowBlur = 0; g.fillStyle = T.color;
-  const puntos = [T.segs[0], ...T.segs].map((s, k) => k === 0 ? { i: s.i0, p: s.p0 } : { i: s.i1, p: s.p1 });
-  puntos.forEach((pt) => { g.beginPath(); g.arc(X(pt.i), Y(pt.p), 3, 0, 7); g.fill(); });
+  T.segs.forEach((s, k) => { const x0 = mXt(s.t0), yy0 = mYp(s.p0), x1p = mXt(s.t1), yy1 = mYp(s.p1); if (k === 0) g.moveTo(x0, yy0); g.lineTo(x1p, yy1); });
+  g.stroke(); g.shadowBlur = 0; g.fillStyle = T.color;
+  const pts = [{ t: T.segs[0].t0, p: T.segs[0].p0 }].concat(T.segs.map((s) => ({ t: s.t1, p: s.p1 })));
+  pts.forEach((pt) => { g.beginPath(); g.arc(mXt(pt.t), mYp(pt.p), 3, 0, 7); g.fill(); });
   g.restore();
-  // tachuela de dirección, junto al último pivote
   const ult = T.segs[T.segs.length - 1];
-  const tx = X(ult.i1), ty = Y(ult.p1);
+  const tx = mXt(ult.t1), ty = mYp(ult.p1);
   const txt = T.dir === 'alcista' ? '\u2197 Tendencia alcista' : '\u2198 Tendencia bajista';
   g.font = 'bold 9.5px ui-monospace,monospace';
   const w = g.measureText(txt).width + 14;
-  const bx = Math.min(tx + 6, X(ult.i1)), by = ty - (T.dir === 'alcista' ? 22 : -8);
-  g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 8;
-  g.fillStyle = T.color; redondeado(g, Math.max(4, Math.min(bx, (M._geo.xVelas || 400) - w - 4)), by, w, 16, 5); g.fill(); g.restore();
-  g.fillStyle = T.dir === 'alcista' ? '#04210f' : '#2a0509'; g.textAlign = 'left';
-  g.fillText(txt, Math.max(4, Math.min(bx, (M._geo.xVelas || 400) - w - 4)) + 7, by + 11);
-  g.textAlign = 'left';
+  const bx = Math.max(4, Math.min(tx - w / 2, geo.xVelas - w - 4)), by = ty - (T.dir === 'alcista' ? 22 : -8);
+  g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 8; g.fillStyle = T.color; redondeado(g, bx, by, w, 16, 5); g.fill(); g.restore();
+  g.fillStyle = T.dir === 'alcista' ? '#04210f' : '#2a0509'; g.textAlign = 'left'; g.fillText(txt, bx + 7, by + 11); g.textAlign = 'left';
 }
-
-function cerrarPosCfg() { document.getElementById('mu-poscfg')?.remove(); }
-function cerrarTendCfg() { document.getElementById('mu-tendcfg')?.remove(); }
-
-/* ¿el punto (lx,ly en coords del lienzo) está sobre algún tramo de tendencia? */
 function cercaTend(lx, ly) {
   const T = M._tend, g = M._geo; if (!T || !g) return false;
-  const paso = (g.xVelas) / (g.n || 1);
-  const X = (i) => i * paso + paso / 2;
-  const Y = (p) => g.y1 - g.y1 * ((p - g.pMin) / Math.max(1e-9, g.pMax - g.pMin));
   return T.segs.some((s) => {
-    const x0 = X(s.i0), y0 = Y(s.p0), x1 = X(s.i1), y1 = Y(s.p1);
+    const x0 = mXt(s.t0), y0 = mYp(s.p0), x1 = mXt(s.t1), y1 = mYp(s.p1);
     const dx = x1 - x0, dy = y1 - y0, L2 = dx * dx + dy * dy;
     let t = L2 ? ((lx - x0) * dx + (ly - y0) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
     return Math.hypot(lx - (x0 + t * dx), ly - (y0 + t * dy)) < 8;
   });
 }
+function cerrarPosCfg() { document.getElementById('mu-poscfg')?.remove(); }
+function cerrarTendCfg() { document.getElementById('mu-tendcfg')?.remove(); }
 
-/* Arrastre vertical de la posición (mueve entrada/SL/TP juntos, en precio). */
-function arrastrarPos(e) {
-  const g = M._geo; if (!g) return;
-  const escala = (g.pMax - g.pMin) / Math.max(1, g.y1);
-  let ay = e.clientY;
-  const mover = (ev) => {
-    const dP = (ev.clientY - ay) * escala;       // hacia abajo = menor precio
-    M._pos.entrada -= dP; M._pos.sl -= dP; M._pos.tp -= dP; ay = ev.clientY; dibujar(); posCfgPos();
-  };
-  const soltar = () => { window.removeEventListener('mousemove', mover); window.removeEventListener('mouseup', soltar); };
-  window.addEventListener('mousemove', mover); window.addEventListener('mouseup', soltar);
-}
-/* Arrastre vertical de la tendencia (mueve todos los tramos en precio). */
-function arrastrarTend(e) {
-  const g = M._geo; if (!g) return;
-  const escala = (g.pMax - g.pMin) / Math.max(1, g.y1);
-  let ay = e.clientY;
-  const mover = (ev) => {
-    const dP = (ev.clientY - ay) * escala;
-    M._tend.segs.forEach((s) => { s.p0 -= dP; s.p1 -= dP; }); ay = ev.clientY; dibujar(); posTendCfg();
-  };
-  const soltar = () => { window.removeEventListener('mousemove', mover); window.removeEventListener('mouseup', soltar); };
-  window.addEventListener('mousemove', mover); window.addEventListener('mouseup', soltar);
-}
-
-/* Config de la posición: barrita con lado + eliminar (hija del radar). */
-function mostrarPosCfg() {
-  cerrarPosCfg();
-  const ov = $('mu-overlay'); if (!ov || !M._pos) return;
-  const c = document.createElement('div'); c.id = 'mu-poscfg';
-  const largo = M._pos.tipo === 'long';
-  c.innerHTML = `<span class="pc-et">${largo ? '\u25b2 LONG' : '\u25bc SHORT'} \u00b7 R:R 1:1</span>
-    <button data-a="del" title="Eliminar">\u{1F5D1}</button>`;
-  ov.appendChild(c);
-  posCfgPos();
-  c.querySelector('[data-a="del"]').onclick = () => { M._pos = null; cerrarPosCfg(); dibujar(); };
-}
-function posCfgPos() {
-  const c = $('mu-poscfg'); const cv = $('mu-cv'); const ov = $('mu-overlay'); const G = M._posGeo; if (!c || !cv || !ov || !G) return;
-  const or = ov.getBoundingClientRect(), cr = cv.getBoundingClientRect();
-  const ox = cr.left - or.left, oy = cr.top - or.top;
-  c.style.left = (ox + Math.max(6, Math.min(cv.clientWidth - 130, G.xs))) + 'px';
-  c.style.top = (oy + Math.max(6, Math.min(G.yT, G.yS) - 40)) + 'px';
-}
-
-/* Config de la tendencia: dirección + color + grosor + eliminar. */
+/* Config de la tendencia: dirección + color + grosor + eliminar (hija del radar). */
 function mostrarTendCfg() {
-  cerrarTendCfg();
-  const ov = $('mu-overlay'); if (!ov || !M._tend) return;
+  cerrarTendCfg(); const ov = $('mu-overlay'); if (!ov || !M._tend) return;
   const c = document.createElement('div'); c.id = 'mu-tendcfg';
   c.innerHTML = `<span class="pc-et">${M._tend.dir === 'alcista' ? '\u2197 alcista' : '\u2198 bajista'}</span>
-    <button data-a="color" title="Color">\u25c9</button>
-    <button data-a="grosor" title="Grosor">\u2261</button>
-    <button data-a="del" title="Eliminar">\u{1F5D1}</button>`;
-  ov.appendChild(c);
-  posTendCfg();
-  const paleta = ['#2ee86a', '#f6465d', '#E8B84B', '#7fbaff', '#c58bff'];
-  const grosores = [1.5, 2.5, 3.5];
+    <button data-a="color" title="Color">\u25c9</button><button data-a="grosor" title="Grosor">\u2261</button><button data-a="del" title="Eliminar">\u{1F5D1}</button>`;
+  ov.appendChild(c); posTendCfg();
+  const paleta = ['#2ee86a', '#f6465d', '#E8B84B', '#7fbaff', '#c58bff'], grosores = [1.5, 2.5, 3.5];
   c.querySelector('[data-a="color"]').onclick = () => { const i = (paleta.indexOf(M._tend.color) + 1) % paleta.length; M._tend.color = paleta[i]; dibujar(); };
-  c.querySelector('[data-a="grosor"]').onclick = () => { const i = (grosores.indexOf(M._tend.grosor) + 1) % grosores.length; M._tend.grosor = grosores[i < 0 ? 0 : i]; dibujar(); };
+  c.querySelector('[data-a="grosor"]').onclick = () => { let i = grosores.indexOf(M._tend.grosor); i = (i + 1) % grosores.length; M._tend.grosor = grosores[i < 0 ? 0 : i]; dibujar(); };
   c.querySelector('[data-a="del"]').onclick = () => { M._tend = null; cerrarTendCfg(); dibujar(); };
 }
 function posTendCfg() {
-  const c = $('mu-tendcfg'); const cv = $('mu-cv'); const ov = $('mu-overlay'); const g = M._geo, T = M._tend; if (!c || !cv || !ov || !g || !T) return;
-  const or = ov.getBoundingClientRect(), cr = cv.getBoundingClientRect();
-  const ox = cr.left - or.left, oy = cr.top - or.top;
-  const paso = g.xVelas / (g.n || 1);
-  const s = T.segs[T.segs.length - 1];
-  const x = s.i1 * paso + paso / 2;
-  const y = g.y1 - g.y1 * ((s.p1 - g.pMin) / Math.max(1e-9, g.pMax - g.pMin));
+  const c = $('mu-tendcfg'), cv = $('mu-cv'), ov = $('mu-overlay'), g = M._geo, T = M._tend; if (!c || !cv || !ov || !g || !T) return;
+  const or = ov.getBoundingClientRect(), cr = cv.getBoundingClientRect(); const ox = cr.left - or.left, oy = cr.top - or.top;
+  const s = T.segs[T.segs.length - 1]; const x = mXt(s.t1), y = mYp(s.p1);
   c.style.left = (ox + Math.max(6, Math.min(cv.clientWidth - 150, x - 60))) + 'px';
   c.style.top = (oy + Math.max(6, y - 44)) + 'px';
+}
+/* Config de la posición: eliminar (hija del radar). */
+function mostrarPosCfg() {
+  cerrarPosCfg(); const ov = $('mu-overlay'); if (!ov || !M._pos) return;
+  const c = document.createElement('div'); c.id = 'mu-poscfg';
+  c.innerHTML = `<span class="pc-et">${M._pos.tipo === 'poslarga' ? '\u25b2 LARGA' : '\u25bc CORTA'}</span><button data-a="del" title="Eliminar">\u{1F5D1}</button>`;
+  ov.appendChild(c); posPosCfg();
+  c.querySelector('[data-a="del"]').onclick = () => { M._pos = null; cerrarPosCfg(); dibujar(); };
+}
+function posPosCfg() {
+  const c = $('mu-poscfg'), cv = $('mu-cv'), ov = $('mu-overlay'), P = M._pos; if (!c || !cv || !ov || !P || !P._pos) return;
+  const or = ov.getBoundingClientRect(), cr = cv.getBoundingClientRect(); const ox = cr.left - or.left, oy = cr.top - or.top;
+  c.style.left = (ox + Math.max(6, Math.min(cv.clientWidth - 120, P._pos.x))) + 'px';
+  c.style.top = (oy + Math.max(6, Math.min(P._pos.yt, P._pos.ye, P._pos.ys) - 34)) + 'px';
 }
 
 /* ══════════════════════════════════════════════════════════════
