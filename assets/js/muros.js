@@ -721,6 +721,9 @@ export async function abrirMuros() {
         <div class="mu-vivo"><i></i><span id="mu-estado">Observando…</span></div>
 
         <div class="mu-der">
+          <button class="mu-ico" id="mu-validar" title="Validar volumen (fuente de datos)">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 5-3.5 7.5-8.5 9C7.5 19.5 4 17 4 12V6l8-3 8 3z"/></svg>
+          </button>
           <button class="mu-ico" id="mu-tema" title="Tema claro/oscuro">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
           </button>
@@ -790,6 +793,7 @@ export async function abrirMuros() {
   $('mu-sel').onclick = (e) => { e.stopPropagation(); menuPares(); };
 
   $('mu-foto').onclick = () => guardarImagen();
+  $('mu-validar').onclick = () => validarVolumen();
   $('mu-tema').onclick = () => {
     M.tema = M.tema === 'claro' ? 'oscuro' : 'claro';
     try { localStorage.setItem('mu_tema', M.tema); } catch (_) {}
@@ -808,6 +812,7 @@ export async function abrirMuros() {
 
   d.querySelectorAll('[data-tf]').forEach((b) => b.onclick = () => {
     M.tf = b.dataset.tf;
+    reiniciarAlertas();
     d.querySelectorAll('[data-tf]').forEach((x) => x.classList.toggle('on', x.dataset.tf === M.tf));
     const ch = $('mu-tfchip-t'); if (ch) ch.textContent = b.textContent;   // refleja en el chip móvil
     cargarVelas();
@@ -1018,7 +1023,10 @@ async function traerContexto() {
    (banner + pitido corto) cuando el precio entra en una zona fuerte o una
    zona se rompe. */
 const _vidaZonas = new Map();
-let _alerta = null, _alertaTs = 0;
+let _alerta = null, _alertaTs = 0, _alertaDesde = 0;
+/* Al abrir o cambiar de par/temporalidad, se silencian las alertas unos
+   segundos y se limpia el ciclo de vida, para no lanzar un aviso de golpe. */
+function reiniciarAlertas() { _vidaZonas.clear(); _alertaDesde = Date.now() + 4000; }
 function seguirVida(zonas) {
   const ahora = Date.now();
   const vistas = new Set();
@@ -1041,6 +1049,7 @@ function seguirVida(zonas) {
   _vidaZonas.forEach((v, k) => { if (!vistas.has(k) && ahora - (v.ultVisto || v.nace) > 600000) _vidaZonas.delete(k); else if (vistas.has(k)) v.ultVisto = ahora; });
 }
 function lanzarAlerta(tipo, z) {
+  if (Date.now() < _alertaDesde) return;        // silencio al abrir/cambiar
   if (Date.now() - _alertaTs < 4000) return;   // no spamear
   _alertaTs = Date.now();
   const dem = z.lado === 'demanda';
@@ -1049,7 +1058,7 @@ function lanzarAlerta(tipo, z) {
     : { txt: `Zona ${dem ? 'de demanda' : 'de oferta'} ROTA · ${fmt(z.p)}`, col: '#E8B84B' };
   pitar();
   const b = $('mu-alerta');
-  if (b) { b.textContent = _alerta.txt; b.style.setProperty('--ac', _alerta.col); b.classList.add('on'); clearTimeout(_alertaT); _alertaT = setTimeout(() => b.classList.remove('on'), 5200); }
+  if (b) { b.textContent = _alerta.txt; b.style.setProperty('--ac', _alerta.col); b.classList.add('on'); clearTimeout(_alertaT); _alertaT = setTimeout(() => b.classList.remove('on'), 6500); }
 }
 let _alertaT = null, _audio = null;
 function pitar() {
@@ -1066,6 +1075,7 @@ function pitar() {
 function arrancar() {
   clearInterval(_reloj);
   _fallos = 0;
+  reiniciarAlertas();
   const par0 = PARES.find((p) => p.id === _par) || PARES[0];
   conectarWSLibro(par0.s);              // libro en vivo por WebSocket (respaldo)
   const tomar = async () => {
@@ -1231,7 +1241,7 @@ function dibujar() {
 
   const mDer = 88, mAba = 22;
   const x1 = W - mDer, y1 = H - mAba;
-  const xVelas = x1 * 0.82;      // las velas ocupan casi todo
+  const xVelas = x1;             // las velas llegan HASTA el eje de precios (sin banda muerta)
 
   /* La ventana visible: el ancho es el zoom y el desplazamiento el
      arrastre. Muestra SIEMPRE `ancho` velas completas (sin aplastar ni
@@ -1331,30 +1341,8 @@ function dibujar() {
     }
   }
 
-  /* ── NIVELES INSTITUCIONALES: VWAP y bordes del área de valor (VAH/VAL) ──
-     Con peso visual: líneas más gruesas, color vivo y pastilla de etiqueta. */
-  if (M.mercado) {
-    const mk = M.mercado;
-    const linea = (p, col, dash, etiqueta, glow, gruesa) => {
-      if (!(p > 0) || p < pMin || p > pMax) return;
-      const y = Y(p);
-      g.save();
-      if (glow) { g.shadowColor = col; g.shadowBlur = 6; }
-      g.strokeStyle = col; g.lineWidth = gruesa ? 2 : 1.4; if (dash) g.setLineDash(dash);
-      g.beginPath(); g.moveTo(0, y); g.lineTo(xVelas, y); g.stroke();
-      g.restore(); g.setLineDash([]);
-      // Pastilla de etiqueta
-      g.font = 'bold 9px ui-monospace,monospace';
-      const w = g.measureText(etiqueta).width + 12;
-      g.fillStyle = col;
-      redondeado(g, 6, y - 8, w, 14, 4); g.fill();
-      g.fillStyle = '#08111f'; g.textAlign = 'left';
-      g.fillText(etiqueta, 12, y + 2.5);
-    };
-    linea(mk.vah, '#c9a24b', [4, 4], 'VAH', false, false);
-    linea(mk.val, '#c9a24b', [4, 4], 'VAL', false, false);
-    linea(mk.vwap, '#5aa9ff', [9, 5], 'VWAP', true, true);
-  }
+  /* (Los niveles institucionales VWAP/VAH/VAL se dibujan MÁS ABAJO, después
+     del eje, con la línea a todo el ancho y la denominación en el eje derecho.) */
 
   /* ══════════════════════════════════════════════════════════
      ZONAS DE ACUMULACIÓN
@@ -1394,7 +1382,7 @@ function dibujar() {
 
 
   /* ── LAS VELAS ── */
-  const paso = xVelas / vis.length;
+  const paso = xVelas / (ancho || vis.length);   // ancho fijo: al ir al futuro NO se estiran
   const cuerpo = Math.max(1.6, paso * 0.6);
   vis.forEach((v, i) => {
     const x = i * paso + paso / 2;
@@ -1407,19 +1395,14 @@ function dibujar() {
   });
 
   /* ── PERFIL DE VOLUMEN (ENCIMA de las velas) ──
-     Panel a la izquierda con fondo propio para que resalte y no se pierda
-     entre las velas. Barras sólidas; POC en dorado. */
+     Silueta que sale del borde izquierdo y se DESVANECE a la derecha (sin corte
+     duro). Los nodos más relevantes (POC y franjas de zonas) brillan más. */
   if (M.perfil && M.perfil.vol) {
     const pf = M.perfil;
-    const wMax = Math.min(96, x1 * 0.16);
+    const wMax = Math.min(150, x1 * 0.26);
     const binH = y1 / pf.N;
     let pocB = 0;
     for (let b = 1; b < pf.N; b++) if (pf.vol[b] > pf.vol[pocB]) pocB = b;
-    // Fondo del panel del perfil (velado) para dar contraste
-    const fg = g.createLinearGradient(0, 0, wMax + 14, 0);
-    fg.addColorStop(0, M.tema === 'claro' ? 'rgba(255,255,255,.32)' : 'rgba(6,9,13,.66)');
-    fg.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = fg; g.fillRect(0, 0, wMax + 14, y1);
     for (let b = 0; b < pf.N; b++) {
       const pB = pf.lo + (b + 0.5) * (pf.hi - pf.lo) / pf.N;
       if (pB < pMin || pB > pMax) continue;
@@ -1428,20 +1411,33 @@ function dibujar() {
       const yb = Y(pB);
       const enZona = M.zonas.some((z) => pB >= z.pLow && pB <= z.pHigh && !z.rota);
       const base = pB < M.precio ? '46,232,106' : '246,70,93';
-      const a = b === pocB ? 0.95 : enZona ? 0.72 : 0.42;
-      const h = Math.max(2, binH - 0.6);
-      g.fillStyle = `rgba(${base},${a})`;
+      // intensidad: POC y zonas brillan; el resto tenue
+      const a = b === pocB ? 0.9 : enZona ? 0.62 : 0.30;
+      const h = Math.max(2, binH - 0.5);
+      // degradado horizontal: sólido a la izquierda, se desvanece al final
+      const gr = g.createLinearGradient(0, 0, w, 0);
+      gr.addColorStop(0, `rgba(${base},${a})`);
+      gr.addColorStop(0.75, `rgba(${base},${a * 0.55})`);
+      gr.addColorStop(1, `rgba(${base},0)`);
+      g.fillStyle = gr;
       g.fillRect(0, yb - h / 2, w, h);
-      g.fillStyle = `rgba(${base},${Math.min(1, a + 0.2)})`;   // borde derecho nítido
-      g.fillRect(w - 2, yb - h / 2, 2, h);
+      // brillo del pico en el arranque (borde izquierdo) para los relevantes
+      if (b === pocB || enZona) {
+        g.save(); g.shadowColor = `rgba(${base},.8)`; g.shadowBlur = 6;
+        g.fillStyle = `rgba(${base},${Math.min(1, a + 0.15)})`;
+        g.fillRect(0, yb - h / 2, 3, h);
+        g.restore();
+      }
     }
+    // POC global: brillo dorado que también se desvanece
     const pPoc = pf.lo + (pocB + 0.5) * (pf.hi - pf.lo) / pf.N;
     if (pPoc >= pMin && pPoc <= pMax) {
       const yp = Y(pPoc);
-      g.fillStyle = 'rgba(232,184,75,.85)';
-      g.fillRect(0, yp - 1, wMax * (pf.vol[pocB] / pf.max), 2);
-      g.font = 'bold 7.5px ui-monospace,monospace'; g.fillStyle = '#E8B84B'; g.textAlign = 'left';
-      g.fillText('POC', 3, yp - 3);
+      const wp = wMax * (pf.vol[pocB] / pf.max);
+      const gp = g.createLinearGradient(0, 0, wp, 0);
+      gp.addColorStop(0, 'rgba(232,184,75,.9)');
+      gp.addColorStop(1, 'rgba(232,184,75,0)');
+      g.fillStyle = gp; g.fillRect(0, yp - 1, wp, 2);
     }
   }
 
@@ -1468,22 +1464,24 @@ function dibujar() {
       g.restore(); g.setLineDash([]);
     }
 
-    // Etiqueta: importe + insignias, con relieve
+    // Etiqueta: importe + insignias, ANCLADA a la derecha (junto al eje),
+    // dentro del gráfico, sobre la línea de la zona. Nunca se corta.
     const et = dinero(z.v);
     const badges = (z.confluencia ? ' \u25c8' : '') + (z.libro ? ' \u25a3' : '');
     g.font = 'bold 11.5px ui-monospace,monospace';
     const wCaja = g.measureText(et + badges).width + 34;
+    const xCaja = x1 - wCaja - 6;
     g.save();
     g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 7; g.shadowOffsetY = 1.5;
     g.fillStyle = col;
-    redondeado(g, xVelas + 12, yC - 11, wCaja, 22, 6); g.fill();
+    redondeado(g, xCaja, yC - 11, wCaja, 22, 6); g.fill();
     g.restore();
-    if (fuerte) { g.strokeStyle = 'rgba(232,184,75,.85)'; g.lineWidth = 1.4; redondeado(g, xVelas + 12, yC - 11, wCaja, 22, 6); g.stroke(); }
+    if (fuerte) { g.strokeStyle = 'rgba(232,184,75,.85)'; g.lineWidth = 1.4; redondeado(g, xCaja, yC - 11, wCaja, 22, 6); g.stroke(); }
     g.fillStyle = rota ? '#0b0e12' : (dem ? '#04210f' : '#2a0509');
     g.font = 'bold 10px system-ui,sans-serif'; g.textAlign = 'center';
-    g.fillText(rota ? '\u2715' : (dem ? '\u25b2' : '\u25bc'), xVelas + 23, yC + 3.5);
+    g.fillText(rota ? '\u2715' : (dem ? '\u25b2' : '\u25bc'), xCaja + 11, yC + 3.5);
     g.font = 'bold 11.5px ui-monospace,monospace'; g.textAlign = 'left';
-    g.fillText(et + badges, xVelas + 33, yC + 4);
+    g.fillText(et + badges, xCaja + 21, yC + 4);
 
     // Chip de estado (pulsante)
     if (activa) {
@@ -1513,6 +1511,25 @@ function dibujar() {
   g.setLineDash([6, 4]); g.lineWidth = 1.4;
   g.beginPath(); g.moveTo(0, yP); g.lineTo(x1, yP); g.stroke();
   g.setLineDash([]);
+
+  /* ── NIVELES INSTITUCIONALES: solo la LÍNEA en el gráfico (la denominación
+     va como tachuela en el eje, más abajo). VWAP sólida con glow; VAH/VAL en
+     punteado fino y elegante. ── */
+  if (M.mercado) {
+    const mk = M.mercado;
+    const refLinea = (p, col, patron, glow) => {
+      if (!(p > 0) || p < pMin || p > pMax) return;
+      const y = Y(p);
+      g.save();
+      if (glow) { g.shadowColor = col; g.shadowBlur = 8; }
+      g.strokeStyle = col; g.lineWidth = 1.5; if (patron.length) g.setLineDash(patron);
+      g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
+      g.restore(); g.setLineDash([]);
+    };
+    refLinea(mk.vah, 'rgba(201,162,75,.5)', [1, 6], false);
+    refLinea(mk.val, 'rgba(201,162,75,.5)', [1, 6], false);
+    refLinea(mk.vwap, 'rgba(120,170,255,.92)', [], true);
+  }
 
   /* ── La escala, con los niveles marcados ── */
   g.fillStyle = P.ejeBg;
@@ -1545,6 +1562,30 @@ function dibujar() {
   g.fillStyle = '#2a1c00';
   g.font = 'bold 12px ui-monospace,monospace';
   g.fillText(fmt(M.precio), x1 + 7, yP + 4);
+
+  /* Denominación de los niveles institucionales, como tachuela en el EJE
+     (borde derecho), junto al precio. En el gráfico solo queda la línea. */
+  if (M.mercado) {
+    const mk = M.mercado;
+    const usadas = [];
+    const refTag = (p, txt, col) => {
+      if (!(p > 0) || p < pMin || p > pMax) return;
+      let y = Y(p);
+      if (Math.abs(y - yP) < 10) return;                 // no pisar el precio
+      while (usadas.some((u) => Math.abs(u - y) < 13)) y -= 13;   // evitar solaparse
+      usadas.push(y);
+      g.font = 'bold 8px ui-monospace,monospace';
+      const w = g.measureText(txt).width + 9;
+      g.fillStyle = col;
+      redondeado(g, W - w - 3, y - 7, w, 14, 3); g.fill();
+      g.fillStyle = '#08111f'; g.textAlign = 'center';
+      g.fillText(txt, W - w / 2 - 3, y + 2.7);
+      g.textAlign = 'left';
+    };
+    refTag(mk.vwap, 'VWAP', '#7fbaff');
+    refTag(mk.vah, 'VAH', '#dcb85e');
+    refTag(mk.val, 'VAL', '#dcb85e');
+  }
 
   /* ── Las horas ── */
   g.fillStyle = P.ejeBg;
@@ -2430,12 +2471,14 @@ function estilos() {
   #mu-overlay .mu-ck-ctx b span{margin:0 3px;font-weight:800}
   /* Banner de alerta */
   #mu-overlay .mu-alerta{position:absolute;left:50%;top:60px;transform:translate(-50%,-14px);
-    z-index:60;padding:9px 16px;border-radius:11px;pointer-events:none;opacity:0;
-    font-family:var(--display,sans-serif);font-weight:700;font-size:13px;color:#0b0e12;
-    background:linear-gradient(180deg,#fff,#e6e9ee);border:1px solid var(--ac,#E8B84B);
-    box-shadow:0 8px 26px rgba(0,0,0,.5), 0 0 0 2px var(--ac,#E8B84B);transition:opacity .25s ease,transform .25s ease}
+    z-index:60;padding:9px 15px 9px 14px;border-radius:11px;pointer-events:none;opacity:0;
+    font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;color:#eef2f7;
+    background:linear-gradient(180deg,rgba(22,28,36,.98),rgba(12,16,22,.98));
+    border:1px solid var(--ac,#E8B84B);
+    box-shadow:0 10px 30px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04), inset 0 0 18px color-mix(in srgb, var(--ac,#E8B84B) 14%, transparent);
+    transition:opacity .3s ease,transform .3s ease}
   #mu-overlay .mu-alerta.on{opacity:1;transform:translate(-50%,0)}
-  #mu-overlay .mu-alerta::before{content:'\\1F514';margin-right:7px}
+  #mu-overlay .mu-alerta::before{content:'\\25C9';color:var(--ac,#E8B84B);margin-right:8px;font-size:11px}
   #mu-overlay .mu-lista{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px}
   #mu-overlay .mu-grupo{font-family:var(--mono,monospace);font-size:9.5px;color:#5c6672;
     text-transform:uppercase;letter-spacing:1.2px;margin:12px 4px 8px}
@@ -2702,6 +2745,33 @@ function estilos() {
   #mu-picker .mu-op svg{width:14px;height:14px;flex:0 0 auto;color:var(--gold,#E8B84B)}
 
   /* ── Ayuda ── */
+  /* Modal de validación de volumen */
+  #mu-val-box{position:fixed;inset:0;z-index:9780;display:flex;align-items:center;justify-content:center;padding:16px}
+  #mu-val-box .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.9)}
+  #mu-val-box .mv-c{position:relative;width:100%;max-width:520px;background:linear-gradient(180deg,#12171f,#0b0e12);
+    border:1px solid #232b35;border-radius:18px;padding:26px 22px 22px;box-shadow:0 24px 70px rgba(0,0,0,.65)}
+  #mu-val-box .mv-x{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:10px;
+    background:#1a212b;border:1px solid #2b3540;color:#aeb6c0;font-size:14px;cursor:pointer}
+  #mu-val-box .mv-eyebrow{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+  #mu-val-box .mv-t{font-family:var(--display,sans-serif);font-weight:800;font-size:20px;color:#f2f5f9;margin:0 0 10px}
+  #mu-val-box .mv-d{font-family:var(--sans,sans-serif);font-size:13.5px;line-height:1.6;color:#c2c9d2;margin:0 0 14px}
+  #mu-val-box .mv-d b{color:#fff} #mu-val-box code{font-family:var(--mono,monospace);font-size:12px;
+    background:rgba(232,184,75,.12);color:#E8B84B;padding:1px 6px;border-radius:5px}
+  #mu-val-box .mv-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+  #mu-val-box .mv-nums div{text-align:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);
+    border-radius:10px;padding:10px 6px}
+  #mu-val-box .mv-nums b{display:block;font-family:var(--mono,monospace);font-weight:800;font-size:15px;color:#eaecef}
+  #mu-val-box .mv-nums span{font-family:var(--mono,monospace);font-size:8px;color:#5c6672;text-transform:uppercase;letter-spacing:.4px}
+  #mu-val-box .mv-note{font-family:var(--sans,sans-serif);font-size:12px;line-height:1.55;color:#9aa3ad;margin:0 0 12px}
+  #mu-val-box .mv-note b{color:#c2c9d2}
+  #mu-val-box .mv-links{display:flex;flex-wrap:wrap;gap:8px}
+  #mu-val-box .mv-links a{flex:1;min-width:130px;text-align:center;text-decoration:none;
+    font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;color:#0b0e12;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B));padding:10px 8px;border-radius:10px;
+    box-shadow:0 3px 0 #8f6a1a}
+  #mu-val-box .mv-links a:nth-child(n+2){background:linear-gradient(180deg,#2a323d,#1c232c);color:#dfe4ea;box-shadow:0 3px 0 #10151b}
+
   #mu-ayuda-box{position:fixed;inset:0;z-index:9770;display:flex;align-items:center;justify-content:center;padding:16px}
   #mu-ayuda-box .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.93)}
   #mu-ayuda-box .mua-c{position:relative;width:100%;max-width:560px;max-height:calc(100vh - 32px);
@@ -2839,6 +2909,51 @@ function estilos() {
     #mu-ayuda-box .mua-tabs{margin-right:46px;flex-direction:column}
   }`;
   document.head.appendChild(s);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VALIDAR VOLUMEN — transparencia total sobre la fuente del dato
+
+   El volumen que se muestra NO es un invento: es el volumen en dólares
+   (quote asset volume) REALMENTE negociado, tomado de la API pública de
+   Binance (klines). Aquí se explica y se dan enlaces para cruzarlo.
+   ══════════════════════════════════════════════════════════════ */
+function validarVolumen() {
+  const par = PARES.find((p) => p.id === _par) || PARES[0];
+  const sym = par.s;                                   // p.ej. BNBUSDT
+  const base = sym.replace(/USDT$|USDC$|FDUSD$|BUSD$/, '');
+  const quote = sym.slice(base.length) || 'USDT';
+  const mk = M.mercado;
+  const zTot = (M.velas || []).reduce((s, v) => s + (v.vol || 0), 0);
+  const zFuerte = (M.zonas || []).slice().sort((a, b) => b.v - a.v)[0];
+  const urlKlines = `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${M.tf}&limit=400`;
+  const urlBinance = `https://www.binance.com/es/trade/${base}_${quote}`;
+  const urlTV = `https://www.tradingview.com/symbols/${base}${quote}/`;
+  document.getElementById('mu-val-box')?.remove();
+  const d = document.createElement('div');
+  d.id = 'mu-val-box';
+  d.innerHTML = `<div class="mu-bg"></div>
+    <div class="mv-c">
+      <button class="mv-x" aria-label="Cerrar">\u2715</button>
+      <div class="mv-eyebrow">Validar volumen \u00b7 ${esc(base)} \u00b7 ${esc(M.tf)}</div>
+      <h3 class="mv-t">Este dato es real y verificable</h3>
+      <p class="mv-d">El importe de cada zona es el <b>volumen en d\u00f3lares realmente negociado</b> en ese rango de precio (quote asset volume), no una estimaci\u00f3n ni un placeholder. Sale de la <b>API p\u00fablica de Binance</b> (endpoint <code>klines</code>) para ${esc(base)}/${esc(quote)} en ${esc(M.tf)}, sumado por nivel de precio con el perfil de volumen.</p>
+      <div class="mv-nums">
+        <div><b>${dinero(zTot)}</b><span>volumen total de la ventana</span></div>
+        <div><b>${zFuerte ? dinero(zFuerte.v) : '\u2014'}</b><span>volumen de la zona m\u00e1s fuerte</span></div>
+        <div><b>${mk && mk.vwap ? fmt(mk.vwap) : '\u2014'}</b><span>VWAP anclado</span></div>
+      </div>
+      <p class="mv-note">Nota: el importe es volumen <b>acumulado</b> negociado en la zona (compras y ventas), no una orden puesta ahora. Para cruzarlo, abre la misma fuente:</p>
+      <div class="mv-links">
+        <a href="${urlKlines}" target="_blank" rel="noopener">Datos crudos (Binance API)</a>
+        <a href="${urlBinance}" target="_blank" rel="noopener">Binance ${esc(base)}/${esc(quote)}</a>
+        <a href="${urlTV}" target="_blank" rel="noopener">TradingView</a>
+      </div>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => d.remove();
+  d.querySelector('.mu-bg').onclick = cerrar;
+  d.querySelector('.mv-x').onclick = cerrar;
 }
 
 /* ══════════════════════════════════════════════════════════════
