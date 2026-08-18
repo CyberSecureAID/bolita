@@ -675,6 +675,10 @@ function detectarZonas(velas, precio, opts) {
   const zonasF = fusionar(zonas);
   zonas.length = 0; Array.prototype.push.apply(zonas, zonasF);
 
+  /* ANCLAJE: si es la moneda/temporalidad activa, se pegan las zonas a su sitio
+     estable (no saltan ni cambian de ancho de golpe). */
+  if (opts.ancla) anclarZonas(zonas, precio, opts.ancla);
+
   /* El alcance útil de una zona depende de la temporalidad: en 15m un 8% ya es
      lejos, pero en 1D los movimientos son mucho mayores y hay que abrir el
      rango, o el diario aparece vacío. Aun así, nunca tan lejos que sea ruido. */
@@ -1035,7 +1039,7 @@ async function cargarVelas() {
         } catch (_) {}
       }
       /* Las zonas salen de las VELAS: se llenan en ~1 s, sin depender del libro. */
-      const r = detectarZonas(M.velas, px, { htf: M.zonasHTF, libro: murosDelLibro() });
+      const r = detectarZonas(M.velas, px, { htf: M.zonasHTF, libro: murosDelLibro(), ancla: _par + "|" + M.tf });
       M.zonas = r.zonas; M.perfil = r.perfil;
       /* NIVELES INSTITUCIONALES + BACKTEST, y boost de confianza cuando una
          zona coincide con VWAP / borde del área de valor / POC. */
@@ -1129,6 +1133,60 @@ async function traerContexto() {
    (banner + pitido corto) cuando el precio entra en una zona fuerte o una
    zona se rompe. */
 const _vidaZonas = new Map();
+
+/* ══════════════════════════════════════════════════════════════
+   ANCLAJE DE ZONAS — que un nivel real no salte ni cambie de ancho
+
+   Los niveles de soporte/resistencia NO se mueven de sitio. Pero la detección,
+   al recalcular con el precio vivo, puede reubicar/redimensionar una zona un
+   poco cada vez y eso "baila". Aquí cada zona detectada se EMPAREJA con su
+   ancla previa (mismo lado, POC cercano) y se PEGA a esa geometría estable,
+   que solo deriva muy despacio. Las anclas viejas con muchos toques ganan
+   prioridad (son S/R reales donde el precio ha reaccionado muchas veces).
+   La DETECCIÓN real no cambia: esto solo estabiliza posición y tamaño.
+   ══════════════════════════════════════════════════════════════ */
+const _anclas = new Map();       // clave 'PAR|TF' -> lista de anclas estables
+function anclarZonas(zonas, precio, clave) {
+  if (!clave) return;
+  const ahora = Date.now();
+  let anc = _anclas.get(clave);
+  if (!anc) { anc = []; _anclas.set(clave, anc); }
+  anc.forEach((a) => { a._m = false; });
+  const tol = 0.005;             // POC dentro del 0,5% se considera la misma zona
+  const k = 0.08;                // suavizado fuerte: la geometría se mueve muy poco
+  zonas.forEach((z) => {
+    let mejor = null, mejorD = Infinity;
+    anc.forEach((a) => {
+      if (a._m || a.lado !== z.lado) return;
+      const d = Math.abs(a.pPoc - z.pPoc) / (precio || 1);
+      if (d < tol && d < mejorD) { mejorD = d; mejor = a; }
+    });
+    if (mejor) {
+      mejor._m = true; mejor.visto = ahora;
+      mejor.pLow = mejor.pLow * (1 - k) + z.pLow * k;
+      mejor.pHigh = mejor.pHigh * (1 - k) + z.pHigh * k;
+      mejor.pPoc = mejor.pPoc * (1 - k) + z.pPoc * k;
+      if (z.dentro || z.retest) mejor.toques = (mejor.toques || 0) + 1;
+      // pegar la zona a la geometría estable del ancla
+      z.pLow = mejor.pLow; z.pHigh = mejor.pHigh; z.pPoc = mejor.pPoc;
+      z.p = (z.pLow + z.pHigh) / 2;
+      z.dist = (z.p - precio) / precio;
+      z.dentro = precio >= z.pLow && precio <= z.pHigh;
+      z.retest = !z.dentro && Math.abs(z.dist) < 0.0035;
+      // prioridad a niveles longevos y muy reaccionados (S/R reales)
+      const edadMin = (ahora - (mejor.nace || ahora)) / 60000;
+      const bono = Math.min(14, (mejor.toques || 0) * 1.5 + Math.min(6, edadMin / 5));
+      z.confianza = Math.min(100, z.confianza + bono);
+      z.fuerza = Math.max(1, Math.min(5, Math.round(z.confianza / 20)));
+      z.anclada = edadMin > 3;   // lleva un rato fija: es un nivel de referencia
+    } else {
+      anc.push({ lado: z.lado, pLow: z.pLow, pHigh: z.pHigh, pPoc: z.pPoc, nace: ahora, visto: ahora, toques: 0, _m: true });
+    }
+  });
+  // conservar las anclas no vistas un rato (para que no parpadeen), podar las viejas
+  const vivos = anc.filter((a) => ahora - a.visto < 300000);
+  _anclas.set(clave, vivos);
+}
 let _alerta = null, _alertaTs = 0, _alertaDesde = 0;
 /* Al abrir o cambiar de par/temporalidad, se silencian las alertas unos
    segundos y se limpia el ciclo de vida, para no lanzar un aviso de golpe. */
@@ -1223,7 +1281,7 @@ function arrancar() {
     if (!(M.precio > 0) && M.velas.length) M.precio = M.velas[M.velas.length - 1].c;
 
     if (M.velas.length && M.precio > 0) {
-      const r = detectarZonas(M.velas, M.precio, { htf: M.zonasHTF, libro: murosDelLibro() });
+      const r = detectarZonas(M.velas, M.precio, { htf: M.zonasHTF, libro: murosDelLibro(), ancla: _par + "|" + M.tf });
       M.zonas = r.zonas; M.perfil = r.perfil;   // zonas + confluencia + libro, con precio vivo
       M.mercado = analizarMercado(M.velas, M.precio, M.perfil);
       aplicarReferencias(M.zonas, M.mercado, M.precio);
@@ -3012,24 +3070,49 @@ function estilos() {
   }
   #mu-ana-box{position:fixed;inset:0;z-index:9785;display:flex;align-items:center;justify-content:center;padding:16px}
   #mu-ana-box .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.9)}
-  #mu-ana-box .an-c{position:relative;width:100%;max-width:500px;max-height:calc(100vh - 32px);overflow-y:auto;
-    background:linear-gradient(180deg,#12171f,#0b0e12);border:1px solid #232b35;border-top:2px solid var(--an,#E8B84B);
-    border-radius:18px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.65)}
-  #mu-ana-box .mv-x{position:absolute;top:13px;right:13px;width:32px;height:32px;border-radius:9px;
-    background:#1a212b;border:1px solid #2b3540;color:#aeb6c0;font-size:13px;cursor:pointer}
-  #mu-ana-box .an-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-right:34px}
-  #mu-ana-box .an-ava{width:46px;height:46px;border-radius:50%;object-fit:cover;flex:0 0 auto;
-    border:2px solid var(--an,#E8B84B);box-shadow:0 0 14px color-mix(in srgb,var(--an,#E8B84B) 40%,transparent)}
-  #mu-ana-box .an-rol{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;letter-spacing:1px}
-  #mu-ana-box .an-tit{font-family:var(--display,sans-serif);font-weight:800;font-size:19px;color:var(--an,#E8B84B);margin-top:2px}
-  #mu-ana-box .an-body{font-family:var(--sans,sans-serif);font-size:13.5px;line-height:1.62;color:#c8cfd8}
-  #mu-ana-box .an-body p{margin:0 0 11px}
-  #mu-ana-box .an-body b{color:#fff}
-  #mu-ana-box .an-body .an-como{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
-    border-radius:10px;padding:10px 12px;font-size:12.5px;color:#aeb6c0}
-  #mu-ana-box .an-body .an-como b{color:#dfe4ea}
-  #mu-ana-box .an-pie{margin-top:12px;padding-top:11px;border-top:1px solid #1c232c;
-    font-family:var(--sans,sans-serif);font-size:11px;color:#7d8794;line-height:1.5}
+  #mu-ana-box .an-c{position:relative;width:100%;max-width:440px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    background:linear-gradient(180deg,#12171f,#0b0e12);border:1px solid #232b35;border-radius:18px;overflow:hidden;
+    box-shadow:0 24px 70px rgba(0,0,0,.65)}
+  #mu-ana-box .an-top{display:flex;align-items:center;gap:11px;padding:13px 14px;border-bottom:1px solid #1c232c;
+    background:linear-gradient(180deg,rgba(255,255,255,.04),transparent)}
+  #mu-ana-box .an-ava{width:40px;height:40px;border-radius:50%;object-fit:cover;flex:0 0 auto;
+    border:2px solid var(--an,#E8B84B);box-shadow:0 0 12px color-mix(in srgb,var(--an,#E8B84B) 40%,transparent)}
+  #mu-ana-box .an-top-t{flex:1;min-width:0}
+  #mu-ana-box .an-nombre{font-family:var(--display,sans-serif);font-weight:800;font-size:15px;color:#f2f5f9}
+  #mu-ana-box .an-estado{font-family:var(--mono,monospace);font-size:10px;color:var(--an,#E8B84B);margin-top:1px}
+  #mu-ana-box .mv-x{width:30px;height:30px;border-radius:8px;background:#1a212b;border:1px solid #2b3540;color:#aeb6c0;font-size:12px;cursor:pointer;flex:0 0 auto}
+  #mu-ana-box .an-chat{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px;min-height:120px}
+  #mu-ana-box .an-burb{align-self:flex-start;max-width:92%;background:#1a212b;border:1px solid #262f3a;
+    border-radius:13px 13px 13px 4px;padding:9px 12px;font-family:var(--sans,sans-serif);font-size:13.5px;
+    line-height:1.55;color:#d3d9e0}
+  #mu-ana-box .an-burb b{color:#fff}
+  #mu-ana-box .an-acc{padding:0 14px 14px}
+  #mu-ana-box .an-btn{width:100%;padding:12px;border:none;border-radius:12px;cursor:pointer;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:14px;color:#0b0e12;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B));box-shadow:0 3px 0 #8f6a1a}
+  #mu-ana-box .an-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #8f6a1a}
+  #mu-overlay.mu-claro ~ #mu-ana-box .an-burb{background:#eef1f5;border-color:rgba(0,0,0,.1);color:#1a2028}
+
+  /* Herramienta de posición proyectada («Muéstrame»), por ENCIMA de todo */
+  #mu-plan{position:fixed;inset:0;z-index:10000;cursor:pointer}
+  #mu-plan .mu-plan-svg{position:absolute;inset:0;pointer-events:none;overflow:visible;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}
+  #mu-plan .mu-plan-tool{position:absolute;pointer-events:none}
+  #mu-plan .mu-plan-cab{position:absolute;top:-24px;left:0;font-family:var(--mono,monospace);font-weight:800;font-size:10px;
+    color:#0b0e12;background:var(--c,#E8B84B);padding:3px 9px;border-radius:6px;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.5)}
+  #mu-plan .mu-plan-prof,#mu-plan .mu-plan-loss{position:absolute;left:0;width:100%;display:flex;align-items:flex-start;justify-content:flex-end}
+  #mu-plan .mu-plan-prof{background:rgba(46,232,106,.18);border:1px solid rgba(46,232,106,.55)}
+  #mu-plan .mu-plan-loss{background:rgba(246,70,93,.18);border:1px solid rgba(246,70,93,.55)}
+  #mu-plan .mu-plan-prof span,#mu-plan .mu-plan-loss span,#mu-plan .mu-plan-ent span{
+    font-family:var(--mono,monospace);font-weight:800;font-size:10.5px;padding:2px 7px;border-radius:5px;margin:3px;white-space:nowrap;
+    box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  #mu-plan .mu-plan-prof span{background:#2ee86a;color:#04210f}
+  #mu-plan .mu-plan-loss span{background:#f6465d;color:#2a0509}
+  #mu-plan .mu-plan-ent{position:absolute;top:0;left:0;width:100%;border-top:2px dashed #E8B84B;display:flex;justify-content:flex-end}
+  #mu-plan .mu-plan-ent span{background:#E8B84B;color:#2a1c00;transform:translateY(-50%)}
+  #mu-plan .mu-plan-nota{position:absolute;left:0;bottom:-34px;font-family:var(--sans,sans-serif);font-size:9.5px;color:#c8cfd8;
+    background:rgba(11,14,18,.9);padding:4px 8px;border-radius:6px;max-width:min(240px,70vw);line-height:1.35;
+    border:1px solid rgba(255,255,255,.08)}
+
   #mu-val-box .mv-note{font-family:var(--sans,sans-serif);font-size:12px;line-height:1.55;color:#9aa3ad;margin:0 0 12px}
   #mu-val-box .mv-note b{color:#c2c9d2}
   #mu-val-box .mv-links{display:flex;flex-wrap:wrap;gap:8px}
@@ -3182,12 +3265,12 @@ function estilos() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   ANALISTA — lee la estructura actual y dice qué hacer
+   ANALISTA — chatbot que lee la estructura y dice qué hacer
 
-   No es un chat: interpreta lo que el sistema YA muestra (zonas reales,
-   VWAP, sesgo, dónde está el precio) y da una lectura operativa: si hay
-   entrada, en qué nivel, con qué idea de stop y objetivo, y cómo colocar
-   la orden. Si no hay una entrada limpia, lo dice con honestidad.
+   Interpreta lo que el sistema YA muestra (zonas reales ancladas, VWAP,
+   sesgo, dónde está el precio) y lo explica como si lo escribiera un analista.
+   Devuelve además un PLAN operativo (entrada/SL/TP con R:R 1:1) para la
+   herramienta «Muéstrame». Si no hay entrada limpia, lo dice con honestidad.
    ══════════════════════════════════════════════════════════════ */
 function analizarRadar() {
   const par = PARES.find((p) => p.id === _par) || PARES[0];
@@ -3195,89 +3278,199 @@ function analizarRadar() {
   const px = M.precio || (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
   const mk = M.mercado;
   const zonas = (M.zonas || []).filter((z) => !z.rota);
+  const vwapTxt = mk && mk.vwap ? (px >= mk.vwap ? 'El precio está **por encima del VWAP**, lo que favorece a los compradores.' : 'El precio está **por debajo del VWAP**, lo que favorece a los vendedores.') : '';
+
   if (!px || !zonas.length) {
-    return { titulo: 'Sin lectura clara', cuerpo: `<p>Ahora mismo no hay zonas de acumulación cercanas y fiables en <b>${esc(base)} · ${esc(M.tf)}</b>. Sin un nivel con volumen de referencia, lo prudente es <b>esperar</b>: no hay una entrada con ventaja aquí.</p>`, tono: 'espera' };
+    return { titulo: 'Sin lectura clara', tono: 'espera', base,
+      parrafos: [`Ahora mismo no veo zonas de acumulación fiables y cercanas en **${base} · ${M.tf}**.`, `Sin un nivel con volumen de referencia, lo prudente es **esperar**. No hay una entrada con ventaja aquí.`],
+      op: null };
   }
+
   const dentro = zonas.find((z) => z.dentro);
   const dem = zonas.filter((z) => z.lado === 'demanda').sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))[0];
   const ofe = zonas.filter((z) => z.lado === 'oferta').sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))[0];
-  const fuerte = zonas.slice().sort((a, b) => b.confianza - a.confianza)[0];
-  const anchoZona = (z) => ((z.pHigh - z.pLow) / z.p);
-  const vwapTxt = mk && mk.vwap ? (px >= mk.vwap ? 'por <b>encima del VWAP</b> (favorece a los compradores)' : 'por <b>debajo del VWAP</b> (favorece a los vendedores)') : '';
-  const comoWeb = 'Para operar desde la web: coloca el cursor sobre la banda, haz clic derecho y pulsa <b>«Comprar aquí»</b>, luego <b>Establecer posición</b> para fijar tu orden en ese precio.';
-  const comoMovil = 'Desde el móvil: fíjate en el precio del <b>inicio de la banda</b> y deja una orden de entrada en ese nivel.';
 
-  let titulo, cuerpo, tono;
+  /* Construye un plan R:R 1:1 acotando el riesgo: el stop se apoya en el borde
+     de la zona, pero se limita a un máximo sensato (no un stop gigantesco si el
+     rango es enorme). */
+  const planLong = (z) => {
+    const entrada = z.pPoc;
+    const rango = z.pHigh - z.pLow;
+    const riesgoMax = px * 0.02;                       // tope de riesgo: 2% del precio
+    const riesgo = Math.min(Math.max(entrada - z.pLow, px * 0.003) + px * 0.001, riesgoMax);
+    const sl = entrada - riesgo;
+    const tp = entrada + riesgo;                        // R:R 1:1
+    return { tipo: 'long', zona: z, entrada, sl, tp, ancho: rango / z.p };
+  };
+  const planShort = (z) => {
+    const entrada = z.pPoc;
+    const rango = z.pHigh - z.pLow;
+    const riesgoMax = px * 0.02;
+    const riesgo = Math.min(Math.max(z.pHigh - entrada, px * 0.003) + px * 0.001, riesgoMax);
+    const sl = entrada + riesgo;
+    const tp = entrada - riesgo;
+    return { tipo: 'short', zona: z, entrada, sl, tp, ancho: rango / z.p };
+  };
+  const avisoAncho = (op) => op.ancho > 0.02
+    ? 'Ojo: el rango de esta zona es amplio, así que el stop queda ancho. Arriesga poco capital y no entres todo de golpe.'
+    : 'Sé prudente con el tamaño de la posición: arriesga solo una parte pequeña de tu capital.';
+  const notaSpot = 'Si operas en **spot**, no necesitas stop loss (compras y mantienes). Si usas **apalancamiento**, respeta estos niveles al pie de la letra.';
+
+  let titulo, tono, parrafos, op;
 
   if (dentro && dentro.lado === 'demanda' && dentro.fuerza >= 3) {
-    const ancho = anchoZona(dentro);
-    const stop = fmt(dentro.pLow * 0.997);
-    const tp = fmt(Math.max(mk ? mk.sHi : px * 1.01, (ofe ? ofe.pLow : px * 1.01)));
-    titulo = 'Zona de alta demanda';
-    tono = 'compra';
-    cuerpo =
-      `<p>El precio está <b>dentro de una zona de demanda fuerte</b> en <b>${esc(base)} · ${esc(M.tf)}</b>, con <b>${dinero(dentro.v)}</b> acumulados en el rango <b>${fmt(dentro.pLow)} – ${fmt(dentro.pHigh)}</b>. Es un nivel con mucho volumen debajo del precio: escenario de posible <b>compra (long)</b> apoyada en esa demanda${vwapTxt ? ', y el precio está ' + vwapTxt : ''}.</p>` +
-      `<p><b>Entrada:</b> ubícate en el inicio de la banda, cerca de <b>${fmt(dentro.pLow)}</b> (o en el punto de control <b>${fmt(dentro.pPoc)}</b>). <b>Stop:</b> por debajo de la zona, hacia <b>${stop}</b>. <b>Objetivo:</b> el máximo de la estructura, sobre <b>${tp}</b>.</p>` +
-      (ancho > 0.02 ? `<p>Ojo: el rango es amplio porque recoge una oscilación grande. Sé <b>prudente con el capital</b> que arriesgas y no entres todo de golpe.</p>` : `<p>Sé prudente con el tamaño de la posición: arriesga solo una parte pequeña de tu capital.</p>`) +
-      `<p class="an-como">${comoWeb} ${comoMovil}</p>`;
+    op = planLong(dentro); titulo = 'Zona de alta demanda'; tono = 'compra';
+    parrafos = [
+      `Estamos en **${base} · ${M.tf}**. El precio está **dentro de una zona de demanda fuerte** en **${fmt(dentro.pPoc)}** (rango ${fmt(dentro.pLow)}–${fmt(dentro.pHigh)}), con **${dinero(dentro.v)}** acumulados.`,
+      `Es un nivel con mucho volumen comprador. Escenario de posible **compra (long)** apoyada en esta demanda.` + (vwapTxt ? ' ' + vwapTxt : ''),
+      `Plan: entrada cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (riesgo/beneficio 1:1).`,
+      avisoAncho(op), notaSpot
+    ];
   } else if (dentro && dentro.lado === 'oferta' && dentro.fuerza >= 3) {
-    const stop = fmt(dentro.pHigh * 1.003);
-    const tp = fmt(Math.min(mk ? mk.sLo : px * 0.99, (dem ? dem.pHigh : px * 0.99)));
-    titulo = 'Zona de alta oferta';
-    tono = 'venta';
-    cuerpo =
-      `<p>El precio está <b>dentro de una zona de oferta fuerte</b> en <b>${esc(base)} · ${esc(M.tf)}</b>, con <b>${dinero(dentro.v)}</b> acumulados en <b>${fmt(dentro.pLow)} – ${fmt(dentro.pHigh)}</b>. Hay mucho volumen vendedor encima: si estás comprado, <b>cuidado</b>; es zona de posible <b>toma de beneficios o venta (short)</b>${vwapTxt ? ', y el precio está ' + vwapTxt : ''}.</p>` +
-      `<p><b>Entrada (short):</b> cerca de <b>${fmt(dentro.pHigh)}</b> o del control <b>${fmt(dentro.pPoc)}</b>. <b>Stop:</b> por encima, hacia <b>${stop}</b>. <b>Objetivo:</b> hacia <b>${tp}</b>.</p>` +
-      `<p class="an-como">${comoWeb} ${comoMovil}</p>`;
+    op = planShort(dentro); titulo = 'Zona de alta oferta'; tono = 'venta';
+    parrafos = [
+      `Estamos en **${base} · ${M.tf}**. El precio está **dentro de una zona de oferta fuerte** en **${fmt(dentro.pPoc)}** (rango ${fmt(dentro.pLow)}–${fmt(dentro.pHigh)}), con **${dinero(dentro.v)}** acumulados.`,
+      `Hay mucho volumen vendedor aquí. Si estás comprado, **cuidado**: es zona de posible **toma de beneficios o venta (short)**.` + (vwapTxt ? ' ' + vwapTxt : ''),
+      `Plan: entrada corta cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (1:1).`,
+      avisoAncho(op), notaSpot
+    ];
   } else if (dem && Math.abs(dem.dist) < (ofe ? Math.abs(ofe.dist) : 99) && dem.fuerza >= 3) {
-    const tp = fmt(mk ? mk.sHi : px * 1.02);
-    titulo = 'Demanda debajo del precio';
-    tono = 'compra';
-    cuerpo =
-      `<p>El precio se impulsó <b>por encima de una zona de demanda</b> en <b>${fmt(dem.pLow)} – ${fmt(dem.pHigh)}</b> (${dinero(dem.v)}). Esa zona queda ahora como <b>soporte</b> a un <b>${(Math.abs(dem.dist) * 100).toFixed(2)}%</b> por debajo${vwapTxt ? '. El precio está ' + vwapTxt : ''}.</p>` +
-      `<p><b>Plan:</b> si el precio <b>vuelve a probar</b> esa zona (retesteo) y aguanta, es una posible <b>entrada en largo</b>. Entrada cerca de <b>${fmt(dem.pHigh)}</b>, stop bajo <b>${fmt(dem.pLow * 0.997)}</b>, objetivo hacia <b>${tp}</b>.</p>` +
-      `<p>Mientras no vuelva, no persigas el precio: espera el retesteo.</p>` +
-      `<p class="an-como">${comoWeb} ${comoMovil}</p>`;
+    op = planLong(dem); titulo = 'Demanda debajo del precio'; tono = 'compra';
+    parrafos = [
+      `Estamos en **${base} · ${M.tf}**. Hay una **zona de demanda** en **${fmt(dem.pPoc)}** (rango ${fmt(dem.pLow)}–${fmt(dem.pHigh)}) con **${dinero(dem.v)}**, a un **${(Math.abs(dem.dist) * 100).toFixed(2)}%** por debajo.`,
+      `El precio se impulsó por encima, así que esa zona queda como apoyo. Si **vuelve a probarla** y aguanta, es una posible **entrada en largo**.` + (vwapTxt ? ' ' + vwapTxt : ''),
+      `Plan: entrada en el retesteo cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (1:1).`,
+      `Mientras no vuelva, no persigas el precio: espera el retesteo.`, notaSpot
+    ];
   } else if (ofe && ofe.fuerza >= 3) {
-    titulo = 'Oferta encima del precio';
-    tono = 'venta';
-    cuerpo =
-      `<p>Hay una <b>zona de oferta</b> en <b>${fmt(ofe.pLow)} – ${fmt(ofe.pHigh)}</b> (${dinero(ofe.v)}) a un <b>${(Math.abs(ofe.dist) * 100).toFixed(2)}%</b> por encima. Actúa como <b>resistencia</b>: es donde el precio puede frenarse${vwapTxt ? '. El precio está ' + vwapTxt : ''}.</p>` +
-      `<p><b>Plan:</b> si el precio sube hasta ahí y se frena, es zona de posible <b>venta / toma de beneficios</b>. Para un largo, mejor esperar a que <b>rompa y retestee</b> esa oferta por encima.</p>` +
-      `<p class="an-como">${comoMovil}</p>`;
+    op = planShort(ofe); titulo = 'Oferta encima del precio'; tono = 'venta';
+    parrafos = [
+      `Estamos en **${base} · ${M.tf}**. Hay una **zona de oferta** en **${fmt(ofe.pPoc)}** (rango ${fmt(ofe.pLow)}–${fmt(ofe.pHigh)}) con **${dinero(ofe.v)}**, a un **${(Math.abs(ofe.dist) * 100).toFixed(2)}%** por encima.`,
+      `Actúa como resistencia. Si el precio sube hasta ahí y se frena, es zona de posible **venta / toma de beneficios**.` + (vwapTxt ? ' ' + vwapTxt : ''),
+      `Plan: entrada corta cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (1:1).`,
+      avisoAncho(op), notaSpot
+    ];
   } else {
-    titulo = 'Sin entrada limpia';
-    tono = 'espera';
-    cuerpo =
-      `<p>Ahora mismo el precio está <b>en medio del rango</b>, sin una zona fuerte lo bastante cerca para dar una entrada con ventaja en <b>${esc(base)} · ${esc(M.tf)}</b>.</p>` +
-      `<p>Lo profesional aquí es <b>esperar</b>: deja que el precio busque una de las zonas marcadas (demanda debajo u oferta encima) y opera la reacción en ese nivel. Forzar una entrada en el medio es donde se pierde dinero.</p>`;
+    titulo = 'Sin entrada limpia'; tono = 'espera'; op = null;
+    parrafos = [
+      `Estamos en **${base} · ${M.tf}**. El precio está **en medio del rango**, sin una zona fuerte lo bastante cerca para dar una entrada con ventaja.`,
+      `Lo profesional aquí es **esperar**. Deja que el precio busque una de las zonas marcadas (demanda debajo u oferta encima) y opera la reacción en ese nivel.`,
+      `Forzar una entrada en el medio es donde se pierde dinero.`
+    ];
   }
-  return { titulo, cuerpo, tono, base };
+  return { titulo, tono, base, parrafos, op };
 }
 
 function abrirAnalista() {
   const a = analizarRadar();
+  _analisis = a;
   document.getElementById('mu-ana-box')?.remove();
   const col = a.tono === 'compra' ? '#2ee86a' : a.tono === 'venta' ? '#f6465d' : '#E8B84B';
   const d = document.createElement('div');
   d.id = 'mu-ana-box';
   d.innerHTML = `<div class="mu-bg"></div>
     <div class="an-c" style="--an:${col}">
-      <button class="mv-x" aria-label="Cerrar">\u2715</button>
-      <div class="an-head">
+      <div class="an-top">
         <img class="an-ava" src="assets/img/jesus-avatar.webp" alt="">
-        <div>
-          <div class="an-rol">Analista \u00b7 Institutional Radar</div>
-          <div class="an-tit">${esc(a.titulo)}</div>
+        <div class="an-top-t">
+          <div class="an-nombre">Analista</div>
+          <div class="an-estado" id="an-estado">escribiendo\u2026</div>
         </div>
+        <button class="mv-x" aria-label="Cerrar">\u2715</button>
       </div>
-      <div class="an-body">${a.cuerpo}</div>
-      <div class="an-pie">Lectura de la estructura actual. No es una orden autom\u00e1tica: la decisi\u00f3n es tuya.</div>
+      <div class="an-chat" id="an-chat"></div>
+      <div class="an-acc" id="an-acc"></div>
     </div>`;
   document.body.appendChild(d);
-  const cerrar = () => d.remove();
+  const cerrar = () => { clearTimeout(_anaT); d.remove(); };
   d.querySelector('.mu-bg').onclick = cerrar;
   d.querySelector('.mv-x').onclick = cerrar;
+
+  /* Efecto "escribiendo": las burbujas aparecen una a una y el texto se
+     revela como si el analista lo estuviera redactando. */
+  const chat = d.querySelector('#an-chat');
+  const estado = d.querySelector('#an-estado');
+  const acc = d.querySelector('#an-acc');
+  const parseB = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  let i = 0;
+  const escribirParrafo = (txt, cb) => {
+    const b = document.createElement('div');
+    b.className = 'an-burb';
+    chat.appendChild(b);
+    chat.scrollTop = chat.scrollHeight;
+    let n = 0;
+    const paso = () => {
+      n += 2;
+      b.innerHTML = parseB(txt.slice(0, n));
+      chat.scrollTop = chat.scrollHeight;
+      if (n < txt.length) { _anaT = setTimeout(paso, 12); }
+      else { b.innerHTML = parseB(txt); cb && cb(); }
+    };
+    paso();
+  };
+  const siguiente = () => {
+    if (i >= a.parrafos.length) {
+      estado.textContent = 'en línea';
+      if (a.op) {
+        acc.innerHTML = `<button class="an-btn" id="an-mostrar">\u25B8 Mu\u00e9strame en la gr\u00e1fica</button>`;
+        acc.querySelector('#an-mostrar').onclick = () => { cerrar(); mostrarPlan(a); };
+      }
+      return;
+    }
+    estado.textContent = 'escribiendo\u2026';
+    escribirParrafo(a.parrafos[i], () => { i++; _anaT = setTimeout(siguiente, 320); });
+  };
+  _anaT = setTimeout(siguiente, 500);
+}
+let _anaT = null, _analisis = null;
+
+/* «Muéstrame»: dibuja una línea discontinua curva DESDE el ícono del analista
+   hasta el nivel de entrada, y proyecta una herramienta de posición (long/short)
+   con R:R 1:1 (entrada, stop y objetivo), POR ENCIMA de toda la interfaz. Se
+   cierra con un clic fuera. */
+function mostrarPlan(a) {
+  if (!a || !a.op) return;
+  const tabChart = [...document.querySelectorAll('.mu-mtab')].find((x) => /hart|r\u00e1fic|gr\u00e1fic/i.test(x.textContent));
+  if (tabChart && !tabChart.classList.contains('on')) { tabChart.click(); }
+  setTimeout(() => pintarPlan(a), 80);
+}
+function pintarPlan(a) {
+  document.getElementById('mu-plan')?.remove();
+  const cv = $('mu-cv'); const ana = $('mu-analista');
+  if (!cv || !M._geo || !ana) return;
+  const rect = cv.getBoundingClientRect();
+  if (rect.width < 40) return;
+  const { pMin, pMax, y1 } = M._geo;
+  const Yp = (p) => rect.top + (y1 - y1 * ((p - pMin) / Math.max(1e-9, pMax - pMin)));
+  const op = a.op;
+  const yE = Yp(op.entrada), ySL = Yp(op.sl), yTP = Yp(op.tp);
+  const x0 = rect.left + rect.width * 0.46;
+  const x1 = rect.left + rect.width - 92;
+  const ic = ana.getBoundingClientRect();
+  const ax = ic.left + ic.width / 2, ay = ic.bottom;
+  const col = op.tipo === 'long' ? '#2ee86a' : '#f6465d';
+  const profTop = Math.min(yE, yTP), profH = Math.abs(yTP - yE);
+  const lossTop = Math.min(yE, ySL), lossH = Math.abs(ySL - yE);
+  const midX = (ax + x0) / 2;
+  const ov = document.createElement('div');
+  ov.id = 'mu-plan';
+  ov.innerHTML =
+    `<svg class="mu-plan-svg" width="100%" height="100%">
+       <path d="M ${ax} ${ay} Q ${midX} ${ay + (yE - ay) * 0.15}, ${x0} ${yE}" fill="none" stroke="${col}" stroke-width="2" stroke-dasharray="6 5" opacity=".9"/>
+       <circle cx="${x0}" cy="${yE}" r="4" fill="${col}"/>
+     </svg>
+     <div class="mu-plan-tool" style="left:${x0}px;width:${x1 - x0}px">
+       <div class="mu-plan-cab" style="--c:${col}">${op.tipo === 'long' ? 'LONG' : 'SHORT'} \u00b7 R:R 1:1</div>
+       <div class="mu-plan-prof" style="top:${profTop - yE}px;height:${profH}px"><span>TP ${fmt(op.tp)}</span></div>
+       <div class="mu-plan-loss" style="top:${lossTop - yE}px;height:${lossH}px"><span>SL ${fmt(op.sl)}</span></div>
+       <div class="mu-plan-ent"><span>Entrada ${fmt(op.entrada)}</span></div>
+       <div class="mu-plan-nota">Spot: sin stop. Apalancado: respeta estos niveles.</div>
+     </div>`;
+  document.body.appendChild(ov);
+  // el tool se posiciona con la entrada como origen vertical
+  const tool = ov.querySelector('.mu-plan-tool');
+  tool.style.top = yE + 'px';
+  ov.addEventListener('click', () => ov.remove());
 }
 
 /* ══════════════════════════════════════════════════════════════
