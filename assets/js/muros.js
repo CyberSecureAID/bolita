@@ -37,7 +37,7 @@ const PARES = [
   { id: 'AVAX',  s: 'AVAXUSDT',  n: 'Avalanche',  cg: 'avalanche-2' },
   { id: 'LINK',  s: 'LINKUSDT',  n: 'Chainlink',  cg: 'chainlink' },
   { id: 'DOT',   s: 'DOTUSDT',   n: 'Polkadot',   cg: 'polkadot' },
-  { id: 'MATIC', s: 'MATICUSDT', n: 'Polygon',    cg: 'matic-network' },
+  { id: 'POL',   s: 'POLUSDT',   n: 'Polygon',    cg: 'matic-network' },
   { id: 'LTC',   s: 'LTCUSDT',   n: 'Litecoin',   cg: 'litecoin' },
   { id: 'TRX',   s: 'TRXUSDT',   n: 'TRON',       cg: 'tron' },
   { id: 'SHIB',  s: 'SHIBUSDT',  n: 'Shiba Inu',  cg: 'shiba-inu' },
@@ -48,7 +48,65 @@ const PARES = [
   { id: 'OP',    s: 'OPUSDT',    n: 'Optimism',   cg: 'optimism' },
   { id: 'ATOM',  s: 'ATOMUSDT',  n: 'Cosmos',     cg: 'cosmos' },
   { id: 'UNI',   s: 'UNIUSDT',   n: 'Uniswap',    cg: 'uniswap' },
-  { id: 'INJ',   s: 'INJUSDT',   n: 'Injective',  cg: 'injective-protocol' }
+  { id: 'INJ',   s: 'INJUSDT',   n: 'Injective',  cg: 'injective-protocol' },
+  { id: 'TON',   s: 'TONUSDT',   n: 'Toncoin',    cg: 'the-open-network' },
+  { id: 'APT',   s: 'APTUSDT',   n: 'Aptos',      cg: 'aptos' },
+  { id: 'FIL',   s: 'FILUSDT',   n: 'Filecoin',   cg: 'filecoin' },
+  { id: 'ETC',   s: 'ETCUSDT',   n: 'Ethereum Classic', cg: 'ethereum-classic' },
+  { id: 'HBAR',  s: 'HBARUSDT',  n: 'Hedera',     cg: 'hedera-hashgraph' },
+  { id: 'ICP',   s: 'ICPUSDT',   n: 'Internet Computer', cg: 'internet-computer' },
+  { id: 'IMX',   s: 'IMXUSDT',   n: 'Immutable',  cg: 'immutable-x' },
+  { id: 'RENDER',s: 'RENDERUSDT',n: 'Render',     cg: 'render-token' },
+  { id: 'STX',   s: 'STXUSDT',   n: 'Stacks',     cg: 'blockstack' },
+  { id: 'TIA',   s: 'TIAUSDT',   n: 'Celestia',   cg: 'celestia' },
+  { id: 'SEI',   s: 'SEIUSDT',   n: 'Sei',        cg: 'sei-network' },
+  { id: 'ALGO',  s: 'ALGOUSDT',  n: 'Algorand',   cg: 'algorand' },
+  { id: 'VET',   s: 'VETUSDT',   n: 'VeChain',    cg: 'vechain' },
+  { id: 'GALA',  s: 'GALAUSDT',  n: 'Gala',       cg: 'gala' },
+  { id: 'SAND',  s: 'SANDUSDT',  n: 'The Sandbox',cg: 'the-sandbox' },
+  { id: 'MANA',  s: 'MANAUSDT',  n: 'Decentraland', cg: 'decentraland' },
+  { id: 'AXS',   s: 'AXSUSDT',   n: 'Axie Infinity', cg: 'axie-infinity' },
+  { id: 'AAVE',  s: 'AAVEUSDT',  n: 'Aave',       cg: 'aave' },
+  { id: 'MKR',   s: 'MKRUSDT',   n: 'Maker',      cg: 'maker' },
+  { id: 'GRT',   s: 'GRTUSDT',   n: 'The Graph',  cg: 'the-graph' },
+  { id: 'LDO',   s: 'LDOUSDT',   n: 'Lido DAO',   cg: 'lido-dao' },
+  { id: 'CRV',   s: 'CRVUSDT',   n: 'Curve',      cg: 'curve-dao-token' },
+  { id: 'SNX',   s: 'SNXUSDT',   n: 'Synthetix',  cg: 'havven' },
+  { id: 'RUNE',  s: 'RUNEUSDT',  n: 'THORChain',  cg: 'thorchain' },
+  { id: 'FLOW',  s: 'FLOWUSDT',  n: 'Flow',       cg: 'flow' },
+  { id: 'CHZ',   s: 'CHZUSDT',   n: 'Chiliz',     cg: 'chiliz' },
+  { id: 'THETA', s: 'THETAUSDT', n: 'Theta',      cg: 'theta-token' },
+  { id: 'XLM',   s: 'XLMUSDT',   n: 'Stellar',    cg: 'stellar' },
+  { id: 'XTZ',   s: 'XTZUSDT',   n: 'Tezos',      cg: 'tezos' },
+  { id: 'EOS',   s: 'EOSUSDT',   n: 'EOS',        cg: 'eos' },
+  { id: 'IOTA',  s: 'IOTAUSDT',  n: 'IOTA',       cg: 'iota' },
+  { id: 'CAKE',  s: 'CAKEUSDT',  n: 'PancakeSwap',cg: 'pancakeswap-token' },
+  { id: 'DYDX',  s: 'DYDXUSDT',  n: 'dYdX',       cg: 'dydx-chain' },
+  { id: 'JUP',   s: 'JUPUSDT',   n: 'Jupiter',    cg: 'jupiter-exchange-solana' },
+  { id: 'PYTH',  s: 'PYTHUSDT',  n: 'Pyth',       cg: 'pyth-network' },
+  { id: 'WIF',   s: 'WIFUSDT',   n: 'dogwifhat',  cg: 'dogwifcoin' },
+  { id: 'BONK',  s: 'BONKUSDT',  n: 'Bonk',       cg: 'bonk' },
+  { id: 'FLOKI', s: 'FLOKIUSDT', n: 'Floki',      cg: 'floki' },
+  { id: 'JASMY', s: 'JASMYUSDT', n: 'JasmyCoin',  cg: 'jasmycoin' },
+  { id: 'ENA',   s: 'ENAUSDT',   n: 'Ethena',     cg: 'ethena' },
+  { id: 'W',     s: 'WUSDT',     n: 'Wormhole',   cg: 'wormhole' },
+  { id: 'STRK',  s: 'STRKUSDT',  n: 'Starknet',   cg: 'starknet' },
+  { id: 'PENDLE',s: 'PENDLEUSDT',n: 'Pendle',     cg: 'pendle' },
+  { id: 'ENS',   s: 'ENSUSDT',   n: 'ENS',        cg: 'ethereum-name-service' },
+  { id: 'COMP',  s: 'COMPUSDT',  n: 'Compound',   cg: 'compound-governance-token' },
+  { id: 'DASH',  s: 'DASHUSDT',  n: 'Dash',       cg: 'dash' },
+  { id: 'ZEC',   s: 'ZECUSDT',   n: 'Zcash',      cg: 'zcash' },
+  { id: 'KAVA',  s: 'KAVAUSDT',  n: 'Kava',       cg: 'kava' },
+  { id: 'MINA',  s: 'MINAUSDT',  n: 'Mina',       cg: 'mina-protocol' },
+  { id: 'ROSE',  s: 'ROSEUSDT',  n: 'Oasis',      cg: 'oasis-network' },
+  { id: 'ZIL',   s: 'ZILUSDT',   n: 'Zilliqa',    cg: 'zilliqa' },
+  { id: 'QNT',   s: 'QNTUSDT',   n: 'Quant',      cg: 'quant-network' },
+  { id: 'GMT',   s: 'GMTUSDT',   n: 'GMT',        cg: 'stepn' },
+  { id: 'APE',   s: 'APEUSDT',   n: 'ApeCoin',    cg: 'apecoin' },
+  { id: 'LRC',   s: 'LRCUSDT',   n: 'Loopring',   cg: 'loopring' },
+  { id: 'ANKR',  s: 'ANKRUSDT',  n: 'Ankr',       cg: 'ankr' },
+  { id: 'WLD',   s: 'WLDUSDT',   n: 'Worldcoin',  cg: 'worldcoin-wld' },
+  { id: 'NOT',   s: 'NOTUSDT',   n: 'Notcoin',    cg: 'notcoin' }
 ];
 
 let _par = 'BNB';
@@ -2350,8 +2408,18 @@ const PASOS_MU = [
     x: 'Una zona que se rompe deja de ser soporte y pasa a ser resistencia (o al revés).'
   },
   {
+    t: 'Las tarjetas del panel',
+    d: 'A la derecha, cada zona tiene su tarjeta con el <b>lado</b> (demanda u oferta), el <b>importe</b>, la <b>distancia al precio</b> y la <b>barra de confianza</b>. Los filtros de arriba (Demanda, Oferta, ★ Fuertes, Retesteo) te dejan quedarte solo con lo que buscas.',
+    x: 'Empieza siempre por ★ Fuertes: son las que de verdad mueven la balanza.'
+  },
+  {
+    t: 'Abre la tarjeta para el detalle',
+    d: 'Al tocar una tarjeta se despliega todo: la <b>línea de vida</b> (formada, testeada, confirmada, vigente) y las métricas: <b>POC</b> (precio de entrada), <b>flujo firmado</b> (si domina comprador o vendedor), <b>reacciones</b>, <b>toques</b>, <b>confluencia</b> y <b>fuerza</b>.',
+    x: 'POC alto en confluencia y flujo comprador es el escenario ideal para una entrada en demanda.'
+  },
+  {
     t: 'Cómo operar con esto',
-    d: 'Opera <b>a favor del lado despejado</b>: si hay varias zonas fuertes debajo y ninguna arriba, el camino de menor resistencia es al alza. Usa las zonas fuertes para entrar y proteger, y confirma con el VWAP y el sesgo.',
+    d: 'Opera <b>a favor del lado despejado</b>: si hay varias zonas fuertes debajo y ninguna arriba, el camino de menor resistencia es al alza. Entra en el retesteo de una zona fuerte, coloca el stop al otro lado de su rango y confirma con el VWAP y el sesgo del cockpit.',
     x: 'Esto es información para decidir con criterio, no una señal a ciegas. La decisión final es tuya.'
   }
 ];
@@ -3046,24 +3114,36 @@ function validarVolumen() {
   d.querySelector('.mv-x').onclick = cerrar;
   d.querySelector('#mv-copy').onclick = () => {
     // Alerta pro: líneas cortas (seguras en móvil), emojis serios, fácil de leer.
+    // Negrita real (Unicode) para los títulos: se ve en WhatsApp, Telegram y notas.
+    const neg = (s) => s.replace(/[A-Za-z0-9]/g, (c) => {
+      const cc = c.charCodeAt(0);
+      if (cc >= 65 && cc <= 90) return String.fromCodePoint(0x1D5D4 + (cc - 65));
+      if (cc >= 97 && cc <= 122) return String.fromCodePoint(0x1D5EE + (cc - 97));
+      if (cc >= 48 && cc <= 57) return String.fromCodePoint(0x1D7EC + (cc - 48));
+      return c;
+    });
     const icono = (z) => z.rota ? '\u26aa' : (z.lado === 'demanda' ? '\u{1F7E2}' : '\u{1F534}');
     const tipo = (z) => z.rota ? 'ROTA   ' : (z.lado === 'demanda' ? 'DEMANDA' : 'OFERTA ');
     const aqui = (z) => z.dentro ? '  \u25c0 AQU\u00cd' : '';
     const niveles = (M.zonas || []).slice(0, 6).map((z) => `${icono(z)} ${tipo(z)} ${fmt(z.pLow)}\u2013${fmt(z.pHigh)}  ${dinero(z.v)}${aqui(z)}`).join('\n');
     const sesgo = mk ? (mk.sesgo === 'comprador' ? 'Comprador' : mk.sesgo === 'vendedor' ? 'Vendedor' : 'Neutral') : 'Neutral';
-    const acierto = mk && mk.winRate != null ? mk.winRate + '%' : '\u2014';
     const alerta =
-`\u{1F537} INSTITUTIONAL RADAR
-${esc(base)} \u00b7 ${esc(M.tf)}  \u00b7  ${hora}
+`\u{1F537} ${neg('INSTITUTIONAL RADAR')}
+
+${esc(base)} \u00b7 ${esc(M.tf)} \u00b7 ${hora}
+
 
 \u{1F4B5} Precio actual: ${fmt(M.precio)}
 \u{1F4C8} VWAP: ${mk && mk.vwap ? fmt(mk.vwap) : '\u2014'}
 \u{1F4CA} Volumen circundante: ${dinero(zTot)}
 
-\u{1F3AF} ZONAS CLAVE
-${niveles || '\u2014 sin zonas cercanas'}
 
-\u{1F9ED} Sesgo: ${sesgo}  \u00b7  Acierto: ${acierto}`;
+\u{1F3AF} ${neg('ZONAS CLAVE')}
+
+${niveles || 'Sin zonas cercanas'}
+
+
+\u{1F9ED} ${neg('Sesgo')}: ${sesgo}`;
     const btn = d.querySelector('#mv-copy');
     const ok = () => { btn.textContent = '\u2713 Alerta copiada'; setTimeout(() => { btn.textContent = 'Copiar alerta'; }, 1800); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(alerta).then(ok).catch(ok);
