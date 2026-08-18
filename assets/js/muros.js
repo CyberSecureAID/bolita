@@ -75,7 +75,8 @@ async function traerVelas(simbolo, tf, n = 120) {
   const j = await r.json();
   return j.map((x) => ({
     t: Math.floor(x[0] / 1000),
-    o: Number(x[1]), h: Number(x[2]), l: Number(x[3]), c: Number(x[4])
+    o: Number(x[1]), h: Number(x[2]), l: Number(x[3]), c: Number(x[4]),
+    vol: Number(x[7]) || Number(x[5]) || 0   // volumen en dólares (quote)
   }));
 }
 
@@ -138,6 +139,7 @@ const M = {
   zoom: 1,
   cruzY: -1,
   velas: [],          // las velas del gráfico
+  zonas: [],          // zonas de acumulación (demanda/oferta) desde las velas
   tf: '15m',          // temporalidad por defecto del radar
   ancho: window.innerWidth < 760 ? 65 : 100,  // cuántas velas se ven
   filtro: 'todos',
@@ -441,6 +443,81 @@ const tiempo = (s) => {
   return m + ' min' + (m > 1 ? '' : '');
 };
 
+/* ══════════════════════════════════════════════════════════════
+   DETECTOR DE ZONAS DE ACUMULACIÓN  (desde las VELAS)
+
+   Dónde el precio LATERALIZÓ y se acumuló volumen = dónde los grandes
+   construyeron posición. Esas zonas actúan como DEMANDA (si están debajo del
+   precio) o como OFERTA (si están encima), y son los mejores puntos de
+   RETESTEO. Se construye un PERFIL DE VOLUMEN: se reparte el volumen (en $) de
+   cada vela por su rango, y las franjas con mucho más volumen que la media son
+   las zonas. Se fusionan las contiguas, se puntúa su fuerza y se cuentan los
+   TOQUES (cuántas velas volvieron a ella).
+
+   Todo sale de las velas (klines), que llegan siempre y rápido: por eso las
+   tarjetas se llenan en 1-2 s, sin depender del libro de órdenes.
+   ══════════════════════════════════════════════════════════════ */
+function detectarZonas(velas, precio) {
+  if (!velas || velas.length < 24 || !(precio > 0)) return [];
+  const vis = velas.slice(-260);
+  let lo = Infinity, hi = -Infinity;
+  vis.forEach((v) => { if (v.l < lo) lo = v.l; if (v.h > hi) hi = v.h; });
+  if (!(hi > lo)) return [];
+  const N = 90;
+  const paso = (hi - lo) / N;
+  const vol = new Array(N).fill(0);
+  const toca = new Array(N).fill(0);
+  vis.forEach((v) => {
+    const b0 = Math.max(0, Math.floor((v.l - lo) / paso));
+    const b1 = Math.min(N - 1, Math.floor((v.h - lo) / paso));
+    const spread = (b1 - b0 + 1) || 1;
+    const cuota = (v.vol || 1) / spread;
+    for (let b = b0; b <= b1; b++) { vol[b] += cuota; toca[b]++; }
+  });
+  const media = vol.reduce((a, b) => a + b, 0) / N || 1;
+  const umbral = media * 1.4;
+  /* PICOS del perfil = nodos de alto volumen (donde de verdad se acumuló).
+     Cada pico se expande a una zona mientras el volumen siga alto (>=45% del
+     pico) y sin pasarse de ancho, para que dos acumulaciones distintas NO se
+     fundan en un bloque enorme por el volumen intermedio. */
+  const picos = [];
+  for (let b = 0; b < N; b++) {
+    const izq = b === 0 ? -Infinity : vol[b - 1];
+    const der = b === N - 1 ? -Infinity : vol[b + 1];
+    if (vol[b] >= umbral && vol[b] >= izq && vol[b] >= der) picos.push(b);
+  }
+  picos.sort((a, b) => vol[b] - vol[a]);           // los más fuertes primero
+  const usados = new Array(N).fill(false);
+  const maxW = Math.max(2, Math.round(N * 0.06));
+  const brutas = [];
+  picos.forEach((pk) => {
+    if (usados[pk]) return;
+    let b0 = pk, b1 = pk;
+    const piso = vol[pk] * 0.45;
+    while (b0 > 0 && !usados[b0 - 1] && vol[b0 - 1] >= piso && (pk - (b0 - 1)) <= maxW) b0--;
+    while (b1 < N - 1 && !usados[b1 + 1] && vol[b1 + 1] >= piso && ((b1 + 1) - pk) <= maxW) b1++;
+    let v = 0, t = 0;
+    for (let b = b0; b <= b1; b++) { v += vol[b]; t += toca[b]; usados[b] = true; }
+    brutas.push({ b0, b1, v, t });
+  });
+  if (!brutas.length) return [];
+  const maxV = Math.max(...brutas.map((z) => z.v), 1);
+  const zonas = brutas.map((z) => {
+    const pLow = lo + z.b0 * paso;
+    const pHigh = lo + (z.b1 + 1) * paso;
+    const p = (pLow + pHigh) / 2;
+    const dentro = precio >= pLow && precio <= pHigh;
+    const lado = p < precio ? 'demanda' : 'oferta';
+    const fuerza = Math.max(1, Math.min(5, Math.round((z.v / maxV) * 5)));
+    const dist = (p - precio) / precio;
+    const retest = !dentro && Math.abs(dist) < 0.0035;   // el precio está a punto de retestearla
+    return { pLow, pHigh, p, v: z.v, volRel: z.v / maxV, fuerza, toques: z.t, lado, dist, retest, dentro };
+  });
+  // Prioriza fuertes y cercanas
+  zonas.sort((a, b) => (b.v * (1 - Math.min(0.9, Math.abs(b.dist) * 12))) - (a.v * (1 - Math.min(0.9, Math.abs(a.dist) * 12))));
+  return zonas.slice(0, 6);
+}
+
 
 
 /* ══════════════════════════════════════════════════════════════
@@ -510,19 +587,19 @@ export async function abrirMuros() {
         </div>
 
         <aside class="mu-panel" id="mu-panel">
-          <div class="mu-panel-t">Órdenes detectadas</div>
+          <div class="mu-panel-t">Zonas de acumulación</div>
           <div class="mu-chips">
             <button class="mu-fbtn verde" data-filtro="compra">
-              <b>Soporte</b><i class="mu-cuenta" id="mu-n-compra">0</i>
+              <b>Demanda</b><i class="mu-cuenta" id="mu-n-compra">0</i>
             </button>
             <button class="mu-fbtn rojo" data-filtro="venta">
-              <b>Resistencia</b><i class="mu-cuenta" id="mu-n-venta">0</i>
+              <b>Oferta</b><i class="mu-cuenta" id="mu-n-venta">0</i>
             </button>
             <button class="mu-fbtn oro" data-filtro="fuertes">
               <b>★ Fuertes</b><i class="mu-cuenta" id="mu-n-fuertes">0</i>
             </button>
             <button class="mu-fbtn gris" data-filtro="falsos">
-              <b>✕ Falsas</b><i class="mu-cuenta" id="mu-n-falsos">0</i>
+              <b>⟳ Retesteo</b><i class="mu-cuenta" id="mu-n-falsos">0</i>
             </button>
           </div>
           <div class="mu-lista" id="mu-lista"></div>
@@ -618,19 +695,18 @@ let _ultPintado = 0;
 /** Actualiza solo los números que cambian, sin rehacer las tarjetas.
  *  Así no parpadean. */
 function refrescarNumeros() {
-  M.muros.forEach((m) => {
-    const b = document.querySelector(`[data-mp="${m.p}"]`);
+  M.zonas.forEach((z) => {
+    const b = document.querySelector(`[data-mp="${z.p}"]`);
     if (!b) return;
     const card = b.closest('.mu-card');
     if (!card) return;
+    const dem = z.lado === 'demanda';
     const pon = (sel, txt) => {
       const e = card.querySelector(sel);
       if (e && e.textContent !== txt) e.textContent = txt;
     };
-    const esVenta = m.p > M.precio;
-    pon('.mu-imp', dinero(m.v));
-    pon('.mu-firme', tiempo(m.segundos));
-    pon('.mu-dist2', (Math.abs(m.dist) * 100).toFixed(2) + '% ' + (esVenta ? '↑' : '↓'));
+    pon('.mu-imp', dinero(z.v));
+    pon('.mu-dist2', z.dentro ? 'AQU\u00cd' : (Math.abs(z.dist) * 100).toFixed(2) + '% ' + (dem ? '\u2193' : '\u2191'));
   });
 }
 
@@ -643,6 +719,12 @@ async function cargarVelas() {
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
       M.velas = await traerVelas(par.s, M.tf, 400);
+      /* Las zonas se calculan de las VELAS (no del libro): por eso se llenan
+         en cuanto llegan las velas (~1 s), sin esperas incómodas. */
+      const px = (M.precio > 0) ? M.precio : (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
+      M.zonas = detectarZonas(M.velas, px);
+      if (M.velas.length) { M.cargando = false; M.error = null; }
+      pintarPanel();
       dibujar();
     } catch (_) {}
   };
@@ -658,45 +740,29 @@ function arrancar() {
   const tomar = async () => {
     if (!$('mu-cv')) { clearInterval(_reloj); return; }
     const par = PARES.find((p) => p.id === _par) || PARES[0];
+    /* El libro solo sirve para el PRECIO en vivo (marcador + vela). Las zonas
+       salen de las velas, así que aunque el libro falle, el radar funciona. */
     let foto = null;
     try {
-      const f = await traerLibro(par.s);   // REST (multi-host) — libro profundo
+      const f = await traerLibro(par.s);
       if (f && f.compras && f.compras.length && f.ventas && f.ventas.length) foto = f;
     } catch (_) {}
-    if (!foto && _wsLibro && (Date.now() - _wsLibro.t) < 6000) {
-      /* El REST no dio nada útil (Binance bloquea/limita ese endpoint): usamos
-         el libro del WebSocket, la MISMA fuente que sí funciona en Trade. */
-      foto = _wsLibro;
-    }
-    if (foto) {
-      procesar(foto);
-      _fallos = 0;
-      M.cargando = M.fotos.length < MIN_TOMAS;
-      M.error = null;
-      M.maxMuro = Math.max(1, ...M.muros.map((x) => x.v));
-      const px = $('mu-px-v');
-      if (px) px.textContent = fmt(M.precio);
-      dibujar();
+    if (!foto && _wsLibro && (Date.now() - _wsLibro.t) < 6000) foto = _wsLibro;
+    if (foto) procesar(foto);                       // actualiza M.precio
+    if (!(M.precio > 0) && M.velas.length) M.precio = M.velas[M.velas.length - 1].c;
 
-      /* El panel solo se reconstruye si cambió QUÉ muros hay y en qué estado
-         (con 3 s mínimo entre repintados), para que las tarjetas no parpadeen.
-         Si no, solo se refrescan los números. */
-      const huella = M.muros.map((m) => `${m.p.toFixed(6)}|${m.tipo}`).sort().join(',');
-      const ahora2 = Date.now();
-      if (huella !== _huella && ahora2 - _ultPintado > 3000) {
-        _huella = huella; _ultPintado = ahora2;
-        pintarPanel();
-      } else {
-        refrescarNumeros();
-      }
-    } else {
-      /* Un fallo suelto no rompe nada. Solo tras varios seguidos se avisa. */
-      _fallos++;
-      if (_fallos >= 4) {
-        M.error = 'Binance no responde (bloqueado o saturado). Reintentando\u2026';
-        pintarPanel();
-      }
+    if (M.velas.length && M.precio > 0) {
+      M.zonas = detectarZonas(M.velas, M.precio);   // zonas de acumulación, precio vivo
+      M.cargando = false; M.error = null;
     }
+    const px = $('mu-px-v'); if (px && M.precio > 0) px.textContent = fmt(M.precio);
+    dibujar();
+
+    /* El panel se reconstruye solo si cambian las zonas (para no parpadear). */
+    const huella = M.zonas.map((z) => `${z.p.toFixed(6)}|${z.lado}|${z.fuerza}`).sort().join(',');
+    const ahora2 = Date.now();
+    if (huella !== _huella && ahora2 - _ultPintado > 2500) { _huella = huella; _ultPintado = ahora2; pintarPanel(); }
+    else refrescarNumeros();
   };
   tomar();
   _reloj = setInterval(tomar, CADA);
@@ -862,7 +928,7 @@ function dibujar() {
      el usuario no puede usarlo. */
   let pAlto = Math.max(...vis.map((v) => v.h));
   let pBajo = Math.min(...vis.map((v) => v.l));
-  M.muros.forEach((m) => { if (m.p > pAlto) pAlto = m.p; if (m.p < pBajo) pBajo = m.p; });
+  M.zonas.forEach((z) => { if (z.pHigh > pAlto) pAlto = z.pHigh; if (z.pLow < pBajo) pBajo = z.pLow; });
   /* El zoom vertical estira o comprime la escala de precios, como al
      arrastrar el borde derecho en TradingView. */
   /* El arrastre vertical desplaza el rango de precios. */
@@ -894,68 +960,75 @@ function dibujar() {
   }
 
   /* ══════════════════════════════════════════════════════════
-     LOS MUROS — cada uno con su línea y su importe
+     ZONAS DE ACUMULACIÓN — cajas proyectadas a la derecha
 
-     Esto es lo que convierte el gráfico en herramienta: ver la
-     cantidad escrita al nivel exacto donde está puesta.
+     Cada caja es un área donde se acumuló volumen (estilo order block).
+     Verde = demanda (debajo del precio) · Rojo = oferta (encima). Se dibujan
+     en la mitad derecha del gráfico y se proyectan hacia delante como zona de
+     RETESTEO: ahí es donde el precio suele volver a reaccionar.
      ══════════════════════════════════════════════════════════ */
-  M.muros.forEach((m) => {
-    if (m.p < pMin || m.p > pMax) return;
-    const y = Y(m.p);
-    const c = COLORES[m.tipo];
-    const sel = M.seleccionado === m.p;
+  const xIni = xVelas * 0.5;
+  M.zonas.forEach((z) => {
+    if (z.pHigh < pMin || z.pLow > pMax) return;
+    const yT = Y(Math.min(pMax, z.pHigh));
+    const yB = Y(Math.max(pMin, z.pLow));
+    const alto = Math.max(6, yB - yT);
+    const yC = Y(z.p);
+    const dem = z.lado === 'demanda';
+    const col = dem ? '#2ee86a' : '#f6465d';
+    const fuerte = z.fuerza >= 4;
 
-    /* El color lo manda el LADO desde el primer momento: verde = soporte
-       (compra, debajo del precio), rojo = resistencia (venta, encima). Así el
-       mapa se entiende al instante. La CONFIANZA se ve en el trazo: punteado
-       mientras se observa, sólido y con glow cuando ya está confirmado. Solo
-       lo que YA desapareció se pinta gris. */
-    const ido = m.tipo === 'ido';
-    const sinProbar = m.tipo === 'vigilando' || ido;
-    const fuerte = m.tipo === 'recargable' || m.tipo === 'probado';
-    const col = ido ? '#6b7681' : (m.p > M.precio ? '#f6465d' : '#2ee86a');
-
-    /* ZONA: banda con degradado que se desvanece arriba y abajo — se lee como
-       un área de liquidez, no como una raya. Su grosor dice cuánto dinero hay. */
-    const alto = Math.max(7, Math.min(26, (m.v / (M.maxMuro || m.v)) * 26));
-    const gr = g.createLinearGradient(0, y - alto, 0, y + alto);
-    gr.addColorStop(0, col + '00');
-    gr.addColorStop(0.5, col + (sel ? '4d' : (fuerte ? '38' : '22')));
-    gr.addColorStop(1, col + '00');
+    // Caja con degradado horizontal: se hace más sólida hacia la derecha (el "ahora").
+    const gr = g.createLinearGradient(xIni, 0, xVelas, 0);
+    gr.addColorStop(0, col + '06');
+    gr.addColorStop(1, col + (z.dentro ? '38' : (fuerte ? '2e' : '1e')));
     g.fillStyle = gr;
-    g.fillRect(0, y - alto, xVelas, alto * 2);
+    g.fillRect(xIni, yT, xVelas - xIni, alto);
 
-    /* LÍNEA central: nítida, con glow si el muro es fuerte (blindado/probado);
-       punteada si aún no está probado o es falso. */
+    // Bordes superior e inferior de la zona
+    g.strokeStyle = col + '73'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(xIni, yT + .5); g.lineTo(xVelas, yT + .5); g.stroke();
+    g.beginPath(); g.moveTo(xIni, yB - .5); g.lineTo(xVelas, yB - .5); g.stroke();
+
+    // Nivel de entrada/retesteo (centro de la zona), con glow si es fuerte
     g.save();
-    if (fuerte && !sinProbar) { g.shadowColor = col; g.shadowBlur = 9; }
-    g.strokeStyle = col;
-    g.lineWidth = sel ? 2.4 : (fuerte ? 2 : 1.3);
-    if (sinProbar || m.tipo === 'falso') g.setLineDash([7, 5]);
-    g.beginPath(); g.moveTo(0, y); g.lineTo(xVelas, y); g.stroke();
-    g.restore();
-    g.setLineDash([]);
+    if (fuerte) { g.shadowColor = col; g.shadowBlur = 8; }
+    g.strokeStyle = col; g.lineWidth = fuerte ? 1.8 : 1.2;
+    if (!z.dentro) g.setLineDash([2, 4]);
+    g.beginPath(); g.moveTo(xIni, yC); g.lineTo(xVelas, yC); g.stroke();
+    g.restore(); g.setLineDash([]);
 
-    /* ETIQUETA: pastilla con relieve (sombra), icono de veredicto e importe. */
-    const et = dinero(m.v);
+    // Etiqueta con el volumen acumulado ($), con relieve
+    const et = dinero(z.v);
     g.font = 'bold 11px ui-monospace,monospace';
-    const wCaja = g.measureText(et).width + 34;
+    const wCaja = g.measureText(et).width + 32;
     g.save();
     g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 7; g.shadowOffsetY = 1.5;
     g.fillStyle = col;
-    redondeado(g, xVelas + 12, y - 11, wCaja, 22, 6); g.fill();
+    redondeado(g, xVelas + 12, yC - 11, wCaja, 22, 6); g.fill();
     g.restore();
-    if (fuerte && !sinProbar) {
-      g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1;
-      redondeado(g, xVelas + 12, y - 11, wCaja, 22, 6); g.stroke();
+    if (fuerte) {
+      g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1;
+      redondeado(g, xVelas + 12, yC - 11, wCaja, 22, 6); g.stroke();
     }
-    g.fillStyle = ido ? '#0b0e12' : (m.p > M.precio ? '#2a0509' : '#04210f');
-    g.font = 'bold 10px system-ui,sans-serif';
-    g.textAlign = 'center';
-    g.fillText(c.icono, xVelas + 24, y + 3.5);
-    g.font = 'bold 11.5px ui-monospace,monospace';
-    g.textAlign = 'left';
-    g.fillText(et, xVelas + 34, y + 4);
+    g.fillStyle = dem ? '#04210f' : '#2a0509';
+    g.font = 'bold 10px system-ui,sans-serif'; g.textAlign = 'center';
+    g.fillText(dem ? '\u25b2' : '\u25bc', xVelas + 23, yC + 3.5);
+    g.font = 'bold 11.5px ui-monospace,monospace'; g.textAlign = 'left';
+    g.fillText(et, xVelas + 33, yC + 4);
+
+    // Chip RETESTEO cuando el precio está a punto de volver a la zona
+    if (z.retest) {
+      const rw = 60;
+      g.save();
+      g.shadowColor = 'rgba(232,184,75,.6)'; g.shadowBlur = 8;
+      g.fillStyle = '#E8B84B';
+      redondeado(g, xIni + 6, yT + 4, rw, 15, 4); g.fill();
+      g.restore();
+      g.fillStyle = '#2a1c00'; g.font = 'bold 8.5px system-ui,sans-serif'; g.textAlign = 'center';
+      g.fillText('RETESTEO', xIni + 6 + rw / 2, yT + 14.5);
+      g.textAlign = 'left';
+    }
   });
 
   /* ── LAS VELAS ── */
@@ -990,20 +1063,19 @@ function dibujar() {
     const p = pMin + (pMax - pMin) * (i / 6);
     const y = Y(p);
     if (Math.abs(y - yP) < 15) continue;
-    if (M.muros.some((m) => Math.abs(Y(m.p) - y) < 15)) continue;
+    if (M.zonas.some((z) => Math.abs(Y(z.p) - y) < 15)) continue;
     g.fillStyle = '#4a525c';
     g.fillText(fmt(p), x1 + 7, y + 3.5);
   }
-  M.muros.forEach((m) => {
-    if (m.p < pMin || m.p > pMax) return;
-    const y = Y(m.p);
-    const ido = m.tipo === 'ido';
-    const col = ido ? '#6b7681' : (m.p > M.precio ? '#f6465d' : '#2ee86a');
+  M.zonas.forEach((z) => {
+    if (z.p < pMin || z.p > pMax) return;
+    const y = Y(z.p);
+    const col = z.lado === 'demanda' ? '#2ee86a' : '#f6465d';
     g.fillStyle = col;
     redondeado(g, x1 + 2, y - 9, mDer - 5, 18, 4); g.fill();
-    g.fillStyle = ido ? '#0b0e12' : (m.p > M.precio ? '#2a0509' : '#04210f');
+    g.fillStyle = z.lado === 'demanda' ? '#04210f' : '#2a0509';
     g.font = 'bold 10px ui-monospace,monospace';
-    g.fillText(fmt(m.p), x1 + 7, y + 3.5);
+    g.fillText(fmt(z.p), x1 + 7, y + 3.5);
   });
   g.fillStyle = '#E8B84B';
   redondeado(g, x1 + 2, yP - 11, mDer - 5, 22, 5); g.fill();
@@ -1227,99 +1299,100 @@ function narrar(m, esVenta, dist) {
   return `Orden recién puesta hace ${tiempo(m.segundos)}. Todavía no sabemos si va en serio.`;
 }
 
+/* Narrador de ZONAS de acumulación: dice qué es y qué esperar, con la verdad
+   de la distancia (nada de "tocando" cuando no lo está). */
+function narrarZona(z, dem, dist) {
+  if (z.dentro) {
+    return dem
+      ? '<b>El precio está DENTRO de la zona de demanda.</b> Aquí se decide si rebota o la pierde.'
+      : '<b>El precio está DENTRO de la zona de oferta.</b> Aquí se decide si la rechaza o la rompe.';
+  }
+  if (z.retest) {
+    return dem
+      ? `El precio está <b>a ${dist.toFixed(2)}%</b> de retestear esta demanda. Atento a un posible rebote.`
+      : `El precio está <b>a ${dist.toFixed(2)}%</b> de retestear esta oferta. Atento a un posible rechazo.`;
+  }
+  const f = z.fuerza >= 4 ? 'Zona <b>fuerte</b>' : 'Zona';
+  return dem
+    ? `${f} de demanda: se acumularon ${dinero(z.v)} en ${z.toques} velas. Suele sostener las caídas.`
+    : `${f} de oferta: se acumularon ${dinero(z.v)} en ${z.toques} velas. Suele frenar las subidas.`;
+}
+
 function pintarPanel() {
   const lista = $('mu-lista'); if (!lista) return;
   const estado = $('mu-estado');
 
-  /* Las cuentas de cada filtro, siempre visibles. */
+  /* Las cuentas de cada filtro (ahora sobre las ZONAS). */
   const cuenta = (id, f) => {
     const el = $('mu-n-' + id);
-    if (el) el.textContent = M.muros.filter(f).length;
+    if (el) el.textContent = M.zonas.filter(f).length;
   };
-  cuenta('compra', (m) => m.p <= M.precio);
-  cuenta('venta', (m) => m.p > M.precio);
-  cuenta('fuertes', (m) => m.tipo === 'recargable' || m.tipo === 'probado');
-  cuenta('falsos', (m) => m.tipo === 'falso' || m.tipo === 'ido');
-  const mtn = $('mu-mtab-n'); if (mtn) mtn.textContent = M.muros.length;   // contador de la pestaña móvil
+  cuenta('compra', (z) => z.lado === 'demanda');
+  cuenta('venta', (z) => z.lado === 'oferta');
+  cuenta('fuertes', (z) => z.fuerza >= 4);
+  cuenta('falsos', (z) => z.retest || z.dentro);
+  const mtn = $('mu-mtab-n'); if (mtn) mtn.textContent = M.zonas.length;
 
   if (M.error) { if (estado) estado.textContent = M.error; return; }
 
-  if (M.cargando) {
-    if (estado) estado.textContent = `${M.fotos.length}/${MIN_TOMAS}`;
-    lista.innerHTML = `<div class="mu-esperar">Analizando el libro de órdenes…</div>`;
+  if (M.cargando || !M.zonas.length && !M.velas.length) {
+    if (estado) estado.textContent = 'Leyendo…';
+    lista.innerHTML = `<div class="mu-esperar">Leyendo el mercado…</div>`;
     return;
   }
   if (estado) estado.textContent = 'En directo';
 
   /* El filtro. Sin ninguno activo se ven todas. */
-  let lst = M.muros.slice();
-  if (M.filtro === 'fuertes') lst = lst.filter((m) => m.tipo === 'recargable' || m.tipo === 'probado');
-  else if (M.filtro === 'compra') lst = lst.filter((m) => m.p <= M.precio);
-  else if (M.filtro === 'venta') lst = lst.filter((m) => m.p > M.precio);
-  else if (M.filtro === 'falsos') lst = lst.filter((m) => m.tipo === 'falso' || m.tipo === 'ido');
+  let lst = M.zonas.slice();
+  if (M.filtro === 'fuertes') lst = lst.filter((z) => z.fuerza >= 4);
+  else if (M.filtro === 'compra') lst = lst.filter((z) => z.lado === 'demanda');
+  else if (M.filtro === 'venta') lst = lst.filter((z) => z.lado === 'oferta');
+  else if (M.filtro === 'falsos') lst = lst.filter((z) => z.retest || z.dentro);
 
   if (!lst.length) {
     lista.innerHTML = `<div class="mu-esperar">
-      <b>${M.filtro === 'todos' ? 'Libro tranquilo' : 'Nada de ese tipo'}</b>
+      <b>${M.filtro === 'todos' ? 'Sin zonas claras' : 'Nada de ese tipo'}</b>
       ${M.filtro === 'todos'
-        ? 'Nadie está poniendo órdenes grandes en ' + esc(_par) + ' ahora mismo.'
-        : 'Pruebe con otro filtro o quítelo para ver todas.'}
+        ? 'No hay acumulación destacable en ' + esc(_par) + ' en este rango.'
+        : 'Prueba con otro filtro o quítalo para ver todas.'}
     </div>`;
     return;
   }
 
-  const tarjeta = (m, id) => {
-    const c = COLORES[m.tipo];
-    const esVenta = m.p > M.precio;
-    const pct = (Math.abs(m.dist) * 100).toFixed(2);
+  const tarjeta = (z, id) => {
+    const dem = z.lado === 'demanda';
+    const pct = (Math.abs(z.dist) * 100).toFixed(2);
+    const fuerza = z.fuerza;                          // 1..5
+    const clase = dem ? 'verde' : 'rojo';
+    const abierta = M.seleccionado === z.p;
+    const conse = narrarZona(z, dem, Math.abs(z.dist) * 100);
+    const queHacer = dem
+      ? 'Zona de <b>demanda</b>: posible rebote / entrada en largo al retestear el nivel.'
+      : 'Zona de <b>oferta</b>: posible rechazo / entrada en corto al retestear el nivel.';
 
-    let fuerza = 0;
-    if (m.tipo === 'recargable' || m.tipo === 'probado') fuerza = 3;
-    else if (m.tipo === 'real') fuerza = m.segundos > 240 ? 3 : 2;
-    else if (m.tipo === 'vigilando') fuerza = 1;
-
-    /* ══════════════════════════════════════════════════════════
-       EL NARRADOR
-
-       El texto no describe un estado fijo: cuenta lo que está
-       pasando AHORA. Cambia según la distancia del precio, y cuando
-       se acerca sube la tensión, como un comentarista.
-       ══════════════════════════════════════════════════════════ */
-    const dist = Math.abs(m.dist) * 100;
-    const cerca = dist < 0.12;
-    const muyCerca = dist < 0.05;
-    const conse = narrar(m, esVenta, dist);
-
-    const queHacer = (m.tipo === 'recargable' || m.tipo === 'probado')
-      ? (esVenta ? 'Buen sitio para recoger beneficios si va largo.' : 'Buen sitio para colocar su stop justo por debajo.')
-      : m.tipo === 'falso' ? 'Si su plan dependía de este nivel, revíselo.'
-      : 'Déle unos minutos más para tener veredicto.';
-
-    /* La tarjeta: lo esencial en dos líneas, el resto se despliega. */
-    const abierta = M.seleccionado === m.p;
     return `
-    <div class="mu-card ${c.clase} f${fuerza} ${abierta ? 'sel' : ''}"
-         data-id="${id}" data-lado="${esVenta ? 'venta' : 'compra'}">
-      <button class="mu-cab-card" data-mp="${m.p}">
+    <div class="mu-card ${clase} f${fuerza >= 4 ? 3 : fuerza >= 2 ? 2 : 1} ${abierta ? 'sel' : ''}"
+         data-id="${id}" data-lado="${dem ? 'compra' : 'venta'}">
+      <button class="mu-cab-card" data-mp="${z.p}">
         <div class="mu-l1">
-          <span class="mu-lado">${esVenta ? 'EN VENTA' : 'EN COMPRA'}</span>
-          <span class="mu-imp">${dinero(m.v)}</span>
+          <span class="mu-lado">${dem ? 'DEMANDA' : 'OFERTA'}</span>
+          <span class="mu-imp">${dinero(z.v)}</span>
         </div>
         <div class="mu-l2">
-          <span class="mu-nivel">${fmt(m.p)}</span>
-          <span class="mu-dist2 ${muyCerca ? 'urge' : cerca ? 'cerca' : ''}">${pct}% ${esVenta ? '↑' : '↓'}</span>
-          <span class="mu-sello">${c.icono} ${esc(c.nom || '')}</span>
-          <span class="mu-fl">${abierta ? '▲' : '▼'}</span>
+          <span class="mu-nivel">${fmt(z.pLow)}\u2013${fmt(z.pHigh)}</span>
+          <span class="mu-dist2 ${z.dentro ? 'urge' : z.retest ? 'cerca' : ''}">${z.dentro ? 'AQU\u00cd' : pct + '% ' + (dem ? '\u2193' : '\u2191')}</span>
+          <span class="mu-sello">${'\u25cf'.repeat(fuerza)}${'\u25cb'.repeat(5 - fuerza)}</span>
+          <span class="mu-fl">${abierta ? '\u25b2' : '\u25bc'}</span>
         </div>
-        ${muyCerca ? '<div class="mu-aviso-vivo">● El precio está tocando este nivel</div>' : ''}
+        ${z.retest ? '<div class="mu-aviso-vivo">\u27f3 El precio est\u00e1 por retestear esta zona</div>' : ''}
       </button>
       ${abierta ? `<div class="mu-detalle">
         <div class="mu-conse mu-escribe">${conse}</div>
         <div class="mu-metricas">
-          <div><b class="mu-firme">${tiempo(m.segundos)}</b><span>firme</span></div>
-          <div><b class="mu-rec-n">${m.recargas || 0}×</b><span>repuesta</span></div>
-          <div><b class="mu-eje-n">${Math.round(Math.min(100, m.consumidoPct * 100))}%</b><span>ejecutado</span></div>
-          <div><b>${'●'.repeat(fuerza)}${'○'.repeat(3 - fuerza)}</b><span>fuerza</span></div>
+          <div><b>${fmt(z.p)}</b><span>entrada</span></div>
+          <div><b>${z.toques}</b><span>toques</span></div>
+          <div><b>${'\u25cf'.repeat(fuerza)}${'\u25cb'.repeat(5 - fuerza)}</b><span>fuerza</span></div>
+          <div><b>${z.dentro ? 'AQU\u00cd' : pct + '%'}</b><span>distancia</span></div>
         </div>
         <div class="mu-hacer">${queHacer}</div>
       </div>` : ''}
@@ -1407,10 +1480,10 @@ function pintarPanel() {
 }
 
 /** Actualiza una tarjeta sin recrearla: solo lo que cambió. */
-function actualizar(card, m) {
-  const c = COLORES[m.tipo];
-  const esVenta = m.p > M.precio;
-  const dist = Math.abs(m.dist) * 100;
+function actualizar(card, z) {
+  const dem = z.lado === 'demanda';
+  const dist = Math.abs(z.dist) * 100;
+  const fuerza = z.fuerza;
 
   const pon = (sel, txt) => {
     const e = card.querySelector(sel);
@@ -1421,35 +1494,24 @@ function actualizar(card, m) {
     if (e) e.classList.toggle(cl, si);
   };
 
-  pon('.mu-imp', dinero(m.v));
-  pon('.mu-nivel', fmt(m.p));
-  pon('.mu-dist2', dist.toFixed(2) + '% ' + (esVenta ? '↑' : '↓'));
-  pon('.mu-sello', c.icono + ' ' + (c.nom || ''));
-  pon('.mu-lado', esVenta ? 'EN VENTA' : 'EN COMPRA');
+  pon('.mu-imp', dinero(z.v));
+  pon('.mu-nivel', fmt(z.pLow) + '\u2013' + fmt(z.pHigh));
+  pon('.mu-dist2', z.dentro ? 'AQU\u00cd' : dist.toFixed(2) + '% ' + (dem ? '\u2193' : '\u2191'));
+  pon('.mu-sello', '\u25cf'.repeat(fuerza) + '\u25cb'.repeat(5 - fuerza));
+  pon('.mu-lado', dem ? 'DEMANDA' : 'OFERTA');
 
-  // El veredicto puede cambiar: la tarjeta cambia de color con él
   ['oro', 'verde', 'azul', 'rojo', 'gris', 'ido'].forEach((k) => {
-    card.classList.toggle(k, k === c.clase);
+    card.classList.toggle(k, k === (dem ? 'verde' : 'rojo'));
   });
-  card.dataset.lado = esVenta ? 'venta' : 'compra';
+  card.dataset.lado = dem ? 'compra' : 'venta';
 
-  clase('.mu-dist2', 'cerca', dist < 0.12 && dist >= 0.05);
-  clase('.mu-dist2', 'urge', dist < 0.05);
+  clase('.mu-dist2', 'cerca', z.retest && !z.dentro);
+  clase('.mu-dist2', 'urge', z.dentro);
 
-  // El detalle, si está abierto
   const det = card.querySelector('.mu-detalle');
   if (det) {
-    pon('.mu-firme', tiempo(m.segundos));
-    const rec = card.querySelector('.mu-rec-n');
-    if (rec) rec.textContent = (m.recargas || 0) + '×';
-    const eje = card.querySelector('.mu-eje-n');
-    if (eje) eje.textContent = Math.round(Math.min(100, m.consumidoPct * 100)) + '%';
-
-    /* El narrador: solo se reescribe si el mensaje cambió, y entonces
-       se reanima. Así el efecto de escritura marca los momentos que
-       importan en vez de repetirse cada segundo. */
     const cn = card.querySelector('.mu-conse');
-    const txt = narrar(m, esVenta, dist);
+    const txt = narrarZona(z, dem, dist);
     if (cn && cn.innerHTML !== txt) {
       cn.innerHTML = txt;
       cn.classList.remove('mu-escribe');
@@ -1894,30 +1956,40 @@ function estilos() {
     text-transform:uppercase;letter-spacing:.5px}
 
   /* Los cuatro botones de filtro */
-  #mu-overlay .mu-fbtn{flex:1;min-width:calc(50% - 4px);min-height:40px;padding:0 12px;
-    border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
-    background:rgba(255,255,255,.035);border:1px solid #232a33;
-    font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;color:#8b96a3}
-  #mu-overlay .mu-fbtn .mu-cuenta{font-family:var(--mono,monospace);font-size:10px;font-style:normal;
-    min-width:19px;padding:1px 5px;border-radius:20px;background:rgba(255,255,255,.08);color:#b7bdc6}
-  #mu-overlay .mu-fbtn.verde{border-color:rgba(46,232,106,.28);color:#3ee88a}
-  #mu-overlay .mu-fbtn.rojo{border-color:rgba(246,70,93,.28);color:#ff6b7a}
-  #mu-overlay .mu-fbtn.oro{border-color:rgba(232,184,75,.28);color:#E8B84B}
-  #mu-overlay .mu-fbtn.gris{border-color:#2b3139;color:#8b96a3}
-  /* El filtro activo tiene que verse a la primera. */
-  #mu-overlay .mu-fbtn.on{border-width:2px;font-weight:800;transform:translateY(-1px)}
-  #mu-overlay .mu-fbtn.verde.on{background:linear-gradient(180deg,#4dffa0,#1fc96e);
-    border-color:#2ee86a;color:#04210f;box-shadow:0 3px 12px rgba(46,232,106,.3)}
-  #mu-overlay .mu-fbtn.verde.on .mu-cuenta{background:rgba(0,0,0,.25);color:#04210f}
-  #mu-overlay .mu-fbtn.rojo.on{background:linear-gradient(180deg,#ff8a95,#e03546);
-    border-color:#f6465d;color:#2a0509;box-shadow:0 3px 12px rgba(246,70,93,.3)}
-  #mu-overlay .mu-fbtn.rojo.on .mu-cuenta{background:rgba(0,0,0,.25);color:#2a0509}
-  #mu-overlay .mu-fbtn.oro.on{background:linear-gradient(180deg,#f7db8d,#E8B84B);
-    border-color:#E8B84B;color:#3a2800;box-shadow:0 3px 12px rgba(232,184,75,.3)}
-  #mu-overlay .mu-fbtn.oro.on .mu-cuenta{background:rgba(0,0,0,.22);color:#3a2800}
-  #mu-overlay .mu-fbtn.gris.on{background:linear-gradient(180deg,#b7bdc6,#8b96a3);
-    border-color:#b7bdc6;color:#0b0e12}
-  #mu-overlay .mu-fbtn.gris.on .mu-cuenta{background:rgba(0,0,0,.2);color:#0b0e12}
+  #mu-overlay .mu-fbtn{flex:1;min-width:calc(50% - 4px);min-height:46px;padding:0 12px;
+    border-radius:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+    background:linear-gradient(180deg,#1c232e,#11161e);border:1px solid #2b3541;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 3px 9px rgba(0,0,0,.45), 0 1px 0 rgba(0,0,0,.6);
+    font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;color:#aeb6c0;letter-spacing:.2px;
+    transition:transform .12s ease, box-shadow .12s ease, filter .12s ease}
+  #mu-overlay .mu-fbtn:hover{transform:translateY(-1.5px);filter:brightness(1.13);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.1), 0 6px 16px rgba(0,0,0,.55)}
+  #mu-overlay .mu-fbtn:active{transform:translateY(1px);box-shadow:inset 0 2px 6px rgba(0,0,0,.55)}
+  #mu-overlay .mu-fbtn .mu-cuenta{font-family:var(--mono,monospace);font-size:10.5px;font-style:normal;font-weight:700;
+    min-width:20px;padding:2px 6px;border-radius:20px;background:rgba(0,0,0,.38);color:#e4e9ef;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.45)}
+  #mu-overlay .mu-fbtn.verde{color:#4dffa0;border-color:rgba(46,232,106,.4)}
+  #mu-overlay .mu-fbtn.rojo{color:#ff7885;border-color:rgba(246,70,93,.4)}
+  #mu-overlay .mu-fbtn.oro{color:#f0c860;border-color:rgba(232,184,75,.42)}
+  #mu-overlay .mu-fbtn.gris{color:#aeb6c0;border-color:#38424f}
+  /* El filtro activo: relieve 3D encendido, se hunde un pelín como pulsado. */
+  #mu-overlay .mu-fbtn.on{font-weight:800;transform:translateY(0)}
+  #mu-overlay .mu-fbtn.verde.on{background:linear-gradient(180deg,#5cffab,#17c268);
+    border-color:#2ee86a;color:#04210f;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 4px 16px rgba(46,232,106,.4)}
+  #mu-overlay .mu-fbtn.verde.on .mu-cuenta{background:rgba(0,0,0,.28);color:#04210f}
+  #mu-overlay .mu-fbtn.rojo.on{background:linear-gradient(180deg,#ff8a95,#dd2f41);
+    border-color:#f6465d;color:#2a0509;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 4px 16px rgba(246,70,93,.4)}
+  #mu-overlay .mu-fbtn.rojo.on .mu-cuenta{background:rgba(0,0,0,.28);color:#2a0509}
+  #mu-overlay .mu-fbtn.oro.on{background:linear-gradient(180deg,#ffe89a,#e0ad3c);
+    border-color:#E8B84B;color:#3a2800;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 4px 16px rgba(232,184,75,.4)}
+  #mu-overlay .mu-fbtn.oro.on .mu-cuenta{background:rgba(0,0,0,.24);color:#3a2800}
+  #mu-overlay .mu-fbtn.gris.on{background:linear-gradient(180deg,#c6ccd4,#8b96a3);
+    border-color:#c6ccd4;color:#0b0e12;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 4px 14px rgba(0,0,0,.4)}
+  #mu-overlay .mu-fbtn.gris.on .mu-cuenta{background:rgba(0,0,0,.22);color:#0b0e12}
 
   #mu-overlay .mu-card-viejo{display:block;width:100%;text-align:left;margin-bottom:9px;padding:13px 14px;
     border-radius:13px;cursor:pointer;background:rgba(255,255,255,.022);
