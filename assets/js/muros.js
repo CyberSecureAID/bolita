@@ -576,8 +576,20 @@ function detectarZonas(velas, precio, opts) {
     };
   });
 
-  zonas.sort((a, b) => (b.confianza - Math.min(30, Math.abs(b.dist) * 900)) - (a.confianza - Math.min(30, Math.abs(a.dist) * 900)));
-  return { zonas: zonas.slice(0, 6), perfil };
+  /* Solo tienen sentido como retesteo las zonas razonablemente cerca del
+     precio. Se muestran las que están DENTRO o a ≤12%. Si no hay ninguna
+     (típico en 1D/1w con rango enorme), se muestran las más cercanas, pero
+     NUNCA más allá del 25%: una zona al 48% no es un retesteo, es ruido. */
+  let usar = zonas.filter((z) => z.dentro || Math.abs(z.dist) <= 0.10);
+  if (usar.length < 2) {
+    const extra = zonas
+      .filter((z) => usar.indexOf(z) < 0 && Math.abs(z.dist) <= 0.14)
+      .sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))
+      .slice(0, 3 - usar.length);
+    usar = usar.concat(extra);
+  }
+  usar.sort((a, b) => (b.confianza - Math.min(30, Math.abs(b.dist) * 900)) - (a.confianza - Math.min(30, Math.abs(a.dist) * 900)));
+  return { zonas: usar.slice(0, 6), perfil };
 }
 
 /* Paleta del GRÁFICO según el tema. Solo cambia el "chrome" neutro (fondo,
@@ -1253,7 +1265,22 @@ function dibujar() {
      el usuario no puede usarlo. */
   let pAlto = Math.max(...vis.map((v) => v.h));
   let pBajo = Math.min(...vis.map((v) => v.l));
-  M.zonas.forEach((z) => { if (z.pHigh > pAlto) pAlto = z.pHigh; if (z.pLow < pBajo) pBajo = z.pLow; });
+  if (M.precio > 0) { pAlto = Math.max(pAlto, M.precio); pBajo = Math.min(pBajo, M.precio); }
+  /* Las zonas amplían la escala SOLO si están cerca del rango de las velas.
+     Una zona lejana no debe aplastar las velas: se recorta al borde del
+     gráfico (el dibujo ya usa Math.min/max con pMin/pMax). */
+  const margenR = (pAlto - pBajo) * 0.35 || 1;
+  M.zonas.forEach((z) => {
+    if (z.pHigh <= pAlto + margenR && z.pHigh > pAlto) pAlto = z.pHigh;
+    if (z.pLow >= pBajo - margenR && z.pLow < pBajo) pBajo = z.pLow;
+  });
+  if (M.mercado) {
+    [M.mercado.vwap, M.mercado.vah, M.mercado.val].forEach((p) => {
+      if (!(p > 0)) return;
+      if (p <= pAlto + margenR && p > pAlto) pAlto = p;
+      if (p >= pBajo - margenR && p < pBajo) pBajo = p;
+    });
+  }
   /* El zoom vertical estira o comprime la escala de precios, como al
      arrastrar el borde derecho en TradingView. */
   /* El arrastre vertical desplaza el rango de precios. */
@@ -1284,39 +1311,8 @@ function dibujar() {
     g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
   }
 
-  /* ── PERFIL DE VOLUMEN lateral ──
-     Silueta sólida con degradado (no barritas sueltas). El nodo de mayor
-     volumen (POC global) se resalta, y las franjas que caen dentro de una zona
-     se ven más vivas: así se entiende de dónde nacen las zonas. */
-  if (M.perfil && M.perfil.vol) {
-    const pf = M.perfil;
-    const wMax = Math.min(104, x1 * 0.17);
-    const binH = y1 / pf.N;
-    let pocB = 0;
-    for (let b = 1; b < pf.N; b++) if (pf.vol[b] > pf.vol[pocB]) pocB = b;
-    for (let b = 0; b < pf.N; b++) {
-      const pB = pf.lo + (b + 0.5) * (pf.hi - pf.lo) / pf.N;
-      if (pB < pMin || pB > pMax) continue;
-      const w = (pf.vol[b] / pf.max) * wMax;
-      if (w < 1) continue;
-      const yb = Y(pB);
-      const enZona = M.zonas.some((z) => pB >= z.pLow && pB <= z.pHigh && !z.rota);
-      const base = pB < M.precio ? '46,232,106' : '246,70,93';
-      const a = b === pocB ? 0.52 : enZona ? 0.30 : 0.12;
-      const gr = g.createLinearGradient(0, 0, w, 0);
-      gr.addColorStop(0, `rgba(${base},${a})`);
-      gr.addColorStop(1, `rgba(${base},0)`);
-      g.fillStyle = gr;
-      g.fillRect(0, yb - binH / 2, w, Math.max(1.6, binH - 0.5));
-    }
-    // Marca del POC global
-    const pPoc = pf.lo + (pocB + 0.5) * (pf.hi - pf.lo) / pf.N;
-    if (pPoc >= pMin && pPoc <= pMax) {
-      const yp = Y(pPoc);
-      g.fillStyle = 'rgba(232,184,75,.5)';
-      g.fillRect(0, yp - 0.6, wMax * (pf.vol[pocB] / pf.max), 1.2);
-    }
-  }
+  /* (El perfil de volumen se dibuja MÁS ABAJO, encima de las velas, para que
+     no quede tapado por ellas.) */
 
   /* ── MAPA DE CALOR de volumen (fondo) ──
      Sombreado tenue a TODO el ancho según la densidad de volumen a cada
@@ -1335,23 +1331,29 @@ function dibujar() {
     }
   }
 
-  /* ── NIVELES INSTITUCIONALES: VWAP y bordes del área de valor (VAH/VAL) ── */
+  /* ── NIVELES INSTITUCIONALES: VWAP y bordes del área de valor (VAH/VAL) ──
+     Con peso visual: líneas más gruesas, color vivo y pastilla de etiqueta. */
   if (M.mercado) {
     const mk = M.mercado;
-    const linea = (p, col, dash, etiqueta) => {
+    const linea = (p, col, dash, etiqueta, glow, gruesa) => {
       if (!(p > 0) || p < pMin || p > pMax) return;
       const y = Y(p);
       g.save();
-      g.strokeStyle = col; g.lineWidth = 1; if (dash) g.setLineDash(dash);
+      if (glow) { g.shadowColor = col; g.shadowBlur = 6; }
+      g.strokeStyle = col; g.lineWidth = gruesa ? 2 : 1.4; if (dash) g.setLineDash(dash);
       g.beginPath(); g.moveTo(0, y); g.lineTo(xVelas, y); g.stroke();
       g.restore(); g.setLineDash([]);
-      g.font = 'bold 8.5px ui-monospace,monospace'; g.textAlign = 'left';
+      // Pastilla de etiqueta
+      g.font = 'bold 9px ui-monospace,monospace';
+      const w = g.measureText(etiqueta).width + 12;
       g.fillStyle = col;
-      g.fillText(etiqueta, 6, y - 3);
+      redondeado(g, 6, y - 8, w, 14, 4); g.fill();
+      g.fillStyle = '#08111f'; g.textAlign = 'left';
+      g.fillText(etiqueta, 12, y + 2.5);
     };
-    linea(mk.vah, 'rgba(139,150,163,.5)', [3, 4], 'VAH');
-    linea(mk.val, 'rgba(139,150,163,.5)', [3, 4], 'VAL');
-    linea(mk.vwap, 'rgba(120,170,255,.75)', [7, 4], 'VWAP');
+    linea(mk.vah, '#c9a24b', [4, 4], 'VAH', false, false);
+    linea(mk.val, '#c9a24b', [4, 4], 'VAL', false, false);
+    linea(mk.vwap, '#5aa9ff', [9, 5], 'VWAP', true, true);
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -1362,13 +1364,92 @@ function dibujar() {
      derecha, un PANEL de proyección sólido y redondeado = la zona de retesteo,
      con el importe y las insignias. Verde = demanda · Rojo = oferta.
      ══════════════════════════════════════════════════════════ */
-  const xIni = xVelas * 0.62;
   const pulso = 0.5 + 0.5 * Math.sin(Date.now() / 450);
+  /* PASE 1 (detrás de las velas): solo las BANDAS y bordes de cada zona, muy
+     sutiles, para no tapar el precio. Las líneas de entrada, etiquetas y el
+     perfil van DESPUÉS (encima de las velas) para que no queden troceados. */
   M.zonas.forEach((z) => {
     if (z.pHigh < pMin || z.pLow > pMax) return;
     const yT = Y(Math.min(pMax, z.pHigh));
     const yB = Y(Math.max(pMin, z.pLow));
     const alto = Math.max(7, yB - yT);
+    const dem = z.lado === 'demanda';
+    const rota = z.rota;
+    const col = rota ? '#6b7681' : (dem ? '#2ee86a' : '#f6465d');
+    const rgb = dem ? '46,232,106' : rota ? '107,118,129' : '246,70,93';
+    const aBanda = rota ? 0.05 : (0.06 + (z.confianza / 100) * 0.10);
+    g.fillStyle = `rgba(${rgb},${aBanda})`;
+    g.fillRect(0, yT, x1, alto);
+    const pg = g.createLinearGradient(xVelas, 0, x1, 0);
+    pg.addColorStop(0, `rgba(${rgb},${aBanda * 1.6})`);
+    pg.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = pg;
+    g.fillRect(xVelas, yT, x1 - xVelas, alto);
+    g.strokeStyle = col + (rota ? '3a' : '66'); g.lineWidth = 1;
+    if (rota) g.setLineDash([5, 4]);
+    g.beginPath(); g.moveTo(0, yT + .5); g.lineTo(x1, yT + .5); g.stroke();
+    g.beginPath(); g.moveTo(0, yB - .5); g.lineTo(x1, yB - .5); g.stroke();
+    g.setLineDash([]);
+  });
+
+
+  /* ── LAS VELAS ── */
+  const paso = xVelas / vis.length;
+  const cuerpo = Math.max(1.6, paso * 0.6);
+  vis.forEach((v, i) => {
+    const x = i * paso + paso / 2;
+    const col = v.c >= v.o ? P.velaUp : P.velaDown;
+    g.strokeStyle = col; g.fillStyle = col;
+    g.lineWidth = Math.max(1, paso * 0.12);
+    g.beginPath(); g.moveTo(x, Y(v.h)); g.lineTo(x, Y(v.l)); g.stroke();
+    const yA = Y(Math.max(v.o, v.c)), yB = Y(Math.min(v.o, v.c));
+    g.fillRect(x - cuerpo / 2, yA, cuerpo, Math.max(1.4, yB - yA));
+  });
+
+  /* ── PERFIL DE VOLUMEN (ENCIMA de las velas) ──
+     Panel a la izquierda con fondo propio para que resalte y no se pierda
+     entre las velas. Barras sólidas; POC en dorado. */
+  if (M.perfil && M.perfil.vol) {
+    const pf = M.perfil;
+    const wMax = Math.min(96, x1 * 0.16);
+    const binH = y1 / pf.N;
+    let pocB = 0;
+    for (let b = 1; b < pf.N; b++) if (pf.vol[b] > pf.vol[pocB]) pocB = b;
+    // Fondo del panel del perfil (velado) para dar contraste
+    const fg = g.createLinearGradient(0, 0, wMax + 14, 0);
+    fg.addColorStop(0, M.tema === 'claro' ? 'rgba(255,255,255,.32)' : 'rgba(6,9,13,.66)');
+    fg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = fg; g.fillRect(0, 0, wMax + 14, y1);
+    for (let b = 0; b < pf.N; b++) {
+      const pB = pf.lo + (b + 0.5) * (pf.hi - pf.lo) / pf.N;
+      if (pB < pMin || pB > pMax) continue;
+      const w = (pf.vol[b] / pf.max) * wMax;
+      if (w < 1) continue;
+      const yb = Y(pB);
+      const enZona = M.zonas.some((z) => pB >= z.pLow && pB <= z.pHigh && !z.rota);
+      const base = pB < M.precio ? '46,232,106' : '246,70,93';
+      const a = b === pocB ? 0.95 : enZona ? 0.72 : 0.42;
+      const h = Math.max(2, binH - 0.6);
+      g.fillStyle = `rgba(${base},${a})`;
+      g.fillRect(0, yb - h / 2, w, h);
+      g.fillStyle = `rgba(${base},${Math.min(1, a + 0.2)})`;   // borde derecho nítido
+      g.fillRect(w - 2, yb - h / 2, 2, h);
+    }
+    const pPoc = pf.lo + (pocB + 0.5) * (pf.hi - pf.lo) / pf.N;
+    if (pPoc >= pMin && pPoc <= pMax) {
+      const yp = Y(pPoc);
+      g.fillStyle = 'rgba(232,184,75,.85)';
+      g.fillRect(0, yp - 1, wMax * (pf.vol[pocB] / pf.max), 2);
+      g.font = 'bold 7.5px ui-monospace,monospace'; g.fillStyle = '#E8B84B'; g.textAlign = 'left';
+      g.fillText('POC', 3, yp - 3);
+    }
+  }
+
+  /* ── PASE 2 (ENCIMA de las velas): línea de entrada (POC), etiqueta y chip ──
+     Al ir después de las velas, la línea es continua (no troceada). */
+  M.zonas.forEach((z) => {
+    if (z.pHigh < pMin || z.pLow > pMax) return;
+    const yT = Y(Math.min(pMax, z.pHigh));
     const yC = Y(z.p);
     const yPoc = Y(z.pPoc);
     const dem = z.lado === 'demanda';
@@ -1377,46 +1458,17 @@ function dibujar() {
     const fuerte = z.fuerza >= 4 && !rota;
     const activa = (z.dentro || z.retest) && !rota;
 
-    // 1) Banda a TODO el ancho, muy sutil (las velas siguen legibles)
-    const aBanda = rota ? 0.05 : (0.06 + (z.confianza / 100) * 0.10);
-    g.fillStyle = `rgba(${dem ? '46,232,106' : rota ? '107,118,129' : '246,70,93'},${aBanda})`;
-    g.fillRect(0, yT, xVelas, alto);
-
-    // Bordes finos de la zona (todo el ancho)
-    g.strokeStyle = col + (rota ? '3a' : '5c'); g.lineWidth = 1;
-    if (rota) g.setLineDash([5, 4]);
-    g.beginPath(); g.moveTo(0, yT + .5); g.lineTo(xVelas, yT + .5); g.stroke();
-    g.beginPath(); g.moveTo(0, yB - .5); g.lineTo(xVelas, yB - .5); g.stroke();
-    g.setLineDash([]);
-
-    // POC — punto de control (máximo volumen): la línea protagonista
-    if (!rota && z.pPoc >= pMin && z.pPoc <= pMax) {
+    // Línea de entrada = POC: continua de lado a lado, punteada, con glow si fuerte
+    if (z.pPoc >= pMin && z.pPoc <= pMax) {
       g.save();
-      g.shadowColor = col; g.shadowBlur = fuerte ? 8 : 5;
-      g.strokeStyle = col; g.lineWidth = fuerte ? 1.8 : 1.3;
-      g.beginPath(); g.moveTo(0, yPoc); g.lineTo(xVelas, yPoc); g.stroke();
-      g.restore();
+      if (fuerte || activa) { g.shadowColor = col; g.shadowBlur = activa ? (6 + 6 * pulso) : 7; }
+      g.strokeStyle = col + (rota ? '99' : 'ff'); g.lineWidth = fuerte ? 1.8 : 1.3;
+      g.setLineDash([6, 5]);
+      g.beginPath(); g.moveTo(0, yPoc); g.lineTo(x1, yPoc); g.stroke();
+      g.restore(); g.setLineDash([]);
     }
 
-    // 2) PANEL de proyección (retesteo) a la derecha, sólido y redondeado
-    g.save();
-    const rg = g.createLinearGradient(xIni, 0, xVelas, 0);
-    const aPanel = rota ? 0.12 : (0.16 + (z.confianza / 100) * 0.22) * (activa ? (0.8 + 0.4 * pulso) : 1);
-    rg.addColorStop(0, col + '00');
-    rg.addColorStop(1, `rgba(${dem ? '46,232,106' : rota ? '107,118,129' : '246,70,93'},${aPanel})`);
-    g.fillStyle = rg;
-    redondeado(g, xIni, yT, xVelas - xIni, alto, 4); g.fill();
-    g.restore();
-
-    // Línea de entrada (centro de la zona) dentro del panel de proyección
-    g.save();
-    if (activa) { g.shadowColor = col; g.shadowBlur = 5 + 6 * pulso; }
-    g.strokeStyle = col + (rota ? '88' : 'ee'); g.lineWidth = 1;
-    g.setLineDash([2, 4]);
-    g.beginPath(); g.moveTo(xIni, yC); g.lineTo(xVelas, yC); g.stroke();
-    g.restore(); g.setLineDash([]);
-
-    // Etiqueta: importe + insignias (◈ confluencia · ▣ libro), con relieve
+    // Etiqueta: importe + insignias, con relieve
     const et = dinero(z.v);
     const badges = (z.confluencia ? ' \u25c8' : '') + (z.libro ? ' \u25a3' : '');
     g.font = 'bold 11.5px ui-monospace,monospace';
@@ -1433,39 +1485,26 @@ function dibujar() {
     g.font = 'bold 11.5px ui-monospace,monospace'; g.textAlign = 'left';
     g.fillText(et + badges, xVelas + 33, yC + 4);
 
-    // Chip de estado (pulsante) sobre el panel de proyección
+    // Chip de estado (pulsante)
     if (activa) {
       const rw = 66;
       g.save();
       g.globalAlpha = 0.74 + 0.26 * pulso;
       g.shadowColor = 'rgba(232,184,75,.7)'; g.shadowBlur = 9;
       g.fillStyle = '#E8B84B';
-      redondeado(g, xIni + 6, yT + 4, rw, 15, 4); g.fill();
+      redondeado(g, 8, yT + 4, rw, 15, 4); g.fill();
       g.restore();
       g.fillStyle = '#2a1c00'; g.font = 'bold 8px system-ui,sans-serif'; g.textAlign = 'center';
-      g.fillText(z.dentro ? 'EN LA ZONA' : 'RETESTEO', xIni + 6 + rw / 2, yT + 14.5);
+      g.fillText(z.dentro ? 'EN LA ZONA' : 'RETESTEO', 8 + rw / 2, yT + 14.5);
       g.textAlign = 'left';
     } else if (rota) {
       const rw = 44;
       g.fillStyle = 'rgba(107,118,129,.9)';
-      redondeado(g, xIni + 6, yT + 4, rw, 15, 4); g.fill();
+      redondeado(g, 8, yT + 4, rw, 15, 4); g.fill();
       g.fillStyle = '#0b0e12'; g.font = 'bold 8px system-ui,sans-serif'; g.textAlign = 'center';
-      g.fillText('ROTA', xIni + 6 + rw / 2, yT + 14.5);
+      g.fillText('ROTA', 8 + rw / 2, yT + 14.5);
       g.textAlign = 'left';
     }
-  });
-
-  /* ── LAS VELAS ── */
-  const paso = xVelas / vis.length;
-  const cuerpo = Math.max(1.6, paso * 0.6);
-  vis.forEach((v, i) => {
-    const x = i * paso + paso / 2;
-    const col = v.c >= v.o ? P.velaUp : P.velaDown;
-    g.strokeStyle = col; g.fillStyle = col;
-    g.lineWidth = Math.max(1, paso * 0.12);
-    g.beginPath(); g.moveTo(x, Y(v.h)); g.lineTo(x, Y(v.l)); g.stroke();
-    const yA = Y(Math.max(v.o, v.c)), yB = Y(Math.min(v.o, v.c));
-    g.fillRect(x - cuerpo / 2, yA, cuerpo, Math.max(1.4, yB - yA));
   });
 
   /* ── El precio actual ── */
