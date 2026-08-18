@@ -891,7 +891,9 @@ export async function abrirMuros() {
   const cerrar = () => {
     clearInterval(_reloj); clearInterval(_relojVelas); clearInterval(_relojPulso);
     cerrarWSLibro();
-    document.querySelectorAll('#mu-picker, #mu-tfmenu').forEach((x) => x.remove());
+    M._pos = null; M._tend = null;   // las herramientas viven DENTRO del radar
+    if (_planFuera) { document.removeEventListener('pointerdown', _planFuera, true); _planFuera = null; }
+    document.querySelectorAll('#mu-picker, #mu-tfmenu, #mu-plan, #mu-tend, #mu-poscfg, #mu-tendcfg').forEach((x) => x.remove());
     const e = $('mu-overlay'); if (e) e.remove();
     /* Al cerrar se vuelve a la portada de Liquidity, no se sale. */
     try { if (window.__lqpVolver) window.__lqpVolver(); } catch (_) {}
@@ -922,6 +924,7 @@ export async function abrirMuros() {
 
   d.querySelectorAll('[data-tf]').forEach((b) => b.onclick = () => {
     M.tf = b.dataset.tf;
+    M._pos = null; M._tend = null; cerrarPosCfg(); cerrarTendCfg();
     reiniciarAlertas();
     d.querySelectorAll('[data-tf]').forEach((x) => x.classList.toggle('on', x.dataset.tf === M.tf));
     const ch = $('mu-tfchip-t'); if (ch) ch.textContent = b.textContent;   // refleja en el chip móvil
@@ -1833,6 +1836,13 @@ function dibujar() {
   });
   g.textAlign = 'left';
 
+  /* ── Herramienta de posición y línea de tendencia (viven en el radar) ── */
+  if (M._pos || M._tend) {
+    const Xi = (i) => i * paso + paso / 2;
+    if (M._tend) dibujarTendencia(g, Y, Xi, y1);
+    if (M._pos) dibujarPosicion(g, Y, x1, y1, xVelas);
+  }
+
   /* ── CROSSHAIR: cruz + precio del cursor en el eje ── */
   if (M._cursor && M._cursor.x < x1 && M._cursor.y < y1 && M._cursor.x > 0 && M._cursor.y > 0) {
     const cx = M._cursor.x, cy = M._cursor.y;
@@ -1886,7 +1896,17 @@ function engancharGestos(cv) {
 
   cv.addEventListener('mousedown', (e) => {
     const r = cv.getBoundingClientRect();
-    modoG = enEscalaM(e.clientX - r.left) ? 'y' : 'libre';
+    const lx = e.clientX - r.left, ly = e.clientY - r.top;
+    // ¿tocó la herramienta de posición? (línea de entrada o su franja)
+    if (M._pos && M._posGeo) {
+      const G = M._posGeo;
+      if (lx >= G.xs - 6 && lx <= G.xf + 6 && ly >= Math.min(G.yT, G.yS) - 8 && ly <= Math.max(G.yT, G.yS) + 8) {
+        arrastrarPos(e); mostrarPosCfg(); return;
+      }
+    }
+    // ¿tocó la línea de tendencia?
+    if (M._tend && cercaTend(lx, ly)) { arrastrarTend(e); mostrarTendCfg(); return; }
+    modoG = enEscalaM(lx) ? 'y' : 'libre';
     arr = true; ax = e.clientX; ay = e.clientY;
     cv.style.cursor = modoG === 'y' ? 'ns-resize' : 'grabbing';
   });
@@ -2218,7 +2238,7 @@ function pintarPanel() {
           <span class="mu-dist2 ${z.dentro ? 'urge' : z.retest ? 'cerca' : ''}">${z.dentro ? 'AQU\u00cd' : pct + '% ' + (dem ? '\u2193' : '\u2191')}</span>
           <span class="mu-fl">${abierta ? '\u25b2' : '\u25bc'}</span>
         </div>
-        <div class="mu-conf"><i class="mu-conf-bar" style="width:${z.confianza}%"></i><em>${z.confianza}<span>conf.</span></em></div>
+        <div class="mu-conf"><i class="mu-conf-bar" style="width:${Math.round(z.confianza)}%"></i><em>${Math.round(z.confianza)}<span>conf.</span></em></div>
         ${badges ? `<div class="mu-badges">${badges}</div>` : ''}
         ${z.dentro || z.retest ? `<div class="mu-aviso-vivo">\u27f3 ${z.dentro ? 'El precio est\u00e1 en la zona ahora' : 'El precio est\u00e1 por retestear esta zona'}</div>` : ''}
       </button>
@@ -2339,9 +2359,9 @@ function actualizar(card, z) {
 
   // Barra de confianza
   const barra = card.querySelector('.mu-conf-bar');
-  if (barra) barra.style.width = z.confianza + '%';
+  if (barra) barra.style.width = Math.round(z.confianza) + '%';
   const cn2 = card.querySelector('.mu-conf em');
-  if (cn2) { const t = z.confianza + ''; if (cn2.firstChild && cn2.firstChild.textContent !== t) cn2.firstChild.textContent = t; }
+  if (cn2) { const t = Math.round(z.confianza) + ''; if (cn2.firstChild && cn2.firstChild.textContent !== t) cn2.firstChild.textContent = t; }
 
   const claseCol = z.rota ? 'gris' : (dem ? 'verde' : 'rojo');
   ['oro', 'verde', 'azul', 'rojo', 'gris', 'ido'].forEach((k) => {
@@ -2417,6 +2437,7 @@ function menuPares() {
 
   m.querySelectorAll('[data-mv]').forEach((b) => b.onclick = () => {
     _par = b.dataset.mv;
+    M._pos = null; M._tend = null; cerrarPosCfg(); cerrarTendCfg();
     /* Una ficha de otra moneda no puede quedarse abierta. */
     try { if (_od && _od.cerrarFichas) _od.cerrarFichas(); } catch (_) {}
     const bb = anc.querySelector('b'); if (bb) bb.textContent = _par;
@@ -3070,7 +3091,7 @@ function estilos() {
   }
   #mu-ana-box{position:fixed;inset:0;z-index:9785;display:flex;align-items:center;justify-content:center;padding:16px}
   #mu-ana-box .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.9)}
-  #mu-ana-box .an-c{position:relative;width:100%;max-width:440px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+  #mu-ana-box .an-c{position:relative;width:100%;max-width:440px;height:min(560px,82vh);display:flex;flex-direction:column;
     background:linear-gradient(180deg,#12171f,#0b0e12);border:1px solid #232b35;border-radius:18px;overflow:hidden;
     box-shadow:0 24px 70px rgba(0,0,0,.65)}
   #mu-ana-box .an-top{display:flex;align-items:center;gap:11px;padding:13px 14px;border-bottom:1px solid #1c232c;
@@ -3088,52 +3109,25 @@ function estilos() {
   #mu-ana-box .an-burb b{color:#fff}
   #mu-overlay.mu-claro ~ #mu-ana-box .an-burb{background:#eef1f5;border-color:rgba(0,0,0,.1);color:#1a2028}
 
-  /* Herramienta de posición proyectada («Muéstrame»), por ENCIMA de todo */
-  #mu-plan{position:fixed;inset:0;z-index:10000;pointer-events:none}
-  #mu-plan .mu-plan-svg{position:absolute;inset:0;pointer-events:none;overflow:visible;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}
-  #mu-plan .mu-plan-tool{position:absolute;pointer-events:auto;cursor:grab;touch-action:none}
-  #mu-plan .mu-plan-tool:active{cursor:grabbing}
-  #mu-plan .mu-plan-cab{position:absolute;top:-24px;left:0;font-family:var(--mono,monospace);font-weight:800;font-size:10px;
-    color:#0b0e12;background:var(--c,#E8B84B);padding:3px 9px;border-radius:6px;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.5)}
-  #mu-plan .mu-plan-prof,#mu-plan .mu-plan-loss{position:absolute;left:0;width:100%;display:flex;align-items:flex-start;justify-content:flex-end}
-  #mu-plan .mu-plan-prof{background:rgba(46,232,106,.18);border:1px solid rgba(46,232,106,.55)}
-  #mu-plan .mu-plan-loss{background:rgba(246,70,93,.18);border:1px solid rgba(246,70,93,.55)}
-  #mu-plan .mu-plan-prof span,#mu-plan .mu-plan-loss span,#mu-plan .mu-plan-ent span{
-    font-family:var(--mono,monospace);font-weight:800;font-size:10.5px;padding:2px 7px;border-radius:5px;margin:3px;white-space:nowrap;
-    box-shadow:0 2px 6px rgba(0,0,0,.5)}
-  #mu-plan .mu-plan-prof span{background:#2ee86a;color:#04210f}
-  #mu-plan .mu-plan-loss span{background:#f6465d;color:#2a0509}
-  #mu-plan .mu-plan-ent{position:absolute;top:0;left:0;width:100%;border-top:2px dashed #E8B84B;display:flex;justify-content:flex-end}
-  #mu-plan .mu-plan-ent span{background:#E8B84B;color:#2a1c00;transform:translateY(-50%)}
-  #mu-plan .mu-plan-cfg{position:absolute;top:-56px;left:0;display:none;gap:3px;padding:3px;border-radius:9px;
-    background:#12171f;border:1px solid #2b3540;box-shadow:0 6px 20px rgba(0,0,0,.6)}
-  #mu-plan .mu-plan-cfg.on{display:flex}
-  #mu-plan .mu-plan-cfg button{width:26px;height:26px;border-radius:6px;border:1px solid #2b3540;background:#1a212b;
-    color:var(--c,#E8B84B);font-size:12px;cursor:pointer;display:grid;place-items:center}
-  #mu-plan .mu-plan-cfg button[data-a="del"]{color:#f6465d}
-  #mu-plan .mu-plan-cfg button:active{transform:translateY(1px)}
+  /* 4 botones iguales del analista (rejilla 2x2, sin desbordar en móvil) */
+  #mu-ana-box .an-acc{padding:0 14px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #mu-ana-box .an-b{padding:11px 6px;border:1px solid #2b3540;border-radius:11px;cursor:pointer;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;color:#e7ecf2;background:#1a212b;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform .1s ease,filter .15s ease}
+  #mu-ana-box .an-b:active{transform:translateY(1px)}
+  #mu-ana-box .an-b:disabled{opacity:.4;cursor:not-allowed}
+  #mu-ana-box .an-b-l{background:linear-gradient(180deg,rgba(46,232,106,.22),rgba(46,232,106,.08));border-color:rgba(46,232,106,.5);color:#7cffb0}
+  #mu-ana-box .an-b-s{background:linear-gradient(180deg,rgba(246,70,93,.22),rgba(246,70,93,.08));border-color:rgba(246,70,93,.5);color:#ff97a4}
+  #mu-ana-box .an-b-t{background:linear-gradient(180deg,rgba(232,184,75,.2),rgba(232,184,75,.07));border-color:rgba(232,184,75,.5);color:#f2d488}
 
-  #mu-ana-box .an-acc{padding:0 14px 14px;display:flex;gap:8px}
-  #mu-ana-box .an-btn{flex:1;padding:12px 8px;border:none;border-radius:12px;cursor:pointer;
-    font-family:var(--display,sans-serif);font-weight:800;font-size:13px;color:#0b0e12;
-    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B));box-shadow:0 3px 0 #8f6a1a}
-  #mu-ana-box .an-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #8f6a1a}
-  #mu-ana-box .an-btn2{flex:1;padding:12px 8px;border:1px solid #2b3540;border-radius:12px;cursor:pointer;
-    font-family:var(--display,sans-serif);font-weight:800;font-size:13px;color:#d3d9e0;background:#1a212b}
-  #mu-ana-box .an-btn2:active{transform:translateY(1px)}
-
-  /* Línea de tendencia (Faro) */
-  #mu-tend{position:fixed;inset:0;z-index:9999;pointer-events:none}
-  #mu-tend .mu-tend-svg{position:absolute;inset:0;pointer-events:auto;overflow:visible;filter:drop-shadow(0 2px 5px rgba(0,0,0,.5))}
-  #mu-tend .mu-tend-svg #tl{cursor:move}
-  #mu-tend .mu-tend-svg circle{cursor:grab}
-  #mu-tend .mu-tend-cab{position:absolute;display:none;align-items:center;gap:4px;padding:4px 5px;border-radius:9px;pointer-events:auto;
-    background:#12171f;border:1px solid #2b3540;box-shadow:0 6px 20px rgba(0,0,0,.6);cursor:move}
-  #mu-tend .mu-tend-cab.on{display:flex}
-  #mu-tend .mu-tend-cab .tl-et{font-family:var(--mono,monospace);font-weight:800;font-size:9.5px;color:#c8cfd8;padding:0 5px;white-space:nowrap}
-  #mu-tend .mu-tend-cab button{width:24px;height:24px;border-radius:6px;border:1px solid #2b3540;background:#1a212b;
-    color:#c8cfd8;font-size:11px;cursor:pointer;display:grid;place-items:center}
-  #mu-tend .mu-tend-cab button[data-a="del"]{color:#f6465d}
+  /* Config flotante de la herramienta de posición / tendencia (hijo del radar) */
+  #mu-poscfg,#mu-tendcfg{position:absolute;z-index:40;display:flex;align-items:center;gap:4px;padding:4px 5px;border-radius:10px;
+    background:#12171f;border:1px solid #2b3540;box-shadow:0 8px 22px rgba(0,0,0,.6)}
+  #mu-poscfg .pc-et,#mu-tendcfg .pc-et{font-family:var(--mono,monospace);font-weight:800;font-size:9.5px;color:#c8cfd8;padding:0 5px;white-space:nowrap}
+  #mu-poscfg button,#mu-tendcfg button{width:26px;height:26px;border-radius:6px;border:1px solid #2b3540;background:#1a212b;
+    color:#c8cfd8;font-size:12px;cursor:pointer;display:grid;place-items:center}
+  #mu-poscfg button[data-a="del"],#mu-tendcfg button[data-a="del"]{color:#f6465d}
+  #mu-poscfg button:active,#mu-tendcfg button:active{transform:translateY(1px)}
 
   #mu-val-box .mv-note{font-family:var(--sans,sans-serif);font-size:12px;line-height:1.55;color:#9aa3ad;margin:0 0 12px}
   #mu-val-box .mv-note b{color:#c2c9d2}
@@ -3429,12 +3423,16 @@ function abrirAnalista() {
   const burbuja = (txt) => { const b = document.createElement('div'); b.className = 'an-burb'; b.innerHTML = parseB(txt); chat.appendChild(b); chat.scrollTop = chat.scrollHeight; };
   const acciones = () => {
     estado.textContent = 'en línea';
-    let html = '';
-    if (a.op) html += `<button class="an-btn" id="an-mostrar">\u25B8 Mu\u00e9strame en la gr\u00e1fica</button>`;
-    html += `<button class="an-btn2" id="an-tend">\u2197 Determina la tendencia</button>`;
-    acc.innerHTML = html;
-    if (a.op) acc.querySelector('#an-mostrar').onclick = () => { cerrar(); mostrarPlan(a); };
+    const okL = hayOp('long'), okS = hayOp('short');
+    acc.innerHTML =
+      `<button class="an-b an-b-l" id="an-long" ${okL ? '' : 'disabled'}>\u25b2 Largo</button>` +
+      `<button class="an-b an-b-s" id="an-short" ${okS ? '' : 'disabled'}>\u25bc Corto</button>` +
+      `<button class="an-b an-b-t" id="an-tend">\u2197 Tendencia</button>` +
+      `<button class="an-b an-b-x" id="an-limpiar">\u2715 Limpiar</button>`;
+    if (okL) acc.querySelector('#an-long').onclick = () => { cerrar(); mostrarPlan(a, 'long'); };
+    if (okS) acc.querySelector('#an-short').onclick = () => { cerrar(); mostrarPlan(a, 'short'); };
     acc.querySelector('#an-tend').onclick = () => { cerrar(); mostrarTendencia(); };
+    acc.querySelector('#an-limpiar').onclick = () => { M._pos = null; M._tend = null; cerrarPosCfg(); cerrarTendCfg(); dibujar(); cerrar(); };
   };
 
   if (alInstante) {
@@ -3467,197 +3465,230 @@ let _anaT = null, _analisis = null, _planFuera = null, _anaCache = null;
    hasta el nivel de entrada, y proyecta una herramienta de posición (long/short)
    con R:R 1:1 (entrada, stop y objetivo), POR ENCIMA de toda la interfaz. Se
    cierra con un clic fuera. */
-function mostrarPlan(a) {
-  if (!a || !a.op) return;
+function mostrarPlan(a, tipoForzado) {
+  // Fija la posición en el ESTADO del radar: se dibuja en el lienzo (no como
+  // overlay que se filtra fuera). tipoForzado: 'long' | 'short' | undefined.
+  const op = tipoForzado ? construirOp(tipoForzado) : (a && a.op);
+  if (!op) return;
   const tabChart = [...document.querySelectorAll('.mu-mtab')].find((x) => /hart|r\u00e1fic|gr\u00e1fic/i.test(x.textContent));
-  if (tabChart && !tabChart.classList.contains('on')) { tabChart.click(); }
-  setTimeout(() => pintarPlan(a), 80);
+  if (tabChart && !tabChart.classList.contains('on')) tabChart.click();
+  M._pos = { tipo: op.tipo, entrada: op.entrada, sl: op.sl, tp: op.tp, off: 0, cerca: true };
+  cerrarPosCfg();
+  dibujar();
 }
-function pintarPlan(a) {
-  document.getElementById('mu-plan')?.remove();
-  const cv = $('mu-cv'); const ana = $('mu-analista');
-  if (!cv || !M._geo || !ana) return;
-  const rect = cv.getBoundingClientRect();
-  if (rect.width < 40) return;
-  const { pMin, pMax, y1 } = M._geo;
-  const Yp = (p) => rect.top + (y1 - y1 * ((p - pMin) / Math.max(1e-9, pMax - pMin)));
-  const op = a.op;
-  const yE = Yp(op.entrada), ySL = Yp(op.sl), yTP = Yp(op.tp);
-  // Tramo NORMAL (corto), centrado en la parte media-derecha del gráfico
-  const ancho = Math.min(210, rect.width * 0.32);
-  const x1 = rect.left + rect.width - 96;      // termina antes del eje
-  const x0 = x1 - ancho;
-  const ic = ana.getBoundingClientRect();
-  const ax = ic.left + ic.width / 2, ay = ic.bottom;
-  const col = op.tipo === 'long' ? '#2ee86a' : '#f6465d';
-  const profTop = Math.min(yE, yTP), profH = Math.abs(yTP - yE);
-  const lossTop = Math.min(yE, ySL), lossH = Math.abs(ySL - yE);
-  const midX = (ax + x0) / 2;
 
-  const ov = document.createElement('div');
-  ov.id = 'mu-plan';
-  ov.innerHTML =
-    `<svg class="mu-plan-svg" id="mu-plan-linea" width="100%" height="100%">
-       <path d="M ${ax} ${ay} Q ${midX} ${ay + (yE - ay) * 0.15}, ${x0} ${yE}" fill="none" stroke="${col}" stroke-width="2" stroke-dasharray="6 5" opacity=".9"/>
-       <circle cx="${x0}" cy="${yE}" r="4" fill="${col}"/>
-     </svg>
-     <div class="mu-plan-tool" id="mu-plan-tool" style="left:${x0}px;top:${yE}px;width:${ancho}px">
-       <div class="mu-plan-cab" style="--c:${col}">${op.tipo === 'long' ? 'LONG' : 'SHORT'} \u00b7 R:R 1:1</div>
-       <div class="mu-plan-prof" style="top:${profTop - yE}px;height:${profH}px"><span>TP ${fmt(op.tp)}</span></div>
-       <div class="mu-plan-loss" style="top:${lossTop - yE}px;height:${lossH}px"><span>SL ${fmt(op.sl)}</span></div>
-       <div class="mu-plan-ent"><span>Entrada ${fmt(op.entrada)}</span></div>
-       <div class="mu-plan-cfg" id="mu-plan-cfg" style="--c:${col}">
-         <button data-a="mover" title="Mover">\u2725</button>
-         <button data-a="color" title="Color">\u25c9</button>
-         <button data-a="del" title="Eliminar">\u{1F5D1}</button>
-       </div>
-     </div>`;
-  document.body.appendChild(ov);
-  const linea = ov.querySelector('#mu-plan-linea');
-  const tool = ov.querySelector('#mu-plan-tool');
-  const cfg = ov.querySelector('#mu-plan-cfg');
-
-  const paleta = ['#2ee86a', '#f6465d', '#E8B84B', '#7fbaff', '#c58bff'];
-  let ip = 0, lineaViva = true;
-  const ocultarCfg = () => cfg.classList.remove('on');
-  const quitarLinea = () => { if (lineaViva && linea) { linea.remove(); lineaViva = false; } };
-  const quitarTodo = () => { document.removeEventListener('pointerdown', fuera, true); ov.remove(); };
-
-  // Clic FUERA de la herramienta: quita solo la línea (la herramienta se queda).
-  const fuera = (e) => { if (!tool.contains(e.target)) { quitarLinea(); ocultarCfg(); } };
-  if (_planFuera) document.removeEventListener('pointerdown', _planFuera, true);
-  _planFuera = fuera;
-  document.addEventListener('pointerdown', fuera, true);
-
-  // Tocar la herramienta: muestra config (mover / color / eliminar) y permite arrastrar.
-  tool.addEventListener('pointerdown', (e) => {
-    const b = e.target.closest('button');
-    if (b) {
-      const a2 = b.dataset.a;
-      if (a2 === 'del') { quitarTodo(); return; }
-      if (a2 === 'color') { ip = (ip + 1) % paleta.length; cfg.style.setProperty('--c', paleta[ip]); tool.querySelector('.mu-plan-cab').style.setProperty('--c', paleta[ip]); }
-      if (a2 === 'mover') arrancarArrastre(e);
-      return;
-    }
-    cfg.classList.add('on');
-    arrancarArrastre(e);
-  });
-
-  function arrancarArrastre(e) {
-    quitarLinea();
-    const sx = e.clientX, sy = e.clientY;
-    const ox = parseFloat(tool.style.left), oy = parseFloat(tool.style.top);
-    const mover = (ev) => { tool.style.left = (ox + ev.clientX - sx) + 'px'; tool.style.top = (oy + ev.clientY - sy) + 'px'; };
-    const soltar = () => { window.removeEventListener('pointermove', mover); window.removeEventListener('pointerup', soltar); };
-    window.addEventListener('pointermove', mover);
-    window.addEventListener('pointerup', soltar);
+/* Construye una operación long/short desde la zona más relevante de ese lado. */
+function construirOp(tipo) {
+  const px = M.precio || (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
+  const zonas = (M.zonas || []).filter((z) => !z.rota);
+  const lado = tipo === 'long' ? 'demanda' : 'oferta';
+  const z = zonas.filter((x) => x.lado === lado).sort((x, y) => y.confianza - x.confianza)[0];
+  if (!z || !px) return null;
+  const riesgoMax = px * 0.02;
+  if (tipo === 'long') {
+    const entrada = z.pPoc, riesgo = Math.min(Math.max(entrada - z.pLow, px * 0.003) + px * 0.001, riesgoMax);
+    return { tipo, entrada, sl: entrada - riesgo, tp: entrada + riesgo };
   }
+  const entrada = z.pPoc, riesgo = Math.min(Math.max(z.pHigh - entrada, px * 0.003) + px * 0.001, riesgoMax);
+  return { tipo, entrada, sl: entrada + riesgo, tp: entrada - riesgo };
+}
+function hayOp(tipo) { return !!construirOp(tipo); }
+
+/* Dibuja la herramienta de posición SOBRE el lienzo (estilo Smart Levels):
+   zonas de ganancia/riesgo tenues, líneas objetivo/entrada/stop, y una
+   pastilla con el R:R. Vive dentro del radar; al cerrar desaparece. */
+function dibujarPosicion(g, Y, x1, y1, xVelas) {
+  const P = M._pos; if (!P) return;
+  const largo = P.tipo === 'long';
+  const acc = largo ? '#2ee86a' : '#ff3b52', accRGB = largo ? '46,232,106' : '255,59,82';
+  const yE = Y(P.entrada), yS = Y(P.sl), yT = Y(P.tp);
+  const xs = Math.max(6, xVelas * 0.52);
+  const xf = xVelas - 8;
+  M._posGeo = { xs, xf, yE, yS, yT };
+  // zonas ganancia / riesgo
+  g.fillStyle = 'rgba(46,232,106,.10)'; g.fillRect(xs, Math.min(yE, yT), xf - xs, Math.abs(yT - yE));
+  g.fillStyle = 'rgba(255,59,82,.10)'; g.fillRect(xs, Math.min(yE, yS), xf - xs, Math.abs(yS - yE));
+  // líneas objetivo / entrada / stop
+  [[ '#2ee86a', yT, 'TP ' + fmt(P.tp)], ['#eaecef', yE, 'Entrada ' + fmt(P.entrada)], ['#ff3b52', yS, 'SL ' + fmt(P.sl)]].forEach((r) => {
+    g.strokeStyle = r[0]; g.lineWidth = 1.4; g.setLineDash(r[0] === '#eaecef' ? [] : [5, 4]);
+    g.beginPath(); g.moveTo(xs, r[1]); g.lineTo(xf, r[1]); g.stroke(); g.setLineDash([]);
+    g.font = 'bold 9.5px ui-monospace,monospace';
+    const w = g.measureText(r[2]).width + 12;
+    g.fillStyle = r[0]; redondeado(g, xf - w, r[1] - 8, w, 15, 4); g.fill();
+    g.fillStyle = r[0] === '#eaecef' ? '#0b0e12' : (r[0] === '#2ee86a' ? '#04210f' : '#2a0509');
+    g.textAlign = 'left'; g.fillText(r[2], xf - w + 6, r[1] + 3.4);
+  });
+  // borde derecho
+  g.strokeStyle = 'rgba(' + accRGB + ',.5)'; g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(xf, Math.min(yT, yS)); g.lineTo(xf, Math.max(yT, yS)); g.stroke();
+  // pastilla cabecera con R:R y lado
+  g.font = '800 9.5px ui-monospace,monospace';
+  const et = (largo ? '\u25b2 LONG' : '\u25bc SHORT') + ' \u00b7 R:R 1:1';
+  const pw = g.measureText(et).width + 16;
+  g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 8;
+  g.fillStyle = acc; redondeado(g, xs, Math.min(yE, yT, yS) - 22, pw, 17, 6); g.fill(); g.restore();
+  g.fillStyle = largo ? '#04210f' : '#2a0509'; g.textAlign = 'left';
+  g.fillText(et, xs + 8, Math.min(yE, yT, yS) - 22 + 12);
+  g.textAlign = 'left';
 }
 
-/* «Determina la tendencia»: traza una línea de tendencia por regresión lineal
-   sobre las velas visibles (la técnica del Faro). Queda perpetua en el gráfico,
-   se puede arrastrar por los extremos o entera, y al tocarla aparece su
-   configuración (eliminar, color, grosor). */
+/* ══ TENDENCIA (estilo Faro) ══
+   Se traza uniendo los MÍNIMOS si es alcista o los MÁXIMOS si es bajista, en
+   varios tramos (envolvente): cada vez que el precio se separa, nace un nuevo
+   pivote y otro tramo. Vive en el estado del radar y se dibuja en el lienzo. */
 function mostrarTendencia() {
-  document.getElementById('mu-tend')?.remove();
-  const cv = $('mu-cv');
-  if (!cv || !M._geo || !M._geo.vis || M._geo.vis.length < 3) return;
-  const rect = cv.getBoundingClientRect();
-  const { pMin, pMax, y1, xVelas, vis } = M._geo;
+  if (!M._geo || !M._geo.vis || M._geo.vis.length < 6) return;
+  const vis = M._geo.vis;
   const n = vis.length;
-  // regresión lineal de los cierres
+  // dirección por regresión de cierres
   let sx = 0, sy = 0, sxy = 0, sxx = 0;
   vis.forEach((v, i) => { sx += i; sy += v.c; sxy += i * v.c; sxx += i * i; });
   const m = (n * sxy - sx * sy) / Math.max(1e-9, n * sxx - sx * sx);
-  const b = (sy - m * sx) / n;
-  const Yp = (p) => rect.top + (y1 - y1 * ((p - pMin) / Math.max(1e-9, pMax - pMin)));
-  const Xi = (i) => rect.left + (i + 0.5) * (xVelas / n);
-  let p1 = { x: Xi(0), y: Yp(b) };
-  let p2 = { x: Xi(n - 1), y: Yp(m * (n - 1) + b) };
-  const sube = m >= 0;
-  let color = sube ? '#2ee86a' : '#f6465d';
-  let grosor = 2;
+  const alcista = m >= 0;
+  // puntos: mínimos (alcista) o máximos (bajista)
+  const pts = vis.map((v, i) => ({ i, p: alcista ? v.l : v.h }));
+  // envolvente inferior (alcista) o superior (bajista) por cadena monótona
+  const hull = [];
+  const giro = (o, a, b) => (a.i - o.i) * (b.p - o.p) - (a.p - o.p) * (b.i - o.i);
+  for (const pt of pts) {
+    while (hull.length >= 2) {
+      const c = giro(hull[hull.length - 2], hull[hull.length - 1], pt);
+      if (alcista ? c <= 0 : c >= 0) hull.pop(); else break;
+    }
+    hull.push(pt);
+  }
+  // tramos entre pivotes consecutivos del hull
+  const segs = [];
+  for (let k = 0; k < hull.length - 1; k++) segs.push({ i0: hull[k].i, p0: hull[k].p, i1: hull[k + 1].i, p1: hull[k + 1].p });
+  if (!segs.length) return;
+  M._tend = { segs, dir: alcista ? 'alcista' : 'bajista', color: alcista ? '#2ee86a' : '#f6465d', grosor: 2 };
+  const tabChart = [...document.querySelectorAll('.mu-mtab')].find((x) => /hart|r\u00e1fic|gr\u00e1fic/i.test(x.textContent));
+  if (tabChart && !tabChart.classList.contains('on')) tabChart.click();
+  cerrarTendCfg();
+  dibujar();
+}
 
-  const ov = document.createElement('div');
-  ov.id = 'mu-tend';
-  ov.innerHTML =
-    `<svg class="mu-tend-svg" width="100%" height="100%">
-       <line id="tl" x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${color}" stroke-width="${grosor}"/>
-       <circle id="h1" cx="${p1.x}" cy="${p1.y}" r="7" fill="${color}"/>
-       <circle id="h2" cx="${p2.x}" cy="${p2.y}" r="7" fill="${color}"/>
-     </svg>
-     <div class="mu-tend-cab" id="mu-tend-cab">
-       <span class="tl-et">Tendencia ${sube ? '\u2197 alcista' : '\u2198 bajista'}</span>
-       <button data-a="color" title="Color">\u25c9</button>
-       <button data-a="grosor" title="Grosor">\u2261</button>
-       <button data-a="del" title="Eliminar">\u{1F5D1}</button>
-     </div>`;
-  document.body.appendChild(ov);
-  const svg = ov.querySelector('svg');
-  const ln = ov.querySelector('#tl');
-  const h1 = ov.querySelector('#h1'), h2 = ov.querySelector('#h2');
-  const cab = ov.querySelector('#mu-tend-cab');
+/* Dibuja la tendencia multi-tramo en el lienzo + tachuela alcista/bajista. */
+function dibujarTendencia(g, Y, X, y1) {
+  const T = M._tend; if (!T || !T.segs.length) return;
+  g.save();
+  g.strokeStyle = T.color; g.lineWidth = T.grosor; g.lineJoin = 'round';
+  g.shadowColor = T.color; g.shadowBlur = 5;
+  g.beginPath();
+  T.segs.forEach((s, k) => {
+    const x0 = X(s.i0), yy0 = Y(s.p0), x1p = X(s.i1), yy1 = Y(s.p1);
+    if (k === 0) g.moveTo(x0, yy0);
+    g.lineTo(x1p, yy1);
+  });
+  g.stroke();
+  // pivotes
+  g.shadowBlur = 0; g.fillStyle = T.color;
+  const puntos = [T.segs[0], ...T.segs].map((s, k) => k === 0 ? { i: s.i0, p: s.p0 } : { i: s.i1, p: s.p1 });
+  puntos.forEach((pt) => { g.beginPath(); g.arc(X(pt.i), Y(pt.p), 3, 0, 7); g.fill(); });
+  g.restore();
+  // tachuela de dirección, junto al último pivote
+  const ult = T.segs[T.segs.length - 1];
+  const tx = X(ult.i1), ty = Y(ult.p1);
+  const txt = T.dir === 'alcista' ? '\u2197 Tendencia alcista' : '\u2198 Tendencia bajista';
+  g.font = 'bold 9.5px ui-monospace,monospace';
+  const w = g.measureText(txt).width + 14;
+  const bx = Math.min(tx + 6, X(ult.i1)), by = ty - (T.dir === 'alcista' ? 22 : -8);
+  g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 8;
+  g.fillStyle = T.color; redondeado(g, Math.max(4, Math.min(bx, (M._geo.xVelas || 400) - w - 4)), by, w, 16, 5); g.fill(); g.restore();
+  g.fillStyle = T.dir === 'alcista' ? '#04210f' : '#2a0509'; g.textAlign = 'left';
+  g.fillText(txt, Math.max(4, Math.min(bx, (M._geo.xVelas || 400) - w - 4)) + 7, by + 11);
+  g.textAlign = 'left';
+}
+
+function cerrarPosCfg() { document.getElementById('mu-poscfg')?.remove(); }
+function cerrarTendCfg() { document.getElementById('mu-tendcfg')?.remove(); }
+
+/* ¿el punto (lx,ly en coords del lienzo) está sobre algún tramo de tendencia? */
+function cercaTend(lx, ly) {
+  const T = M._tend, g = M._geo; if (!T || !g) return false;
+  const paso = (g.xVelas) / (g.n || 1);
+  const X = (i) => i * paso + paso / 2;
+  const Y = (p) => g.y1 - g.y1 * ((p - g.pMin) / Math.max(1e-9, g.pMax - g.pMin));
+  return T.segs.some((s) => {
+    const x0 = X(s.i0), y0 = Y(s.p0), x1 = X(s.i1), y1 = Y(s.p1);
+    const dx = x1 - x0, dy = y1 - y0, L2 = dx * dx + dy * dy;
+    let t = L2 ? ((lx - x0) * dx + (ly - y0) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+    return Math.hypot(lx - (x0 + t * dx), ly - (y0 + t * dy)) < 8;
+  });
+}
+
+/* Arrastre vertical de la posición (mueve entrada/SL/TP juntos, en precio). */
+function arrastrarPos(e) {
+  const g = M._geo; if (!g) return;
+  const escala = (g.pMax - g.pMin) / Math.max(1, g.y1);
+  let ay = e.clientY;
+  const mover = (ev) => {
+    const dP = (ev.clientY - ay) * escala;       // hacia abajo = menor precio
+    M._pos.entrada -= dP; M._pos.sl -= dP; M._pos.tp -= dP; ay = ev.clientY; dibujar(); posCfgPos();
+  };
+  const soltar = () => { window.removeEventListener('mousemove', mover); window.removeEventListener('mouseup', soltar); };
+  window.addEventListener('mousemove', mover); window.addEventListener('mouseup', soltar);
+}
+/* Arrastre vertical de la tendencia (mueve todos los tramos en precio). */
+function arrastrarTend(e) {
+  const g = M._geo; if (!g) return;
+  const escala = (g.pMax - g.pMin) / Math.max(1, g.y1);
+  let ay = e.clientY;
+  const mover = (ev) => {
+    const dP = (ev.clientY - ay) * escala;
+    M._tend.segs.forEach((s) => { s.p0 -= dP; s.p1 -= dP; }); ay = ev.clientY; dibujar(); posTendCfg();
+  };
+  const soltar = () => { window.removeEventListener('mousemove', mover); window.removeEventListener('mouseup', soltar); };
+  window.addEventListener('mousemove', mover); window.addEventListener('mouseup', soltar);
+}
+
+/* Config de la posición: barrita con lado + eliminar (hija del radar). */
+function mostrarPosCfg() {
+  cerrarPosCfg();
+  const ov = $('mu-overlay'); if (!ov || !M._pos) return;
+  const c = document.createElement('div'); c.id = 'mu-poscfg';
+  const largo = M._pos.tipo === 'long';
+  c.innerHTML = `<span class="pc-et">${largo ? '\u25b2 LONG' : '\u25bc SHORT'} \u00b7 R:R 1:1</span>
+    <button data-a="del" title="Eliminar">\u{1F5D1}</button>`;
+  ov.appendChild(c);
+  posCfgPos();
+  c.querySelector('[data-a="del"]').onclick = () => { M._pos = null; cerrarPosCfg(); dibujar(); };
+}
+function posCfgPos() {
+  const c = $('mu-poscfg'); const cv = $('mu-cv'); const ov = $('mu-overlay'); const G = M._posGeo; if (!c || !cv || !ov || !G) return;
+  const or = ov.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+  const ox = cr.left - or.left, oy = cr.top - or.top;
+  c.style.left = (ox + Math.max(6, Math.min(cv.clientWidth - 130, G.xs))) + 'px';
+  c.style.top = (oy + Math.max(6, Math.min(G.yT, G.yS) - 40)) + 'px';
+}
+
+/* Config de la tendencia: dirección + color + grosor + eliminar. */
+function mostrarTendCfg() {
+  cerrarTendCfg();
+  const ov = $('mu-overlay'); if (!ov || !M._tend) return;
+  const c = document.createElement('div'); c.id = 'mu-tendcfg';
+  c.innerHTML = `<span class="pc-et">${M._tend.dir === 'alcista' ? '\u2197 alcista' : '\u2198 bajista'}</span>
+    <button data-a="color" title="Color">\u25c9</button>
+    <button data-a="grosor" title="Grosor">\u2261</button>
+    <button data-a="del" title="Eliminar">\u{1F5D1}</button>`;
+  ov.appendChild(c);
+  posTendCfg();
   const paleta = ['#2ee86a', '#f6465d', '#E8B84B', '#7fbaff', '#c58bff'];
-  let ip = paleta.indexOf(color); if (ip < 0) ip = 0;
   const grosores = [1.5, 2.5, 3.5];
-  let ig = 1;
-
-  const pintar = () => {
-    ln.setAttribute('x1', p1.x); ln.setAttribute('y1', p1.y);
-    ln.setAttribute('x2', p2.x); ln.setAttribute('y2', p2.y);
-    h1.setAttribute('cx', p1.x); h1.setAttribute('cy', p1.y);
-    h2.setAttribute('cx', p2.x); h2.setAttribute('cy', p2.y);
-    [ln, h1, h2].forEach((el) => el.setAttribute('stroke', color));
-    ln.setAttribute('stroke', color); h1.setAttribute('fill', color); h2.setAttribute('fill', color);
-    ln.setAttribute('stroke-width', grosor);
-    cab.style.left = Math.min(p1.x, p2.x) + 'px';
-    cab.style.top = (Math.min(p1.y, p2.y) - 40) + 'px';
-  };
-  const posCab = () => { cab.style.left = Math.min(p1.x, p2.x) + 'px'; cab.style.top = (Math.min(p1.y, p2.y) - 40) + 'px'; };
-  posCab();
-
-  const cerca = (e, p) => Math.hypot(e.clientX - p.x, e.clientY - p.y) < 16;
-  const sobreLinea = (e) => {
-    const dx = p2.x - p1.x, dy = p2.y - p1.y, L2 = dx * dx + dy * dy;
-    let t = L2 ? ((e.clientX - p1.x) * dx + (e.clientY - p1.y) * dy) / L2 : 0;
-    t = Math.max(0, Math.min(1, t));
-    const px = p1.x + t * dx, py = p1.y + t * dy;
-    return Math.hypot(e.clientX - px, e.clientY - py) < 10;
-  };
-  svg.addEventListener('pointerdown', (e) => {
-    if (cerca(e, p1)) return arrastrar(e, 'p1');
-    if (cerca(e, p2)) return arrastrar(e, 'p2');
-    if (sobreLinea(e)) { cab.classList.add('on'); return arrastrar(e, 'linea'); }
-  });
-  cab.addEventListener('pointerdown', (e) => {
-    const btn = e.target.closest('button'); if (!btn) return arrastrarCab(e);
-    const a = btn.dataset.a;
-    if (a === 'del') { ov.remove(); document.removeEventListener('pointerdown', fuera, true); return; }
-    if (a === 'color') { ip = (ip + 1) % paleta.length; color = paleta[ip]; pintar(); }
-    if (a === 'grosor') { ig = (ig + 1) % grosores.length; grosor = grosores[ig]; pintar(); }
-    e.stopPropagation();
-  });
-  function arrastrar(e, modo) {
-    const sxp = e.clientX, syp = e.clientY;
-    const a1 = { ...p1 }, a2 = { ...p2 };
-    const mv = (ev) => {
-      const dx = ev.clientX - sxp, dy = ev.clientY - syp;
-      if (modo === 'p1') p1 = { x: a1.x + dx, y: a1.y + dy };
-      else if (modo === 'p2') p2 = { x: a2.x + dx, y: a2.y + dy };
-      else { p1 = { x: a1.x + dx, y: a1.y + dy }; p2 = { x: a2.x + dx, y: a2.y + dy }; }
-      pintar();
-    };
-    const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
-  }
-  function arrastrarCab(e) {
-    const sxp = e.clientX, syp = e.clientY, ox = parseFloat(cab.style.left), oy = parseFloat(cab.style.top);
-    const mv = (ev) => { cab.style.left = (ox + ev.clientX - sxp) + 'px'; cab.style.top = (oy + ev.clientY - syp) + 'px'; };
-    const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
-  }
-  const fuera = (e) => { if (!svg.contains(e.target) && !cab.contains(e.target)) cab.classList.remove('on'); };
-  document.addEventListener('pointerdown', fuera, true);
+  c.querySelector('[data-a="color"]').onclick = () => { const i = (paleta.indexOf(M._tend.color) + 1) % paleta.length; M._tend.color = paleta[i]; dibujar(); };
+  c.querySelector('[data-a="grosor"]').onclick = () => { const i = (grosores.indexOf(M._tend.grosor) + 1) % grosores.length; M._tend.grosor = grosores[i < 0 ? 0 : i]; dibujar(); };
+  c.querySelector('[data-a="del"]').onclick = () => { M._tend = null; cerrarTendCfg(); dibujar(); };
+}
+function posTendCfg() {
+  const c = $('mu-tendcfg'); const cv = $('mu-cv'); const ov = $('mu-overlay'); const g = M._geo, T = M._tend; if (!c || !cv || !ov || !g || !T) return;
+  const or = ov.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+  const ox = cr.left - or.left, oy = cr.top - or.top;
+  const paso = g.xVelas / (g.n || 1);
+  const s = T.segs[T.segs.length - 1];
+  const x = s.i1 * paso + paso / 2;
+  const y = g.y1 - g.y1 * ((s.p1 - g.pMin) / Math.max(1e-9, g.pMax - g.pMin));
+  c.style.left = (ox + Math.max(6, Math.min(cv.clientWidth - 150, x - 60))) + 'px';
+  c.style.top = (oy + Math.max(6, y - 44)) + 'px';
 }
 
 /* ══════════════════════════════════════════════════════════════
