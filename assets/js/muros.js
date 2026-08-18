@@ -326,7 +326,7 @@ function juzgar() {
       nota = 'Esta orden lleva ahí sin moverse desde que empezamos a vigilar. Todavía no ha llegado el precio a probarla.';
       prioridad = 80;
 
-    } else if (vivo && segundos > 6) {
+    } else if (vivo && segundos > 10) {
       tipo = 'vigilando';
       titulo = 'En observación';
       nota = 'Orden nueva. Aún no sabemos si aguantará: hay que ver qué hace cuando el precio se acerque.';
@@ -358,7 +358,34 @@ function juzgar() {
      desaparecía de golpe — que es lo que viste. Ahora los que ya
      estaban se mantienen unos segundos y, si de verdad se han ido, se
      avisa antes de quitarlos: un muro que desaparece ES información. */
-  const nuevos = fuera.slice(0, 10);
+  /* ══ CALIBRACIÓN — de "chorro de muros" a ZONAS estratégicas ══
+     El libro real tiene decenas de órdenes pegadas; mostrarlas todas es ruido
+     inoperable. Un trader quiere las ZONAS que importan, no cada nivel suelto. */
+
+  /* 1) FUSIÓN. Muros del mismo lado a menos de ~0,25% entre sí son la MISMA
+        zona de liquidez. Como 'fuera' ya viene ordenado por importancia, el
+        primero del racimo es el líder (conserva precio y veredicto) y le
+        sumamos la liquidez de sus vecinos: la tarjeta muestra el peso REAL de
+        toda la zona, no el de una orden suelta. */
+  const DIST_ZONA = 0.0025;
+  const zonas = [];
+  fuera.forEach((m) => {
+    const z = zonas.find((x) => x.lado === m.lado && Math.abs(x.p - m.p) / Math.max(1e-9, M.precio) < DIST_ZONA);
+    if (z) { z.v += m.v; z.vMax = Math.max(z.vMax, m.vMax); z.enZona = (z.enZona || 1) + 1; }
+    else zonas.push({ ...m, enZona: 1 });
+  });
+
+  /* 2) SIGNIFICANCIA. Se muestran las zonas con veredicto fuerte
+        (blindada/probada/falsa) SIEMPRE —son las estratégicas—, y del resto
+        solo las que pesan de verdad frente a la mayor de la pantalla. Así no
+        se cuela liquidez menor que solo estorba. */
+  const maxV = Math.max(1, ...zonas.map((x) => x.v));
+  const esFuerte = (m) => m.tipo === 'recargable' || m.tipo === 'probado' || m.tipo === 'falso';
+  const sig = zonas.filter((m) => esFuerte(m) || m.v >= maxV * 0.30);
+
+  /* 3) TOPE BAJO. Como mucho 6 zonas: suficiente para leer el mapa de un
+        vistazo y tomar una decisión. */
+  const nuevos = sig.slice(0, 6);
   const antes = M.muros || [];
 
   antes.forEach((v) => {
@@ -384,7 +411,7 @@ function juzgar() {
     const pb = b.prioridad - Math.abs(b.dist) * 900;
     return pb - pa;
   });
-  M.muros = nuevos.slice(0, 12);
+  M.muros = nuevos.slice(0, 8);
 }
 
 /* Utilidades de formato */
