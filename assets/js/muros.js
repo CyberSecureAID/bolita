@@ -562,7 +562,7 @@ function detectarZonas(velas, precio, opts) {
   picos.forEach((pk) => {
     if (usados[pk]) return;
     let b0 = pk, b1 = pk;
-    const piso = vol[pk] * 0.45;
+    const piso = vol[pk] * 0.5;
     while (b0 > 0 && !usados[b0 - 1] && vol[b0 - 1] >= piso && (pk - (b0 - 1)) <= maxW) b0--;
     while (b1 < N - 1 && !usados[b1 + 1] && vol[b1 + 1] >= piso && ((b1 + 1) - pk) <= maxW) b1++;
     let v = 0, vc = 0, t = 0;
@@ -634,19 +634,20 @@ function detectarZonas(velas, precio, opts) {
     };
   });
 
-  /* FUSIÓN de zonas apiladas: cuando varias zonas del MISMO lado quedan pegadas
-     (rangos que se tocan o con un hueco < ~0,6%), en realidad son un solo nivel
-     fuerte fragmentado. Se unen en una sola: volumen sumado, rango combinado y
-     POC donde estaba el sub-nodo de mayor volumen. Así el trader ve UN nivel
-     claro en lugar de un amasijo de franjas encima del precio. */
+  /* FUSIÓN de zonas apiladas: cuando dos zonas del MISMO lado quedan pegadas
+     (rango casi tocándose), son un solo nivel fragmentado y se unen. PERO con
+     TOPE DE ANCHO: nunca se encadenan tantas que formen una banda gigante
+     (eso confunde más que ayuda). Si la zona resultante superaría el ancho
+     máximo, se dejan separadas. */
+  const anchoMax = Math.max((hi - lo) * 0.10, precio * 0.012);   // tope de ancho de una zona fusionada
   const fusionar = (lista) => {
     const orden = lista.slice().sort((a, b) => a.pLow - b.pLow);
     const out = [];
     orden.forEach((z) => {
       const prev = out[out.length - 1];
       const gap = prev ? (z.pLow - prev.pHigh) / (precio || 1) : Infinity;
-      if (prev && prev.lado === z.lado && gap <= 0.006) {
-        // fusionar z dentro de prev
+      const anchoUnido = prev ? (Math.max(prev.pHigh, z.pHigh) - Math.min(prev.pLow, z.pLow)) : Infinity;
+      if (prev && prev.lado === z.lado && gap <= 0.004 && anchoUnido <= anchoMax) {
         const vTot = prev.v + z.v;
         prev.pPoc = prev.v >= z.v ? prev.pPoc : z.pPoc;      // POC del sub-nodo mayor
         prev.pLow = Math.min(prev.pLow, z.pLow);
@@ -659,7 +660,7 @@ function detectarZonas(velas, precio, opts) {
         prev.confluencia = prev.confluencia || z.confluencia;
         prev.libro = prev.libro || z.libro;
         prev.alineado = prev.compradorPct >= 0.5 ? prev.lado === 'demanda' : prev.lado === 'oferta';
-        prev.confianza = Math.min(100, Math.max(prev.confianza, z.confianza) + 6);   // un nivel más grande pesa más
+        prev.confianza = Math.min(100, Math.max(prev.confianza, z.confianza) + 4);
         prev.fuerza = Math.max(1, Math.min(5, Math.round(prev.confianza / 20)));
         prev.rota = prev.rota && z.rota;
         prev.dentro = prev.dentro || z.dentro;
@@ -818,9 +819,13 @@ export async function abrirMuros() {
           <b id="mu-px-v">—</b>
         </div>
 
-        <div class="mu-vivo"><i></i><span id="mu-estado">Observando…</span></div>
+        <span id="mu-estado" class="mu-estado-err"></span>
 
         <div class="mu-der">
+          <button class="mu-analista" id="mu-analista" title="Analista">
+            <img src="assets/img/jesus-avatar.webp" alt="">
+            <span class="mu-an-txt">Analista</span>
+          </button>
           <button class="mu-ico" id="mu-validar" title="Verificar volumen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 5-3.5 7.5-8.5 9C7.5 19.5 4 17 4 12V6l8-3 8 3z"/></svg>
           </button>
@@ -894,6 +899,7 @@ export async function abrirMuros() {
 
   $('mu-foto').onclick = () => guardarImagen();
   $('mu-validar').onclick = () => validarVolumen();
+  $('mu-analista').onclick = () => abrirAnalista();
   $('mu-tema').onclick = () => {
     M.tema = M.tema === 'claro' ? 'oscuro' : 'claro';
     try { localStorage.setItem('mu_tema', M.tema); } catch (_) {}
@@ -1370,7 +1376,7 @@ function dibujar() {
      arrastre. Muestra SIEMPRE `ancho` velas completas (sin aplastar ni
      dejar telón), con un respiro del 15% a la derecha. */
   const ancho = Math.min(M.velas.length, M.ancho || 70);
-  const huecoMax = Math.floor(ancho * 0.15);
+  const huecoMax = Math.floor(ancho * 0.45);
   const desp = Math.max(-huecoMax, Math.min(M.desplaz || 0, Math.max(0, M.velas.length - ancho)));
   M.desplaz = desp;
   const fin = M.velas.length - desp;
@@ -1841,7 +1847,7 @@ function engancharGestos(cv) {
     const mov = Math.round((e.clientX - ax) / Math.max(1, paso));
     if (mov !== 0) {
       const tope = Math.max(0, M.velas.length - (M.ancho || 70));
-      const suelo = -Math.floor((M.ancho || 70) * 0.15);   // respiro a la derecha
+      const suelo = -Math.floor((M.ancho || 70) * 0.45);   // respiro a la derecha
       M.desplaz = Math.max(suelo, Math.min(tope, (M.desplaz || 0) + mov));
       ax = e.clientX; cambio = true;
     }
@@ -1909,7 +1915,7 @@ function engancharGestos(cv) {
       const mov = Math.round((e.touches[0].clientX - tx) / Math.max(1, paso));
       if (mov !== 0) {
         const tope = Math.max(0, M.velas.length - (M.ancho || 70));
-        const sueloT = -Math.floor((M.ancho || 70) * 0.15);
+        const sueloT = -Math.floor((M.ancho || 70) * 0.45);
         M.desplaz = Math.max(sueloT, Math.min(tope, (M.desplaz || 0) + mov));
         tx = e.touches[0].clientX;
         dibujar();
@@ -2080,11 +2086,11 @@ function pintarPanel() {
   if (M.error) { if (estado) estado.textContent = M.error; return; }
 
   if (M.cargando || !M.zonas.length && !M.velas.length) {
-    if (estado) estado.textContent = 'Leyendo…';
+    if (estado) estado.textContent = '';
     lista.innerHTML = `<div class="mu-esperar">Leyendo el mercado…</div>`;
     return;
   }
-  if (estado) estado.textContent = 'En directo';
+  if (estado) estado.textContent = '';
 
   /* El filtro. Sin ninguno activo se ven todas. */
   let lst = M.zonas.slice();
@@ -2559,6 +2565,8 @@ function estilos() {
   .mu-logo{width:20px;height:20px;border-radius:50%;flex:0 0 auto;display:block;
     background:rgba(255,255,255,.06) center/cover no-repeat;border:1px solid #2b3139}
   .mu-logo.con{background-color:transparent;border-color:transparent}
+  #mu-overlay .mu-estado-err{align-self:center;font-family:var(--mono,monospace);font-size:10px;color:#f6465d;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
   #mu-overlay .mu-vivo{display:flex;align-items:center;gap:7px;min-width:0;
     font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;
     text-transform:uppercase;letter-spacing:.7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -2982,6 +2990,46 @@ function estilos() {
     border-radius:10px;padding:10px 6px}
   #mu-val-box .mv-nums b{display:block;font-family:var(--mono,monospace);font-weight:800;font-size:15px;color:#eaecef}
   #mu-val-box .mv-nums span{font-family:var(--mono,monospace);font-size:8px;color:#5c6672;text-transform:uppercase;letter-spacing:.4px}
+  /* Píldora Analista + su modal */
+  #mu-overlay .mu-analista{display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;height:36px;
+    padding:0 12px 0 4px;border-radius:999px;cursor:pointer;
+    background:linear-gradient(180deg,rgba(232,184,75,.18),rgba(232,184,75,.06));
+    border:1px solid rgba(232,184,75,.45);color:var(--gold,#E8B84B);
+    box-shadow:0 2px 6px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+    font-family:var(--display,sans-serif);font-weight:700;font-size:12px;white-space:nowrap;
+    transition:transform .1s ease,filter .15s ease}
+  #mu-overlay .mu-analista:hover{filter:brightness(1.12)}
+  #mu-overlay .mu-analista:active{transform:translateY(1px)}
+  #mu-overlay .mu-analista img{width:28px;height:28px;border-radius:50%;object-fit:cover;flex:0 0 auto;
+    border:1px solid rgba(232,184,75,.55)}
+  #mu-overlay.mu-claro .mu-analista{color:#9a7a1e;border-color:rgba(232,184,75,.6)}
+  @media(max-width:860px){
+    #mu-overlay .mu-analista{padding:0;width:32px;height:32px;justify-content:center}
+    #mu-overlay .mu-analista img{width:26px;height:26px}
+    #mu-overlay .mu-an-txt{display:none}
+    #mu-overlay .mu-der{gap:4px;padding-left:4px}
+    #mu-overlay .mu-der .mu-ico{width:32px;height:32px;min-height:32px}
+  }
+  #mu-ana-box{position:fixed;inset:0;z-index:9785;display:flex;align-items:center;justify-content:center;padding:16px}
+  #mu-ana-box .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.9)}
+  #mu-ana-box .an-c{position:relative;width:100%;max-width:500px;max-height:calc(100vh - 32px);overflow-y:auto;
+    background:linear-gradient(180deg,#12171f,#0b0e12);border:1px solid #232b35;border-top:2px solid var(--an,#E8B84B);
+    border-radius:18px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.65)}
+  #mu-ana-box .mv-x{position:absolute;top:13px;right:13px;width:32px;height:32px;border-radius:9px;
+    background:#1a212b;border:1px solid #2b3540;color:#aeb6c0;font-size:13px;cursor:pointer}
+  #mu-ana-box .an-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-right:34px}
+  #mu-ana-box .an-ava{width:46px;height:46px;border-radius:50%;object-fit:cover;flex:0 0 auto;
+    border:2px solid var(--an,#E8B84B);box-shadow:0 0 14px color-mix(in srgb,var(--an,#E8B84B) 40%,transparent)}
+  #mu-ana-box .an-rol{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-transform:uppercase;letter-spacing:1px}
+  #mu-ana-box .an-tit{font-family:var(--display,sans-serif);font-weight:800;font-size:19px;color:var(--an,#E8B84B);margin-top:2px}
+  #mu-ana-box .an-body{font-family:var(--sans,sans-serif);font-size:13.5px;line-height:1.62;color:#c8cfd8}
+  #mu-ana-box .an-body p{margin:0 0 11px}
+  #mu-ana-box .an-body b{color:#fff}
+  #mu-ana-box .an-body .an-como{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
+    border-radius:10px;padding:10px 12px;font-size:12.5px;color:#aeb6c0}
+  #mu-ana-box .an-body .an-como b{color:#dfe4ea}
+  #mu-ana-box .an-pie{margin-top:12px;padding-top:11px;border-top:1px solid #1c232c;
+    font-family:var(--sans,sans-serif);font-size:11px;color:#7d8794;line-height:1.5}
   #mu-val-box .mv-note{font-family:var(--sans,sans-serif);font-size:12px;line-height:1.55;color:#9aa3ad;margin:0 0 12px}
   #mu-val-box .mv-note b{color:#c2c9d2}
   #mu-val-box .mv-links{display:flex;flex-wrap:wrap;gap:8px}
@@ -3131,6 +3179,105 @@ function estilos() {
     #mu-ayuda-box .mua-tabs{margin-right:46px;flex-direction:column}
   }`;
   document.head.appendChild(s);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ANALISTA — lee la estructura actual y dice qué hacer
+
+   No es un chat: interpreta lo que el sistema YA muestra (zonas reales,
+   VWAP, sesgo, dónde está el precio) y da una lectura operativa: si hay
+   entrada, en qué nivel, con qué idea de stop y objetivo, y cómo colocar
+   la orden. Si no hay una entrada limpia, lo dice con honestidad.
+   ══════════════════════════════════════════════════════════════ */
+function analizarRadar() {
+  const par = PARES.find((p) => p.id === _par) || PARES[0];
+  const base = par.s.replace(/USDT$|USDC$|FDUSD$|BUSD$/, '');
+  const px = M.precio || (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
+  const mk = M.mercado;
+  const zonas = (M.zonas || []).filter((z) => !z.rota);
+  if (!px || !zonas.length) {
+    return { titulo: 'Sin lectura clara', cuerpo: `<p>Ahora mismo no hay zonas de acumulación cercanas y fiables en <b>${esc(base)} · ${esc(M.tf)}</b>. Sin un nivel con volumen de referencia, lo prudente es <b>esperar</b>: no hay una entrada con ventaja aquí.</p>`, tono: 'espera' };
+  }
+  const dentro = zonas.find((z) => z.dentro);
+  const dem = zonas.filter((z) => z.lado === 'demanda').sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))[0];
+  const ofe = zonas.filter((z) => z.lado === 'oferta').sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))[0];
+  const fuerte = zonas.slice().sort((a, b) => b.confianza - a.confianza)[0];
+  const anchoZona = (z) => ((z.pHigh - z.pLow) / z.p);
+  const vwapTxt = mk && mk.vwap ? (px >= mk.vwap ? 'por <b>encima del VWAP</b> (favorece a los compradores)' : 'por <b>debajo del VWAP</b> (favorece a los vendedores)') : '';
+  const comoWeb = 'Para operar desde la web: coloca el cursor sobre la banda, haz clic derecho y pulsa <b>«Comprar aquí»</b>, luego <b>Establecer posición</b> para fijar tu orden en ese precio.';
+  const comoMovil = 'Desde el móvil: fíjate en el precio del <b>inicio de la banda</b> y deja una orden de entrada en ese nivel.';
+
+  let titulo, cuerpo, tono;
+
+  if (dentro && dentro.lado === 'demanda' && dentro.fuerza >= 3) {
+    const ancho = anchoZona(dentro);
+    const stop = fmt(dentro.pLow * 0.997);
+    const tp = fmt(Math.max(mk ? mk.sHi : px * 1.01, (ofe ? ofe.pLow : px * 1.01)));
+    titulo = 'Zona de alta demanda';
+    tono = 'compra';
+    cuerpo =
+      `<p>El precio está <b>dentro de una zona de demanda fuerte</b> en <b>${esc(base)} · ${esc(M.tf)}</b>, con <b>${dinero(dentro.v)}</b> acumulados en el rango <b>${fmt(dentro.pLow)} – ${fmt(dentro.pHigh)}</b>. Es un nivel con mucho volumen debajo del precio: escenario de posible <b>compra (long)</b> apoyada en esa demanda${vwapTxt ? ', y el precio está ' + vwapTxt : ''}.</p>` +
+      `<p><b>Entrada:</b> ubícate en el inicio de la banda, cerca de <b>${fmt(dentro.pLow)}</b> (o en el punto de control <b>${fmt(dentro.pPoc)}</b>). <b>Stop:</b> por debajo de la zona, hacia <b>${stop}</b>. <b>Objetivo:</b> el máximo de la estructura, sobre <b>${tp}</b>.</p>` +
+      (ancho > 0.02 ? `<p>Ojo: el rango es amplio porque recoge una oscilación grande. Sé <b>prudente con el capital</b> que arriesgas y no entres todo de golpe.</p>` : `<p>Sé prudente con el tamaño de la posición: arriesga solo una parte pequeña de tu capital.</p>`) +
+      `<p class="an-como">${comoWeb} ${comoMovil}</p>`;
+  } else if (dentro && dentro.lado === 'oferta' && dentro.fuerza >= 3) {
+    const stop = fmt(dentro.pHigh * 1.003);
+    const tp = fmt(Math.min(mk ? mk.sLo : px * 0.99, (dem ? dem.pHigh : px * 0.99)));
+    titulo = 'Zona de alta oferta';
+    tono = 'venta';
+    cuerpo =
+      `<p>El precio está <b>dentro de una zona de oferta fuerte</b> en <b>${esc(base)} · ${esc(M.tf)}</b>, con <b>${dinero(dentro.v)}</b> acumulados en <b>${fmt(dentro.pLow)} – ${fmt(dentro.pHigh)}</b>. Hay mucho volumen vendedor encima: si estás comprado, <b>cuidado</b>; es zona de posible <b>toma de beneficios o venta (short)</b>${vwapTxt ? ', y el precio está ' + vwapTxt : ''}.</p>` +
+      `<p><b>Entrada (short):</b> cerca de <b>${fmt(dentro.pHigh)}</b> o del control <b>${fmt(dentro.pPoc)}</b>. <b>Stop:</b> por encima, hacia <b>${stop}</b>. <b>Objetivo:</b> hacia <b>${tp}</b>.</p>` +
+      `<p class="an-como">${comoWeb} ${comoMovil}</p>`;
+  } else if (dem && Math.abs(dem.dist) < (ofe ? Math.abs(ofe.dist) : 99) && dem.fuerza >= 3) {
+    const tp = fmt(mk ? mk.sHi : px * 1.02);
+    titulo = 'Demanda debajo del precio';
+    tono = 'compra';
+    cuerpo =
+      `<p>El precio se impulsó <b>por encima de una zona de demanda</b> en <b>${fmt(dem.pLow)} – ${fmt(dem.pHigh)}</b> (${dinero(dem.v)}). Esa zona queda ahora como <b>soporte</b> a un <b>${(Math.abs(dem.dist) * 100).toFixed(2)}%</b> por debajo${vwapTxt ? '. El precio está ' + vwapTxt : ''}.</p>` +
+      `<p><b>Plan:</b> si el precio <b>vuelve a probar</b> esa zona (retesteo) y aguanta, es una posible <b>entrada en largo</b>. Entrada cerca de <b>${fmt(dem.pHigh)}</b>, stop bajo <b>${fmt(dem.pLow * 0.997)}</b>, objetivo hacia <b>${tp}</b>.</p>` +
+      `<p>Mientras no vuelva, no persigas el precio: espera el retesteo.</p>` +
+      `<p class="an-como">${comoWeb} ${comoMovil}</p>`;
+  } else if (ofe && ofe.fuerza >= 3) {
+    titulo = 'Oferta encima del precio';
+    tono = 'venta';
+    cuerpo =
+      `<p>Hay una <b>zona de oferta</b> en <b>${fmt(ofe.pLow)} – ${fmt(ofe.pHigh)}</b> (${dinero(ofe.v)}) a un <b>${(Math.abs(ofe.dist) * 100).toFixed(2)}%</b> por encima. Actúa como <b>resistencia</b>: es donde el precio puede frenarse${vwapTxt ? '. El precio está ' + vwapTxt : ''}.</p>` +
+      `<p><b>Plan:</b> si el precio sube hasta ahí y se frena, es zona de posible <b>venta / toma de beneficios</b>. Para un largo, mejor esperar a que <b>rompa y retestee</b> esa oferta por encima.</p>` +
+      `<p class="an-como">${comoMovil}</p>`;
+  } else {
+    titulo = 'Sin entrada limpia';
+    tono = 'espera';
+    cuerpo =
+      `<p>Ahora mismo el precio está <b>en medio del rango</b>, sin una zona fuerte lo bastante cerca para dar una entrada con ventaja en <b>${esc(base)} · ${esc(M.tf)}</b>.</p>` +
+      `<p>Lo profesional aquí es <b>esperar</b>: deja que el precio busque una de las zonas marcadas (demanda debajo u oferta encima) y opera la reacción en ese nivel. Forzar una entrada en el medio es donde se pierde dinero.</p>`;
+  }
+  return { titulo, cuerpo, tono, base };
+}
+
+function abrirAnalista() {
+  const a = analizarRadar();
+  document.getElementById('mu-ana-box')?.remove();
+  const col = a.tono === 'compra' ? '#2ee86a' : a.tono === 'venta' ? '#f6465d' : '#E8B84B';
+  const d = document.createElement('div');
+  d.id = 'mu-ana-box';
+  d.innerHTML = `<div class="mu-bg"></div>
+    <div class="an-c" style="--an:${col}">
+      <button class="mv-x" aria-label="Cerrar">\u2715</button>
+      <div class="an-head">
+        <img class="an-ava" src="assets/img/jesus-avatar.webp" alt="">
+        <div>
+          <div class="an-rol">Analista \u00b7 Institutional Radar</div>
+          <div class="an-tit">${esc(a.titulo)}</div>
+        </div>
+      </div>
+      <div class="an-body">${a.cuerpo}</div>
+      <div class="an-pie">Lectura de la estructura actual. No es una orden autom\u00e1tica: la decisi\u00f3n es tuya.</div>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => d.remove();
+  d.querySelector('.mu-bg').onclick = cerrar;
+  d.querySelector('.mv-x').onclick = cerrar;
 }
 
 /* ══════════════════════════════════════════════════════════════
