@@ -1058,7 +1058,14 @@ function lanzarAlerta(tipo, z) {
     : { txt: `Zona ${dem ? 'de demanda' : 'de oferta'} ROTA · ${fmt(z.p)}`, col: '#E8B84B' };
   pitar();
   const b = $('mu-alerta');
-  if (b) { b.textContent = _alerta.txt; b.style.setProperty('--ac', _alerta.col); b.classList.add('on'); clearTimeout(_alertaT); _alertaT = setTimeout(() => b.classList.remove('on'), 6500); }
+  if (b) {
+    b.textContent = _alerta.txt;
+    b.style.setProperty('--ac', _alerta.col);
+    b.classList.add('on');
+    clearTimeout(_alertaT);
+    _alertaT = setTimeout(() => b.classList.remove('on'), 9000);   // se lee con calma
+    b.onclick = () => { b.classList.remove('on'); clearTimeout(_alertaT); };   // o se cierra al tocar
+  }
 }
 let _alertaT = null, _audio = null;
 function pitar() {
@@ -1355,12 +1362,26 @@ function dibujar() {
   const pulso = 0.5 + 0.5 * Math.sin(Date.now() / 450);
   /* PASE 1 (detrás de las velas): solo las BANDAS y bordes de cada zona, muy
      sutiles, para no tapar el precio. Las líneas de entrada, etiquetas y el
-     perfil van DESPUÉS (encima de las velas) para que no queden troceados. */
-  M.zonas.forEach((z) => {
-    if (z.pHigh < pMin || z.pLow > pMax) return;
-    const yT = Y(Math.min(pMax, z.pHigh));
-    const yB = Y(Math.max(pMin, z.pLow));
-    const alto = Math.max(7, yB - yT);
+     perfil van DESPUÉS (encima de las velas) para que no queden troceados.
+
+     CLAVE: cuando dos zonas están cerca, sus bandas se SOLAPARÍAN en un bloque
+     ilegible. Por eso cada banda se recorta hasta el punto medio con su vecina
+     (dejando un hueco): las zonas lejanas conservan su altura, las juntas se
+     estrechan, y todo se sigue rigiendo por la línea punteada central. */
+  const bandas = M.zonas
+    .filter((z) => z.pHigh >= pMin && z.pLow <= pMax)
+    .map((z) => ({ z, yC: Y(z.p), yT: Y(Math.min(pMax, z.pHigh)), yB: Y(Math.max(pMin, z.pLow)) }))
+    .sort((a, b) => a.yC - b.yC);
+  const HUECO = 5;
+  bandas.forEach((it, i) => {
+    const arriba = bandas[i - 1], abajo = bandas[i + 1];
+    if (arriba) { const medio = (it.yC + arriba.yC) / 2; if (it.yT < medio + HUECO) it.yT = medio + HUECO; }
+    if (abajo) { const medio = (it.yC + abajo.yC) / 2; if (it.yB > medio - HUECO) it.yB = medio - HUECO; }
+    // nunca invertir ni desaparecer: mínimo una franja fina centrada en el POC
+    if (it.yB - it.yT < 4) { it.yT = it.yC - 2; it.yB = it.yC + 2; }
+  });
+  bandas.forEach(({ z, yT, yB }) => {
+    const alto = Math.max(4, yB - yT);
     const dem = z.lado === 'demanda';
     const rota = z.rota;
     const col = rota ? '#6b7681' : (dem ? '#2ee86a' : '#f6465d');
@@ -1631,6 +1652,37 @@ function dibujar() {
     g.fillText(d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }), x, y1 + 14);
   });
   g.textAlign = 'left';
+
+  /* ── CROSSHAIR: cruz + precio del cursor en el eje ── */
+  if (M._cursor && M._cursor.x < x1 && M._cursor.y < y1 && M._cursor.x > 0 && M._cursor.y > 0) {
+    const cx = M._cursor.x, cy = M._cursor.y;
+    const pCur = pMin + (pMax - pMin) * ((y1 - cy) / y1);
+    g.save();
+    g.strokeStyle = M.tema === 'claro' ? 'rgba(40,50,62,.5)' : 'rgba(200,210,224,.42)';
+    g.lineWidth = 1; g.setLineDash([4, 4]);
+    g.beginPath(); g.moveTo(cx, 0); g.lineTo(cx, y1); g.stroke();          // vertical
+    g.beginPath(); g.moveTo(0, cy); g.lineTo(x1, cy); g.stroke();          // horizontal
+    g.restore(); g.setLineDash([]);
+    // tachuela de precio del cursor en el eje
+    g.fillStyle = M.tema === 'claro' ? '#2a323d' : '#e8ecf2';
+    redondeado(g, x1 + 2, cy - 9, mDer - 5, 18, 4); g.fill();
+    g.fillStyle = M.tema === 'claro' ? '#eef2f7' : '#0b0e12';
+    g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'left';
+    g.fillText(fmt(pCur), x1 + 7, cy + 3.5);
+    // tachuela de la hora del cursor abajo
+    const idx = Math.floor(cx / paso);
+    if (idx >= 0 && idx < vis.length) {
+      const d = new Date(vis[idx].t * 1000);
+      const ht = d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+      g.font = 'bold 9px ui-monospace,monospace';
+      const hw = g.measureText(ht).width + 12;
+      g.fillStyle = M.tema === 'claro' ? '#2a323d' : '#e8ecf2';
+      redondeado(g, Math.max(2, Math.min(x1 - hw, cx - hw / 2)), y1 + 3, hw, 15, 4); g.fill();
+      g.fillStyle = M.tema === 'claro' ? '#eef2f7' : '#0b0e12'; g.textAlign = 'center';
+      g.fillText(ht, Math.max(2 + hw / 2, Math.min(x1 - hw / 2, cx)), y1 + 13.5);
+      g.textAlign = 'left';
+    }
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1685,6 +1737,16 @@ function engancharGestos(cv) {
     if (cambio) dibujar();
   });
   window.addEventListener('mouseup', () => { arr = false; cv.style.cursor = 'crosshair'; });
+
+  /* CROSSHAIR estilo TradingView: al mover el cursor por el gráfico se dibuja
+     una cruz y el precio exacto aparece en el eje derecho. */
+  cv.addEventListener('mousemove', (e) => {
+    if (arr) return;                    // durante el arrastre no se dibuja la cruz
+    const r = cv.getBoundingClientRect();
+    M._cursor = { x: e.clientX - r.left, y: e.clientY - r.top };
+    dibujar();
+  });
+  cv.addEventListener('mouseleave', () => { if (M._cursor) { M._cursor = null; dibujar(); } });
 
   cv.addEventListener('dblclick', () => {
     M.ancho = window.innerWidth < 760 ? 65 : 100; M.desplaz = 0; M.zoomY = 1; M.offsetY = 0;
@@ -2233,64 +2295,64 @@ async function ponerLogos() {
    ══════════════════════════════════════════════════════════════ */
 const PASOS_MU = [
   {
-    t: 'El libro de órdenes miente',
-    d: 'En cualquier exchange puede ver las órdenes de compra y venta esperando. Lo que no le dicen es que <b>la mayoría de las grandes son falsas</b>: se ponen para asustar y se retiran justo cuando el precio se acerca.',
-    x: 'Un trader que persigue esas órdenes pierde dinero de forma sistemática.'
+    t: 'Qué es el Institutional Radar',
+    d: 'Detecta las <b>zonas donde el capital institucional ha operado de verdad</b>: los rangos de precio que concentran el volumen real. Ahí es donde el mercado tiene soporte y resistencia auténticos.',
+    x: 'Deja de adivinar niveles: aquí ve dónde está el dinero que mueve el precio.'
   },
   {
-    t: 'Nosotros las vigilamos',
-    d: 'Tomamos una foto del libro <b>cada segundo y medio</b> y seguimos la vida de cada orden grande: cuánto lleva puesta, si se ha ejecutado, si desapareció y volvió.',
-    x: 'Ningún exchange guarda esa historia. Ahí está la diferencia.'
+    t: 'Demanda y oferta',
+    d: 'Las bandas <b>verdes son demanda</b> (soporte, por debajo del precio) y las <b>rojas son oferta</b> (resistencia, por encima). El precio tiende a reaccionar cuando llega a ellas.',
+    x: 'Compras cerca de demanda fuerte, vendes cerca de oferta fuerte. El sesgo lo da el contexto.'
   },
   {
-    t: 'La tarjeta le dice qué es',
-    d: 'Cada orden grande genera una tarjeta con <b>cuánto dinero hay</b>, <b>a qué precio</b> y <b>a qué distancia</b> del precio actual. Roja si es venta, verde si es compra.',
-    x: 'Toque la tarjeta para desplegar el detalle completo.'
+    t: 'La línea de entrada (POC)',
+    d: 'La línea punteada en el centro de cada banda es el <b>punto de control</b>: el precio exacto donde más volumen se negoció. Es tu referencia de entrada y de retesteo.',
+    x: 'Todo se rige por esa línea. La banda solo marca el rango; el POC es el nivel que importa.'
   },
   {
-    t: '★ Orden blindada',
-    d: 'La señal más fuerte que existe. La orden <b>se consume y vuelve a aparecer</b> al mismo precio, una y otra vez.',
-    x: 'Es alguien grande reponiendo su posición para no mover el mercado. Ese nivel casi siempre aguanta: buen sitio para su stop.'
+    t: 'El importe de la zona',
+    d: 'La cifra en dólares de cada zona es el <b>capital acumulado</b> que ha pasado por ese rango. Cuanto mayor es, más difícil de romper y más probable la reacción.',
+    x: 'Una zona de decenas de millones pesa mucho más que una de unos pocos cientos de miles.'
   },
   {
-    t: '✓ Nivel probado',
-    d: 'El precio ya llegó hasta ahí y <b>la orden lo frenó</b>, comiéndose parte del flujo que venía.',
-    x: 'Tiene defensa demostrada. Si vuelve, es probable que reaccione igual.'
+    t: 'La barra de confianza',
+    d: 'Cada zona lleva una puntuación de <b>0 a 100</b> que combina volumen, reacciones previas, alineación del flujo y confluencia. Cuanto más alta, más fiable el nivel.',
+    x: 'Prioriza las zonas de confianza alta para tus decisiones.'
   },
   {
-    t: '● Orden firme',
-    d: 'Lleva mucho tiempo sin moverse, pero <b>el precio todavía no lo ha puesto a prueba</b>.',
-    x: 'La constancia es buena señal, pero espere a ver qué pasa cuando llegue.'
+    t: '★ Zona fuerte',
+    d: 'Las marcadas en <b>dorado</b> son las de mayor convicción: mucho volumen, reacciones confirmadas y confluencia. Son los niveles que las mesas vigilan.',
+    x: 'Los mejores sitios para buscar entradas y para colocar tus stops.'
   },
   {
-    t: '✕ Orden falsa',
-    d: 'Lo hemos visto <b>huir cuando el precio se acerca</b> y volver cuando se aleja. Esa orden nunca se ejecuta.',
-    x: 'No la use como referencia. Si su plan dependía de ese nivel, revíselo.'
+    t: 'AQUÍ y Retesteo',
+    d: 'El radar te avisa cuando el precio está <b>dentro de una zona ahora</b> (AQUÍ) o a punto de <b>volver a probarla</b> (retesteo). Ese es el momento de máxima atención.',
+    x: 'El retesteo de una zona fuerte suele ser la entrada más limpia.'
   },
   {
-    t: 'Por qué cambian de estado',
-    d: 'Una orden puede pasar de falsa a fiable, o al revés. <b>El mercado cambia y el veredicto también.</b>',
-    x: 'Si una orden que huía empieza a reponerse, sube de categoría. Es información viva, no una etiqueta fija.'
+    t: 'VWAP, VAH y VAL',
+    d: 'Son las <b>referencias institucionales</b>: VWAP es el precio justo ponderado por volumen; VAH y VAL son los bordes del área de valor. Cuando una zona coincide con ellas, se refuerza.',
+    x: 'Precio por encima del VWAP favorece a los compradores; por debajo, a los vendedores.'
   },
   {
-    t: 'El texto le cuenta qué pasa',
-    d: 'La descripción de cada tarjeta <b>cambia sola</b> según lo que ocurre: le avisa cuando el precio se acerca, cuando está tocando el nivel y cuando la orden se está ejecutando.',
-    x: 'Como un comentarista: no tiene que estar mirando los números.'
+    t: 'El cockpit',
+    d: 'La franja superior te da el mercado de un vistazo: <b>sesgo, acierto histórico, flujo agresor, zona cercana, próximo nivel fuerte y contexto de BTC y ETH</b>.',
+    x: 'Tu lectura de dos segundos antes de operar. Si BTC acompaña, la señal pesa más.'
   },
   {
-    t: 'Cómo sacarle partido',
-    d: 'Busque <b>desequilibrios</b>: si hay tres muros fuertes debajo y ninguno arriba, el camino de menor resistencia es hacia arriba.',
-    x: 'Opere a favor del lado vacío, no contra el lado defendido.'
+    t: 'El perfil de volumen',
+    d: 'La silueta de la izquierda muestra <b>dónde se concentra el volumen por precio</b>. Los picos más brillantes son los imanes: el precio gravita hacia ellos.',
+    x: 'Un pico muy marcado lejos del precio suele ser un objetivo natural del movimiento.'
   },
   {
-    t: 'Combínelo con Liquidity Pools',
-    d: 'El mapa de liquidaciones dice <b>hacia dónde</b> quiere ir el precio. Esta herramienta dice <b>qué lo está frenando ahora</b>.',
-    x: 'Un muro falso justo delante de un imán de liquidez es de las señales más claras que va a encontrar.'
+    t: 'Alertas en vivo',
+    d: 'El radar te avisa con un aviso y un sonido cuando el precio <b>entra en una zona fuerte</b> o cuando una zona <b>se rompe</b>. No tienes que estar mirando la pantalla.',
+    x: 'Una zona que se rompe deja de ser soporte y pasa a ser resistencia (o al revés).'
   },
   {
-    t: 'Una última cosa',
-    d: 'Esto es <b>información, no una señal</b>. Le decimos qué es real y qué es humo, con datos del libro de Binance.',
-    x: 'La decisión de entrar o salir sigue siendo suya. Nosotros le quitamos la venda.'
+    t: 'Cómo operar con esto',
+    d: 'Opera <b>a favor del lado despejado</b>: si hay varias zonas fuertes debajo y ninguna arriba, el camino de menor resistencia es al alza. Usa las zonas fuertes para entrar y proteger, y confirma con el VWAP y el sesgo.',
+    x: 'Esto es información para decidir con criterio, no una señal a ciegas. La decisión final es tuya.'
   }
 ];
 
@@ -2502,13 +2564,13 @@ function estilos() {
   #mu-overlay .mu-ck-ctx b span{margin:0 3px;font-weight:800}
   /* Banner de alerta */
   #mu-overlay .mu-alerta{position:absolute;left:50%;top:60px;transform:translate(-50%,-14px);
-    z-index:60;padding:9px 15px 9px 14px;border-radius:11px;pointer-events:none;opacity:0;
+    z-index:60;padding:9px 15px 9px 14px;border-radius:11px;pointer-events:none;opacity:0;cursor:pointer;
     font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;color:#eef2f7;
     background:linear-gradient(180deg,rgba(22,28,36,.98),rgba(12,16,22,.98));
     border:1px solid var(--ac,#E8B84B);
     box-shadow:0 10px 30px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04), inset 0 0 18px color-mix(in srgb, var(--ac,#E8B84B) 14%, transparent);
     transition:opacity .3s ease,transform .3s ease}
-  #mu-overlay .mu-alerta.on{opacity:1;transform:translate(-50%,0)}
+  #mu-overlay .mu-alerta.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
   #mu-overlay .mu-alerta::before{content:'\\25C9';color:var(--ac,#E8B84B);margin-right:8px;font-size:11px}
   #mu-overlay .mu-lista{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px}
   #mu-overlay .mu-grupo{font-family:var(--mono,monospace);font-size:9.5px;color:#5c6672;
@@ -2970,12 +3032,12 @@ function validarVolumen() {
       <h3 class="mv-t">Volumen negociado en tiempo real</h3>
       <p class="mv-d">Estas son las cifras de <b>volumen real en d\u00f3lares</b> que sostienen las zonas detectadas. Cada zona muestra el capital acumulado que ha pasado por ese rango de precio.</p>
       <div class="mv-nums">
-        <div><b>${dinero(zTot)}</b><span>volumen total de la ventana</span></div>
+        <div><b>${dinero(zTot)}</b><span>volumen circundante</span></div>
         <div><b>${zFuerte ? dinero(zFuerte.v) : '\u2014'}</b><span>volumen de la zona m\u00e1s fuerte</span></div>
         <div><b>${mk && mk.vwap ? fmt(mk.vwap) : '\u2014'}</b><span>VWAP anclado</span></div>
       </div>
       <div class="mv-links">
-        <button class="mv-copy" id="mv-copy">Copiar resumen</button>
+        <button class="mv-copy" id="mv-copy">Copiar alerta</button>
       </div>
     </div>`;
   document.body.appendChild(d);
@@ -2983,12 +3045,29 @@ function validarVolumen() {
   d.querySelector('.mu-bg').onclick = cerrar;
   d.querySelector('.mv-x').onclick = cerrar;
   d.querySelector('#mv-copy').onclick = () => {
-    const niveles = (M.zonas || []).map((z) => `  ${z.lado === 'demanda' ? 'DEMANDA' : 'OFERTA'}  ${fmt(z.pLow)}\u2013${fmt(z.pHigh)}  ${dinero(z.v)}  (conf. ${z.confianza})`).join('\n');
-    const informe = `Institutional Radar\n${base} \u00b7 ${M.tf} \u00b7 ${hora}\nPrecio: ${fmt(M.precio)}\nVolumen ventana: ${dinero(zTot)}\nVWAP: ${mk && mk.vwap ? fmt(mk.vwap) : '\u2014'}\n\nZonas:\n${niveles || '  (sin zonas)'}`;
+    // Alerta pro: líneas cortas (seguras en móvil), emojis serios, fácil de leer.
+    const icono = (z) => z.rota ? '\u26aa' : (z.lado === 'demanda' ? '\u{1F7E2}' : '\u{1F534}');
+    const tipo = (z) => z.rota ? 'ROTA   ' : (z.lado === 'demanda' ? 'DEMANDA' : 'OFERTA ');
+    const aqui = (z) => z.dentro ? '  \u25c0 AQU\u00cd' : '';
+    const niveles = (M.zonas || []).slice(0, 6).map((z) => `${icono(z)} ${tipo(z)} ${fmt(z.pLow)}\u2013${fmt(z.pHigh)}  ${dinero(z.v)}${aqui(z)}`).join('\n');
+    const sesgo = mk ? (mk.sesgo === 'comprador' ? 'Comprador' : mk.sesgo === 'vendedor' ? 'Vendedor' : 'Neutral') : 'Neutral';
+    const acierto = mk && mk.winRate != null ? mk.winRate + '%' : '\u2014';
+    const alerta =
+`\u{1F537} INSTITUTIONAL RADAR
+${esc(base)} \u00b7 ${esc(M.tf)}  \u00b7  ${hora}
+
+\u{1F4B5} Precio actual: ${fmt(M.precio)}
+\u{1F4C8} VWAP: ${mk && mk.vwap ? fmt(mk.vwap) : '\u2014'}
+\u{1F4CA} Volumen circundante: ${dinero(zTot)}
+
+\u{1F3AF} ZONAS CLAVE
+${niveles || '\u2014 sin zonas cercanas'}
+
+\u{1F9ED} Sesgo: ${sesgo}  \u00b7  Acierto: ${acierto}`;
     const btn = d.querySelector('#mv-copy');
-    const ok = () => { btn.textContent = '\u2713 Copiado'; setTimeout(() => { btn.textContent = 'Copiar resumen'; }, 1800); };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(informe).then(ok).catch(ok);
-    else { try { const ta = document.createElement('textarea'); ta.value = informe; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } catch (_) {} ok(); }
+    const ok = () => { btn.textContent = '\u2713 Alerta copiada'; setTimeout(() => { btn.textContent = 'Copiar alerta'; }, 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(alerta).then(ok).catch(ok);
+    else { try { const ta = document.createElement('textarea'); ta.value = alerta; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } catch (_) {} ok(); }
   };
 }
 
