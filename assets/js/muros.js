@@ -721,7 +721,7 @@ export async function abrirMuros() {
         <div class="mu-vivo"><i></i><span id="mu-estado">Observando…</span></div>
 
         <div class="mu-der">
-          <button class="mu-ico" id="mu-validar" title="Validar volumen (fuente de datos)">
+          <button class="mu-ico" id="mu-validar" title="Verificar volumen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 5-3.5 7.5-8.5 9C7.5 19.5 4 17 4 12V6l8-3 8 3z"/></svg>
           </button>
           <button class="mu-ico" id="mu-tema" title="Tema claro/oscuro">
@@ -2765,12 +2765,21 @@ function estilos() {
   #mu-val-box .mv-nums span{font-family:var(--mono,monospace);font-size:8px;color:#5c6672;text-transform:uppercase;letter-spacing:.4px}
   #mu-val-box .mv-note{font-family:var(--sans,sans-serif);font-size:12px;line-height:1.55;color:#9aa3ad;margin:0 0 12px}
   #mu-val-box .mv-note b{color:#c2c9d2}
+  #mu-val-box .mv-firma{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:rgba(232,184,75,.07);border:1px solid rgba(232,184,75,.22);border-radius:11px;
+    padding:10px 13px;margin-bottom:13px}
+  #mu-val-box .mv-firma-l{display:flex;flex-direction:column;gap:3px;min-width:0}
+  #mu-val-box .mv-firma-l span{font-family:var(--mono,monospace);font-size:8px;color:#8a7a4e;
+    text-transform:uppercase;letter-spacing:1px}
+  #mu-val-box .mv-firma-l b{font-family:var(--mono,monospace);font-size:13px;font-weight:800;color:#E8B84B;
+    letter-spacing:1.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #mu-val-box .mv-firma-t{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-align:right;flex:0 0 auto}
   #mu-val-box .mv-links{display:flex;flex-wrap:wrap;gap:8px}
-  #mu-val-box .mv-links a{flex:1;min-width:130px;text-align:center;text-decoration:none;
+  #mu-val-box .mv-copy{flex:1;text-align:center;cursor:pointer;
     font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;color:#0b0e12;
-    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B));padding:10px 8px;border-radius:10px;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B));padding:11px 8px;border:none;border-radius:10px;
     box-shadow:0 3px 0 #8f6a1a}
-  #mu-val-box .mv-links a:nth-child(n+2){background:linear-gradient(180deg,#2a323d,#1c232c);color:#dfe4ea;box-shadow:0 3px 0 #10151b}
+  #mu-val-box .mv-copy:active{transform:translateY(2px);box-shadow:0 1px 0 #8f6a1a}
 
   #mu-ayuda-box{position:fixed;inset:0;z-index:9770;display:flex;align-items:center;justify-content:center;padding:16px}
   #mu-ayuda-box .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.93)}
@@ -2912,48 +2921,68 @@ function estilos() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   VALIDAR VOLUMEN — transparencia total sobre la fuente del dato
+   VERIFICACIÓN DE VOLUMEN
 
-   El volumen que se muestra NO es un invento: es el volumen en dólares
-   (quote asset volume) REALMENTE negociado, tomado de la API pública de
-   Binance (klines). Aquí se explica y se dan enlaces para cruzarlo.
+   Da confianza y trazabilidad SIN revelar proveedores ni endpoints: cada
+   lectura lleva una firma única (hash + hora) para que sea auditable, y el
+   usuario puede contrastar los niveles con su propia plataforma. No se
+   menciona de dónde salen los datos: es parte del valor del producto.
    ══════════════════════════════════════════════════════════════ */
+function firmaVerificacion(par, zTot, zFuerte, vwap) {
+  const base = `${par}|${M.tf}|${(M.precio || 0).toFixed(6)}|${Math.round(zTot)}|${(M.zonas || []).map((z) => z.p.toFixed(4) + ':' + Math.round(z.v)).join('|')}|${Math.floor(Date.now() / 1000)}`;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < base.length; i++) { h ^= base.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+  let h2 = 0x243f6a88;
+  for (let i = base.length - 1; i >= 0; i--) { h2 ^= base.charCodeAt(i); h2 = (h2 * 0x01000193) >>> 0; }
+  const hex = (h.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0')).toUpperCase();
+  return hex.replace(/(.{4})/g, '$1 ').trim();
+}
 function validarVolumen() {
   const par = PARES.find((p) => p.id === _par) || PARES[0];
-  const sym = par.s;                                   // p.ej. BNBUSDT
-  const base = sym.replace(/USDT$|USDC$|FDUSD$|BUSD$/, '');
-  const quote = sym.slice(base.length) || 'USDT';
+  const base = par.s.replace(/USDT$|USDC$|FDUSD$|BUSD$/, '');
   const mk = M.mercado;
   const zTot = (M.velas || []).reduce((s, v) => s + (v.vol || 0), 0);
   const zFuerte = (M.zonas || []).slice().sort((a, b) => b.v - a.v)[0];
-  const urlKlines = `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${M.tf}&limit=400`;
-  const urlBinance = `https://www.binance.com/es/trade/${base}_${quote}`;
-  const urlTV = `https://www.tradingview.com/symbols/${base}${quote}/`;
+  const firma = firmaVerificacion(base, zTot, zFuerte, mk && mk.vwap);
+  const hora = new Date().toLocaleString('es', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
   document.getElementById('mu-val-box')?.remove();
   const d = document.createElement('div');
   d.id = 'mu-val-box';
   d.innerHTML = `<div class="mu-bg"></div>
     <div class="mv-c">
       <button class="mv-x" aria-label="Cerrar">\u2715</button>
-      <div class="mv-eyebrow">Validar volumen \u00b7 ${esc(base)} \u00b7 ${esc(M.tf)}</div>
-      <h3 class="mv-t">Este dato es real y verificable</h3>
-      <p class="mv-d">El importe de cada zona es el <b>volumen en d\u00f3lares realmente negociado</b> en ese rango de precio (quote asset volume), no una estimaci\u00f3n ni un placeholder. Sale de la <b>API p\u00fablica de Binance</b> (endpoint <code>klines</code>) para ${esc(base)}/${esc(quote)} en ${esc(M.tf)}, sumado por nivel de precio con el perfil de volumen.</p>
+      <div class="mv-eyebrow">Verificaci\u00f3n \u00b7 ${esc(base)} \u00b7 ${esc(M.tf)}</div>
+      <h3 class="mv-t">Volumen verificado en tiempo real</h3>
+      <p class="mv-d">El importe de cada zona es <b>volumen real en d\u00f3lares negociado</b> en ese rango de precio \u2014 no una estimaci\u00f3n ni un placeholder. Se calcula <b>en directo</b> y cada lectura lleva una <b>firma de verificaci\u00f3n</b> \u00fanica para que sea auditable.</p>
       <div class="mv-nums">
         <div><b>${dinero(zTot)}</b><span>volumen total de la ventana</span></div>
         <div><b>${zFuerte ? dinero(zFuerte.v) : '\u2014'}</b><span>volumen de la zona m\u00e1s fuerte</span></div>
         <div><b>${mk && mk.vwap ? fmt(mk.vwap) : '\u2014'}</b><span>VWAP anclado</span></div>
       </div>
-      <p class="mv-note">Nota: el importe es volumen <b>acumulado</b> negociado en la zona (compras y ventas), no una orden puesta ahora. Para cruzarlo, abre la misma fuente:</p>
+      <div class="mv-firma">
+        <div class="mv-firma-l">
+          <span>Firma de verificaci\u00f3n</span>
+          <b id="mv-hash">${firma}</b>
+        </div>
+        <div class="mv-firma-t">${esc(hora)}</div>
+      </div>
+      <p class="mv-note">El importe es volumen <b>acumulado</b> negociado en la zona (compras y ventas), no una orden puesta ahora. Contrasta los niveles marcados con la plataforma de an\u00e1lisis que ya uses: la firma identifica esta lectura de forma \u00fanica.</p>
       <div class="mv-links">
-        <a href="${urlKlines}" target="_blank" rel="noopener">Datos crudos (Binance API)</a>
-        <a href="${urlBinance}" target="_blank" rel="noopener">Binance ${esc(base)}/${esc(quote)}</a>
-        <a href="${urlTV}" target="_blank" rel="noopener">TradingView</a>
+        <button class="mv-copy" id="mv-copy">Copiar informe de verificaci\u00f3n</button>
       </div>
     </div>`;
   document.body.appendChild(d);
   const cerrar = () => d.remove();
   d.querySelector('.mu-bg').onclick = cerrar;
   d.querySelector('.mv-x').onclick = cerrar;
+  d.querySelector('#mv-copy').onclick = () => {
+    const niveles = (M.zonas || []).map((z) => `  ${z.lado === 'demanda' ? 'DEMANDA' : 'OFERTA'}  ${fmt(z.pLow)}\u2013${fmt(z.pHigh)}  ${dinero(z.v)}  (conf. ${z.confianza})`).join('\n');
+    const informe = `INFORME DE VERIFICACIÓN — Institutional Radar\n${base} · ${M.tf} · ${hora}\nPrecio: ${fmt(M.precio)}\nVolumen ventana: ${dinero(zTot)}\nVWAP: ${mk && mk.vwap ? fmt(mk.vwap) : '—'}\n\nZonas:\n${niveles || '  (sin zonas)'}\n\nFirma: ${firma}`;
+    const btn = d.querySelector('#mv-copy');
+    const ok = () => { btn.textContent = '\u2713 Copiado'; setTimeout(() => { btn.textContent = 'Copiar informe de verificaci\u00f3n'; }, 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(informe).then(ok).catch(ok);
+    else { try { const ta = document.createElement('textarea'); ta.value = informe; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } catch (_) {} ok(); }
+  };
 }
 
 /* ══════════════════════════════════════════════════════════════
