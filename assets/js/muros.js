@@ -70,13 +70,47 @@ const TFS = [
 ];
 
 async function traerVelas(simbolo, tf, n = 120) {
-  const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${simbolo}&interval=${tf}&limit=${n}`);
+  const r = await muFetch(`/api/v3/klines?symbol=${simbolo}&interval=${tf}&limit=${n}`);
   if (!r.ok) throw new Error('sin velas');
   const j = await r.json();
   return j.map((x) => ({
     t: Math.floor(x[0] / 1000),
     o: Number(x[1]), h: Number(x[2]), l: Number(x[3]), c: Number(x[4])
   }));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DATOS con RESPALDO. El radar necesita el libro (api/v3/depth). Binance ha
+   ido geo-bloqueando api.binance.com en algunas regiones; cuando pasa, el
+   libro deja de llegar y el radar se queda "sin órdenes" (aunque antes
+   funcionara). Probamos varios hosts EQUIVALENTES de datos públicos —mismo
+   formato, misma API, sin clave— empezando por el que funcionó la última vez.
+   Incluye data-api.binance.vision (el espejo de datos de Binance), que suele
+   responder donde el principal está bloqueado. Cada intento con límite de
+   tiempo para no colgarse. Es ADITIVO: si api.binance.com responde, no cambia
+   nada. ══════════════════════════════════════════════════════════════ */
+const MU_HOSTS = [
+  'https://api.binance.com',
+  'https://data-api.binance.vision',
+  'https://api-gcp.binance.com',
+  'https://api1.binance.com',
+  'https://api2.binance.com'
+];
+let _muHost = 0;
+async function muFetch(path) {
+  const orden = [_muHost, ...MU_HOSTS.map((_, i) => i).filter((i) => i !== _muHost)];
+  let err;
+  for (const i of orden) {
+    try {
+      const ctl = new AbortController();
+      const to = setTimeout(() => ctl.abort(), 5000);
+      const r = await fetch(MU_HOSTS[i] + path, { signal: ctl.signal });
+      clearTimeout(to);
+      if (r.ok) { _muHost = i; return r; }
+      err = new Error('HTTP ' + r.status);
+    } catch (e) { err = e; }
+  }
+  throw err || new Error('sin datos');
 }
 
 /** Rectángulo con esquinas redondeadas. */
@@ -120,7 +154,12 @@ const MIN_TOMAS = 6;        // antes de juzgar, hay que mirar un rato
    LOS DATOS — profundidad del libro, API pública sin clave
    ══════════════════════════════════════════════════════════════ */
 async function traerLibro(simbolo) {
-  const r = await fetch(`https://api.binance.com/api/v3/depth?symbol=${simbolo}&limit=500`);
+  /* limit=100 (no 500): el libro pesado (peso 25) es justo el que Binance
+     tiende a limitar/bloquear —sobre todo con IPs compartidas—, que es por lo
+     que las velas cargaban pero las órdenes no. Con 100 niveles por lado (peso
+     5) el radar sigue viendo los muros que importan (los cercanos al precio) y
+     deja de chocar con el límite. */
+  const r = await muFetch(`/api/v3/depth?symbol=${simbolo}&limit=100`);
   if (!r.ok) throw new Error('sin datos');
   const j = await r.json();
   return {
@@ -1886,8 +1925,15 @@ function estilos() {
     #mu-overlay .mu-cuerpo{flex-direction:column}
     #mu-overlay .mu-graf{flex:0 0 auto;height:46vh;min-height:230px}
     #mu-overlay .mu-panel{width:100%;flex:1;min-height:0;border-left:none;border-top:1px solid #1c2128}
-    #mu-overlay .mu-barra{padding:8px 92px 8px 10px;gap:9px}
+    /* La barra ya NO desborda: se ajusta y, si no cabe, envuelve en dos filas.
+       El "Precio ahora" se oculta aquí porque ya se ve grande en la propia
+       gráfica (marcador dorado), así que era información repetida que solo
+       robaba espacio y hacía que la barra se cortara a la derecha. */
+    #mu-overlay .mu-barra{flex-wrap:wrap;gap:8px;padding:8px 96px 8px 10px}
+    #mu-overlay .mu-px{display:none}
+    #mu-overlay .mu-vivo{flex:0 0 auto}
     #mu-overlay .mu-vivo span{display:none}
+    #mu-overlay .mu-tfs{flex:0 0 auto}
     #mu-overlay .mu-marca{height:24px;left:10px;bottom:26px}
     #mu-overlay .mu-precio{font-size:19px}
     #mu-ayuda-box .mua-c{padding:20px 14px}
