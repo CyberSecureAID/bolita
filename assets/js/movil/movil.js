@@ -199,10 +199,10 @@ function inyectarFixMarket() {
   if ($('mv-mk-fix')) return;
   const s = document.createElement('style'); s.id = 'mv-mk-fix';
   s.textContent = `@media(max-width:760px){
-    /* Overlay como columna flex anclada arriba; el hueco de la barra se reserva
-       con padding-bottom (misma referencia que #mv-nav, que es position:fixed).
-       Nada de vh/dvh: en móvil no cuadran con la barra fija. */
-    #mk-overlay{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;
+    /* OJO: se condiciona a .show. El overlay se cierra quitando la clase 'show'
+       (queda #mk-overlay{display:none}); si forzáramos display:flex sin .show, el
+       botón X no cerraría. Con .show, al cerrarse ya no aplica y se oculta bien. */
+    #mk-overlay.show{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;
       padding:calc(8px + env(safe-area-inset-top,0px)) 10px calc(90px + env(safe-area-inset-bottom,0px))!important}
     /* La card encoge al espacio disponible (min-height:0) y hace scroll interno,
        así se llega a todos los campos y al botón "Guardar perfil". */
