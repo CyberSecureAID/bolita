@@ -1585,12 +1585,18 @@ function dibujar() {
       g.fillText(dtxt, dpx + dpw / 2, dpy + 12);
       g.textAlign = 'left';
 
-      // ── RANGO de la zona + nº de muros ──
-      g.fillStyle = '#8b95a1'; g.font = '9px ui-monospace,monospace';
+      // ── RANGO de la zona (izq) + medidor de FUERZA en puntos (der) ──
+      g.fillStyle = '#8b95a1'; g.font = '9px ui-monospace,monospace'; g.textAlign = 'left';
       const rango = (z.pLow && z.pHigh && Math.abs(z.pHigh - z.pLow) > 1e-9)
-        ? 'Zona ' + fmt(z.pLow) + '\u2013' + fmt(z.pHigh) + ' \u00b7 ' + z.filas + ' muros'
-        : z.filas + ' muros de liquidez';
+        ? 'Zona ' + fmt(z.pLow) + '\u2013' + fmt(z.pHigh)
+        : 'Muro de liquidez';
       g.fillText(rango, tx, py + hb + 40);
+      const nf = Math.max(1, Math.min(5, z.filas || 1));   // fuerza = nº de muros (1..5)
+      const dgap = 7, dr = 2.3, dyC = py + hb + 37, dxEnd = px + pw - 14;
+      for (let i = 0; i < 5; i++) {
+        g.beginPath(); g.arc(dxEnd - (4 - i) * dgap, dyC, dr, 0, Math.PI * 2);
+        g.fillStyle = i < nf ? col : 'rgba(255,255,255,.18)'; g.fill();
+      }
 
       // ── QUÉ ES (lógica correcta: encima=venta/oferta, debajo=compra/demanda) ──
       g.fillStyle = '#c8d0d8'; g.font = '9.5px ui-monospace,monospace';
@@ -1602,34 +1608,55 @@ function dibujar() {
         g.fillText('Techo que frena las subidas.', tx, py + hb + 71);
       }
 
-      // ── FLUJO que lo formó, con % (velas verdes vs rojas por la zona) ──
-      g.fillStyle = '#8b95a1'; g.font = '8.5px ui-monospace,monospace';
-      g.fillText('Flujo que lo form\u00f3', tx, py + hb + 90);
-      g.textAlign = 'right'; g.fillText('Total ' + fmtV(volT), px + pw - 13, py + hb + 90);
-      g.textAlign = 'left';
+      // ── FLUJO en la zona, con % (velas verdes vs rojas que pasaron por ella).
+      //    Si la zona NO tuvo actividad (volC=volV=0) no inventamos nada: barra
+      //    neutra y aviso honesto, en vez de pintarla toda roja. ──
+      const sinFlujo = (volC + volV) <= 0;
+      g.fillStyle = '#8b95a1'; g.font = '8.5px ui-monospace,monospace'; g.textAlign = 'left';
+      g.fillText('Flujo en la zona', tx, py + hb + 90);
+      if (!sinFlujo) { g.textAlign = 'right'; g.fillText('Total ' + fmtV(volT), px + pw - 13, py + hb + 90); g.textAlign = 'left'; }
       const bx = tx, by = py + hb + 96, bw = pw - 26, bh = 10;
-      const wc = Math.max(0, Math.min(bw, bw * (volC / volT)));
       g.save(); redondeadoLq(g, bx, by, bw, bh, 5); g.clip();
-      g.fillStyle = 'rgba(46,232,106,.95)'; g.fillRect(bx, by, wc, bh);
-      g.fillStyle = 'rgba(255,70,90,.95)'; g.fillRect(bx + wc, by, bw - wc, bh);
+      if (sinFlujo) {
+        g.fillStyle = 'rgba(150,160,172,.30)'; g.fillRect(bx, by, bw, bh);
+      } else {
+        const wc = Math.max(0, Math.min(bw, bw * (volC / volT)));
+        g.fillStyle = 'rgba(46,232,106,.95)'; g.fillRect(bx, by, wc, bh);
+        g.fillStyle = 'rgba(255,70,90,.95)'; g.fillRect(bx + wc, by, bw - wc, bh);
+      }
       g.restore();
       g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 1; redondeadoLq(g, bx, by, bw, bh, 5); g.stroke();
-      g.font = 'bold 8.5px ui-monospace,monospace';
-      g.fillStyle = '#2ee86a'; g.textAlign = 'left';
-      g.fillText('\u25b2 ' + fmtV(volC) + '  ' + pctC + '%', bx, by + bh + 13);
-      g.fillStyle = '#ff6b7a'; g.textAlign = 'right';
-      g.fillText(pctV + '%  ' + fmtV(volV) + ' \u25bc', bx + bw, by + bh + 13);
-
-      // ── CHIP de lectura contextual (nunca contradice el rol del muro) ──
-      let dom;
-      if (!alcista) {
-        dom = volV > volC * 1.25 ? ['Vendedores firmes: techo s\u00f3lido', '255,107,122']
-            : volC > volV * 1.25 ? ['Compradores atrapados arriba', '245,183,74']
-            : ['Fuerzas parejas en el muro', '196,204,212'];
+      if (sinFlujo) {
+        g.fillStyle = '#8b95a1'; g.font = '8.5px ui-monospace,monospace'; g.textAlign = 'center';
+        g.fillText('Sin actividad reciente en la zona', bx + bw / 2, by + bh + 13);
+        g.textAlign = 'left';
       } else {
-        dom = volC > volV * 1.25 ? ['Compradores firmes: piso s\u00f3lido', '46,232,106']
-            : volV > volC * 1.25 ? ['Vendedores atrapados abajo', '245,183,74']
-            : ['Fuerzas parejas en el muro', '196,204,212'];
+        g.font = 'bold 8.5px ui-monospace,monospace';
+        g.fillStyle = '#2ee86a'; g.textAlign = 'left';
+        g.fillText('\u25b2 ' + fmtV(volC) + '  ' + pctC + '%', bx, by + bh + 13);
+        g.fillStyle = '#ff6b7a'; g.textAlign = 'right';
+        g.fillText(pctV + '%  ' + fmtV(volV) + ' \u25bc', bx + bw, by + bh + 13);
+        g.textAlign = 'left';
+      }
+
+      /* ── CHIP de lectura. Correcta para SPOT (aquí no hay cortos): en una
+         resistencia, si predominó la COMPRA es que compraron caro y el precio
+         los dejó abajo → oferta al recuperar ("atrapados arriba"). En un
+         soporte, si predominó la VENTA pero el piso aguantó → esa venta fue
+         ABSORBIDA por la demanda (no "vendedor atrapado", que en spot no
+         existe). Sin dominio claro = zona en disputa. Sin flujo = solo un
+         nivel de liquidez. Nada de frases vacías. ── */
+      let dom;
+      if (sinFlujo) {
+        dom = [alcista ? 'Piso de liquidez' : 'Techo de liquidez', '150,160,172'];
+      } else if (!alcista) {                 // RESISTENCIA (techo · oferta)
+        dom = volV > volC * 1.25 ? ['Oferta firme: techo s\u00f3lido', '255,107,122']
+            : volC > volV * 1.25 ? ['Compradores atrapados arriba', '245,183,74']
+            : ['Techo en disputa', '196,204,212'];
+      } else {                               // SOPORTE (piso · demanda)
+        dom = volC > volV * 1.25 ? ['Demanda firme: piso s\u00f3lido', '46,232,106']
+            : volV > volC * 1.25 ? ['Ventas absorbidas: piso probado', '245,183,74']
+            : ['Piso en disputa', '196,204,212'];
       }
       const chy = py + ph - 26, chh = 18, chx = px + 10, chw = pw - 20;
       g.fillStyle = `rgba(${dom[1]},.14)`; redondeadoLq(g, chx, chy, chw, chh, 7); g.fill();
