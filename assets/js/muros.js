@@ -147,7 +147,7 @@ const M = {
   delta: null,        // order-flow real (aggTrades): agresor comprador vs vendedor
   contexto: null,     // contexto multi-símbolo (BTC/ETH en demanda/oferta)
   tema: (() => { try { return localStorage.getItem('mu_tema') === 'claro' ? 'claro' : 'oscuro'; } catch (_) { return 'oscuro'; } })(),
-  tf: '15m',          // temporalidad por defecto del radar
+  tf: '1h',           // temporalidad por defecto del radar
   ancho: window.innerWidth < 760 ? 65 : 100,  // cuántas velas se ven
   filtro: 'todos',
   maxMuro: 1,
@@ -1442,12 +1442,30 @@ function dibujar() {
   }
 
   /* ── PASE 2 (ENCIMA de las velas): línea de entrada (POC), etiqueta y chip ──
-     Al ir después de las velas, la línea es continua (no troceada). */
-  M.zonas.forEach((z) => {
-    if (z.pHigh < pMin || z.pLow > pMax) return;
-    const yT = Y(Math.min(pMax, z.pHigh));
-    const yC = Y(z.p);
+     Cuando varias zonas caen juntas, sus etiquetas se APILARÍAN y todo se
+     vuelve ilegible. Por eso primero se calcula un reparto vertical sin
+     solapes (de-colisión) y cada etiqueta se conecta a su línea con un hilo. */
+  const vis2 = M.zonas.filter((z) => z.pHigh >= pMin && z.pLow <= pMax);
+  // reparto vertical sin solapes, respetando el orden por precio
+  const repartir = (ys, gap, lo, hi) => {
+    const idx = ys.map((y, i) => ({ y, i })).sort((a, b) => a.y - b.y);
+    let prev = -Infinity;
+    idx.forEach((o) => { o.ny = Math.max(o.y, prev + gap); prev = o.ny; });
+    // si se salieron por abajo, empujar todo hacia arriba
+    const exceso = idx.length ? Math.max(0, idx[idx.length - 1].ny - (hi)) : 0;
+    if (exceso > 0) { let p = Infinity; for (let k = idx.length - 1; k >= 0; k--) { idx[k].ny = Math.min(idx[k].ny - exceso, p - gap); p = idx[k].ny; } }
+    idx.forEach((o) => { if (o.ny < lo) o.ny = lo; });
+    const out = new Array(ys.length);
+    idx.forEach((o) => { out[o.i] = o.ny; });
+    return out;
+  };
+  const yLabels = repartir(vis2.map((z) => Y(z.p)), 24, 16, y1 - 8);
+  const yChips = repartir(vis2.map((z) => Y(Math.min(pMax, z.pHigh)) + 11), 20, 20, y1 - 6);
+
+  vis2.forEach((z, k) => {
     const yPoc = Y(z.pPoc);
+    const yCreal = Y(z.p);
+    const yC = yLabels[k];                 // posición de la etiqueta (ya sin solape)
     const dem = z.lado === 'demanda';
     const rota = z.rota;
     const col = rota ? '#6b7681' : (dem ? '#2ee86a' : '#f6465d');
@@ -1464,13 +1482,17 @@ function dibujar() {
       g.restore(); g.setLineDash([]);
     }
 
-    // Etiqueta: importe + insignias, ANCLADA a la derecha (junto al eje),
-    // dentro del gráfico, sobre la línea de la zona. Nunca se corta.
+    // Etiqueta: importe + insignias, anclada a la derecha, en su posición
+    // de-colisionada; un hilo la une a su línea real cuando se ha movido.
     const et = dinero(z.v);
     const badges = (z.confluencia ? ' \u25c8' : '') + (z.libro ? ' \u25a3' : '');
     g.font = 'bold 11.5px ui-monospace,monospace';
     const wCaja = g.measureText(et + badges).width + 34;
     const xCaja = x1 - wCaja - 6;
+    if (Math.abs(yC - yCreal) > 3) {
+      g.strokeStyle = col + 'aa'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x1 - 4, yCreal); g.lineTo(xCaja - 2, yC); g.stroke();
+    }
     g.save();
     g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 7; g.shadowOffsetY = 1.5;
     g.fillStyle = col;
@@ -1483,24 +1505,25 @@ function dibujar() {
     g.font = 'bold 11.5px ui-monospace,monospace'; g.textAlign = 'left';
     g.fillText(et + badges, xCaja + 21, yC + 4);
 
-    // Chip de estado (pulsante)
+    // Chip de estado (pulsante), también de-colisionado a la izquierda
+    const yCh = yChips[k];
     if (activa) {
       const rw = 66;
       g.save();
       g.globalAlpha = 0.74 + 0.26 * pulso;
       g.shadowColor = 'rgba(232,184,75,.7)'; g.shadowBlur = 9;
       g.fillStyle = '#E8B84B';
-      redondeado(g, 8, yT + 4, rw, 15, 4); g.fill();
+      redondeado(g, 8, yCh - 7, rw, 15, 4); g.fill();
       g.restore();
       g.fillStyle = '#2a1c00'; g.font = 'bold 8px system-ui,sans-serif'; g.textAlign = 'center';
-      g.fillText(z.dentro ? 'EN LA ZONA' : 'RETESTEO', 8 + rw / 2, yT + 14.5);
+      g.fillText(z.dentro ? 'EN LA ZONA' : 'RETESTEO', 8 + rw / 2, yCh + 3.5);
       g.textAlign = 'left';
     } else if (rota) {
       const rw = 44;
       g.fillStyle = 'rgba(107,118,129,.9)';
-      redondeado(g, 8, yT + 4, rw, 15, 4); g.fill();
+      redondeado(g, 8, yCh - 7, rw, 15, 4); g.fill();
       g.fillStyle = '#0b0e12'; g.font = 'bold 8px system-ui,sans-serif'; g.textAlign = 'center';
-      g.fillText('ROTA', 8 + rw / 2, yT + 14.5);
+      g.fillText('ROTA', 8 + rw / 2, yCh + 3.5);
       g.textAlign = 'left';
     }
   });
@@ -1512,23 +1535,23 @@ function dibujar() {
   g.beginPath(); g.moveTo(0, yP); g.lineTo(x1, yP); g.stroke();
   g.setLineDash([]);
 
-  /* ── NIVELES INSTITUCIONALES: solo la LÍNEA en el gráfico (la denominación
-     va como tachuela en el eje, más abajo). VWAP sólida con glow; VAH/VAL en
-     punteado fino y elegante. ── */
+  /* ── NIVELES INSTITUCIONALES: la LÍNEA en el gráfico con protagonismo (la
+     denominación va como tachuela alargada en el eje, conectada a la línea). ── */
   if (M.mercado) {
     const mk = M.mercado;
-    const refLinea = (p, col, patron, glow) => {
+    const refLinea = (p, col, patron, ancho, glow, halo) => {
       if (!(p > 0) || p < pMin || p > pMax) return;
       const y = Y(p);
+      if (halo) { g.strokeStyle = halo; g.lineWidth = ancho + 4; g.setLineDash([]); g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke(); }
       g.save();
-      if (glow) { g.shadowColor = col; g.shadowBlur = 8; }
-      g.strokeStyle = col; g.lineWidth = 1.5; if (patron.length) g.setLineDash(patron);
+      if (glow) { g.shadowColor = col; g.shadowBlur = 9; }
+      g.strokeStyle = col; g.lineWidth = ancho; if (patron.length) g.setLineDash(patron);
       g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
       g.restore(); g.setLineDash([]);
     };
-    refLinea(mk.vah, 'rgba(201,162,75,.5)', [1, 6], false);
-    refLinea(mk.val, 'rgba(201,162,75,.5)', [1, 6], false);
-    refLinea(mk.vwap, 'rgba(120,170,255,.92)', [], true);
+    refLinea(mk.vah, 'rgba(216,184,94,.72)', [6, 5], 1.3, false, null);
+    refLinea(mk.val, 'rgba(216,184,94,.72)', [6, 5], 1.3, false, null);
+    refLinea(mk.vwap, 'rgba(127,186,255,1)', [], 1.8, true, 'rgba(127,186,255,.12)');
   }
 
   /* ── La escala, con los niveles marcados ── */
@@ -1563,28 +1586,34 @@ function dibujar() {
   g.font = 'bold 12px ui-monospace,monospace';
   g.fillText(fmt(M.precio), x1 + 7, yP + 4);
 
-  /* Denominación de los niveles institucionales, como tachuela en el EJE
-     (borde derecho), junto al precio. En el gráfico solo queda la línea. */
+  /* Tachuela ALARGADA de los niveles institucionales en el eje (como las
+     demás), conectada a su línea: denominación + precio. Se reparten sin
+     solaparse entre sí, con el precio ni con las zonas. */
   if (M.mercado) {
     const mk = M.mercado;
-    const usadas = [];
-    const refTag = (p, txt, col) => {
+    const usadas = [yP];
+    M.zonas.forEach((z) => { if (z.p >= pMin && z.p <= pMax) usadas.push(Y(z.p)); });
+    const refTag = (p, txt, col, txtcol) => {
       if (!(p > 0) || p < pMin || p > pMax) return;
       let y = Y(p);
-      if (Math.abs(y - yP) < 10) return;                 // no pisar el precio
-      while (usadas.some((u) => Math.abs(u - y) < 13)) y -= 13;   // evitar solaparse
+      let guard = 0;
+      while (usadas.some((u) => Math.abs(u - y) < 15) && guard++ < 20) y -= 15;
       usadas.push(y);
-      g.font = 'bold 8px ui-monospace,monospace';
-      const w = g.measureText(txt).width + 9;
+      // hilo de conexión desde la línea real al centro de la tachuela
+      if (Math.abs(y - Y(p)) > 3) { g.strokeStyle = col; g.lineWidth = 1; g.beginPath(); g.moveTo(x1 + 1, Y(p)); g.lineTo(x1 + 8, y); g.stroke(); }
       g.fillStyle = col;
-      redondeado(g, W - w - 3, y - 7, w, 14, 3); g.fill();
-      g.fillStyle = '#08111f'; g.textAlign = 'center';
-      g.fillText(txt, W - w / 2 - 3, y + 2.7);
+      redondeado(g, x1 + 2, y - 9, mDer - 5, 18, 4); g.fill();
+      g.fillStyle = txtcol; g.textAlign = 'left';
+      g.font = 'bold 9px ui-monospace,monospace';
+      g.fillText(txt, x1 + 7, y + 3.2);
+      g.textAlign = 'right';
+      g.font = '8.5px ui-monospace,monospace';
+      g.fillText(fmt(p), W - 5, y + 3.2);
       g.textAlign = 'left';
     };
-    refTag(mk.vwap, 'VWAP', '#7fbaff');
-    refTag(mk.vah, 'VAH', '#dcb85e');
-    refTag(mk.val, 'VAL', '#dcb85e');
+    refTag(mk.vah, 'VAH', 'rgba(216,184,94,.92)', '#2a1c00');
+    refTag(mk.val, 'VAL', 'rgba(216,184,94,.92)', '#2a1c00');
+    refTag(mk.vwap, 'VWAP', 'rgba(127,186,255,.95)', '#06101f');
   }
 
   /* ── Las horas ── */
@@ -2397,12 +2426,14 @@ function estilos() {
   #mu-overlay .mu-fchip.on{background:rgba(232,184,75,.14);border-color:var(--gold-soft,#C9A84B);
     color:var(--gold,#E8B84B)}
   #mu-overlay .mu-der{position:absolute;right:10px;top:50%;transform:translateY(-50%);
-    display:flex;gap:6px;background:#0b0e12;padding-left:8px}
+    display:flex;gap:6px;background:transparent;padding-left:8px}
   #mu-overlay .mu-ico{width:36px;height:36px;min-height:36px;flex:0 0 auto;border-radius:10px;
     display:grid;place-items:center;padding:0;cursor:pointer;
-    background:rgba(255,255,255,.05);border:1px solid #2b3139;color:#8b96a3;
-    font-family:var(--mono,monospace);font-size:14px;font-weight:700}
+    background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border:1px solid #2b3139;color:#8b96a3;
+    box-shadow:0 2px 5px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06);
+    font-family:var(--mono,monospace);font-size:14px;font-weight:700;transition:transform .1s ease,border-color .15s ease}
   #mu-overlay .mu-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  #mu-overlay .mu-ico:active{transform:translateY(1px);box-shadow:0 1px 3px rgba(0,0,0,.4)}
   /* "Cómo funciona" con texto en escritorio, solo el signo en móvil. */
   #mu-overlay .mu-comofunciona{width:auto;padding:0 14px;gap:0;
     border-color:rgba(232,184,75,.4);color:var(--gold,#E8B84B)}
@@ -2765,15 +2796,6 @@ function estilos() {
   #mu-val-box .mv-nums span{font-family:var(--mono,monospace);font-size:8px;color:#5c6672;text-transform:uppercase;letter-spacing:.4px}
   #mu-val-box .mv-note{font-family:var(--sans,sans-serif);font-size:12px;line-height:1.55;color:#9aa3ad;margin:0 0 12px}
   #mu-val-box .mv-note b{color:#c2c9d2}
-  #mu-val-box .mv-firma{display:flex;align-items:center;justify-content:space-between;gap:10px;
-    background:rgba(232,184,75,.07);border:1px solid rgba(232,184,75,.22);border-radius:11px;
-    padding:10px 13px;margin-bottom:13px}
-  #mu-val-box .mv-firma-l{display:flex;flex-direction:column;gap:3px;min-width:0}
-  #mu-val-box .mv-firma-l span{font-family:var(--mono,monospace);font-size:8px;color:#8a7a4e;
-    text-transform:uppercase;letter-spacing:1px}
-  #mu-val-box .mv-firma-l b{font-family:var(--mono,monospace);font-size:13px;font-weight:800;color:#E8B84B;
-    letter-spacing:1.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #mu-val-box .mv-firma-t{font-family:var(--mono,monospace);font-size:9.5px;color:#7d8794;text-align:right;flex:0 0 auto}
   #mu-val-box .mv-links{display:flex;flex-wrap:wrap;gap:8px}
   #mu-val-box .mv-copy{flex:1;text-align:center;cursor:pointer;
     font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;color:#0b0e12;
@@ -2866,7 +2888,10 @@ function estilos() {
   #mu-overlay.mu-claro .mu-ck span,
   #mu-overlay.mu-claro .mu-metricas span,
   #mu-overlay.mu-claro .mu-timeline .tl{color:#6b7480}
-  #mu-overlay.mu-claro .mu-ico{background:#dfe4ec;border-color:rgba(0,0,0,.1);color:#3a424c}
+  #mu-overlay.mu-claro .mu-der{background:transparent}
+  #mu-overlay.mu-claro .mu-ico{background:linear-gradient(180deg,#ffffff,#e7ebf1);border-color:rgba(0,0,0,.14);color:#3a424c;
+    box-shadow:0 2px 5px rgba(60,72,90,.22), inset 0 1px 0 rgba(255,255,255,.9)}
+  #mu-overlay.mu-claro .mu-ico:hover{border-color:var(--gold,#E8B84B);color:#9a7a1e}
   #mu-overlay.mu-claro .mu-sel,#mu-overlay.mu-claro .mu-tfchip{background:#dfe4ec;border-color:rgba(0,0,0,.12);color:#1a2028}
   #mu-overlay.mu-claro .mu-ck{background:linear-gradient(180deg,#fff,#eef1f5);border-color:rgba(0,0,0,.08)}
   #mu-overlay.mu-claro .mu-card{background:linear-gradient(145deg,#fff,#f2f5f9);border-color:rgba(0,0,0,.1)}
@@ -2928,47 +2953,29 @@ function estilos() {
    usuario puede contrastar los niveles con su propia plataforma. No se
    menciona de dónde salen los datos: es parte del valor del producto.
    ══════════════════════════════════════════════════════════════ */
-function firmaVerificacion(par, zTot, zFuerte, vwap) {
-  const base = `${par}|${M.tf}|${(M.precio || 0).toFixed(6)}|${Math.round(zTot)}|${(M.zonas || []).map((z) => z.p.toFixed(4) + ':' + Math.round(z.v)).join('|')}|${Math.floor(Date.now() / 1000)}`;
-  let h = 0x811c9dc5;
-  for (let i = 0; i < base.length; i++) { h ^= base.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
-  let h2 = 0x243f6a88;
-  for (let i = base.length - 1; i >= 0; i--) { h2 ^= base.charCodeAt(i); h2 = (h2 * 0x01000193) >>> 0; }
-  const hex = (h.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0')).toUpperCase();
-  return hex.replace(/(.{4})/g, '$1 ').trim();
-}
 function validarVolumen() {
   const par = PARES.find((p) => p.id === _par) || PARES[0];
   const base = par.s.replace(/USDT$|USDC$|FDUSD$|BUSD$/, '');
   const mk = M.mercado;
   const zTot = (M.velas || []).reduce((s, v) => s + (v.vol || 0), 0);
   const zFuerte = (M.zonas || []).slice().sort((a, b) => b.v - a.v)[0];
-  const firma = firmaVerificacion(base, zTot, zFuerte, mk && mk.vwap);
-  const hora = new Date().toLocaleString('es', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const hora = new Date().toLocaleString('es', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   document.getElementById('mu-val-box')?.remove();
   const d = document.createElement('div');
   d.id = 'mu-val-box';
   d.innerHTML = `<div class="mu-bg"></div>
     <div class="mv-c">
       <button class="mv-x" aria-label="Cerrar">\u2715</button>
-      <div class="mv-eyebrow">Verificaci\u00f3n \u00b7 ${esc(base)} \u00b7 ${esc(M.tf)}</div>
-      <h3 class="mv-t">Volumen verificado en tiempo real</h3>
-      <p class="mv-d">El importe de cada zona es <b>volumen real en d\u00f3lares negociado</b> en ese rango de precio \u2014 no una estimaci\u00f3n ni un placeholder. Se calcula <b>en directo</b> y cada lectura lleva una <b>firma de verificaci\u00f3n</b> \u00fanica para que sea auditable.</p>
+      <div class="mv-eyebrow">Volumen \u00b7 ${esc(base)} \u00b7 ${esc(M.tf)}</div>
+      <h3 class="mv-t">Volumen negociado en tiempo real</h3>
+      <p class="mv-d">Estas son las cifras de <b>volumen real en d\u00f3lares</b> que sostienen las zonas detectadas. Cada zona muestra el capital acumulado que ha pasado por ese rango de precio.</p>
       <div class="mv-nums">
         <div><b>${dinero(zTot)}</b><span>volumen total de la ventana</span></div>
         <div><b>${zFuerte ? dinero(zFuerte.v) : '\u2014'}</b><span>volumen de la zona m\u00e1s fuerte</span></div>
         <div><b>${mk && mk.vwap ? fmt(mk.vwap) : '\u2014'}</b><span>VWAP anclado</span></div>
       </div>
-      <div class="mv-firma">
-        <div class="mv-firma-l">
-          <span>Firma de verificaci\u00f3n</span>
-          <b id="mv-hash">${firma}</b>
-        </div>
-        <div class="mv-firma-t">${esc(hora)}</div>
-      </div>
-      <p class="mv-note">El importe es volumen <b>acumulado</b> negociado en la zona (compras y ventas), no una orden puesta ahora. Contrasta los niveles marcados con la plataforma de an\u00e1lisis que ya uses: la firma identifica esta lectura de forma \u00fanica.</p>
       <div class="mv-links">
-        <button class="mv-copy" id="mv-copy">Copiar informe de verificaci\u00f3n</button>
+        <button class="mv-copy" id="mv-copy">Copiar resumen</button>
       </div>
     </div>`;
   document.body.appendChild(d);
@@ -2977,9 +2984,9 @@ function validarVolumen() {
   d.querySelector('.mv-x').onclick = cerrar;
   d.querySelector('#mv-copy').onclick = () => {
     const niveles = (M.zonas || []).map((z) => `  ${z.lado === 'demanda' ? 'DEMANDA' : 'OFERTA'}  ${fmt(z.pLow)}\u2013${fmt(z.pHigh)}  ${dinero(z.v)}  (conf. ${z.confianza})`).join('\n');
-    const informe = `INFORME DE VERIFICACIÓN — Institutional Radar\n${base} · ${M.tf} · ${hora}\nPrecio: ${fmt(M.precio)}\nVolumen ventana: ${dinero(zTot)}\nVWAP: ${mk && mk.vwap ? fmt(mk.vwap) : '—'}\n\nZonas:\n${niveles || '  (sin zonas)'}\n\nFirma: ${firma}`;
+    const informe = `Institutional Radar\n${base} \u00b7 ${M.tf} \u00b7 ${hora}\nPrecio: ${fmt(M.precio)}\nVolumen ventana: ${dinero(zTot)}\nVWAP: ${mk && mk.vwap ? fmt(mk.vwap) : '\u2014'}\n\nZonas:\n${niveles || '  (sin zonas)'}`;
     const btn = d.querySelector('#mv-copy');
-    const ok = () => { btn.textContent = '\u2713 Copiado'; setTimeout(() => { btn.textContent = 'Copiar informe de verificaci\u00f3n'; }, 1800); };
+    const ok = () => { btn.textContent = '\u2713 Copiado'; setTimeout(() => { btn.textContent = 'Copiar resumen'; }, 1800); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(informe).then(ok).catch(ok);
     else { try { const ta = document.createElement('textarea'); ta.value = informe; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } catch (_) {} ok(); }
   };
