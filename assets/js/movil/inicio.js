@@ -150,20 +150,21 @@ export function pintarInicio(host, api) {
   pintarPromo();
   const tPromo = setInterval(() => { pi++; pintarPromo(); }, 4500);
 
-  // Todos los servicios: tira DESLIZABLE con el dedo (el CSS hace el scroll táctil
-  // con inercia). Se renderiza UNA sola vez (ya no se duplica para el bucle
-  // automático). El usuario la mueve, la lanza y la detiene a su gusto.
+  // Todos los servicios: tira con MOVIMIENTO automático suave + arrastre/flick
+  // con el dedo + tap para abrir. El toque se gestiona por eventos pointer (no
+  // por el "click", que en un contenedor con scroll se pierde y obligaba a tocar
+  // varias veces). Se renderiza una sola vez.
   const track = $('mv-svc-track');
+  let pararCarrusel = null;
   if (track) {
     const card = (c) => `<button class="mv-svc-card" data-go="${c.go}" style="--bc:${c.color}">
       <span class="mv-svc-ic" style="color:${c.color}">${IC[c.ic] || IC.bot}</span>
       <b>${c.kick}</b></button>`;
     track.innerHTML = SERVICIOS.map(card).join('');
-    track.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => api.abrir(b.getAttribute('data-go')));
-    prensarTarjetas(track);
+    pararCarrusel = montarCarrusel(track, api);
   }
 
-  host._limpiar = () => { clearInterval(tPromo); };
+  host._limpiar = () => { clearInterval(tPromo); if (pararCarrusel) pararCarrusel(); };
   host._pintarBal = pintarBal;
 }
 
@@ -194,31 +195,70 @@ function menuDenom(api, cb) {
 }
 function esc3(s) { return String(s || '').slice(0, 3); }
 
-/* "Mantener pulsado" en las tarjetas de servicios: al dejar el dedo puesto, la
-   tarjeta se resalta y crece un poquito (clase .press del CSS). Clave para no
-   estorbar el deslizamiento: solo se activa si es una pulsación REAL. Si el dedo
-   se mueve más de un umbral (es un scroll/flick), se cancela al instante y manda
-   el desplazamiento. Un tap normal sigue abriendo el servicio (el onclick de la
-   tarjeta no se toca). Intensidad deliberadamente sutil. */
-function prensarTarjetas(track) {
-  let card = null, sx = 0, sy = 0, hold = null;
-  const UMBRAL = 8;                                  // px de movimiento = es scroll
-  const quitar = () => {
-    if (hold) { clearTimeout(hold); hold = null; }
-    if (card) { card.classList.remove('press'); card = null; }
+/* Carrusel de servicios: tres cosas a la vez, sin pelearse.
+   1) MOVIMIENTO automático suave (vaivén), como estaba antes; se pausa en cuanto
+      tocas y se reanuda solo al soltar.
+   2) ARRASTRE/flick nativo con el dedo (el overflow-x del CSS).
+   3) TAP para abrir el servicio, por eventos pointer (fiable): en un contenedor
+      con scroll el navegador se come el "click" del primer toque, y por eso antes
+      había que tocar y tocar. Aquí abrimos en el pointerup si fue un toque limpio.
+   La animación "mantener pulsado" (.press) solo salta en pulsación real, no al
+   deslizar. Intensidad sutil. */
+function montarCarrusel(track, api) {
+  const svc = track.parentElement;                 // .mv-svc (el que scrollea)
+  const UMBRAL = 8;
+  let card = null, sx = 0, sy = 0, movido = false, hold = null;
+
+  // ── movimiento automático (vaivén suave) ──
+  let auto = true, dir = 1, raf = 0, reanuda = 0, vivo = true;
+  const paso = () => {
+    if (!vivo) return;
+    if (auto) {
+      const max = svc.scrollWidth - svc.clientWidth;
+      if (max > 2) {
+        let n = svc.scrollLeft + dir * 0.5;
+        if (n >= max) { n = max; dir = -1; }
+        else if (n <= 0) { n = 0; dir = 1; }
+        svc.scrollLeft = n;
+      }
+    }
+    raf = requestAnimationFrame(paso);
   };
+  const pausar = () => { auto = false; if (reanuda) { clearTimeout(reanuda); reanuda = 0; } };
+  const reanudarPronto = () => { if (reanuda) clearTimeout(reanuda); reanuda = setTimeout(() => { auto = true; }, 2600); };
+
+  const limpiarPress = () => { if (hold) { clearTimeout(hold); hold = null; } if (card) card.classList.remove('press'); };
+
   track.addEventListener('pointerdown', (e) => {
+    pausar();                                       // cualquier toque para el vaivén
     const c = e.target.closest && e.target.closest('.mv-svc-card');
-    if (!c) return;
-    card = c; sx = e.clientX; sy = e.clientY;
-    hold = setTimeout(() => { if (card) card.classList.add('press'); }, 70);
+    if (!c) { card = null; return; }
+    card = c; sx = e.clientX; sy = e.clientY; movido = false;
+    hold = setTimeout(() => { if (card && !movido) card.classList.add('press'); }, 70);
   }, { passive: true });
+
   track.addEventListener('pointermove', (e) => {
     if (!card) return;
-    if (Math.abs(e.clientX - sx) > UMBRAL || Math.abs(e.clientY - sy) > UMBRAL) quitar();
+    if (Math.abs(e.clientX - sx) > UMBRAL || Math.abs(e.clientY - sy) > UMBRAL) {
+      movido = true; limpiarPress();                // es scroll/flick → ya no es tap
+    }
   }, { passive: true });
-  ['pointerup', 'pointercancel', 'pointerleave', 'lostpointercapture'].forEach((ev) =>
-    track.addEventListener(ev, quitar, { passive: true }));
+
+  track.addEventListener('pointerup', () => {
+    if (card && !movido) {                          // toque limpio → abrir servicio
+      const go = card.getAttribute('data-go');
+      if (go) api.abrir(go);
+    }
+    limpiarPress(); card = null; reanudarPronto();
+  }, { passive: true });
+
+  ['pointercancel', 'pointerleave', 'lostpointercapture'].forEach((ev) =>
+    track.addEventListener(ev, () => { limpiarPress(); card = null; reanudarPronto(); }, { passive: true }));
+
+  svc.addEventListener('wheel', () => { pausar(); reanudarPronto(); }, { passive: true });
+
+  raf = requestAnimationFrame(paso);
+  return () => { vivo = false; if (raf) cancelAnimationFrame(raf); if (reanuda) clearTimeout(reanuda); if (hold) clearTimeout(hold); };
 }
 
 function valorEn(b, denom) {

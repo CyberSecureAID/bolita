@@ -110,14 +110,12 @@ export function inyectarMovil() {
   .mv-viewall b{color:var(--mv-gold)}
 
   /* ── Dos tarjetas rotativas ── */
-  /* Tira de servicios DESLIZABLE con el dedo (scroll táctil nativo + inercia).
-     Antes era una animación automática que no dejaba arrastrar; ahora el usuario
-     la mueve, la lanza (flick) y la detiene. touch-action:pan-x hace que el gesto
-     horizontal se lo quede ESTA tira (y no lo robe el scroll vertical de la
-     página, que la envuelve); scrollbar oculta; overscroll contenido. La
-     animación "mantener pulsado" la controla el JS (clase .press) y solo salta en
-     pulsación real, no al deslizar. */
-  .mv-svc{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x;
+  /* Tira de servicios: se mueve sola (JS) y además se arrastra/lanza con el dedo
+     (scroll táctil nativo). El toque para abrir se gestiona por eventos pointer
+     en inicio.js. scrollbar oculta; overscroll contenido para no encadenar con la
+     página. La animación "mantener pulsado" (clase .press) solo salta en pulsación
+     real, no al deslizar. */
+  .mv-svc{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
     margin:4px -16px 0;padding:2px 16px;scrollbar-width:none;
     -webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
   .mv-svc::-webkit-scrollbar{display:none}
