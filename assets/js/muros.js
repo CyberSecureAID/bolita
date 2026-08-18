@@ -634,14 +634,56 @@ function detectarZonas(velas, precio, opts) {
     };
   });
 
-  /* Solo tienen sentido como retesteo las zonas razonablemente cerca del
-     precio. Se muestran las que están DENTRO o a ≤12%. Si no hay ninguna
-     (típico en 1D/1w con rango enorme), se muestran las más cercanas, pero
-     NUNCA más allá del 25%: una zona al 48% no es un retesteo, es ruido. */
-  let usar = zonas.filter((z) => z.dentro || Math.abs(z.dist) <= 0.10);
+  /* FUSIÓN de zonas apiladas: cuando varias zonas del MISMO lado quedan pegadas
+     (rangos que se tocan o con un hueco < ~0,6%), en realidad son un solo nivel
+     fuerte fragmentado. Se unen en una sola: volumen sumado, rango combinado y
+     POC donde estaba el sub-nodo de mayor volumen. Así el trader ve UN nivel
+     claro en lugar de un amasijo de franjas encima del precio. */
+  const fusionar = (lista) => {
+    const orden = lista.slice().sort((a, b) => a.pLow - b.pLow);
+    const out = [];
+    orden.forEach((z) => {
+      const prev = out[out.length - 1];
+      const gap = prev ? (z.pLow - prev.pHigh) / (precio || 1) : Infinity;
+      if (prev && prev.lado === z.lado && gap <= 0.006) {
+        // fusionar z dentro de prev
+        const vTot = prev.v + z.v;
+        prev.pPoc = prev.v >= z.v ? prev.pPoc : z.pPoc;      // POC del sub-nodo mayor
+        prev.pLow = Math.min(prev.pLow, z.pLow);
+        prev.pHigh = Math.max(prev.pHigh, z.pHigh);
+        prev.p = (prev.pLow + prev.pHigh) / 2;
+        prev.compradorPct = (prev.compradorPct * prev.v + z.compradorPct * z.v) / vTot;
+        prev.v = vTot;
+        prev.reacciones += z.reacciones;
+        prev.toques += z.toques;
+        prev.confluencia = prev.confluencia || z.confluencia;
+        prev.libro = prev.libro || z.libro;
+        prev.alineado = prev.compradorPct >= 0.5 ? prev.lado === 'demanda' : prev.lado === 'oferta';
+        prev.confianza = Math.min(100, Math.max(prev.confianza, z.confianza) + 6);   // un nivel más grande pesa más
+        prev.fuerza = Math.max(1, Math.min(5, Math.round(prev.confianza / 20)));
+        prev.rota = prev.rota && z.rota;
+        prev.dentro = prev.dentro || z.dentro;
+        prev.dist = (prev.p - precio) / precio;
+        prev.retest = !prev.dentro && Math.abs(prev.dist) < 0.0035;
+      } else {
+        out.push(Object.assign({}, z));
+      }
+    });
+    return out;
+  };
+  const zonasF = fusionar(zonas);
+  zonas.length = 0; Array.prototype.push.apply(zonas, zonasF);
+
+  /* El alcance útil de una zona depende de la temporalidad: en 15m un 8% ya es
+     lejos, pero en 1D los movimientos son mucho mayores y hay que abrir el
+     rango, o el diario aparece vacío. Aun así, nunca tan lejos que sea ruido. */
+  const CAP = { '1m': 0.05, '5m': 0.06, '15m': 0.08, '30m': 0.10, '1h': 0.12, '2h': 0.16, '4h': 0.20, '1d': 0.30, '1w': 0.45 };
+  const cerca = CAP[M.tf] || 0.12;
+  const lejos = cerca * 1.5;
+  let usar = zonas.filter((z) => z.dentro || Math.abs(z.dist) <= cerca);
   if (usar.length < 2) {
     const extra = zonas
-      .filter((z) => usar.indexOf(z) < 0 && Math.abs(z.dist) <= 0.14)
+      .filter((z) => usar.indexOf(z) < 0 && Math.abs(z.dist) <= lejos)
       .sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))
       .slice(0, 3 - usar.length);
     usar = usar.concat(extra);
@@ -1087,24 +1129,40 @@ let _alerta = null, _alertaTs = 0, _alertaDesde = 0;
 function reiniciarAlertas() { _vidaZonas.clear(); _alertaDesde = Date.now() + 4000; }
 function seguirVida(zonas) {
   const ahora = Date.now();
-  const vistas = new Set();
+  const usadas = new Set();
   zonas.forEach((z) => {
-    const k = z.lado + ':' + z.p.toFixed(Math.abs(z.p) < 10 ? 4 : 2);
-    vistas.add(k);
-    let v = _vidaZonas.get(k);
-    if (!v) { v = { nace: ahora, tests: 0, confirmada: false, rota: false, dentroAntes: false, reaccion: 0 }; _vidaZonas.set(k, v); }
-    // test: el precio entró/tocó
+    /* IDENTIDAD ESTABLE: el precio de una zona deriva un poco entre recálculos.
+       Si usáramos el precio exacto como clave, cada tick crearía una zona
+       "nueva" y la alerta se repetiría en bucle. Por eso emparejamos cada zona
+       con la entrada existente más cercana del mismo lado (tolerancia ~0,6%). */
+    let mejorK = null, mejorD = Infinity;
+    _vidaZonas.forEach((v, k) => {
+      if (usadas.has(k) || v.lado !== z.lado) return;
+      const d = Math.abs(v.p - z.p) / (z.p || 1);
+      if (d < 0.006 && d < mejorD) { mejorD = d; mejorK = k; }
+    });
+    let v = mejorK ? _vidaZonas.get(mejorK) : null;
+    if (!v) {
+      // Nace: se guarda si YA contenía el precio, para no alertar solo por empezar a seguirla.
+      v = { lado: z.lado, p: z.p, nace: ahora, tests: 0, confirmada: false, rota: false, dentroAntes: (z.dentro || z.retest), reaccion: 0 };
+      _vidaZonas.set(z.lado + ':' + ahora + ':' + Math.random().toString(36).slice(2, 6), v);
+    }
+    const claveActual = mejorK || [..._vidaZonas.keys()].find((k) => _vidaZonas.get(k) === v);
+    usadas.add(claveActual);
+    v.p = z.p; v.ultVisto = ahora;
+
+    // test: el precio entró/tocó (transición fuera → dentro)
     if ((z.dentro || z.retest) && !v.dentroAntes) { v.tests++; v.ultTest = ahora; }
     // confirmada: fuerte y con reacciones
     if (z.fuerza >= 4 && z.reacciones >= 2) v.confirmada = true;
-    // alertas
+    // ALERTAS: solo en la transición real (no mientras el precio sigue dentro)
     if (z.dentro && !v.dentroAntes && z.fuerza >= 4) lanzarAlerta('entra', z);
     if (z.rota && !v.rota) { v.rota = true; v.rotaTs = ahora; lanzarAlerta('rompe', z); }
     v.dentroAntes = z.dentro || z.retest;
     z.vida = v;
   });
   // limpiar las que llevan mucho sin verse
-  _vidaZonas.forEach((v, k) => { if (!vistas.has(k) && ahora - (v.ultVisto || v.nace) > 600000) _vidaZonas.delete(k); else if (vistas.has(k)) v.ultVisto = ahora; });
+  _vidaZonas.forEach((v, k) => { if (ahora - (v.ultVisto || v.nace) > 600000) _vidaZonas.delete(k); });
 }
 function lanzarAlerta(tipo, z) {
   if (Date.now() < _alertaDesde) return;        // silencio al abrir/cambiar
@@ -2317,7 +2375,7 @@ function menuPares() {
   }, { once: true }), 10);
 }
 
-const CLAVE_LOGOS = 'aurex-logos';
+const CLAVE_LOGOS = 'aurex-logos-v2';   // versionada: al ampliar la lista, se recargan todos los logos
 let _logos = null;
 async function ponerLogos() {
   if (!_logos) {
