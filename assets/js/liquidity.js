@@ -674,8 +674,11 @@ async function portada() {
   });
 
   d.querySelectorAll('[data-serv]').forEach((b) => b.onclick = async () => {
+    if (b._abriendo) return;            // evita que 70 clics apilen la apertura mientras se verifica el acceso
+    b._abriendo = true;
+    setTimeout(() => { b._abriendo = false; }, 2500);
     const sv = SERVICIOS.find((x) => x.id === b.dataset.serv);
-    if (!sv || !sv.listo) return;
+    if (!sv || !sv.listo) { b._abriendo = false; return; }
     const a = await tieneAccesoPro();
     if (!a.ok) {
       // No es owner / no tiene plan: mostramos los planes de suscripción.

@@ -1176,7 +1176,7 @@ function anclarZonas(zonas, precio, clave) {
       // prioridad a niveles longevos y muy reaccionados (S/R reales)
       const edadMin = (ahora - (mejor.nace || ahora)) / 60000;
       const bono = Math.min(14, (mejor.toques || 0) * 1.5 + Math.min(6, edadMin / 5));
-      z.confianza = Math.min(100, z.confianza + bono);
+      z.confianza = Math.min(100, Math.round(z.confianza + bono));
       z.fuerza = Math.max(1, Math.min(5, Math.round(z.confianza / 20)));
       z.anclada = edadMin > 3;   // lleva un rato fija: es un nivel de referencia
     } else {
@@ -1490,7 +1490,7 @@ function dibujar() {
   const Y = (p) => y1 - y1 * ((p - pMin) / Math.max(1e-12, pMax - pMin));
   /* Se guarda para que el módulo de órdenes sepa qué precio hay a
      cada altura del gráfico. */
-  M._geo = { pMin, pMax, y1 };
+  M._geo = { pMin, pMax, y1, xVelas, n: vis.length, vis };
 
   /* Tus órdenes y alertas, con el estilo común de las tres. */
   if (_od) {
@@ -3086,17 +3086,13 @@ function estilos() {
     border-radius:13px 13px 13px 4px;padding:9px 12px;font-family:var(--sans,sans-serif);font-size:13.5px;
     line-height:1.55;color:#d3d9e0}
   #mu-ana-box .an-burb b{color:#fff}
-  #mu-ana-box .an-acc{padding:0 14px 14px}
-  #mu-ana-box .an-btn{width:100%;padding:12px;border:none;border-radius:12px;cursor:pointer;
-    font-family:var(--display,sans-serif);font-weight:800;font-size:14px;color:#0b0e12;
-    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B));box-shadow:0 3px 0 #8f6a1a}
-  #mu-ana-box .an-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #8f6a1a}
   #mu-overlay.mu-claro ~ #mu-ana-box .an-burb{background:#eef1f5;border-color:rgba(0,0,0,.1);color:#1a2028}
 
   /* Herramienta de posición proyectada («Muéstrame»), por ENCIMA de todo */
-  #mu-plan{position:fixed;inset:0;z-index:10000;cursor:pointer}
+  #mu-plan{position:fixed;inset:0;z-index:10000;pointer-events:none}
   #mu-plan .mu-plan-svg{position:absolute;inset:0;pointer-events:none;overflow:visible;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}
-  #mu-plan .mu-plan-tool{position:absolute;pointer-events:none}
+  #mu-plan .mu-plan-tool{position:absolute;pointer-events:auto;cursor:grab;touch-action:none}
+  #mu-plan .mu-plan-tool:active{cursor:grabbing}
   #mu-plan .mu-plan-cab{position:absolute;top:-24px;left:0;font-family:var(--mono,monospace);font-weight:800;font-size:10px;
     color:#0b0e12;background:var(--c,#E8B84B);padding:3px 9px;border-radius:6px;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.5)}
   #mu-plan .mu-plan-prof,#mu-plan .mu-plan-loss{position:absolute;left:0;width:100%;display:flex;align-items:flex-start;justify-content:flex-end}
@@ -3109,9 +3105,35 @@ function estilos() {
   #mu-plan .mu-plan-loss span{background:#f6465d;color:#2a0509}
   #mu-plan .mu-plan-ent{position:absolute;top:0;left:0;width:100%;border-top:2px dashed #E8B84B;display:flex;justify-content:flex-end}
   #mu-plan .mu-plan-ent span{background:#E8B84B;color:#2a1c00;transform:translateY(-50%)}
-  #mu-plan .mu-plan-nota{position:absolute;left:0;bottom:-34px;font-family:var(--sans,sans-serif);font-size:9.5px;color:#c8cfd8;
-    background:rgba(11,14,18,.9);padding:4px 8px;border-radius:6px;max-width:min(240px,70vw);line-height:1.35;
-    border:1px solid rgba(255,255,255,.08)}
+  #mu-plan .mu-plan-cfg{position:absolute;top:-56px;left:0;display:none;gap:3px;padding:3px;border-radius:9px;
+    background:#12171f;border:1px solid #2b3540;box-shadow:0 6px 20px rgba(0,0,0,.6)}
+  #mu-plan .mu-plan-cfg.on{display:flex}
+  #mu-plan .mu-plan-cfg button{width:26px;height:26px;border-radius:6px;border:1px solid #2b3540;background:#1a212b;
+    color:var(--c,#E8B84B);font-size:12px;cursor:pointer;display:grid;place-items:center}
+  #mu-plan .mu-plan-cfg button[data-a="del"]{color:#f6465d}
+  #mu-plan .mu-plan-cfg button:active{transform:translateY(1px)}
+
+  #mu-ana-box .an-acc{padding:0 14px 14px;display:flex;gap:8px}
+  #mu-ana-box .an-btn{flex:1;padding:12px 8px;border:none;border-radius:12px;cursor:pointer;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:13px;color:#0b0e12;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B));box-shadow:0 3px 0 #8f6a1a}
+  #mu-ana-box .an-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #8f6a1a}
+  #mu-ana-box .an-btn2{flex:1;padding:12px 8px;border:1px solid #2b3540;border-radius:12px;cursor:pointer;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:13px;color:#d3d9e0;background:#1a212b}
+  #mu-ana-box .an-btn2:active{transform:translateY(1px)}
+
+  /* Línea de tendencia (Faro) */
+  #mu-tend{position:fixed;inset:0;z-index:9999;pointer-events:none}
+  #mu-tend .mu-tend-svg{position:absolute;inset:0;pointer-events:auto;overflow:visible;filter:drop-shadow(0 2px 5px rgba(0,0,0,.5))}
+  #mu-tend .mu-tend-svg #tl{cursor:move}
+  #mu-tend .mu-tend-svg circle{cursor:grab}
+  #mu-tend .mu-tend-cab{position:absolute;display:none;align-items:center;gap:4px;padding:4px 5px;border-radius:9px;pointer-events:auto;
+    background:#12171f;border:1px solid #2b3540;box-shadow:0 6px 20px rgba(0,0,0,.6);cursor:move}
+  #mu-tend .mu-tend-cab.on{display:flex}
+  #mu-tend .mu-tend-cab .tl-et{font-family:var(--mono,monospace);font-weight:800;font-size:9.5px;color:#c8cfd8;padding:0 5px;white-space:nowrap}
+  #mu-tend .mu-tend-cab button{width:24px;height:24px;border-radius:6px;border:1px solid #2b3540;background:#1a212b;
+    color:#c8cfd8;font-size:11px;cursor:pointer;display:grid;place-items:center}
+  #mu-tend .mu-tend-cab button[data-a="del"]{color:#f6465d}
 
   #mu-val-box .mv-note{font-family:var(--sans,sans-serif);font-size:12px;line-height:1.55;color:#9aa3ad;margin:0 0 12px}
   #mu-val-box .mv-note b{color:#c2c9d2}
@@ -3334,22 +3356,31 @@ function analizarRadar() {
       `Plan: entrada corta cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (1:1).`,
       avisoAncho(op), notaSpot
     ];
-  } else if (dem && Math.abs(dem.dist) < (ofe ? Math.abs(ofe.dist) : 99) && dem.fuerza >= 3) {
-    op = planLong(dem); titulo = 'Demanda debajo del precio'; tono = 'compra';
+  } else if ((dem && dem.fuerza >= 3) || (ofe && ofe.fuerza >= 3)) {
+    const cDem = dem && dem.fuerza >= 3 ? dem : null;
+    const cOfe = ofe && ofe.fuerza >= 3 ? ofe : null;
+    // primaria = la de MAYOR relevancia (confianza), no solo la más cercana
+    let prim, sec;
+    if (cDem && cOfe) { if (cDem.confianza >= cOfe.confianza) { prim = cDem; sec = cOfe; } else { prim = cOfe; sec = cDem; } }
+    else { prim = cDem || cOfe; sec = null; }
+    const primLong = prim.lado === 'demanda';
+    op = primLong ? planLong(prim) : planShort(prim);
+    tono = primLong ? 'compra' : 'venta';
+    titulo = primLong ? 'Demanda debajo del precio' : 'Oferta encima del precio';
+    const ladoTxt = primLong ? 'demanda' : 'oferta';
+    const posTxt = primLong ? 'debajo' : 'encima';
     parrafos = [
-      `Estamos en **${base} · ${M.tf}**. Hay una **zona de demanda** en **${fmt(dem.pPoc)}** (rango ${fmt(dem.pLow)}–${fmt(dem.pHigh)}) con **${dinero(dem.v)}**, a un **${(Math.abs(dem.dist) * 100).toFixed(2)}%** por debajo.`,
-      `El precio se impulsó por encima, así que esa zona queda como apoyo. Si **vuelve a probarla** y aguanta, es una posible **entrada en largo**.` + (vwapTxt ? ' ' + vwapTxt : ''),
-      `Plan: entrada en el retesteo cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (1:1).`,
-      `Mientras no vuelva, no persigas el precio: espera el retesteo.`, notaSpot
+      `Estamos en **${base} · ${M.tf}**. La zona más relevante ahora es una **${ladoTxt}** en **${fmt(prim.pPoc)}** (rango ${fmt(prim.pLow)}–${fmt(prim.pHigh)}) con **${dinero(prim.v)}**, a un **${(Math.abs(prim.dist) * 100).toFixed(2)}%** por ${posTxt}.`,
+      (primLong
+        ? `El precio se impulsó por encima, así que queda como apoyo. Si **vuelve a probarla** y aguanta, es una posible **entrada en largo**.`
+        : `Actúa como resistencia. Si el precio sube y se frena ahí, es una posible **entrada en corto**.`) + (vwapTxt ? ' ' + vwapTxt : ''),
+      `Plan: entrada cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (riesgo/beneficio 1:1).`
     ];
-  } else if (ofe && ofe.fuerza >= 3) {
-    op = planShort(ofe); titulo = 'Oferta encima del precio'; tono = 'venta';
-    parrafos = [
-      `Estamos en **${base} · ${M.tf}**. Hay una **zona de oferta** en **${fmt(ofe.pPoc)}** (rango ${fmt(ofe.pLow)}–${fmt(ofe.pHigh)}) con **${dinero(ofe.v)}**, a un **${(Math.abs(ofe.dist) * 100).toFixed(2)}%** por encima.`,
-      `Actúa como resistencia. Si el precio sube hasta ahí y se frena, es zona de posible **venta / toma de beneficios**.` + (vwapTxt ? ' ' + vwapTxt : ''),
-      `Plan: entrada corta cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (1:1).`,
-      avisoAncho(op), notaSpot
-    ];
+    if (sec) {
+      const secLong = sec.lado === 'demanda';
+      parrafos.push(`También hay una **${secLong ? 'demanda' : 'oferta'}** relevante en **${fmt(sec.pPoc)}** (${dinero(sec.v)}), ${secLong ? 'por debajo' : 'por encima'}. Segunda opción: ${secLong ? 'largo si el precio cae y la respeta' : 'corto si el precio sube y la respeta'}. No operes las dos a la vez sin plan.`);
+    }
+    parrafos.push(avisoAncho(op), notaSpot);
   } else {
     titulo = 'Sin entrada limpia'; tono = 'espera'; op = null;
     parrafos = [
@@ -3362,10 +3393,15 @@ function analizarRadar() {
 }
 
 function abrirAnalista() {
-  const a = analizarRadar();
+  const clave = _par + '|' + M.tf;
+  let a, alInstante = false;
+  if (_anaCache && _anaCache.clave === clave) { a = _anaCache.a; alInstante = true; }   // ya lo dijo: sale cargado
+  else { a = analizarRadar(); _anaCache = { clave, a }; }
   _analisis = a;
   document.getElementById('mu-ana-box')?.remove();
   const col = a.tono === 'compra' ? '#2ee86a' : a.tono === 'venta' ? '#f6465d' : '#E8B84B';
+  const saludo = 'Le he echado un ojo a la gráfica. Esto es lo que veo ahora mismo:';
+  const guion = [saludo].concat(a.parrafos);
   const d = document.createElement('div');
   d.id = 'mu-ana-box';
   d.innerHTML = `<div class="mu-bg"></div>
@@ -3373,8 +3409,8 @@ function abrirAnalista() {
       <div class="an-top">
         <img class="an-ava" src="assets/img/jesus-avatar.webp" alt="">
         <div class="an-top-t">
-          <div class="an-nombre">Analista</div>
-          <div class="an-estado" id="an-estado">escribiendo\u2026</div>
+          <div class="an-nombre">Analyst</div>
+          <div class="an-estado" id="an-estado">${alInstante ? 'en línea' : 'escribiendo\u2026'}</div>
         </div>
         <button class="mv-x" aria-label="Cerrar">\u2715</button>
       </div>
@@ -3386,43 +3422,46 @@ function abrirAnalista() {
   d.querySelector('.mu-bg').onclick = cerrar;
   d.querySelector('.mv-x').onclick = cerrar;
 
-  /* Efecto "escribiendo": las burbujas aparecen una a una y el texto se
-     revela como si el analista lo estuviera redactando. */
   const chat = d.querySelector('#an-chat');
   const estado = d.querySelector('#an-estado');
   const acc = d.querySelector('#an-acc');
   const parseB = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  const burbuja = (txt) => { const b = document.createElement('div'); b.className = 'an-burb'; b.innerHTML = parseB(txt); chat.appendChild(b); chat.scrollTop = chat.scrollHeight; };
+  const acciones = () => {
+    estado.textContent = 'en línea';
+    let html = '';
+    if (a.op) html += `<button class="an-btn" id="an-mostrar">\u25B8 Mu\u00e9strame en la gr\u00e1fica</button>`;
+    html += `<button class="an-btn2" id="an-tend">\u2197 Determina la tendencia</button>`;
+    acc.innerHTML = html;
+    if (a.op) acc.querySelector('#an-mostrar').onclick = () => { cerrar(); mostrarPlan(a); };
+    acc.querySelector('#an-tend').onclick = () => { cerrar(); mostrarTendencia(); };
+  };
+
+  if (alInstante) {
+    // Ya se lo dijo antes: mostrar todo cargado, sin reescribir.
+    guion.forEach(burbuja);
+    acciones();
+    return;
+  }
+  // Primera vez: efecto de escritura, burbuja a burbuja.
   let i = 0;
   const escribirParrafo = (txt, cb) => {
-    const b = document.createElement('div');
-    b.className = 'an-burb';
-    chat.appendChild(b);
-    chat.scrollTop = chat.scrollHeight;
+    const b = document.createElement('div'); b.className = 'an-burb'; chat.appendChild(b);
     let n = 0;
     const paso = () => {
-      n += 2;
-      b.innerHTML = parseB(txt.slice(0, n));
-      chat.scrollTop = chat.scrollHeight;
-      if (n < txt.length) { _anaT = setTimeout(paso, 12); }
-      else { b.innerHTML = parseB(txt); cb && cb(); }
+      n += 2; b.innerHTML = parseB(txt.slice(0, n)); chat.scrollTop = chat.scrollHeight;
+      if (n < txt.length) { _anaT = setTimeout(paso, 12); } else { b.innerHTML = parseB(txt); cb && cb(); }
     };
     paso();
   };
   const siguiente = () => {
-    if (i >= a.parrafos.length) {
-      estado.textContent = 'en línea';
-      if (a.op) {
-        acc.innerHTML = `<button class="an-btn" id="an-mostrar">\u25B8 Mu\u00e9strame en la gr\u00e1fica</button>`;
-        acc.querySelector('#an-mostrar').onclick = () => { cerrar(); mostrarPlan(a); };
-      }
-      return;
-    }
+    if (i >= guion.length) { acciones(); return; }
     estado.textContent = 'escribiendo\u2026';
-    escribirParrafo(a.parrafos[i], () => { i++; _anaT = setTimeout(siguiente, 320); });
+    escribirParrafo(guion[i], () => { i++; _anaT = setTimeout(siguiente, 300); });
   };
-  _anaT = setTimeout(siguiente, 500);
+  _anaT = setTimeout(siguiente, 450);
 }
-let _anaT = null, _analisis = null;
+let _anaT = null, _analisis = null, _planFuera = null, _anaCache = null;
 
 /* «Muéstrame»: dibuja una línea discontinua curva DESDE el ícono del analista
    hasta el nivel de entrada, y proyecta una herramienta de posición (long/short)
@@ -3444,42 +3483,188 @@ function pintarPlan(a) {
   const Yp = (p) => rect.top + (y1 - y1 * ((p - pMin) / Math.max(1e-9, pMax - pMin)));
   const op = a.op;
   const yE = Yp(op.entrada), ySL = Yp(op.sl), yTP = Yp(op.tp);
-  const x0 = rect.left + rect.width * 0.46;
-  const x1 = rect.left + rect.width - 92;
+  // Tramo NORMAL (corto), centrado en la parte media-derecha del gráfico
+  const ancho = Math.min(210, rect.width * 0.32);
+  const x1 = rect.left + rect.width - 96;      // termina antes del eje
+  const x0 = x1 - ancho;
   const ic = ana.getBoundingClientRect();
   const ax = ic.left + ic.width / 2, ay = ic.bottom;
   const col = op.tipo === 'long' ? '#2ee86a' : '#f6465d';
   const profTop = Math.min(yE, yTP), profH = Math.abs(yTP - yE);
   const lossTop = Math.min(yE, ySL), lossH = Math.abs(ySL - yE);
   const midX = (ax + x0) / 2;
+
   const ov = document.createElement('div');
   ov.id = 'mu-plan';
   ov.innerHTML =
-    `<svg class="mu-plan-svg" width="100%" height="100%">
+    `<svg class="mu-plan-svg" id="mu-plan-linea" width="100%" height="100%">
        <path d="M ${ax} ${ay} Q ${midX} ${ay + (yE - ay) * 0.15}, ${x0} ${yE}" fill="none" stroke="${col}" stroke-width="2" stroke-dasharray="6 5" opacity=".9"/>
        <circle cx="${x0}" cy="${yE}" r="4" fill="${col}"/>
      </svg>
-     <div class="mu-plan-tool" style="left:${x0}px;width:${x1 - x0}px">
+     <div class="mu-plan-tool" id="mu-plan-tool" style="left:${x0}px;top:${yE}px;width:${ancho}px">
        <div class="mu-plan-cab" style="--c:${col}">${op.tipo === 'long' ? 'LONG' : 'SHORT'} \u00b7 R:R 1:1</div>
        <div class="mu-plan-prof" style="top:${profTop - yE}px;height:${profH}px"><span>TP ${fmt(op.tp)}</span></div>
        <div class="mu-plan-loss" style="top:${lossTop - yE}px;height:${lossH}px"><span>SL ${fmt(op.sl)}</span></div>
        <div class="mu-plan-ent"><span>Entrada ${fmt(op.entrada)}</span></div>
-       <div class="mu-plan-nota">Spot: sin stop. Apalancado: respeta estos niveles.</div>
+       <div class="mu-plan-cfg" id="mu-plan-cfg" style="--c:${col}">
+         <button data-a="mover" title="Mover">\u2725</button>
+         <button data-a="color" title="Color">\u25c9</button>
+         <button data-a="del" title="Eliminar">\u{1F5D1}</button>
+       </div>
      </div>`;
   document.body.appendChild(ov);
-  // el tool se posiciona con la entrada como origen vertical
-  const tool = ov.querySelector('.mu-plan-tool');
-  tool.style.top = yE + 'px';
-  ov.addEventListener('click', () => ov.remove());
+  const linea = ov.querySelector('#mu-plan-linea');
+  const tool = ov.querySelector('#mu-plan-tool');
+  const cfg = ov.querySelector('#mu-plan-cfg');
+
+  const paleta = ['#2ee86a', '#f6465d', '#E8B84B', '#7fbaff', '#c58bff'];
+  let ip = 0, lineaViva = true;
+  const ocultarCfg = () => cfg.classList.remove('on');
+  const quitarLinea = () => { if (lineaViva && linea) { linea.remove(); lineaViva = false; } };
+  const quitarTodo = () => { document.removeEventListener('pointerdown', fuera, true); ov.remove(); };
+
+  // Clic FUERA de la herramienta: quita solo la línea (la herramienta se queda).
+  const fuera = (e) => { if (!tool.contains(e.target)) { quitarLinea(); ocultarCfg(); } };
+  if (_planFuera) document.removeEventListener('pointerdown', _planFuera, true);
+  _planFuera = fuera;
+  document.addEventListener('pointerdown', fuera, true);
+
+  // Tocar la herramienta: muestra config (mover / color / eliminar) y permite arrastrar.
+  tool.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('button');
+    if (b) {
+      const a2 = b.dataset.a;
+      if (a2 === 'del') { quitarTodo(); return; }
+      if (a2 === 'color') { ip = (ip + 1) % paleta.length; cfg.style.setProperty('--c', paleta[ip]); tool.querySelector('.mu-plan-cab').style.setProperty('--c', paleta[ip]); }
+      if (a2 === 'mover') arrancarArrastre(e);
+      return;
+    }
+    cfg.classList.add('on');
+    arrancarArrastre(e);
+  });
+
+  function arrancarArrastre(e) {
+    quitarLinea();
+    const sx = e.clientX, sy = e.clientY;
+    const ox = parseFloat(tool.style.left), oy = parseFloat(tool.style.top);
+    const mover = (ev) => { tool.style.left = (ox + ev.clientX - sx) + 'px'; tool.style.top = (oy + ev.clientY - sy) + 'px'; };
+    const soltar = () => { window.removeEventListener('pointermove', mover); window.removeEventListener('pointerup', soltar); };
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+  }
+}
+
+/* «Determina la tendencia»: traza una línea de tendencia por regresión lineal
+   sobre las velas visibles (la técnica del Faro). Queda perpetua en el gráfico,
+   se puede arrastrar por los extremos o entera, y al tocarla aparece su
+   configuración (eliminar, color, grosor). */
+function mostrarTendencia() {
+  document.getElementById('mu-tend')?.remove();
+  const cv = $('mu-cv');
+  if (!cv || !M._geo || !M._geo.vis || M._geo.vis.length < 3) return;
+  const rect = cv.getBoundingClientRect();
+  const { pMin, pMax, y1, xVelas, vis } = M._geo;
+  const n = vis.length;
+  // regresión lineal de los cierres
+  let sx = 0, sy = 0, sxy = 0, sxx = 0;
+  vis.forEach((v, i) => { sx += i; sy += v.c; sxy += i * v.c; sxx += i * i; });
+  const m = (n * sxy - sx * sy) / Math.max(1e-9, n * sxx - sx * sx);
+  const b = (sy - m * sx) / n;
+  const Yp = (p) => rect.top + (y1 - y1 * ((p - pMin) / Math.max(1e-9, pMax - pMin)));
+  const Xi = (i) => rect.left + (i + 0.5) * (xVelas / n);
+  let p1 = { x: Xi(0), y: Yp(b) };
+  let p2 = { x: Xi(n - 1), y: Yp(m * (n - 1) + b) };
+  const sube = m >= 0;
+  let color = sube ? '#2ee86a' : '#f6465d';
+  let grosor = 2;
+
+  const ov = document.createElement('div');
+  ov.id = 'mu-tend';
+  ov.innerHTML =
+    `<svg class="mu-tend-svg" width="100%" height="100%">
+       <line id="tl" x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${color}" stroke-width="${grosor}"/>
+       <circle id="h1" cx="${p1.x}" cy="${p1.y}" r="7" fill="${color}"/>
+       <circle id="h2" cx="${p2.x}" cy="${p2.y}" r="7" fill="${color}"/>
+     </svg>
+     <div class="mu-tend-cab" id="mu-tend-cab">
+       <span class="tl-et">Tendencia ${sube ? '\u2197 alcista' : '\u2198 bajista'}</span>
+       <button data-a="color" title="Color">\u25c9</button>
+       <button data-a="grosor" title="Grosor">\u2261</button>
+       <button data-a="del" title="Eliminar">\u{1F5D1}</button>
+     </div>`;
+  document.body.appendChild(ov);
+  const svg = ov.querySelector('svg');
+  const ln = ov.querySelector('#tl');
+  const h1 = ov.querySelector('#h1'), h2 = ov.querySelector('#h2');
+  const cab = ov.querySelector('#mu-tend-cab');
+  const paleta = ['#2ee86a', '#f6465d', '#E8B84B', '#7fbaff', '#c58bff'];
+  let ip = paleta.indexOf(color); if (ip < 0) ip = 0;
+  const grosores = [1.5, 2.5, 3.5];
+  let ig = 1;
+
+  const pintar = () => {
+    ln.setAttribute('x1', p1.x); ln.setAttribute('y1', p1.y);
+    ln.setAttribute('x2', p2.x); ln.setAttribute('y2', p2.y);
+    h1.setAttribute('cx', p1.x); h1.setAttribute('cy', p1.y);
+    h2.setAttribute('cx', p2.x); h2.setAttribute('cy', p2.y);
+    [ln, h1, h2].forEach((el) => el.setAttribute('stroke', color));
+    ln.setAttribute('stroke', color); h1.setAttribute('fill', color); h2.setAttribute('fill', color);
+    ln.setAttribute('stroke-width', grosor);
+    cab.style.left = Math.min(p1.x, p2.x) + 'px';
+    cab.style.top = (Math.min(p1.y, p2.y) - 40) + 'px';
+  };
+  const posCab = () => { cab.style.left = Math.min(p1.x, p2.x) + 'px'; cab.style.top = (Math.min(p1.y, p2.y) - 40) + 'px'; };
+  posCab();
+
+  const cerca = (e, p) => Math.hypot(e.clientX - p.x, e.clientY - p.y) < 16;
+  const sobreLinea = (e) => {
+    const dx = p2.x - p1.x, dy = p2.y - p1.y, L2 = dx * dx + dy * dy;
+    let t = L2 ? ((e.clientX - p1.x) * dx + (e.clientY - p1.y) * dy) / L2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const px = p1.x + t * dx, py = p1.y + t * dy;
+    return Math.hypot(e.clientX - px, e.clientY - py) < 10;
+  };
+  svg.addEventListener('pointerdown', (e) => {
+    if (cerca(e, p1)) return arrastrar(e, 'p1');
+    if (cerca(e, p2)) return arrastrar(e, 'p2');
+    if (sobreLinea(e)) { cab.classList.add('on'); return arrastrar(e, 'linea'); }
+  });
+  cab.addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('button'); if (!btn) return arrastrarCab(e);
+    const a = btn.dataset.a;
+    if (a === 'del') { ov.remove(); document.removeEventListener('pointerdown', fuera, true); return; }
+    if (a === 'color') { ip = (ip + 1) % paleta.length; color = paleta[ip]; pintar(); }
+    if (a === 'grosor') { ig = (ig + 1) % grosores.length; grosor = grosores[ig]; pintar(); }
+    e.stopPropagation();
+  });
+  function arrastrar(e, modo) {
+    const sxp = e.clientX, syp = e.clientY;
+    const a1 = { ...p1 }, a2 = { ...p2 };
+    const mv = (ev) => {
+      const dx = ev.clientX - sxp, dy = ev.clientY - syp;
+      if (modo === 'p1') p1 = { x: a1.x + dx, y: a1.y + dy };
+      else if (modo === 'p2') p2 = { x: a2.x + dx, y: a2.y + dy };
+      else { p1 = { x: a1.x + dx, y: a1.y + dy }; p2 = { x: a2.x + dx, y: a2.y + dy }; }
+      pintar();
+    };
+    const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  }
+  function arrastrarCab(e) {
+    const sxp = e.clientX, syp = e.clientY, ox = parseFloat(cab.style.left), oy = parseFloat(cab.style.top);
+    const mv = (ev) => { cab.style.left = (ox + ev.clientX - sxp) + 'px'; cab.style.top = (oy + ev.clientY - syp) + 'px'; };
+    const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  }
+  const fuera = (e) => { if (!svg.contains(e.target) && !cab.contains(e.target)) cab.classList.remove('on'); };
+  document.addEventListener('pointerdown', fuera, true);
 }
 
 /* ══════════════════════════════════════════════════════════════
-   VERIFICACIÓN DE VOLUMEN
+   RESUMEN DE VOLUMEN
 
-   Da confianza y trazabilidad SIN revelar proveedores ni endpoints: cada
-   lectura lleva una firma única (hash + hora) para que sea auditable, y el
-   usuario puede contrastar los niveles con su propia plataforma. No se
-   menciona de dónde salen los datos: es parte del valor del producto.
+   Muestra las cifras de volumen real que sostienen las zonas, sin revelar
+   proveedores ni fuentes: es parte del valor.
    ══════════════════════════════════════════════════════════════ */
 function validarVolumen() {
   const par = PARES.find((p) => p.id === _par) || PARES[0];
