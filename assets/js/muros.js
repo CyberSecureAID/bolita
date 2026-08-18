@@ -103,7 +103,7 @@ async function muFetch(path) {
   for (const i of orden) {
     try {
       const ctl = new AbortController();
-      const to = setTimeout(() => ctl.abort(), 5000);
+      const to = setTimeout(() => ctl.abort(), 4000);
       const r = await fetch(MU_HOSTS[i] + path, { signal: ctl.signal });
       clearTimeout(to);
       if (r.ok) { _muHost = i; return r; }
@@ -148,7 +148,7 @@ const M = {
 
 const CADA = 1500;          // una foto cada 1,5 segundos
 const MAX_FOTOS = 220;      // ~5,5 minutos de historia
-const MIN_TOMAS = 6;        // antes de juzgar, hay que mirar un rato
+const MIN_TOMAS = 4;        // antes de juzgar, hay que mirar un poco
 
 /* ══════════════════════════════════════════════════════════════
    LOS DATOS — profundidad del libro, API pública sin clave
@@ -213,16 +213,13 @@ function procesar(foto) {
   if (!todos.length) return;
 
   // ¿Qué es "grande" AQUÍ? Se compara con el propio libro, no con un
-  // número fijo: así funciona igual en BTC que en PEPE.
-  /* El umbral se calcula sobre el percentil 90, no la mediana. Con la
-     mediana, en libros muy poblados el corte quedaba tan alto que ni
-     los muros grandes lo pasaban. */
-  /* [UNIFICADO] El umbral del panel era mucho más exigente que el del
-     dibujo: se veían muros en el mapa pero el panel decía "libro
-     tranquilo". Ahora usan la misma referencia. */
+  // número fijo: así funciona igual en BTC que en PEPE. Umbral relativo a la
+  // mediana, un poco más permisivo que antes para no quedarse en "libro
+  // tranquilo", pero sin forzar candidatos: solo entra lo que de verdad
+  // destaca sobre el resto del libro.
   const vals = todos.map((x) => x.v).sort((a, b) => a - b);
   const base = vals[Math.floor(vals.length * 0.55)] || 1;
-  const umbral = base * 2.2;
+  const umbral = Math.max(1e-9, base * 1.9);
 
   const ahora = foto.t;
   const clave = (x) => x.lado + ':' + x.k;   // entero estable entre fotos
@@ -630,13 +627,13 @@ function arrancar() {
     const par = PARES.find((p) => p.id === _par) || PARES[0];
     let foto = null;
     try {
-      foto = await traerLibro(par.s);   // REST (multi-host) — libro profundo
-    } catch (_) {
-      /* Si el REST no llega (Binance bloquea/limita ese endpoint), usamos el
-         libro del WebSocket, que es la MISMA fuente que sí funciona en Trade.
-         Da menos niveles, pero suficientes para ver los muros cerca del precio,
-         y el radar deja de quedarse "sin órdenes". */
-      if (_wsLibro && (Date.now() - _wsLibro.t) < 8000) foto = _wsLibro;
+      const f = await traerLibro(par.s);   // REST (multi-host) — libro profundo
+      if (f && f.compras && f.compras.length && f.ventas && f.ventas.length) foto = f;
+    } catch (_) {}
+    if (!foto && _wsLibro && (Date.now() - _wsLibro.t) < 6000) {
+      /* El REST no dio nada útil (Binance bloquea/limita ese endpoint): usamos
+         el libro del WebSocket, la MISMA fuente que sí funciona en Trade. */
+      foto = _wsLibro;
     }
     if (foto) {
       procesar(foto);
@@ -663,7 +660,7 @@ function arrancar() {
       /* Un fallo suelto no rompe nada. Solo tras varios seguidos se avisa. */
       _fallos++;
       if (_fallos >= 4) {
-        M.error = 'Sin conexión con el mercado. Reintentando…';
+        M.error = 'Binance no responde (bloqueado o saturado). Reintentando\u2026';
         pintarPanel();
       }
     }
@@ -1638,14 +1635,14 @@ function estilos() {
     animation:muLat 1.8s ease-in-out infinite}
   @keyframes muLat{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(46,232,106,.5)}50%{opacity:.55;box-shadow:0 0 0 5px rgba(46,232,106,0)}}
   /* Temporalidad y precio en la barra */
-  #mu-overlay .mu-tfs{display:flex;gap:2px;flex:0 0 auto;padding:3px;background:#12161c;border-radius:9px}
+  #mu-overlay .mu-tfs{display:none;gap:2px;flex:0 0 auto;padding:3px;background:#12161c;border-radius:9px}
   #mu-overlay .mu-tf{min-height:30px;padding:0 11px;border-radius:7px;border:none;background:transparent;
     color:#7d8794;font-family:var(--mono,monospace);font-size:11px;font-weight:700;cursor:pointer}
   #mu-overlay .mu-tf.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
 
   /* Chip de temporalidad (solo móvil) + su desplegable. En escritorio se ve la
      fila .mu-tfs completa y el chip está oculto. */
-  #mu-overlay .mu-tfchip{display:none;align-items:center;gap:6px;min-height:36px;padding:0 12px;
+  #mu-overlay .mu-tfchip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;
     border-radius:11px;background:#12161c;border:1px solid #2b3139;color:#eaecef;cursor:pointer;
     font-family:var(--mono,monospace);font-weight:800;font-size:13.5px;flex:0 0 auto}
   #mu-overlay .mu-tfchip svg{width:14px;height:14px;opacity:.65}
