@@ -826,9 +826,9 @@ export async function abrirMuros() {
         <span id="mu-estado" class="mu-estado-err"></span>
 
         <div class="mu-der">
-          <button class="mu-analista" id="mu-analista" title="Analista">
+          <button class="mu-analista" id="mu-analista" title="Analyst">
             <img src="assets/img/jesus-avatar.webp" alt="">
-            <span class="mu-an-txt">Analista</span>
+            <span class="mu-an-txt">Analyst</span>
           </button>
           <button class="mu-ico" id="mu-validar" title="Verificar volumen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 5-3.5 7.5-8.5 9C7.5 19.5 4 17 4 12V6l8-3 8 3z"/></svg>
@@ -1935,6 +1935,7 @@ function engancharGestos(cv) {
 
     // Al primer toque en el gráfico, la línea guía de sugerencia se retira.
     if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
+    if (M._tend && M._tend.guia) { M._tend.guia = false; dibujar(); }
 
     // ── Herramienta de posición (misma dinámica que Smart Levels) ──
     if (M._pos) {
@@ -2042,6 +2043,7 @@ function engancharGestos(cv) {
       const r = cv.getBoundingClientRect();
       const lx = e.touches[0].clientX - r.left, ly = e.touches[0].clientY - r.top;
       if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
+      if (M._tend && M._tend.guia) { M._tend.guia = false; dibujar(); }
       const dR = (rc) => rc && lx >= rc.x && lx <= rc.x + rc.w && ly >= rc.y && ly <= rc.y + rc.h;
       if (M._pos) {
         const P = M._pos, ORD = ['der', 'abajo', 'izq', 'arriba'];
@@ -3392,6 +3394,23 @@ function analizarRadar() {
   const zonas = (M.zonas || []).filter((z) => !z.rota);
   const vwapTxt = mk && mk.vwap ? (px >= mk.vwap ? 'El precio está **por encima del VWAP**, lo que favorece a los compradores.' : 'El precio está **por debajo del VWAP**, lo que favorece a los vendedores.') : '';
 
+  // Variación estable por moneda (misma moneda → misma redacción; monedas distintas → distinta).
+  const _h = base.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const V = (arr) => arr[_h % arr.length];
+  const intro = V([`Miremos **${base}** en **${M.tf}**.`, `Vamos con **${base} · ${M.tf}**.`,
+    `Esto es lo que leo en **${base} · ${M.tf}**.`, `Repasemos **${base}** en **${M.tf}**.`]);
+  // Contexto REAL del mercado de esta moneda (cambia según datos, no es genérico).
+  const cprB = mk && mk.compradorPct != null ? Math.round(mk.compradorPct) : null;
+  const posVA = (mk && mk.vah && mk.val)
+    ? (px > mk.vah ? 'cotiza **por encima del valor** (extendido al alza)'
+      : px < mk.val ? 'cotiza **por debajo del valor** (extendido a la baja)'
+      : 'cotiza **dentro del área de valor**')
+    : '';
+  const ctxMercado = mk ? `En **${base}** el sesgo es **${mk.sesgo || 'neutral'}**`
+    + (cprB != null ? ` con **${cprB}%** de presión ${cprB >= 50 ? 'compradora' : 'vendedora'}` : '')
+    + (mk.winRate != null ? ` y un acierto histórico del **${Math.round(mk.winRate)}%**` : '')
+    + (posVA ? `; ${posVA}` : '') + '.' : '';
+
   if (!px || !zonas.length) {
     return { titulo: 'Sin lectura clara', tono: 'espera', base,
       parrafos: [`Ahora mismo no veo zonas de acumulación fiables y cercanas en **${base} · ${M.tf}**.`, `Sin un nivel con volumen de referencia, lo prudente es **esperar**. No hay una entrada con ventaja aquí.`],
@@ -3433,7 +3452,7 @@ function analizarRadar() {
   if (dentro && dentro.lado === 'demanda' && dentro.fuerza >= 3) {
     op = planLong(dentro); titulo = 'Zona de alta demanda'; tono = 'compra';
     parrafos = [
-      `Estamos en **${base} · ${M.tf}**. El precio está **dentro de una zona de demanda fuerte** en **${fmt(dentro.pPoc)}** (rango ${fmt(dentro.pLow)}–${fmt(dentro.pHigh)}), con **${dinero(dentro.v)}** acumulados.`,
+      `${intro} ${ctxMercado} El precio está **dentro de una zona de demanda fuerte** en **${fmt(dentro.pPoc)}** (rango ${fmt(dentro.pLow)}–${fmt(dentro.pHigh)}), con **${dinero(dentro.v)}** acumulados.`,
       `Es un nivel con mucho volumen comprador. Escenario de posible **compra (long)** apoyada en esta demanda.` + (vwapTxt ? ' ' + vwapTxt : ''),
       `Plan: entrada cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (riesgo/beneficio 1:1).`,
       avisoAncho(op), notaSpot
@@ -3441,7 +3460,7 @@ function analizarRadar() {
   } else if (dentro && dentro.lado === 'oferta' && dentro.fuerza >= 3) {
     op = planShort(dentro); titulo = 'Zona de alta oferta'; tono = 'venta';
     parrafos = [
-      `Estamos en **${base} · ${M.tf}**. El precio está **dentro de una zona de oferta fuerte** en **${fmt(dentro.pPoc)}** (rango ${fmt(dentro.pLow)}–${fmt(dentro.pHigh)}), con **${dinero(dentro.v)}** acumulados.`,
+      `${intro} ${ctxMercado} El precio está **dentro de una zona de oferta fuerte** en **${fmt(dentro.pPoc)}** (rango ${fmt(dentro.pLow)}–${fmt(dentro.pHigh)}), con **${dinero(dentro.v)}** acumulados.`,
       `Hay mucho volumen vendedor aquí. Si estás comprado, **cuidado**: es zona de posible **toma de beneficios o venta (short)**.` + (vwapTxt ? ' ' + vwapTxt : ''),
       `Plan: entrada corta cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (1:1).`,
       avisoAncho(op), notaSpot
@@ -3460,7 +3479,7 @@ function analizarRadar() {
     const ladoTxt = primLong ? 'demanda' : 'oferta';
     const posTxt = primLong ? 'debajo' : 'encima';
     parrafos = [
-      `Estamos en **${base} · ${M.tf}**. La zona más relevante ahora es una **${ladoTxt}** en **${fmt(prim.pPoc)}** (rango ${fmt(prim.pLow)}–${fmt(prim.pHigh)}) con **${dinero(prim.v)}**, a un **${(Math.abs(prim.dist) * 100).toFixed(2)}%** por ${posTxt}.`,
+      `${intro} ${ctxMercado} La zona más relevante ahora es una **${ladoTxt}** en **${fmt(prim.pPoc)}** (rango ${fmt(prim.pLow)}–${fmt(prim.pHigh)}) con **${dinero(prim.v)}**, a un **${(Math.abs(prim.dist) * 100).toFixed(2)}%** por ${posTxt}.`,
       (primLong
         ? `El precio se impulsó por encima, así que queda como apoyo. Si **vuelve a probarla** y aguanta, es una posible **entrada en largo**.`
         : `Actúa como resistencia. Si el precio sube y se frena ahí, es una posible **entrada en corto**.`) + (vwapTxt ? ' ' + vwapTxt : ''),
@@ -3474,7 +3493,7 @@ function analizarRadar() {
   } else {
     titulo = 'Sin entrada limpia'; tono = 'espera'; op = null;
     parrafos = [
-      `Estamos en **${base} · ${M.tf}**. El precio está **en medio del rango**, sin una zona fuerte lo bastante cerca para dar una entrada con ventaja.`,
+      `${intro} ${ctxMercado} El precio está **en medio del rango**, sin una zona fuerte lo bastante cerca para dar una entrada con ventaja.`,
       `Lo profesional aquí es **esperar**. Deja que el precio busque una de las zonas marcadas (demanda debajo u oferta encima) y opera la reacción en ese nivel.`,
       `Forzar una entrada en el medio es donde se pierde dinero.`
     ];
@@ -3486,7 +3505,7 @@ function abrirAnalista() {
   const clave = _par + '|' + M.tf;
   let a, alInstante = false;
   if (_anaCache && _anaCache.clave === clave) { a = _anaCache.a; alInstante = true; }   // ya lo dijo: sale cargado
-  else { a = analizarRadar(); _anaCache = { clave, a }; }
+  else { a = analizarRadar(); if (a && (a.op || (M.zonas && M.zonas.filter((z) => !z.rota).length))) _anaCache = { clave, a }; }
   _analisis = a;
   document.getElementById('mu-ana-box')?.remove();
   const col = a.tono === 'compra' ? '#2ee86a' : a.tono === 'venta' ? '#f6465d' : '#E8B84B';
@@ -3574,14 +3593,30 @@ function construirOp(tipo) {
   const px = M.precio || (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
   const zonas = (M.zonas || []).filter((z) => !z.rota);
   const lado = tipo === 'long' ? 'demanda' : 'oferta';
-  const z = zonas.filter((x) => x.lado === lado).sort((x, y) => y.confianza - x.confianza)[0];
-  if (!z || !px) return null;
-  const riesgoMax = px * 0.02;
+  const cand = zonas.filter((x) => x.lado === lado);
+  if (!cand.length || !px) return null;
+  // Elegir la zona RELEVANTE más cercana al precio (no la de mayor confianza global):
+  //  · long  → el soporte (demanda) más cercano al precio, preferentemente en/por debajo
+  //  · short → la resistencia (oferta) más cercana al precio, preferentemente en/por encima
+  let z;
   if (tipo === 'long') {
-    const entrada = z.pPoc, riesgo = Math.min(Math.max(entrada - z.pLow, px * 0.003) + px * 0.001, riesgoMax);
+    const enOAbajo = cand.filter((x) => x.pPoc <= px * 1.004).sort((a, b) => b.pPoc - a.pPoc);
+    z = enOAbajo[0] || cand.sort((a, b) => Math.abs(a.pPoc - px) - Math.abs(b.pPoc - px))[0];
+  } else {
+    const enOArriba = cand.filter((x) => x.pPoc >= px * 0.996).sort((a, b) => a.pPoc - b.pPoc);
+    z = enOArriba[0] || cand.sort((a, b) => Math.abs(a.pPoc - px) - Math.abs(b.pPoc - px))[0];
+  }
+  if (!z) return null;
+  const minR = px * 0.004, maxR = px * 0.018;   // riesgo sensato: 0.4%–1.8%, R:R 1:1
+  if (tipo === 'long') {
+    const entrada = z.pPoc;
+    let riesgo = (entrada - z.pLow) + px * 0.0008;
+    riesgo = Math.min(Math.max(riesgo, minR), maxR);
     return { tipo, entrada, sl: entrada - riesgo, tp: entrada + riesgo };
   }
-  const entrada = z.pPoc, riesgo = Math.min(Math.max(z.pHigh - entrada, px * 0.003) + px * 0.001, riesgoMax);
+  const entrada = z.pPoc;
+  let riesgo = (z.pHigh - entrada) + px * 0.0008;
+  riesgo = Math.min(Math.max(riesgo, minR), maxR);
   return { tipo, entrada, sl: entrada + riesgo, tp: entrada - riesgo };
 }
 function hayOp(tipo) { return !!construirOp(tipo); }
@@ -3633,14 +3668,14 @@ function dibujarPosicion(g) {
   // Línea GUÍA punteada (desde arriba-derecha hasta la entrada). Se quita al primer toque.
   if (P.guia) {
     g.save(); g.strokeStyle = acc; g.lineWidth = 1.7; g.setLineDash([6, 5]);
-    const gx = x1 - 12, gy = 10; g.beginPath(); g.moveTo(gx, gy);
-    g.quadraticCurveTo((gx + x + w) / 2, gy + (ye - gy) * 0.18, x + w, ye); g.stroke();
+    const gx = x1 * 0.9, gy = 2; g.beginPath(); g.moveTo(gx, gy);
+    g.quadraticCurveTo((gx + x + w) / 2, gy + (ye - gy) * 0.16, x + w, ye); g.stroke();
     g.setLineDash([]); g.fillStyle = acc; g.beginPath(); g.arc(x + w, ye, 4, 0, 6.283); g.fill(); g.restore();
   }
 
-  // zonas ganancia / riesgo
-  g.fillStyle = `rgba(${rgbT},${(0.16 * inten).toFixed(3)})`; g.fillRect(x, Math.min(ye, yt), w, Math.abs(yt - ye));
-  g.fillStyle = `rgba(${rgbS},${(0.16 * inten).toFixed(3)})`; g.fillRect(x, Math.min(ye, ys), w, Math.abs(ys - ye));
+  // zonas ganancia / riesgo (tinte suave para no saturar el radar)
+  g.fillStyle = `rgba(${rgbT},${(0.10 * inten).toFixed(3)})`; g.fillRect(x, Math.min(ye, yt), w, Math.abs(yt - ye));
+  g.fillStyle = `rgba(${rgbS},${(0.10 * inten).toFixed(3)})`; g.fillRect(x, Math.min(ye, ys), w, Math.abs(ys - ye));
   // 3 líneas objetivo / entrada / stop
   [[cT, yt], [cE, ye], [cS, ys]].forEach((r) => {
     g.strokeStyle = r[0]; g.lineWidth = gr; g.beginPath(); g.moveTo(x, r[1]); g.lineTo(x + w, r[1]); g.stroke();
@@ -3691,8 +3726,8 @@ function dibujarPosicion(g) {
   g.textAlign = 'center';
   g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('R : R', rx, cy + 58);
   g.save(); g.shadowColor = 'rgba(232,184,75,.55)'; g.shadowBlur = 12;
-  g.fillStyle = '#E8B84B'; g.font = '800 30px system-ui,sans-serif';
-  g.fillText(rr.toFixed(1), rx, cy + 90); g.restore();
+  g.fillStyle = '#E8B84B'; g.font = '800 26px system-ui,sans-serif';
+  g.fillText(`1:${rr % 1 === 0 ? rr.toFixed(0) : rr.toFixed(1)}`, rx, cy + 90); g.restore();
   const ay2 = cy + ch - 20;
   const alF = { x: rx - 24, y: ay2 - 9, w: 18, h: 18 }, arF = { x: rx + 6, y: ay2 - 9, w: 18, h: 18 };
   [[alF, -1], [arF, 1]].forEach((f) => {
@@ -3709,29 +3744,47 @@ function dibujarPosicion(g) {
 /* ══ TENDENCIA (Faro) anclada a timestamps: se PEGA al gráfico ══
    Une los MÍNIMOS si es alcista o los MÁXIMOS si es bajista, por tramos. */
 function mostrarTendencia() {
-  const g = M._geo; if (!g || !g.vis || g.vis.length < 6) return;
-  const vis = g.vis, n = vis.length;
+  const geo = M._geo; if (!geo || !M.velas.length) return;
+  // Ventana amplia para que la tendencia salga COMPLETA desde la esquina:
+  // usamos las últimas ~150 velas (o las visibles si hay menos), no solo el trozo visible.
+  const N = Math.min(M.velas.length, Math.max(geo.vis.length, 150));
+  const win = M.velas.slice(M.velas.length - N);
+  const n = win.length; if (n < 6) return;
   let sx = 0, sy = 0, sxy = 0, sxx = 0;
-  vis.forEach((v, i) => { sx += i; sy += v.c; sxy += i * v.c; sxx += i * i; });
+  win.forEach((v, i) => { sx += i; sy += v.c; sxy += i * v.c; sxx += i * i; });
   const m = (n * sxy - sx * sy) / Math.max(1e-9, n * sxx - sx * sx);
   const alcista = m >= 0;
-  const pts = vis.map((v) => ({ t: v.t, p: alcista ? v.l : v.h }));
+  const pts = win.map((v) => ({ t: v.t, p: alcista ? v.l : v.h }));
+  // Envolvente adaptativa (cadena monótona): toca TODOS los mínimos si es
+  // alcista o TODOS los máximos si es bajista, re-pivotando en cada separación.
   const hull = [];
   const giro = (o, a, b) => (a.t - o.t) * (b.p - o.p) - (a.p - o.p) * (b.t - o.t);
   for (const pt of pts) {
     while (hull.length >= 2) { const c = giro(hull[hull.length - 2], hull[hull.length - 1], pt); if (alcista ? c <= 0 : c >= 0) hull.pop(); else break; }
     hull.push(pt);
   }
+  // Asegurar que arranca en la primera vela (la esquina) y llega a la última.
+  if (hull.length && hull[0].t !== pts[0].t) hull.unshift(pts[0]);
+  if (hull.length && hull[hull.length - 1].t !== pts[n - 1].t) hull.push(pts[n - 1]);
   const segs = [];
   for (let k = 0; k < hull.length - 1; k++) segs.push({ t0: hull[k].t, p0: hull[k].p, t1: hull[k + 1].t, p1: hull[k + 1].p });
   if (!segs.length) return;
-  M._tend = { segs, dir: alcista ? 'alcista' : 'bajista', color: alcista ? '#2ee86a' : '#f6465d', grosor: 2 };
+  M._tend = { segs, dir: alcista ? 'alcista' : 'bajista', color: alcista ? '#2ee86a' : '#f6465d', grosor: 2, guia: true };
   const tabChart = [...document.querySelectorAll('.mu-mtab')].find((x) => /hart|r\u00e1fic|gr\u00e1fic/i.test(x.textContent));
   if (tabChart && !tabChart.classList.contains('on')) tabChart.click();
   cerrarTendCfg(); dibujar();
 }
 function dibujarTendencia(g) {
   const T = M._tend, geo = M._geo; if (!T || !T.segs.length || !geo) return;
+  // Guía punteada desde arriba (bajo la píldora) hasta la tendencia. Se quita al primer toque.
+  if (T.guia) {
+    const ult0 = T.segs[T.segs.length - 1];
+    const px2 = mXt(ult0.t1), py2 = mYp(ult0.p1);
+    g.save(); g.strokeStyle = T.color; g.lineWidth = 1.7; g.setLineDash([6, 5]);
+    const gx = geo.xVelas * 0.9, gy = 2; g.beginPath(); g.moveTo(gx, gy);
+    g.quadraticCurveTo((gx + px2) / 2, gy + (py2 - gy) * 0.16, px2, py2); g.stroke();
+    g.setLineDash([]); g.fillStyle = T.color; g.beginPath(); g.arc(px2, py2, 4, 0, 6.283); g.fill(); g.restore();
+  }
   g.save(); g.strokeStyle = T.color; g.lineWidth = T.grosor; g.lineJoin = 'round'; g.shadowColor = T.color; g.shadowBlur = 5;
   g.beginPath();
   T.segs.forEach((s, k) => { const x0 = mXt(s.t0), yy0 = mYp(s.p0), x1p = mXt(s.t1), yy1 = mYp(s.p1); if (k === 0) g.moveTo(x0, yy0); g.lineTo(x1p, yy1); });
@@ -3741,7 +3794,7 @@ function dibujarTendencia(g) {
   g.restore();
   const ult = T.segs[T.segs.length - 1];
   const tx = mXt(ult.t1), ty = mYp(ult.p1);
-  const txt = T.dir === 'alcista' ? '\u2197 Tendencia alcista' : '\u2198 Tendencia bajista';
+  const txt = T.dir === 'alcista' ? '\u2197 Tendencia adaptativa alcista' : '\u2198 Tendencia adaptativa bajista';
   g.font = 'bold 9.5px ui-monospace,monospace';
   const w = g.measureText(txt).width + 14;
   const bx = Math.max(4, Math.min(tx - w / 2, geo.xVelas - w - 4)), by = ty - (T.dir === 'alcista' ? 22 : -8);
