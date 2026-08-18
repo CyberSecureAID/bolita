@@ -143,6 +143,10 @@ const M = {
   zonas: [],          // zonas de acumulación (demanda/oferta) desde las velas
   perfil: null,       // perfil de volumen (para el histograma lateral)
   zonasHTF: [],       // zonas de la temporalidad superior (confluencia)
+  mercado: null,      // VWAP, VAH/VAL, sesión, sesgo, backtest
+  delta: null,        // order-flow real (aggTrades): agresor comprador vs vendedor
+  contexto: null,     // contexto multi-símbolo (BTC/ETH en demanda/oferta)
+  tema: (() => { try { return localStorage.getItem('mu_tema') === 'claro' ? 'claro' : 'oscuro'; } catch (_) { return 'oscuro'; } })(),
   tf: '15m',          // temporalidad por defecto del radar
   ancho: window.innerWidth < 760 ? 65 : 100,  // cuántas velas se ven
   filtro: 'todos',
@@ -576,8 +580,93 @@ function detectarZonas(velas, precio, opts) {
   return { zonas: zonas.slice(0, 6), perfil };
 }
 
+/* Paleta del GRÁFICO según el tema. Solo cambia el "chrome" neutro (fondo,
+   rejilla, ejes, velas); los colores semánticos (verde/rojo/dorado/azul de las
+   zonas y niveles) se mantienen para que el significado no cambie. */
+function pal() {
+  return M.tema === 'claro'
+    ? { fondo: '#eef1f5', rejilla: 'rgba(0,0,0,.05)', ejeBg: 'rgba(236,239,244,.96)', ejeBorde: 'rgba(0,0,0,.10)', ejeTxt: '#6b7480', velaUp: '#0a9e86', velaDown: '#e0424f' }
+    : { fondo: '#0a0e14', rejilla: 'rgba(255,255,255,.03)', ejeBg: 'rgba(10,14,20,.94)', ejeBorde: 'rgba(255,255,255,.06)', ejeTxt: '#4a525c', velaUp: '#26a69a', velaDown: '#ef5350' };
+}
+
 /* De 15m sube a 1h, de 5m a 30m, etc. — para la confluencia multi-temporalidad. */
 const TF_SUPERIOR = { '1m': '15m', '5m': '30m', '15m': '1h', '30m': '2h', '1h': '4h', '4h': '1d', '1d': '1w' };
+
+/* ══════════════════════════════════════════════════════════════
+   ANÁLISIS DE MERCADO — niveles institucionales + backtest
+
+   Calcula, todo desde las velas (fiable e instantáneo):
+   · VWAP anclado al inicio de la ventana (el precio medio ponderado por
+     volumen: la referencia que miran las mesas).
+   · ÁREA DE VALOR (VAH/VAL) y POC del perfil: el rango donde se negoció el
+     70% del volumen.
+   · MÁXIMO/MÍNIMO de sesión (~24 h).
+   · SESGO del mercado por volumen firmado (comprador/vendedor).
+   · BACKTEST: recorre el histórico y mide cuántas veces el precio, al llegar
+     a un nodo de alto volumen, REBOTÓ de verdad (reacción ≥ 0,4%). Da una
+     tasa de acierto con su muestra: números, no promesas.
+   ══════════════════════════════════════════════════════════════ */
+function analizarMercado(velas, precio, perfil) {
+  if (!velas || velas.length < 30) return null;
+  const vis = velas.slice(-260);
+  // VWAP anclado
+  let pv = 0, vv = 0;
+  vis.forEach((v) => { const tp = (v.h + v.l + v.c) / 3; pv += tp * (v.vol || 0); vv += (v.vol || 0); });
+  const vwap = vv > 0 ? pv / vv : precio;
+  // Sesión ~24h (según nº de velas que caben)
+  const ses = velas.slice(-96);
+  let sHi = -Infinity, sLo = Infinity;
+  ses.forEach((v) => { if (v.h > sHi) sHi = v.h; if (v.l < sLo) sLo = v.l; });
+  // Sesgo por volumen firmado
+  let vc = 0, vt = 0;
+  vis.forEach((v) => { const comp = v.volC > 0 ? v.volC : (v.vol || 0) * (v.c >= v.o ? 0.55 : 0.45); vc += comp; vt += (v.vol || 0); });
+  const compradorPct = vt > 0 ? vc / vt : 0.5;
+  const sesgo = compradorPct >= 0.56 ? 'comprador' : compradorPct <= 0.44 ? 'vendedor' : 'neutral';
+
+  // Área de valor (VAH/VAL) a partir del perfil: 70% del volumen alrededor del POC
+  let vah = null, val = null, poc = null;
+  if (perfil && perfil.vol) {
+    const pf = perfil; const N = pf.N; const paso = (pf.hi - pf.lo) / N;
+    let pocB = 0; for (let b = 1; b < N; b++) if (pf.vol[b] > pf.vol[pocB]) pocB = b;
+    poc = pf.lo + (pocB + 0.5) * paso;
+    const total = pf.vol.reduce((a, b) => a + b, 0);
+    let acum = pf.vol[pocB], lo = pocB, hi = pocB;
+    while (acum < total * 0.7 && (lo > 0 || hi < N - 1)) {
+      const izq = lo > 0 ? pf.vol[lo - 1] : -1;
+      const der = hi < N - 1 ? pf.vol[hi + 1] : -1;
+      if (der >= izq) { hi++; acum += pf.vol[hi]; } else { lo--; acum += pf.vol[lo]; }
+    }
+    val = pf.lo + lo * paso; vah = pf.lo + (hi + 1) * paso;
+  }
+
+  // BACKTEST: reacciones históricas en nodos de alto volumen
+  let aciertos = 0, muestra = 0;
+  if (perfil && perfil.vol) {
+    const pf = perfil; const N = pf.N; const paso = (pf.hi - pf.lo) / N;
+    const media = pf.vol.reduce((a, b) => a + b, 0) / N || 1;
+    for (let b = 0; b < N; b++) {
+      if (pf.vol[b] < media * 1.5) continue;
+      const nivel = pf.lo + (b + 0.5) * paso;
+      // buscar toques históricos y ver si el precio reaccionó ≥0,4%
+      for (let i = 5; i < vis.length - 5; i++) {
+        const v = vis[i];
+        const toca = v.l <= nivel + paso && v.h >= nivel - paso;
+        if (!toca) continue;
+        const desde = vis[i].c;
+        let maxReac = 0;
+        for (let j = i + 1; j <= Math.min(vis.length - 1, i + 6); j++) {
+          maxReac = Math.max(maxReac, Math.abs(vis[j].c - desde) / desde);
+        }
+        muestra++;
+        if (maxReac >= 0.004) aciertos++;
+        i += 3; // no contar el mismo toque varias veces
+      }
+    }
+  }
+  const winRate = muestra >= 8 ? Math.round((aciertos / muestra) * 100) : null;
+
+  return { vwap, vah, val, poc, sHi, sLo, sesgo, compradorPct, winRate, muestra };
+}
 
 
 
@@ -594,6 +683,7 @@ export async function abrirMuros() {
 
   const d = document.createElement('div');
   d.id = 'mu-overlay';
+  if (M.tema === 'claro') d.classList.add('mu-claro');
   d.innerHTML = `<div class="mu-bg"></div>
     <div class="mu-c">
       <div class="mu-barra">
@@ -619,6 +709,9 @@ export async function abrirMuros() {
         <div class="mu-vivo"><i></i><span id="mu-estado">Observando…</span></div>
 
         <div class="mu-der">
+          <button class="mu-ico" id="mu-tema" title="Tema claro/oscuro">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          </button>
           <button class="mu-ico" id="mu-foto" title="Compartir imagen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
           </button>
@@ -648,7 +741,8 @@ export async function abrirMuros() {
         </div>
 
         <aside class="mu-panel" id="mu-panel">
-          <div class="mu-panel-t">Zonas de acumulación</div>
+          <div class="mu-panel-t"><em>Institutional Radar</em> · Zonas de acumulación</div>
+          <div class="mu-cockpit" id="mu-cockpit"></div>
           <div class="mu-chips">
             <button class="mu-fbtn verde" data-filtro="compra">
               <b>Demanda</b><i class="mu-cuenta" id="mu-n-compra">0</i>
@@ -666,6 +760,7 @@ export async function abrirMuros() {
           <div class="mu-lista" id="mu-lista"></div>
         </aside>
       </div>
+      <div class="mu-alerta" id="mu-alerta"></div>
     </div>`;
   document.body.appendChild(d);
 
@@ -683,6 +778,21 @@ export async function abrirMuros() {
   $('mu-sel').onclick = (e) => { e.stopPropagation(); menuPares(); };
 
   $('mu-foto').onclick = () => guardarImagen();
+  $('mu-tema').onclick = () => {
+    M.tema = M.tema === 'claro' ? 'oscuro' : 'claro';
+    try { localStorage.setItem('mu_tema', M.tema); } catch (_) {}
+    const ov = $('mu-overlay'); if (ov) ov.classList.toggle('mu-claro', M.tema === 'claro');
+    dibujar();
+  };
+
+  /* ONBOARDING: la primera vez que se abre el radar, se muestra el tutorial
+     solo (una sola vez por navegador). */
+  try {
+    if (!localStorage.getItem('mu_onboard_v1')) {
+      localStorage.setItem('mu_onboard_v1', '1');
+      setTimeout(() => { if ($('mu-cv')) ayuda(); }, 900);
+    }
+  } catch (_) {}
 
   d.querySelectorAll('[data-tf]').forEach((b) => b.onclick = () => {
     M.tf = b.dataset.tf;
@@ -755,6 +865,7 @@ export async function abrirMuros() {
    ══════════════════════════════════════════════════════════════ */
 let _reloj = null, _relojVelas = null, _relojPulso = null;
 let _htfTs = 0;                        // última vez que se pidió la temporalidad superior
+let _delTs = 0;                        // última vez que se pidió el order-flow (aggTrades)
 let _ultLibro = null;                  // último libro bueno (REST o WS) para confirmar zonas
 let _fallos = 0;
 let _wsL = null, _wsLibro = null, _wsPar = null;   // libro por WebSocket (respaldo)
@@ -803,6 +914,15 @@ async function cargarVelas() {
       /* Las zonas salen de las VELAS: se llenan en ~1 s, sin depender del libro. */
       const r = detectarZonas(M.velas, px, { htf: M.zonasHTF, libro: murosDelLibro() });
       M.zonas = r.zonas; M.perfil = r.perfil;
+      /* NIVELES INSTITUCIONALES + BACKTEST, y boost de confianza cuando una
+         zona coincide con VWAP / borde del área de valor / POC. */
+      M.mercado = analizarMercado(M.velas, px, M.perfil);
+      aplicarReferencias(M.zonas, M.mercado, px);
+      seguirVida(M.zonas);
+      /* ORDER-FLOW real (aggTrades), cada ~8 s. */
+      if (Date.now() - _delTs > 8000) { _delTs = Date.now(); traerDelta(par.s).then((d) => { if (d) M.delta = d; }); }
+      /* CONTEXTO multi-símbolo (BTC/ETH), cacheado 90 s. */
+      traerContexto().then((c) => { M.contexto = c; });
       if (M.velas.length) { M.cargando = false; M.error = null; }
       pintarPanel();
       dibujar();
@@ -810,6 +930,21 @@ async function cargarVelas() {
   };
   await traer();
   _relojVelas = setInterval(traer, 12000);
+}
+
+/* Sube la confianza de una zona cuando coincide con un nivel institucional
+   (VWAP, VAH, VAL o POC): son imanes de precio que las mesas vigilan. */
+function aplicarReferencias(zonas, mercado, precio) {
+  if (!mercado) return;
+  const refs = [mercado.vwap, mercado.vah, mercado.val, mercado.poc].filter((x) => x > 0);
+  zonas.forEach((z) => {
+    const coincide = refs.some((rp) => rp >= z.pLow && rp <= z.pHigh);
+    z.ref = coincide;
+    if (coincide && !z.rota) {
+      z.confianza = Math.min(100, z.confianza + 10);
+      z.fuerza = Math.max(1, Math.min(5, Math.round(z.confianza / 20)));
+    }
+  });
 }
 
 /* Extrae los MUROS reales del libro en vivo (niveles con tamaño >= 4× la
@@ -824,6 +959,96 @@ function murosDelLibro() {
   const med = ds[Math.floor(ds.length / 2)] || 0;
   if (!(med > 0)) return null;
   return { muros: todos.filter((o) => o.d >= med * 4).map((o) => o.p) };
+}
+
+/* ORDER-FLOW REAL: los aggTrades traen cada operación con la marca de si el
+   comprador fue el agresor. Sumamos el volumen agresor comprador vs vendedor
+   (delta) de los últimos ~1000 trades: es lo que mueve el precio de verdad. */
+async function traerDelta(simbolo) {
+  try {
+    const r = await muFetch(`/api/v3/aggTrades?symbol=${simbolo}&limit=1000`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!Array.isArray(j) || !j.length) return null;
+    let comp = 0, vend = 0;
+    j.forEach((t) => {
+      const q = Number(t.q) * Number(t.p);            // $ de la operación
+      if (t.m) vend += q; else comp += q;             // m=true → comprador es maker → agresor vendedor
+    });
+    const total = comp + vend || 1;
+    return { comp, vend, delta: comp - vend, ratio: comp / total, t: Date.now() };
+  } catch (_) { return null; }
+}
+
+/* CONTEXTO MULTI-SÍMBOLO: mira si BTC y ETH están en zona de demanda/oferta
+   cerca de su precio. Una zona en una alt es más fiable si BTC acompaña. */
+let _ctxTs = 0, _ctxCache = null;
+async function traerContexto() {
+  if (Date.now() - _ctxTs < 90000 && _ctxCache) return _ctxCache;
+  const guias = [{ id: 'BTC', s: 'BTCUSDT' }, { id: 'ETH', s: 'ETHUSDT' }];
+  const out = [];
+  for (const g of guias) {
+    try {
+      const v = await traerVelas(g.s, M.tf, 260);
+      if (!v.length) continue;
+      const px = v[v.length - 1].c;
+      const r = detectarZonas(v, px, {});
+      const cerca = r.zonas.find((z) => z.dentro || Math.abs(z.dist) < 0.004);
+      out.push({ id: g.id, estado: cerca ? cerca.lado : 'neutral', px });
+    } catch (_) {}
+  }
+  _ctxCache = out.length ? out : null; _ctxTs = Date.now();
+  return _ctxCache;
+}
+
+/* CICLO DE VIDA de cada zona + ALERTAS. Se sigue por precio redondeado:
+   nace → se testea → se confirma → se rompe, con marcas de tiempo. Y avisa
+   (banner + pitido corto) cuando el precio entra en una zona fuerte o una
+   zona se rompe. */
+const _vidaZonas = new Map();
+let _alerta = null, _alertaTs = 0;
+function seguirVida(zonas) {
+  const ahora = Date.now();
+  const vistas = new Set();
+  zonas.forEach((z) => {
+    const k = z.lado + ':' + z.p.toFixed(Math.abs(z.p) < 10 ? 4 : 2);
+    vistas.add(k);
+    let v = _vidaZonas.get(k);
+    if (!v) { v = { nace: ahora, tests: 0, confirmada: false, rota: false, dentroAntes: false, reaccion: 0 }; _vidaZonas.set(k, v); }
+    // test: el precio entró/tocó
+    if ((z.dentro || z.retest) && !v.dentroAntes) { v.tests++; v.ultTest = ahora; }
+    // confirmada: fuerte y con reacciones
+    if (z.fuerza >= 4 && z.reacciones >= 2) v.confirmada = true;
+    // alertas
+    if (z.dentro && !v.dentroAntes && z.fuerza >= 4) lanzarAlerta('entra', z);
+    if (z.rota && !v.rota) { v.rota = true; v.rotaTs = ahora; lanzarAlerta('rompe', z); }
+    v.dentroAntes = z.dentro || z.retest;
+    z.vida = v;
+  });
+  // limpiar las que llevan mucho sin verse
+  _vidaZonas.forEach((v, k) => { if (!vistas.has(k) && ahora - (v.ultVisto || v.nace) > 600000) _vidaZonas.delete(k); else if (vistas.has(k)) v.ultVisto = ahora; });
+}
+function lanzarAlerta(tipo, z) {
+  if (Date.now() - _alertaTs < 4000) return;   // no spamear
+  _alertaTs = Date.now();
+  const dem = z.lado === 'demanda';
+  _alerta = tipo === 'entra'
+    ? { txt: `Precio en zona ${dem ? 'de demanda' : 'de oferta'} fuerte · ${dinero(z.v)}`, col: dem ? '#2ee86a' : '#f6465d' }
+    : { txt: `Zona ${dem ? 'de demanda' : 'de oferta'} ROTA · ${fmt(z.p)}`, col: '#E8B84B' };
+  pitar();
+  const b = $('mu-alerta');
+  if (b) { b.textContent = _alerta.txt; b.style.setProperty('--ac', _alerta.col); b.classList.add('on'); clearTimeout(_alertaT); _alertaT = setTimeout(() => b.classList.remove('on'), 5200); }
+}
+let _alertaT = null, _audio = null;
+function pitar() {
+  try {
+    _audio = _audio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = _audio.createOscillator(), g = _audio.createGain();
+    o.type = 'sine'; o.frequency.value = 880; g.gain.value = 0.04;
+    o.connect(g); g.connect(_audio.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, _audio.currentTime + 0.25);
+    o.stop(_audio.currentTime + 0.26);
+  } catch (_) {}
 }
 
 function arrancar() {
@@ -849,6 +1074,9 @@ function arrancar() {
     if (M.velas.length && M.precio > 0) {
       const r = detectarZonas(M.velas, M.precio, { htf: M.zonasHTF, libro: murosDelLibro() });
       M.zonas = r.zonas; M.perfil = r.perfil;   // zonas + confluencia + libro, con precio vivo
+      M.mercado = analizarMercado(M.velas, M.precio, M.perfil);
+      aplicarReferencias(M.zonas, M.mercado, M.precio);
+      seguirVida(M.zonas);
       M.cargando = false; M.error = null;
     }
     const px = $('mu-px-v'); if (px && M.precio > 0) px.textContent = fmt(M.precio);
@@ -971,7 +1199,8 @@ function dibujar() {
   }
   const g = cv.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  g.fillStyle = '#0a0e14';
+  const P = pal();
+  g.fillStyle = P.fondo;
   g.fillRect(0, 0, W, H);
 
   const esp = $('mu-esperando');
@@ -1048,7 +1277,7 @@ function dibujar() {
   }
 
   /* ── Rejilla ── */
-  g.strokeStyle = 'rgba(255,255,255,.03)';
+  g.strokeStyle = P.rejilla;
   g.lineWidth = 1;
   for (let i = 1; i < 6; i++) {
     const y = (y1 / 6) * i;
@@ -1089,14 +1318,42 @@ function dibujar() {
     }
   }
 
-  /* ══════════════════════════════════════════════════════════
-     ZONAS DE ACUMULACIÓN — cajas proyectadas a la derecha
+  /* ── MAPA DE CALOR de volumen (fondo) ──
+     Sombreado tenue a TODO el ancho según la densidad de volumen a cada
+     precio: las zonas emergen del calor de forma orgánica. */
+  if (M.perfil && M.perfil.vol) {
+    const pf = M.perfil;
+    for (let b = 0; b < pf.N; b++) {
+      const pB = pf.lo + (b + 0.5) * (pf.hi - pf.lo) / pf.N;
+      if (pB < pMin || pB > pMax) continue;
+      const rel = pf.vol[b] / pf.max;
+      if (rel < 0.16) continue;
+      const yb = Y(pB);
+      const binH = y1 / pf.N;
+      g.fillStyle = `rgba(232,184,75,${(rel * 0.06).toFixed(3)})`;
+      g.fillRect(0, yb - binH / 2, xVelas, Math.max(1.5, binH));
+    }
+  }
 
-     Cada caja es un área donde se acumuló volumen (estilo order block).
-     Verde = demanda (debajo del precio) · Rojo = oferta (encima). Se dibujan
-     en la mitad derecha del gráfico y se proyectan hacia delante como zona de
-     RETESTEO: ahí es donde el precio suele volver a reaccionar.
-     ══════════════════════════════════════════════════════════ */
+  /* ── NIVELES INSTITUCIONALES: VWAP y bordes del área de valor (VAH/VAL) ── */
+  if (M.mercado) {
+    const mk = M.mercado;
+    const linea = (p, col, dash, etiqueta) => {
+      if (!(p > 0) || p < pMin || p > pMax) return;
+      const y = Y(p);
+      g.save();
+      g.strokeStyle = col; g.lineWidth = 1; if (dash) g.setLineDash(dash);
+      g.beginPath(); g.moveTo(0, y); g.lineTo(xVelas, y); g.stroke();
+      g.restore(); g.setLineDash([]);
+      g.font = 'bold 8.5px ui-monospace,monospace'; g.textAlign = 'left';
+      g.fillStyle = col;
+      g.fillText(etiqueta, 6, y - 3);
+    };
+    linea(mk.vah, 'rgba(139,150,163,.5)', [3, 4], 'VAH');
+    linea(mk.val, 'rgba(139,150,163,.5)', [3, 4], 'VAL');
+    linea(mk.vwap, 'rgba(120,170,255,.75)', [7, 4], 'VWAP');
+  }
+
   /* ══════════════════════════════════════════════════════════
      ZONAS DE ACUMULACIÓN
 
@@ -1203,7 +1460,7 @@ function dibujar() {
   const cuerpo = Math.max(1.6, paso * 0.6);
   vis.forEach((v, i) => {
     const x = i * paso + paso / 2;
-    const col = v.c >= v.o ? '#26a69a' : '#ef5350';
+    const col = v.c >= v.o ? P.velaUp : P.velaDown;
     g.strokeStyle = col; g.fillStyle = col;
     g.lineWidth = Math.max(1, paso * 0.12);
     g.beginPath(); g.moveTo(x, Y(v.h)); g.lineTo(x, Y(v.l)); g.stroke();
@@ -1219,9 +1476,9 @@ function dibujar() {
   g.setLineDash([]);
 
   /* ── La escala, con los niveles marcados ── */
-  g.fillStyle = 'rgba(10,14,20,.94)';
+  g.fillStyle = P.ejeBg;
   g.fillRect(x1, 0, mDer, H);
-  g.strokeStyle = 'rgba(255,255,255,.06)';
+  g.strokeStyle = P.ejeBorde;
   g.beginPath(); g.moveTo(x1 + .5, 0); g.lineTo(x1 + .5, H); g.stroke();
 
   g.font = '10px ui-monospace,monospace';
@@ -1231,7 +1488,7 @@ function dibujar() {
     const y = Y(p);
     if (Math.abs(y - yP) < 15) continue;
     if (M.zonas.some((z) => Math.abs(Y(z.p) - y) < 15)) continue;
-    g.fillStyle = '#4a525c';
+    g.fillStyle = P.ejeTxt;
     g.fillText(fmt(p), x1 + 7, y + 3.5);
   }
   M.zonas.forEach((z) => {
@@ -1251,10 +1508,10 @@ function dibujar() {
   g.fillText(fmt(M.precio), x1 + 7, yP + 4);
 
   /* ── Las horas ── */
-  g.fillStyle = 'rgba(10,14,20,.94)';
+  g.fillStyle = P.ejeBg;
   g.fillRect(0, y1, W, mAba);
   g.font = '9px ui-monospace,monospace';
-  g.fillStyle = '#4a525c';
+  g.fillStyle = P.ejeTxt;
   const cada = Math.max(1, Math.floor(vis.length / 5));
   g.textAlign = 'center';
   vis.forEach((v, i) => {
@@ -1485,9 +1742,42 @@ function narrarZona(z, dem, dist) {
     : `${f} de oferta: se acumularon ${dinero(z.v)} en ${z.toques} velas. Suele frenar las subidas.`;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   COCKPIT — el resumen que un gestor lee en 2 segundos
+   ══════════════════════════════════════════════════════════════ */
+function pintarCockpit() {
+  const c = $('mu-cockpit'); if (!c) return;
+  const m = M.mercado;
+  const zs = M.zonas || [];
+  const cercana = zs.slice().sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))[0];
+  const fuerteProx = zs.filter((z) => z.fuerza >= 4 && !z.rota).sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))[0];
+  const sesgo = m ? m.sesgo : 'neutral';
+  const sesgoCol = sesgo === 'comprador' ? '#2ee86a' : sesgo === 'vendedor' ? '#f6465d' : '#8b96a3';
+  let deltaTxt = '\u2014', deltaCol = '#8b96a3';
+  if (M.delta) {
+    const r = M.delta.ratio;
+    deltaTxt = (r >= 0.5 ? '+' : '') + Math.round((r - 0.5) * 200) + '%';
+    deltaCol = r >= 0.55 ? '#2ee86a' : r <= 0.45 ? '#f6465d' : '#8b96a3';
+  }
+  const ctx = (M.contexto || []).map((g) => {
+    const col = g.estado === 'demanda' ? '#2ee86a' : g.estado === 'oferta' ? '#f6465d' : '#6b7681';
+    const ic = g.estado === 'demanda' ? '\u25b2' : g.estado === 'oferta' ? '\u25bc' : '\u00b7';
+    return `<span style="color:${col}">${g.id} ${ic}</span>`;
+  }).join(' ');
+  const celda = (val, lbl, col) => `<div class="mu-ck"><b style="color:${col || 'var(--mu-tx)'}">${val}</b><span>${lbl}</span></div>`;
+  c.innerHTML =
+    celda(`<span style="color:${sesgoCol};text-transform:capitalize">${sesgo}</span>`, 'sesgo mercado') +
+    celda(m && m.winRate != null ? m.winRate + '%' : '\u2014', m && m.muestra ? 'acierto \u00b7 ' + m.muestra : 'acierto', m && m.winRate >= 60 ? '#2ee86a' : (m && m.winRate != null ? '#E8B84B' : '#8b96a3')) +
+    celda(deltaTxt, 'flujo agresor', deltaCol) +
+    celda(cercana ? (cercana.dentro ? 'AQU\u00cd' : (Math.abs(cercana.dist) * 100).toFixed(2) + '%') : '\u2014', 'zona cercana', cercana && cercana.dentro ? '#E8B84B' : 'var(--mu-tx)') +
+    celda(fuerteProx ? fmt(fuerteProx.p) : '\u2014', 'pr\u00f3x. fuerte', fuerteProx ? (fuerteProx.lado === 'demanda' ? '#2ee86a' : '#f6465d') : '#8b96a3') +
+    (ctx ? `<div class="mu-ck mu-ck-ctx"><b>${ctx}</b><span>BTC \u00b7 ETH</span></div>` : '');
+}
+
 function pintarPanel() {
   const lista = $('mu-lista'); if (!lista) return;
   const estado = $('mu-estado');
+  pintarCockpit();
 
   /* Las cuentas de cada filtro (ahora sobre las ZONAS). */
   const cuenta = (id, f) => {
@@ -1545,11 +1835,23 @@ function pintarPanel() {
 
     // Insignias
     const badges = [
+      z.ref ? '<i class="mu-b ref">\u25c7 VWAP/VA</i>' : '',
       z.confluencia ? '<i class="mu-b conf">\u25c8 ' + (TF_SUPERIOR[M.tf] || 'HTF') + '</i>' : '',
       z.libro ? '<i class="mu-b libro">\u25a3 libro</i>' : '',
       z.alineado && !z.rota ? '<i class="mu-b flujo">\u2713 flujo</i>' : '',
       z.rota ? '<i class="mu-b rota">\u2715 rota</i>' : ''
     ].join('');
+
+    // Línea de tiempo del ciclo de vida
+    const v = z.vida;
+    const hace = (t) => { if (!t) return ''; const s = Math.round((Date.now() - t) / 1000); if (s < 60) return s + 's'; if (s < 3600) return Math.round(s / 60) + 'min'; if (s < 86400) return Math.round(s / 3600) + 'h'; return Math.round(s / 86400) + 'd'; };
+    const timeline = v ? `
+        <div class="mu-timeline">
+          <span class="tl on"><i></i>formada<b>hace ${hace(v.nace)}</b></span>
+          <span class="tl ${v.tests > 0 ? 'on' : ''}"><i></i>testeada<b>${v.tests}\u00d7</b></span>
+          <span class="tl ${v.confirmada ? 'on' : ''}"><i></i>${v.confirmada ? 'confirmada' : 'sin confirmar'}<b>${v.confirmada ? '\u2713' : '\u2026'}</b></span>
+          <span class="tl ${z.rota ? 'rota' : ''}"><i></i>${z.rota ? 'ROTA' : 'vigente'}<b>${z.rota ? hace(v.rotaTs) : '\u2713'}</b></span>
+        </div>` : '';
 
     return `
     <div class="mu-card ${clase} f${fuerza >= 4 ? 3 : fuerza >= 2 ? 2 : 1} ${abierta ? 'sel' : ''} ${z.rota ? 'es-rota' : ''}"
@@ -1570,7 +1872,7 @@ function pintarPanel() {
         ${z.dentro || z.retest ? `<div class="mu-aviso-vivo">\u27f3 ${z.dentro ? 'El precio est\u00e1 en la zona ahora' : 'El precio est\u00e1 por retestear esta zona'}</div>` : ''}
       </button>
       ${abierta ? `<div class="mu-detalle">
-        <div class="mu-conse mu-escribe">${conse}</div>
+        <div class="mu-conse mu-escribe">${conse}</div>${timeline}
         <div class="mu-metricas">
           <div><b>${fmt(z.pPoc)}</b><span>POC (entrada)</span></div>
           <div><b>${flujo}</b><span>flujo firmado</span></div>
@@ -1943,7 +2245,7 @@ function estilos() {
   if ($('mu-css')) return;
   const s = document.createElement('style'); s.id = 'mu-css';
   s.textContent = `
-  #mu-overlay{position:fixed;inset:0;z-index:9740;display:flex;align-items:center;justify-content:center}
+  #mu-overlay{--mu-tx:#eaecef;position:fixed;inset:0;z-index:9740;display:flex;align-items:center;justify-content:center}
   #mu-overlay .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.94)}
   #mu-overlay .mu-c{position:relative;width:100%;height:100vh;height:100dvh;
     display:flex;flex-direction:column;background:#080b10}
@@ -2073,8 +2375,28 @@ function estilos() {
   #mu-overlay .mu-panel{width:352px;flex:0 0 auto;display:flex;flex-direction:column;
     background:#0b0e12;border-left:1px solid #1c2128}
   #mu-overlay .mu-panel-t{flex:0 0 auto;padding:13px 16px 2px;text-align:center;
-    font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+    font-family:var(--mono,monospace);font-size:10px;color:#5c6672;
     text-transform:uppercase;letter-spacing:1.8px}
+  #mu-overlay .mu-panel-t em{font-style:normal;color:var(--gold,#E8B84B);font-weight:700}
+  /* Cockpit institucional */
+  #mu-overlay .mu-cockpit{flex:0 0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+    padding:10px 14px 4px}
+  #mu-overlay .mu-ck{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));
+    border:1px solid rgba(255,255,255,.06);border-radius:9px;padding:7px 8px;text-align:center;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+  #mu-overlay .mu-ck b{display:block;font-family:var(--mono,monospace);font-weight:800;font-size:13px;
+    line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #mu-overlay .mu-ck span{font-family:var(--mono,monospace);font-size:7.5px;color:#5c6672;
+    text-transform:uppercase;letter-spacing:.4px}
+  #mu-overlay .mu-ck-ctx b span{margin:0 3px;font-weight:800}
+  /* Banner de alerta */
+  #mu-overlay .mu-alerta{position:absolute;left:50%;top:60px;transform:translate(-50%,-14px);
+    z-index:60;padding:9px 16px;border-radius:11px;pointer-events:none;opacity:0;
+    font-family:var(--display,sans-serif);font-weight:700;font-size:13px;color:#0b0e12;
+    background:linear-gradient(180deg,#fff,#e6e9ee);border:1px solid var(--ac,#E8B84B);
+    box-shadow:0 8px 26px rgba(0,0,0,.5), 0 0 0 2px var(--ac,#E8B84B);transition:opacity .25s ease,transform .25s ease}
+  #mu-overlay .mu-alerta.on{opacity:1;transform:translate(-50%,0)}
+  #mu-overlay .mu-alerta::before{content:'\\1F514';margin-right:7px}
   #mu-overlay .mu-lista{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px}
   #mu-overlay .mu-grupo{font-family:var(--mono,monospace);font-size:9.5px;color:#5c6672;
     text-transform:uppercase;letter-spacing:1.2px;margin:12px 4px 8px}
@@ -2172,7 +2494,7 @@ function estilos() {
   #mu-overlay .rojo .mu-conf-bar{background:linear-gradient(90deg,#7a1a28,#f6465d)}
   #mu-overlay .gris .mu-conf-bar{background:linear-gradient(90deg,#3a424c,#8b96a3)}
   #mu-overlay .mu-conf em{font-style:normal;font-family:var(--mono,monospace);font-weight:800;
-    font-size:13px;color:#eaecef;display:flex;align-items:baseline;gap:3px}
+    font-size:13px;color:var(--mu-tx);display:flex;align-items:baseline;gap:3px}
   #mu-overlay .mu-conf em span{font-size:8px;color:#5c6672;text-transform:uppercase;letter-spacing:.4px}
   /* Insignias de validación */
   #mu-overlay .mu-badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
@@ -2183,6 +2505,19 @@ function estilos() {
   #mu-overlay .mu-b.libro{background:rgba(232,184,75,.14);color:#E8B84B;border-color:rgba(232,184,75,.3)}
   #mu-overlay .mu-b.flujo{background:rgba(46,232,106,.13);color:#3ee88a;border-color:rgba(46,232,106,.28)}
   #mu-overlay .mu-b.rota{background:rgba(139,150,163,.14);color:#b7bdc6;border-color:rgba(139,150,163,.3)}
+  #mu-overlay .mu-b.ref{background:rgba(120,170,255,.14);color:#9cc4ff;border-color:rgba(120,170,255,.3)}
+  /* Línea de tiempo del ciclo de vida de la zona */
+  #mu-overlay .mu-timeline{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:2px 0 10px}
+  #mu-overlay .mu-timeline .tl{position:relative;display:flex;flex-direction:column;align-items:center;
+    gap:2px;padding-top:12px;font-family:var(--mono,monospace);font-size:8px;color:#5c6672;
+    text-transform:uppercase;letter-spacing:.3px;text-align:center}
+  #mu-overlay .mu-timeline .tl i{position:absolute;top:3px;left:50%;transform:translateX(-50%);
+    width:8px;height:8px;border-radius:50%;background:#2b3139;border:1px solid #3a424c}
+  #mu-overlay .mu-timeline .tl::before{content:'';position:absolute;top:6px;left:-50%;width:100%;height:1px;background:#2b3139}
+  #mu-overlay .mu-timeline .tl:first-child::before{display:none}
+  #mu-overlay .mu-timeline .tl.on i{background:#2ee86a;border-color:#2ee86a;box-shadow:0 0 6px rgba(46,232,106,.5)}
+  #mu-overlay .mu-timeline .tl.rota i{background:#E8B84B;border-color:#E8B84B;box-shadow:0 0 6px rgba(232,184,75,.5)}
+  #mu-overlay .mu-timeline .tl b{font-weight:800;color:#c8cfd8;font-size:9px}
   /* Zona rota: se ve apagada y con una línea diagonal sutil */
   #mu-overlay .mu-card.es-rota{opacity:.72;border-left-color:#6b7681!important}
   #mu-overlay .mu-card.es-rota .mu-lado{color:#8b96a3!important}
@@ -2395,6 +2730,42 @@ function estilos() {
     font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;
     box-shadow:0 4px 0 #8f6a1a}
 
+  /* ══ TEMA CLARO ══ (solo el chrome; los colores semánticos se mantienen) */
+  #mu-overlay.mu-claro{--mu-tx:#1a2028}
+  #mu-overlay.mu-claro .mu-c{background:#eef1f5}
+  #mu-overlay.mu-claro .mu-bg{background:rgba(230,234,240,.6)}
+  #mu-overlay.mu-claro .mu-barra{background:#e4e8ee;border-bottom-color:rgba(0,0,0,.08)}
+  #mu-overlay.mu-claro .mu-panel{background:#e9edf2;border-left-color:rgba(0,0,0,.08)}
+  #mu-overlay.mu-claro .mu-mtabs{background:#e4e8ee}
+  #mu-overlay.mu-claro .mu-vivo span,
+  #mu-overlay.mu-claro .mu-px b,
+  #mu-overlay.mu-claro .mu-precio,
+  #mu-overlay.mu-claro .mu-nivel,
+  #mu-overlay.mu-claro .mu-conse,
+  #mu-overlay.mu-claro .mu-conse b,
+  #mu-overlay.mu-claro .mu-ck b{color:#1a2028}
+  #mu-overlay.mu-claro .mu-px span,
+  #mu-overlay.mu-claro .mu-ck span,
+  #mu-overlay.mu-claro .mu-metricas span,
+  #mu-overlay.mu-claro .mu-timeline .tl{color:#6b7480}
+  #mu-overlay.mu-claro .mu-ico{background:#dfe4ec;border-color:rgba(0,0,0,.1);color:#3a424c}
+  #mu-overlay.mu-claro .mu-sel,#mu-overlay.mu-claro .mu-tfchip{background:#dfe4ec;border-color:rgba(0,0,0,.12);color:#1a2028}
+  #mu-overlay.mu-claro .mu-ck{background:linear-gradient(180deg,#fff,#eef1f5);border-color:rgba(0,0,0,.08)}
+  #mu-overlay.mu-claro .mu-card{background:linear-gradient(145deg,#fff,#f2f5f9);border-color:rgba(0,0,0,.1)}
+  #mu-overlay.mu-claro .mu-card .mu-nivel{color:#1a2028}
+  #mu-overlay.mu-claro .mu-card[data-lado="compra"].f3{background:linear-gradient(145deg,#e9f9f0,#f2f5f9)}
+  #mu-overlay.mu-claro .mu-card[data-lado="venta"].f3{background:linear-gradient(145deg,#fdeef0,#f2f5f9)}
+  #mu-overlay.mu-claro .mu-metricas div{background:rgba(0,0,0,.04)}
+  #mu-overlay.mu-claro .mu-metricas b{color:#1a2028}
+  #mu-overlay.mu-claro .mu-fbtn{background:linear-gradient(180deg,#fff,#e6eaf0);border-color:rgba(0,0,0,.12);
+    color:#5c6672;box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 2px 6px rgba(0,0,0,.12)}
+  #mu-overlay.mu-claro .mu-fbtn .mu-cuenta{background:rgba(0,0,0,.1);color:#3a424c}
+  #mu-overlay.mu-claro .mu-dist2{background:rgba(0,0,0,.06);color:#3a424c}
+  #mu-overlay.mu-claro .mu-hacer{background:rgba(0,0,0,.04);color:#3a424c}
+  #mu-overlay.mu-claro .mu-timeline .tl b{color:#3a424c}
+  #mu-overlay.mu-claro .mu-esperar{color:#5c6672}
+  #mu-overlay.mu-claro .mu-esperar b{color:#3a424c}
+
   /* ── Móvil: temporalidad en chip + pestañas Gráfica/Órdenes ── */
   @media(max-width:860px){
     #mu-overlay .mu-cuerpo{flex-direction:column}
@@ -2415,6 +2786,10 @@ function estilos() {
     #mu-overlay .mu-cuerpo.m-ord .mu-panel{display:flex;flex:1 1 auto;width:100%;border-left:none;min-height:0}
     #mu-overlay .mu-panel{width:100%;border-left:none;border-top:none}
     #mu-overlay .mu-chips{padding:11px 12px}
+    #mu-overlay .mu-cockpit{padding:9px 12px 3px;gap:5px}
+    #mu-overlay .mu-ck{padding:6px 4px}
+    #mu-overlay .mu-ck b{font-size:12px}
+    #mu-overlay .mu-ck span{font-size:7px}
     /* La lista SÍ hace scroll (min-height:0 en toda la cadena) y deja hueco
        abajo para que el nav de la app no tape la última tarjeta. */
     #mu-overlay .mu-cuerpo.m-ord .mu-lista{min-height:0;-webkit-overflow-scrolling:touch;
