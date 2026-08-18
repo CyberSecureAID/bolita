@@ -1055,22 +1055,37 @@ function dibujar() {
     g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
   }
 
-  /* ── PERFIL DE VOLUMEN lateral (histograma por precio) ──
-     Barras finas desde el borde izquierdo: su largo es el volumen a ese
-     precio. Es de dónde nacen las zonas; da el aire de herramienta pro. */
+  /* ── PERFIL DE VOLUMEN lateral ──
+     Silueta sólida con degradado (no barritas sueltas). El nodo de mayor
+     volumen (POC global) se resalta, y las franjas que caen dentro de una zona
+     se ven más vivas: así se entiende de dónde nacen las zonas. */
   if (M.perfil && M.perfil.vol) {
     const pf = M.perfil;
-    const wMax = Math.min(78, x1 * 0.13);
+    const wMax = Math.min(104, x1 * 0.17);
+    const binH = y1 / pf.N;
+    let pocB = 0;
+    for (let b = 1; b < pf.N; b++) if (pf.vol[b] > pf.vol[pocB]) pocB = b;
     for (let b = 0; b < pf.N; b++) {
       const pB = pf.lo + (b + 0.5) * (pf.hi - pf.lo) / pf.N;
       if (pB < pMin || pB > pMax) continue;
       const w = (pf.vol[b] / pf.max) * wMax;
-      if (w < 0.6) continue;
+      if (w < 1) continue;
       const yb = Y(pB);
-      const cerca = M.zonas.some((z) => pB >= z.pLow && pB <= z.pHigh && !z.rota);
+      const enZona = M.zonas.some((z) => pB >= z.pLow && pB <= z.pHigh && !z.rota);
       const base = pB < M.precio ? '46,232,106' : '246,70,93';
-      g.fillStyle = `rgba(${base},${cerca ? 0.22 : 0.09})`;
-      g.fillRect(0, yb - 1.5, w, 3);
+      const a = b === pocB ? 0.52 : enZona ? 0.30 : 0.12;
+      const gr = g.createLinearGradient(0, 0, w, 0);
+      gr.addColorStop(0, `rgba(${base},${a})`);
+      gr.addColorStop(1, `rgba(${base},0)`);
+      g.fillStyle = gr;
+      g.fillRect(0, yb - binH / 2, w, Math.max(1.6, binH - 0.5));
+    }
+    // Marca del POC global
+    const pPoc = pf.lo + (pocB + 0.5) * (pf.hi - pf.lo) / pf.N;
+    if (pPoc >= pMin && pPoc <= pMax) {
+      const yp = Y(pPoc);
+      g.fillStyle = 'rgba(232,184,75,.5)';
+      g.fillRect(0, yp - 0.6, wMax * (pf.vol[pocB] / pf.max), 1.2);
     }
   }
 
@@ -1082,14 +1097,21 @@ function dibujar() {
      en la mitad derecha del gráfico y se proyectan hacia delante como zona de
      RETESTEO: ahí es donde el precio suele volver a reaccionar.
      ══════════════════════════════════════════════════════════ */
-  const xIni = xVelas * 0.5;
-  const pulso = 0.5 + 0.5 * Math.sin(Date.now() / 450);   // 0..1, anima el glow
-  const a2 = (v) => { const h = Math.round(Math.max(0, Math.min(255, v))).toString(16); return h.length < 2 ? '0' + h : h; };
+  /* ══════════════════════════════════════════════════════════
+     ZONAS DE ACUMULACIÓN
+
+     Banda LIMPIA a todo el ancho (muy sutil, para no tapar las velas) que
+     marca el rango de la zona, con sus bordes finos y la línea POC. A la
+     derecha, un PANEL de proyección sólido y redondeado = la zona de retesteo,
+     con el importe y las insignias. Verde = demanda · Rojo = oferta.
+     ══════════════════════════════════════════════════════════ */
+  const xIni = xVelas * 0.62;
+  const pulso = 0.5 + 0.5 * Math.sin(Date.now() / 450);
   M.zonas.forEach((z) => {
     if (z.pHigh < pMin || z.pLow > pMax) return;
     const yT = Y(Math.min(pMax, z.pHigh));
     const yB = Y(Math.max(pMin, z.pLow));
-    const alto = Math.max(6, yB - yT);
+    const alto = Math.max(7, yB - yT);
     const yC = Y(z.p);
     const yPoc = Y(z.pPoc);
     const dem = z.lado === 'demanda';
@@ -1098,41 +1120,46 @@ function dibujar() {
     const fuerte = z.fuerza >= 4 && !rota;
     const activa = (z.dentro || z.retest) && !rota;
 
-    // Densidad de la caja según CONFIANZA; pulso si está activa (retesteo)
-    const dens = rota ? 0.10 : (0.14 + (z.confianza / 100) * 0.28);
-    const solid = 255 * dens * (activa ? (0.78 + 0.42 * pulso) : 1);
-    const gr = g.createLinearGradient(xIni, 0, xVelas, 0);
-    gr.addColorStop(0, col + '05');
-    gr.addColorStop(0.82, col + a2(solid));
-    gr.addColorStop(1, col + a2(solid * 0.5));           // fade hacia el borde futuro
-    g.fillStyle = gr;
-    g.fillRect(xIni, yT, xVelas - xIni, alto);
+    // 1) Banda a TODO el ancho, muy sutil (las velas siguen legibles)
+    const aBanda = rota ? 0.05 : (0.06 + (z.confianza / 100) * 0.10);
+    g.fillStyle = `rgba(${dem ? '46,232,106' : rota ? '107,118,129' : '246,70,93'},${aBanda})`;
+    g.fillRect(0, yT, xVelas, alto);
 
-    // Bordes de la zona
-    g.strokeStyle = col + (rota ? '44' : '73'); g.lineWidth = 1;
-    if (rota) g.setLineDash([4, 4]);
-    g.beginPath(); g.moveTo(xIni, yT + .5); g.lineTo(xVelas, yT + .5); g.stroke();
-    g.beginPath(); g.moveTo(xIni, yB - .5); g.lineTo(xVelas, yB - .5); g.stroke();
+    // Bordes finos de la zona (todo el ancho)
+    g.strokeStyle = col + (rota ? '3a' : '5c'); g.lineWidth = 1;
+    if (rota) g.setLineDash([5, 4]);
+    g.beginPath(); g.moveTo(0, yT + .5); g.lineTo(xVelas, yT + .5); g.stroke();
+    g.beginPath(); g.moveTo(0, yB - .5); g.lineTo(xVelas, yB - .5); g.stroke();
     g.setLineDash([]);
 
-    // POC — línea del punto de control (máximo volumen), la más brillante
+    // POC — punto de control (máximo volumen): la línea protagonista
     if (!rota && z.pPoc >= pMin && z.pPoc <= pMax) {
       g.save();
-      g.shadowColor = col; g.shadowBlur = fuerte ? 7 : 4;
-      g.strokeStyle = col; g.lineWidth = 1.6;
-      g.beginPath(); g.moveTo(xIni, yPoc); g.lineTo(xVelas, yPoc); g.stroke();
+      g.shadowColor = col; g.shadowBlur = fuerte ? 8 : 5;
+      g.strokeStyle = col; g.lineWidth = fuerte ? 1.8 : 1.3;
+      g.beginPath(); g.moveTo(0, yPoc); g.lineTo(xVelas, yPoc); g.stroke();
       g.restore();
     }
 
-    // Línea de entrada/retesteo (centro), punteada fina y proyectada
+    // 2) PANEL de proyección (retesteo) a la derecha, sólido y redondeado
     g.save();
-    if (activa) { g.shadowColor = col; g.shadowBlur = 6 + 6 * pulso; }
-    g.strokeStyle = col + (rota ? '99' : 'ff'); g.lineWidth = 1;
+    const rg = g.createLinearGradient(xIni, 0, xVelas, 0);
+    const aPanel = rota ? 0.12 : (0.16 + (z.confianza / 100) * 0.22) * (activa ? (0.8 + 0.4 * pulso) : 1);
+    rg.addColorStop(0, col + '00');
+    rg.addColorStop(1, `rgba(${dem ? '46,232,106' : rota ? '107,118,129' : '246,70,93'},${aPanel})`);
+    g.fillStyle = rg;
+    redondeado(g, xIni, yT, xVelas - xIni, alto, 4); g.fill();
+    g.restore();
+
+    // Línea de entrada (centro de la zona) dentro del panel de proyección
+    g.save();
+    if (activa) { g.shadowColor = col; g.shadowBlur = 5 + 6 * pulso; }
+    g.strokeStyle = col + (rota ? '88' : 'ee'); g.lineWidth = 1;
     g.setLineDash([2, 4]);
     g.beginPath(); g.moveTo(xIni, yC); g.lineTo(xVelas, yC); g.stroke();
     g.restore(); g.setLineDash([]);
 
-    // Etiqueta: $vol + insignias (◈ confluencia HTF · ▣ muro en el libro)
+    // Etiqueta: importe + insignias (◈ confluencia · ▣ libro), con relieve
     const et = dinero(z.v);
     const badges = (z.confluencia ? ' \u25c8' : '') + (z.libro ? ' \u25a3' : '');
     g.font = 'bold 11.5px ui-monospace,monospace';
@@ -1142,18 +1169,18 @@ function dibujar() {
     g.fillStyle = col;
     redondeado(g, xVelas + 12, yC - 11, wCaja, 22, 6); g.fill();
     g.restore();
-    if (fuerte) { g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1; redondeado(g, xVelas + 12, yC - 11, wCaja, 22, 6); g.stroke(); }
+    if (fuerte) { g.strokeStyle = 'rgba(232,184,75,.85)'; g.lineWidth = 1.4; redondeado(g, xVelas + 12, yC - 11, wCaja, 22, 6); g.stroke(); }
     g.fillStyle = rota ? '#0b0e12' : (dem ? '#04210f' : '#2a0509');
     g.font = 'bold 10px system-ui,sans-serif'; g.textAlign = 'center';
     g.fillText(rota ? '\u2715' : (dem ? '\u25b2' : '\u25bc'), xVelas + 23, yC + 3.5);
     g.font = 'bold 11.5px ui-monospace,monospace'; g.textAlign = 'left';
     g.fillText(et + badges, xVelas + 33, yC + 4);
 
-    // Chip pulsante de estado
+    // Chip de estado (pulsante) sobre el panel de proyección
     if (activa) {
       const rw = 66;
       g.save();
-      g.globalAlpha = 0.72 + 0.28 * pulso;
+      g.globalAlpha = 0.74 + 0.26 * pulso;
       g.shadowColor = 'rgba(232,184,75,.7)'; g.shadowBlur = 9;
       g.fillStyle = '#E8B84B';
       redondeado(g, xIni + 6, yT + 4, rw, 15, 4); g.fill();
@@ -1530,6 +1557,7 @@ function pintarPanel() {
       <button class="mu-cab-card" data-mp="${z.p}">
         <div class="mu-l1">
           <span class="mu-lado">${z.rota ? (dem ? 'DEMANDA ROTA' : 'OFERTA ROTA') : (dem ? 'DEMANDA' : 'OFERTA')}</span>
+          ${fuerza >= 4 && !z.rota ? '<i class="mu-fuerte">\u2605 FUERTE</i>' : ''}
           <span class="mu-imp">${dinero(z.v)}</span>
         </div>
         <div class="mu-l2">
@@ -1666,6 +1694,15 @@ function actualizar(card, z) {
   ['oro', 'verde', 'azul', 'rojo', 'gris', 'ido'].forEach((k) => {
     card.classList.toggle(k, k === claseCol);
   });
+  // Clase de fuerza (f1/f2/f3) y chip "FUERTE" en vivo
+  const fClass = fuerza >= 4 ? 'f3' : fuerza >= 2 ? 'f2' : 'f1';
+  ['f1', 'f2', 'f3'].forEach((k) => card.classList.toggle(k, k === fClass));
+  const l1 = card.querySelector('.mu-l1');
+  let chip = card.querySelector('.mu-fuerte');
+  if (fuerza >= 4 && !z.rota && !chip && l1) {
+    chip = document.createElement('i'); chip.className = 'mu-fuerte'; chip.textContent = '\u2605 FUERTE';
+    l1.insertBefore(chip, l1.querySelector('.mu-imp'));
+  } else if ((fuerza < 4 || z.rota) && chip) { chip.remove(); }
   card.classList.toggle('es-rota', !!z.rota);
   card.dataset.lado = dem ? 'compra' : 'venta';
 
@@ -2038,7 +2075,7 @@ function estilos() {
   #mu-overlay .mu-panel-t{flex:0 0 auto;padding:13px 16px 2px;text-align:center;
     font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
     text-transform:uppercase;letter-spacing:1.8px}
-  #mu-overlay .mu-lista{flex:1;overflow-y:auto;padding:10px}
+  #mu-overlay .mu-lista{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px}
   #mu-overlay .mu-grupo{font-family:var(--mono,monospace);font-size:9.5px;color:#5c6672;
     text-transform:uppercase;letter-spacing:1.2px;margin:12px 4px 8px}
   #mu-overlay .mu-grupo:first-child{margin-top:2px}
@@ -2080,20 +2117,27 @@ function estilos() {
   #mu-overlay .gris .mu-sello,#mu-overlay .ido .mu-sello{background:rgba(139,150,163,.12);color:#8b96a3}
   #mu-overlay .mu-fl{margin-left:auto;font-size:9px;color:#5c6672}
 
-  /* La tarjeta de venta se tiñe de rojo oscuro: contraste con el
-     dorado del importe. */
+  /* La tarjeta de venta se tiñe de rojo; la de compra, de verde. */
   #mu-overlay .mu-card[data-lado="venta"]{border-left-color:#f6465d}
   #mu-overlay .mu-card[data-lado="compra"]{border-left-color:#2ee86a}
+  /* FUERTE (f3): el lado manda el fondo, pero el borde y el glow son DORADOS
+     — compra fuerte = verde con dorado, venta fuerte = rojo con dorado. */
   #mu-overlay .mu-card[data-lado="venta"].f3{
     background:linear-gradient(145deg,rgba(120,20,32,.5),rgba(60,10,18,.22));
-    border-color:rgba(246,70,93,.42);box-shadow:0 4px 16px rgba(0,0,0,.45)}
+    border-color:rgba(232,184,75,.55);border-left-color:#E8B84B;
+    box-shadow:0 4px 18px rgba(0,0,0,.5), 0 0 0 1px rgba(232,184,75,.18), inset 0 0 22px rgba(232,184,75,.08)}
   #mu-overlay .mu-card[data-lado="compra"].f3{
     background:linear-gradient(145deg,rgba(12,90,50,.42),rgba(6,44,26,.2));
-    border-color:rgba(46,232,106,.4);box-shadow:0 4px 16px rgba(0,0,0,.45)}
+    border-color:rgba(232,184,75,.55);border-left-color:#E8B84B;
+    box-shadow:0 4px 18px rgba(0,0,0,.5), 0 0 0 1px rgba(232,184,75,.18), inset 0 0 22px rgba(232,184,75,.08)}
   #mu-overlay .mu-card[data-lado="venta"].f2{background:linear-gradient(145deg,rgba(120,20,32,.22),rgba(255,255,255,.012))}
   #mu-overlay .mu-card[data-lado="compra"].f2{background:linear-gradient(145deg,rgba(12,90,50,.2),rgba(255,255,255,.012))}
   #mu-overlay .mu-card.f0{opacity:.66}
   #mu-overlay .mu-card.sel{border-color:var(--gold-soft,#C9A84B)}
+  /* Chip "FUERTE" dorado dentro de la tarjeta */
+  #mu-overlay .mu-fuerte{font-style:normal;font-family:var(--mono,monospace);font-size:9px;font-weight:800;
+    letter-spacing:.5px;padding:2px 7px;border-radius:20px;color:#3a2800;
+    background:linear-gradient(180deg,#ffe89a,#E8B84B);box-shadow:0 1px 4px rgba(232,184,75,.4)}
 
   /* El detalle desplegado */
   #mu-overlay .mu-detalle{display:block;width:100%;padding:0 13px 12px;animation:muAbre .16s ease}
@@ -2368,10 +2412,13 @@ function estilos() {
     #mu-overlay .mu-cuerpo.m-graf .mu-graf{display:block;flex:1 1 auto;height:auto;min-height:0}
     #mu-overlay .mu-cuerpo.m-graf .mu-panel{display:none}
     #mu-overlay .mu-cuerpo.m-ord .mu-graf{display:none}
-    #mu-overlay .mu-cuerpo.m-ord .mu-panel{display:flex;flex:1 1 auto;width:100%;border-left:none}
+    #mu-overlay .mu-cuerpo.m-ord .mu-panel{display:flex;flex:1 1 auto;width:100%;border-left:none;min-height:0}
     #mu-overlay .mu-panel{width:100%;border-left:none;border-top:none}
     #mu-overlay .mu-chips{padding:11px 12px}
-    #mu-overlay .mu-lista{padding:10px 12px 16px}
+    /* La lista SÍ hace scroll (min-height:0 en toda la cadena) y deja hueco
+       abajo para que el nav de la app no tape la última tarjeta. */
+    #mu-overlay .mu-cuerpo.m-ord .mu-lista{min-height:0;-webkit-overflow-scrolling:touch;
+      padding:10px 12px calc(84px + env(safe-area-inset-bottom, 0px))}
     #mu-overlay .mu-marca{height:24px;left:10px;bottom:26px}
     #mu-overlay .mu-precio{font-size:19px}
     #mu-ayuda-box .mua-c{padding:20px 14px}
