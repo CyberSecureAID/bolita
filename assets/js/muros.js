@@ -1565,7 +1565,17 @@ function dibujar() {
     // nunca invertir ni desaparecer: mínimo una franja fina centrada en el POC
     if (it.yB - it.yT < 4) { it.yT = it.yC - 2; it.yB = it.yC + 2; }
   });
+  // Si hay una herramienta de posición proyectada, la gráfica se LIMPIA: se
+  // muestra solo la banda que sostiene la operación (el resto se oculta para no
+  // saturar). El perfil de volumen y las tarjetas de la derecha no se tocan.
+  let bandaSolo = null;
+  if (M._pos) {
+    const objetivo = M._pos.zonaPoc != null ? M._pos.zonaPoc : M._pos.pe;
+    let mejorD = Infinity;
+    bandas.forEach((it) => { const d = Math.abs(it.z.pPoc - objetivo); if (d < mejorD) { mejorD = d; bandaSolo = it; } });
+  }
   bandas.forEach(({ z, yT, yB }) => {
+    if (bandaSolo && z !== bandaSolo.z) return;   // con herramienta activa, solo la banda de la operación
     const alto = Math.max(4, yB - yT);
     const dem = z.lado === 'demanda';
     const rota = z.rota;
@@ -3612,12 +3622,12 @@ function construirOp(tipo) {
     const entrada = z.pPoc;
     let riesgo = (entrada - z.pLow) + px * 0.0008;
     riesgo = Math.min(Math.max(riesgo, minR), maxR);
-    return { tipo, entrada, sl: entrada - riesgo, tp: entrada + riesgo };
+    return { tipo, entrada, sl: entrada - riesgo, tp: entrada + riesgo, zonaPoc: z.pPoc };
   }
   const entrada = z.pPoc;
   let riesgo = (z.pHigh - entrada) + px * 0.0008;
   riesgo = Math.min(Math.max(riesgo, minR), maxR);
-  return { tipo, entrada, sl: entrada + riesgo, tp: entrada - riesgo };
+  return { tipo, entrada, sl: entrada + riesgo, tp: entrada - riesgo, zonaPoc: z.pPoc };
 }
 function hayOp(tipo) { return !!construirOp(tipo); }
 
@@ -3633,7 +3643,7 @@ function mostrarPlan(a, tipoForzado) {
   const t0 = vis[Math.max(0, vis.length - 20)].t;
   const t1 = vis[vis.length - 1].t + 8 * g.tfMs;
   M._pos = { tipo: op.tipo === 'long' ? 'poslarga' : 'poscorta',
-    pe: op.entrada, pTarget: op.tp, pStop: op.sl, t0, t1,
+    pe: op.entrada, pTarget: op.tp, pStop: op.sl, t0, t1, zonaPoc: op.zonaPoc != null ? op.zonaPoc : op.entrada,
     cTarget: '#2ee86a', cEntry: '#eaecef', cStop: '#ff3b52', grosor: 2, intensidad: 1,
     cardPos: 'der', oculto: false, guia: true };
   cerrarPosCfg(); dibujar();
