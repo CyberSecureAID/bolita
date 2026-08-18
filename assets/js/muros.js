@@ -76,7 +76,8 @@ async function traerVelas(simbolo, tf, n = 120) {
   return j.map((x) => ({
     t: Math.floor(x[0] / 1000),
     o: Number(x[1]), h: Number(x[2]), l: Number(x[3]), c: Number(x[4]),
-    vol: Number(x[7]) || Number(x[5]) || 0   // volumen en dólares (quote)
+    vol: Number(x[7]) || Number(x[5]) || 0,      // volumen en dólares (quote)
+    volC: Number(x[10]) || 0                      // parte COMPRADORA (taker buy, en dólares)
   }));
 }
 
@@ -140,6 +141,8 @@ const M = {
   cruzY: -1,
   velas: [],          // las velas del gráfico
   zonas: [],          // zonas de acumulación (demanda/oferta) desde las velas
+  perfil: null,       // perfil de volumen (para el histograma lateral)
+  zonasHTF: [],       // zonas de la temporalidad superior (confluencia)
   tf: '15m',          // temporalidad por defecto del radar
   ancho: window.innerWidth < 760 ? 65 : 100,  // cuántas velas se ven
   filtro: 'todos',
@@ -457,36 +460,40 @@ const tiempo = (s) => {
    Todo sale de las velas (klines), que llegan siempre y rápido: por eso las
    tarjetas se llenan en 1-2 s, sin depender del libro de órdenes.
    ══════════════════════════════════════════════════════════════ */
-function detectarZonas(velas, precio) {
-  if (!velas || velas.length < 24 || !(precio > 0)) return [];
+function detectarZonas(velas, precio, opts) {
+  opts = opts || {};
+  if (!velas || velas.length < 24 || !(precio > 0)) return { zonas: [], perfil: null };
   const vis = velas.slice(-260);
   let lo = Infinity, hi = -Infinity;
   vis.forEach((v) => { if (v.l < lo) lo = v.l; if (v.h > hi) hi = v.h; });
-  if (!(hi > lo)) return [];
+  if (!(hi > lo)) return { zonas: [], perfil: null };
   const N = 90;
   const paso = (hi - lo) / N;
   const vol = new Array(N).fill(0);
+  const volC = new Array(N).fill(0);        // parte compradora
   const toca = new Array(N).fill(0);
   vis.forEach((v) => {
     const b0 = Math.max(0, Math.floor((v.l - lo) / paso));
     const b1 = Math.min(N - 1, Math.floor((v.h - lo) / paso));
     const spread = (b1 - b0 + 1) || 1;
     const cuota = (v.vol || 1) / spread;
-    for (let b = b0; b <= b1; b++) { vol[b] += cuota; toca[b]++; }
+    // Si no hay taker-buy, se estima por el color de la vela (verde=más compra).
+    const compra = v.volC > 0 ? v.volC : (v.vol || 1) * (v.c >= v.o ? 0.55 : 0.45);
+    const cuotaC = compra / spread;
+    for (let b = b0; b <= b1; b++) { vol[b] += cuota; volC[b] += cuotaC; toca[b]++; }
   });
+  const maxBin = Math.max(...vol, 1);
   const media = vol.reduce((a, b) => a + b, 0) / N || 1;
   const umbral = media * 1.4;
-  /* PICOS del perfil = nodos de alto volumen (donde de verdad se acumuló).
-     Cada pico se expande a una zona mientras el volumen siga alto (>=45% del
-     pico) y sin pasarse de ancho, para que dos acumulaciones distintas NO se
-     fundan en un bloque enorme por el volumen intermedio. */
+  /* PICOS del perfil = nodos de alto volumen. Cada pico se expande a zona
+     mientras el volumen siga alto (>=45% del pico) y sin pasarse de ancho. */
   const picos = [];
   for (let b = 0; b < N; b++) {
     const izq = b === 0 ? -Infinity : vol[b - 1];
     const der = b === N - 1 ? -Infinity : vol[b + 1];
     if (vol[b] >= umbral && vol[b] >= izq && vol[b] >= der) picos.push(b);
   }
-  picos.sort((a, b) => vol[b] - vol[a]);           // los más fuertes primero
+  picos.sort((a, b) => vol[b] - vol[a]);
   const usados = new Array(N).fill(false);
   const maxW = Math.max(2, Math.round(N * 0.06));
   const brutas = [];
@@ -496,27 +503,81 @@ function detectarZonas(velas, precio) {
     const piso = vol[pk] * 0.45;
     while (b0 > 0 && !usados[b0 - 1] && vol[b0 - 1] >= piso && (pk - (b0 - 1)) <= maxW) b0--;
     while (b1 < N - 1 && !usados[b1 + 1] && vol[b1 + 1] >= piso && ((b1 + 1) - pk) <= maxW) b1++;
-    let v = 0, t = 0;
-    for (let b = b0; b <= b1; b++) { v += vol[b]; t += toca[b]; usados[b] = true; }
-    brutas.push({ b0, b1, v, t });
+    let v = 0, vc = 0, t = 0;
+    for (let b = b0; b <= b1; b++) { v += vol[b]; vc += volC[b]; t += toca[b]; usados[b] = true; }
+    brutas.push({ b0, b1, v, vc, t, pk });
   });
-  if (!brutas.length) return [];
+  const perfil = { vol, lo, hi, N, max: maxBin };
+  if (!brutas.length) return { zonas: [], perfil };
   const maxV = Math.max(...brutas.map((z) => z.v), 1);
+  const ult = vis[vis.length - 1];
+  const cierre = ult ? ult.c : precio;
+  const htf = opts.htf || [];
+  const libro = opts.libro || null;
+  const margen = (hi - lo) * 0.01;
+
   const zonas = brutas.map((z) => {
     const pLow = lo + z.b0 * paso;
     const pHigh = lo + (z.b1 + 1) * paso;
     const p = (pLow + pHigh) / 2;
+    const pPoc = lo + (z.pk + 0.5) * paso;              // punto de control (máx volumen)
     const dentro = precio >= pLow && precio <= pHigh;
     const lado = p < precio ? 'demanda' : 'oferta';
-    const fuerza = Math.max(1, Math.min(5, Math.round((z.v / maxV) * 5)));
     const dist = (p - precio) / precio;
-    const retest = !dentro && Math.abs(dist) < 0.0035;   // el precio está a punto de retestearla
-    return { pLow, pHigh, p, v: z.v, volRel: z.v / maxV, fuerza, toques: z.t, lado, dist, retest, dentro };
+    const retest = !dentro && Math.abs(dist) < 0.0035;
+
+    // 1) VOLUMEN FIRMADO
+    const compradorPct = z.v > 0 ? Math.max(0, Math.min(1, z.vc / z.v)) : 0.5;
+    const alineado = lado === 'demanda' ? compradorPct >= 0.5 : compradorPct <= 0.5;
+
+    // 2) REACCIONES (rechazos reales): mecha dentro de la zona, cuerpo fuera
+    let reacciones = 0;
+    vis.forEach((v) => {
+      if (lado === 'demanda') {
+        if (v.l <= pHigh && v.l >= pLow - paso && Math.min(v.o, v.c) > pHigh) reacciones++;
+      } else {
+        if (v.h >= pLow && v.h <= pHigh + paso && Math.max(v.o, v.c) < pLow) reacciones++;
+      }
+    });
+
+    // 4) RUPTURA / FLIP: el precio estaba en/junto a la zona y la perforó hace poco
+    const recientes = vis.slice(-16);
+    const antes = recientes.length ? recientes[0].c : cierre;
+    let rota = false;
+    if (antes >= pLow && cierre < pLow - margen * 0.5) rota = true;   // rompió hacia abajo
+    if (antes <= pHigh && cierre > pHigh + margen * 0.5) rota = true; // rompió hacia arriba
+
+    // 5) CONFLUENCIA MULTI-TEMPORALIDAD
+    const confluencia = htf.some((h) => h.pHigh >= pLow && h.pLow <= pHigh);
+
+    // 6) CONFIRMACIÓN CON EL LIBRO EN VIVO
+    let libroConf = false;
+    if (libro && libro.muros) libroConf = libro.muros.some((m) => m >= pLow && m <= pHigh);
+
+    // CONFIANZA combinada (0..100)
+    let conf = (z.v / maxV) * 34;
+    conf += Math.min(20, reacciones * 6);
+    conf += alineado ? 16 : 0;
+    conf += confluencia ? 16 : 0;
+    conf += libroConf ? 10 : 0;
+    conf += Math.min(4, z.t / 20);
+    if (rota) conf *= 0.35;
+    conf = Math.max(0, Math.min(100, Math.round(conf)));
+    const fuerza = Math.max(1, Math.min(5, Math.round(conf / 20)));
+
+    return {
+      pLow, pHigh, p, pPoc, v: z.v, volRel: z.v / maxV,
+      compradorPct, reacciones, confluencia, libro: libroConf, rota, alineado,
+      confianza: conf, fuerza, toques: z.t, lado, dist, retest, dentro
+    };
   });
-  // Prioriza fuertes y cercanas
-  zonas.sort((a, b) => (b.v * (1 - Math.min(0.9, Math.abs(b.dist) * 12))) - (a.v * (1 - Math.min(0.9, Math.abs(a.dist) * 12))));
-  return zonas.slice(0, 6);
+
+  zonas.sort((a, b) => (b.confianza - Math.min(30, Math.abs(b.dist) * 900)) - (a.confianza - Math.min(30, Math.abs(a.dist) * 900)));
+  return { zonas: zonas.slice(0, 6), perfil };
 }
+
+/* De 15m sube a 1h, de 5m a 30m, etc. — para la confluencia multi-temporalidad. */
+const TF_SUPERIOR = { '1m': '15m', '5m': '30m', '15m': '1h', '30m': '2h', '1h': '4h', '4h': '1d', '1d': '1w' };
 
 
 
@@ -609,7 +670,7 @@ export async function abrirMuros() {
   document.body.appendChild(d);
 
   const cerrar = () => {
-    clearInterval(_reloj); clearInterval(_relojVelas);
+    clearInterval(_reloj); clearInterval(_relojVelas); clearInterval(_relojPulso);
     cerrarWSLibro();
     document.querySelectorAll('#mu-picker, #mu-tfmenu').forEach((x) => x.remove());
     const e = $('mu-overlay'); if (e) e.remove();
@@ -674,6 +735,13 @@ export async function abrirMuros() {
   ponerLogos();
   arrancar();
   cargarVelas();
+  /* Pulso: redibuja suave (~8 fps) solo si hay una zona activa (retesteo/dentro),
+     para que la animación sea fluida aunque el WebSocket no esté. */
+  clearInterval(_relojPulso);
+  _relojPulso = setInterval(() => {
+    if (!$('mu-cv')) { clearInterval(_relojPulso); return; }
+    if (M.zonas.some((z) => (z.dentro || z.retest) && !z.rota)) dibujar();
+  }, 130);
 
   let _t = null;
   window.addEventListener('resize', () => {
@@ -685,7 +753,9 @@ export async function abrirMuros() {
 /* ══════════════════════════════════════════════════════════════
    EL RELOJ — una foto cada 1,5 s
    ══════════════════════════════════════════════════════════════ */
-let _reloj = null, _relojVelas = null;
+let _reloj = null, _relojVelas = null, _relojPulso = null;
+let _htfTs = 0;                        // última vez que se pidió la temporalidad superior
+let _ultLibro = null;                  // último libro bueno (REST o WS) para confirmar zonas
 let _fallos = 0;
 let _wsL = null, _wsLibro = null, _wsPar = null;   // libro por WebSocket (respaldo)
 let _ultDibujoWS = 0;                              // throttle del redibujo en vivo
@@ -719,10 +789,20 @@ async function cargarVelas() {
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
       M.velas = await traerVelas(par.s, M.tf, 400);
-      /* Las zonas se calculan de las VELAS (no del libro): por eso se llenan
-         en cuanto llegan las velas (~1 s), sin esperas incómodas. */
       const px = (M.precio > 0) ? M.precio : (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
-      M.zonas = detectarZonas(M.velas, px);
+      /* CONFLUENCIA MULTI-TEMPORALIDAD: se traen las zonas de la temporalidad
+         superior (15m→1h, etc.) cada ~60 s y se usan para validar. */
+      const sup = TF_SUPERIOR[M.tf];
+      if (sup && px > 0 && Date.now() - _htfTs > 60000) {
+        try {
+          const vh = await traerVelas(par.s, sup, 300);
+          M.zonasHTF = detectarZonas(vh, px, {}).zonas;
+          _htfTs = Date.now();
+        } catch (_) {}
+      }
+      /* Las zonas salen de las VELAS: se llenan en ~1 s, sin depender del libro. */
+      const r = detectarZonas(M.velas, px, { htf: M.zonasHTF, libro: murosDelLibro() });
+      M.zonas = r.zonas; M.perfil = r.perfil;
       if (M.velas.length) { M.cargando = false; M.error = null; }
       pintarPanel();
       dibujar();
@@ -730,6 +810,20 @@ async function cargarVelas() {
   };
   await traer();
   _relojVelas = setInterval(traer, 12000);
+}
+
+/* Extrae los MUROS reales del libro en vivo (niveles con tamaño >= 4× la
+   mediana) para confirmar zonas: acumulación + muro real = alta convicción. */
+function murosDelLibro() {
+  const L = _wsLibro || _ultLibro;
+  if (!L) return null;
+  const todos = [...(L.compras || []), ...(L.ventas || [])]
+    .map((o) => ({ p: o.p, d: o.p * o.q })).filter((o) => o.d > 0);
+  if (todos.length < 6) return null;
+  const ds = todos.map((o) => o.d).sort((a, b) => a - b);
+  const med = ds[Math.floor(ds.length / 2)] || 0;
+  if (!(med > 0)) return null;
+  return { muros: todos.filter((o) => o.d >= med * 4).map((o) => o.p) };
 }
 
 function arrancar() {
@@ -749,17 +843,19 @@ function arrancar() {
     } catch (_) {}
     if (!foto && _wsLibro && (Date.now() - _wsLibro.t) < 6000) foto = _wsLibro;
     if (foto) procesar(foto);                       // actualiza M.precio
+    if (foto) _ultLibro = foto;
     if (!(M.precio > 0) && M.velas.length) M.precio = M.velas[M.velas.length - 1].c;
 
     if (M.velas.length && M.precio > 0) {
-      M.zonas = detectarZonas(M.velas, M.precio);   // zonas de acumulación, precio vivo
+      const r = detectarZonas(M.velas, M.precio, { htf: M.zonasHTF, libro: murosDelLibro() });
+      M.zonas = r.zonas; M.perfil = r.perfil;   // zonas + confluencia + libro, con precio vivo
       M.cargando = false; M.error = null;
     }
     const px = $('mu-px-v'); if (px && M.precio > 0) px.textContent = fmt(M.precio);
     dibujar();
 
     /* El panel se reconstruye solo si cambian las zonas (para no parpadear). */
-    const huella = M.zonas.map((z) => `${z.p.toFixed(6)}|${z.lado}|${z.fuerza}`).sort().join(',');
+    const huella = M.zonas.map((z) => `${z.p.toFixed(6)}|${z.lado}|${z.fuerza}|${z.rota ? 1 : 0}|${z.confluencia ? 1 : 0}|${z.libro ? 1 : 0}`).sort().join(',');
     const ahora2 = Date.now();
     if (huella !== _huella && ahora2 - _ultPintado > 2500) { _huella = huella; _ultPintado = ahora2; pintarPanel(); }
     else refrescarNumeros();
@@ -959,6 +1055,25 @@ function dibujar() {
     g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
   }
 
+  /* ── PERFIL DE VOLUMEN lateral (histograma por precio) ──
+     Barras finas desde el borde izquierdo: su largo es el volumen a ese
+     precio. Es de dónde nacen las zonas; da el aire de herramienta pro. */
+  if (M.perfil && M.perfil.vol) {
+    const pf = M.perfil;
+    const wMax = Math.min(78, x1 * 0.13);
+    for (let b = 0; b < pf.N; b++) {
+      const pB = pf.lo + (b + 0.5) * (pf.hi - pf.lo) / pf.N;
+      if (pB < pMin || pB > pMax) continue;
+      const w = (pf.vol[b] / pf.max) * wMax;
+      if (w < 0.6) continue;
+      const yb = Y(pB);
+      const cerca = M.zonas.some((z) => pB >= z.pLow && pB <= z.pHigh && !z.rota);
+      const base = pB < M.precio ? '46,232,106' : '246,70,93';
+      g.fillStyle = `rgba(${base},${cerca ? 0.22 : 0.09})`;
+      g.fillRect(0, yb - 1.5, w, 3);
+    }
+  }
+
   /* ══════════════════════════════════════════════════════════
      ZONAS DE ACUMULACIÓN — cajas proyectadas a la derecha
 
@@ -968,65 +1083,90 @@ function dibujar() {
      RETESTEO: ahí es donde el precio suele volver a reaccionar.
      ══════════════════════════════════════════════════════════ */
   const xIni = xVelas * 0.5;
+  const pulso = 0.5 + 0.5 * Math.sin(Date.now() / 450);   // 0..1, anima el glow
+  const a2 = (v) => { const h = Math.round(Math.max(0, Math.min(255, v))).toString(16); return h.length < 2 ? '0' + h : h; };
   M.zonas.forEach((z) => {
     if (z.pHigh < pMin || z.pLow > pMax) return;
     const yT = Y(Math.min(pMax, z.pHigh));
     const yB = Y(Math.max(pMin, z.pLow));
     const alto = Math.max(6, yB - yT);
     const yC = Y(z.p);
+    const yPoc = Y(z.pPoc);
     const dem = z.lado === 'demanda';
-    const col = dem ? '#2ee86a' : '#f6465d';
-    const fuerte = z.fuerza >= 4;
+    const rota = z.rota;
+    const col = rota ? '#6b7681' : (dem ? '#2ee86a' : '#f6465d');
+    const fuerte = z.fuerza >= 4 && !rota;
+    const activa = (z.dentro || z.retest) && !rota;
 
-    // Caja con degradado horizontal: se hace más sólida hacia la derecha (el "ahora").
+    // Densidad de la caja según CONFIANZA; pulso si está activa (retesteo)
+    const dens = rota ? 0.10 : (0.14 + (z.confianza / 100) * 0.28);
+    const solid = 255 * dens * (activa ? (0.78 + 0.42 * pulso) : 1);
     const gr = g.createLinearGradient(xIni, 0, xVelas, 0);
-    gr.addColorStop(0, col + '06');
-    gr.addColorStop(1, col + (z.dentro ? '38' : (fuerte ? '2e' : '1e')));
+    gr.addColorStop(0, col + '05');
+    gr.addColorStop(0.82, col + a2(solid));
+    gr.addColorStop(1, col + a2(solid * 0.5));           // fade hacia el borde futuro
     g.fillStyle = gr;
     g.fillRect(xIni, yT, xVelas - xIni, alto);
 
-    // Bordes superior e inferior de la zona
-    g.strokeStyle = col + '73'; g.lineWidth = 1;
+    // Bordes de la zona
+    g.strokeStyle = col + (rota ? '44' : '73'); g.lineWidth = 1;
+    if (rota) g.setLineDash([4, 4]);
     g.beginPath(); g.moveTo(xIni, yT + .5); g.lineTo(xVelas, yT + .5); g.stroke();
     g.beginPath(); g.moveTo(xIni, yB - .5); g.lineTo(xVelas, yB - .5); g.stroke();
+    g.setLineDash([]);
 
-    // Nivel de entrada/retesteo (centro de la zona), con glow si es fuerte
+    // POC — línea del punto de control (máximo volumen), la más brillante
+    if (!rota && z.pPoc >= pMin && z.pPoc <= pMax) {
+      g.save();
+      g.shadowColor = col; g.shadowBlur = fuerte ? 7 : 4;
+      g.strokeStyle = col; g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(xIni, yPoc); g.lineTo(xVelas, yPoc); g.stroke();
+      g.restore();
+    }
+
+    // Línea de entrada/retesteo (centro), punteada fina y proyectada
     g.save();
-    if (fuerte) { g.shadowColor = col; g.shadowBlur = 8; }
-    g.strokeStyle = col; g.lineWidth = fuerte ? 1.8 : 1.2;
-    if (!z.dentro) g.setLineDash([2, 4]);
+    if (activa) { g.shadowColor = col; g.shadowBlur = 6 + 6 * pulso; }
+    g.strokeStyle = col + (rota ? '99' : 'ff'); g.lineWidth = 1;
+    g.setLineDash([2, 4]);
     g.beginPath(); g.moveTo(xIni, yC); g.lineTo(xVelas, yC); g.stroke();
     g.restore(); g.setLineDash([]);
 
-    // Etiqueta con el volumen acumulado ($), con relieve
+    // Etiqueta: $vol + insignias (◈ confluencia HTF · ▣ muro en el libro)
     const et = dinero(z.v);
-    g.font = 'bold 11px ui-monospace,monospace';
-    const wCaja = g.measureText(et).width + 32;
+    const badges = (z.confluencia ? ' \u25c8' : '') + (z.libro ? ' \u25a3' : '');
+    g.font = 'bold 11.5px ui-monospace,monospace';
+    const wCaja = g.measureText(et + badges).width + 34;
     g.save();
     g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 7; g.shadowOffsetY = 1.5;
     g.fillStyle = col;
     redondeado(g, xVelas + 12, yC - 11, wCaja, 22, 6); g.fill();
     g.restore();
-    if (fuerte) {
-      g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1;
-      redondeado(g, xVelas + 12, yC - 11, wCaja, 22, 6); g.stroke();
-    }
-    g.fillStyle = dem ? '#04210f' : '#2a0509';
+    if (fuerte) { g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1; redondeado(g, xVelas + 12, yC - 11, wCaja, 22, 6); g.stroke(); }
+    g.fillStyle = rota ? '#0b0e12' : (dem ? '#04210f' : '#2a0509');
     g.font = 'bold 10px system-ui,sans-serif'; g.textAlign = 'center';
-    g.fillText(dem ? '\u25b2' : '\u25bc', xVelas + 23, yC + 3.5);
+    g.fillText(rota ? '\u2715' : (dem ? '\u25b2' : '\u25bc'), xVelas + 23, yC + 3.5);
     g.font = 'bold 11.5px ui-monospace,monospace'; g.textAlign = 'left';
-    g.fillText(et, xVelas + 33, yC + 4);
+    g.fillText(et + badges, xVelas + 33, yC + 4);
 
-    // Chip RETESTEO cuando el precio está a punto de volver a la zona
-    if (z.retest) {
-      const rw = 60;
+    // Chip pulsante de estado
+    if (activa) {
+      const rw = 66;
       g.save();
-      g.shadowColor = 'rgba(232,184,75,.6)'; g.shadowBlur = 8;
+      g.globalAlpha = 0.72 + 0.28 * pulso;
+      g.shadowColor = 'rgba(232,184,75,.7)'; g.shadowBlur = 9;
       g.fillStyle = '#E8B84B';
       redondeado(g, xIni + 6, yT + 4, rw, 15, 4); g.fill();
       g.restore();
-      g.fillStyle = '#2a1c00'; g.font = 'bold 8.5px system-ui,sans-serif'; g.textAlign = 'center';
-      g.fillText('RETESTEO', xIni + 6 + rw / 2, yT + 14.5);
+      g.fillStyle = '#2a1c00'; g.font = 'bold 8px system-ui,sans-serif'; g.textAlign = 'center';
+      g.fillText(z.dentro ? 'EN LA ZONA' : 'RETESTEO', xIni + 6 + rw / 2, yT + 14.5);
+      g.textAlign = 'left';
+    } else if (rota) {
+      const rw = 44;
+      g.fillStyle = 'rgba(107,118,129,.9)';
+      redondeado(g, xIni + 6, yT + 4, rw, 15, 4); g.fill();
+      g.fillStyle = '#0b0e12'; g.font = 'bold 8px system-ui,sans-serif'; g.textAlign = 'center';
+      g.fillText('ROTA', xIni + 6 + rw / 2, yT + 14.5);
       g.textAlign = 'left';
     }
   });
@@ -1363,36 +1503,53 @@ function pintarPanel() {
     const dem = z.lado === 'demanda';
     const pct = (Math.abs(z.dist) * 100).toFixed(2);
     const fuerza = z.fuerza;                          // 1..5
-    const clase = dem ? 'verde' : 'rojo';
+    const clase = z.rota ? 'gris' : (dem ? 'verde' : 'rojo');
     const abierta = M.seleccionado === z.p;
     const conse = narrarZona(z, dem, Math.abs(z.dist) * 100);
-    const queHacer = dem
-      ? 'Zona de <b>demanda</b>: posible rebote / entrada en largo al retestear el nivel.'
-      : 'Zona de <b>oferta</b>: posible rechazo / entrada en corto al retestear el nivel.';
+    const compPct = Math.round(z.compradorPct * 100);
+    const flujo = dem
+      ? `${compPct}% comprador`
+      : `${100 - compPct}% vendedor`;
+    const queHacer = z.rota
+      ? 'Zona <b>rota</b>: el precio la perforó. Podría actuar al revés (flip) si vuelve a ella.'
+      : dem
+        ? 'Zona de <b>demanda</b>: posible rebote / entrada en largo al retestear el nivel.'
+        : 'Zona de <b>oferta</b>: posible rechazo / entrada en corto al retestear el nivel.';
+
+    // Insignias
+    const badges = [
+      z.confluencia ? '<i class="mu-b conf">\u25c8 ' + (TF_SUPERIOR[M.tf] || 'HTF') + '</i>' : '',
+      z.libro ? '<i class="mu-b libro">\u25a3 libro</i>' : '',
+      z.alineado && !z.rota ? '<i class="mu-b flujo">\u2713 flujo</i>' : '',
+      z.rota ? '<i class="mu-b rota">\u2715 rota</i>' : ''
+    ].join('');
 
     return `
-    <div class="mu-card ${clase} f${fuerza >= 4 ? 3 : fuerza >= 2 ? 2 : 1} ${abierta ? 'sel' : ''}"
+    <div class="mu-card ${clase} f${fuerza >= 4 ? 3 : fuerza >= 2 ? 2 : 1} ${abierta ? 'sel' : ''} ${z.rota ? 'es-rota' : ''}"
          data-id="${id}" data-lado="${dem ? 'compra' : 'venta'}">
       <button class="mu-cab-card" data-mp="${z.p}">
         <div class="mu-l1">
-          <span class="mu-lado">${dem ? 'DEMANDA' : 'OFERTA'}</span>
+          <span class="mu-lado">${z.rota ? (dem ? 'DEMANDA ROTA' : 'OFERTA ROTA') : (dem ? 'DEMANDA' : 'OFERTA')}</span>
           <span class="mu-imp">${dinero(z.v)}</span>
         </div>
         <div class="mu-l2">
           <span class="mu-nivel">${fmt(z.pLow)}\u2013${fmt(z.pHigh)}</span>
           <span class="mu-dist2 ${z.dentro ? 'urge' : z.retest ? 'cerca' : ''}">${z.dentro ? 'AQU\u00cd' : pct + '% ' + (dem ? '\u2193' : '\u2191')}</span>
-          <span class="mu-sello">${'\u25cf'.repeat(fuerza)}${'\u25cb'.repeat(5 - fuerza)}</span>
           <span class="mu-fl">${abierta ? '\u25b2' : '\u25bc'}</span>
         </div>
-        ${z.retest ? '<div class="mu-aviso-vivo">\u27f3 El precio est\u00e1 por retestear esta zona</div>' : ''}
+        <div class="mu-conf"><i class="mu-conf-bar" style="width:${z.confianza}%"></i><em>${z.confianza}<span>conf.</span></em></div>
+        ${badges ? `<div class="mu-badges">${badges}</div>` : ''}
+        ${z.dentro || z.retest ? `<div class="mu-aviso-vivo">\u27f3 ${z.dentro ? 'El precio est\u00e1 en la zona ahora' : 'El precio est\u00e1 por retestear esta zona'}</div>` : ''}
       </button>
       ${abierta ? `<div class="mu-detalle">
         <div class="mu-conse mu-escribe">${conse}</div>
         <div class="mu-metricas">
-          <div><b>${fmt(z.p)}</b><span>entrada</span></div>
+          <div><b>${fmt(z.pPoc)}</b><span>POC (entrada)</span></div>
+          <div><b>${flujo}</b><span>flujo firmado</span></div>
+          <div><b>${z.reacciones}</b><span>reacciones</span></div>
           <div><b>${z.toques}</b><span>toques</span></div>
+          <div><b>${z.confluencia ? 'S\u00ed' : 'No'}</b><span>confluencia ${TF_SUPERIOR[M.tf] || ''}</span></div>
           <div><b>${'\u25cf'.repeat(fuerza)}${'\u25cb'.repeat(5 - fuerza)}</b><span>fuerza</span></div>
-          <div><b>${z.dentro ? 'AQU\u00cd' : pct + '%'}</b><span>distancia</span></div>
         </div>
         <div class="mu-hacer">${queHacer}</div>
       </div>` : ''}
@@ -1497,12 +1654,19 @@ function actualizar(card, z) {
   pon('.mu-imp', dinero(z.v));
   pon('.mu-nivel', fmt(z.pLow) + '\u2013' + fmt(z.pHigh));
   pon('.mu-dist2', z.dentro ? 'AQU\u00cd' : dist.toFixed(2) + '% ' + (dem ? '\u2193' : '\u2191'));
-  pon('.mu-sello', '\u25cf'.repeat(fuerza) + '\u25cb'.repeat(5 - fuerza));
-  pon('.mu-lado', dem ? 'DEMANDA' : 'OFERTA');
+  pon('.mu-lado', z.rota ? (dem ? 'DEMANDA ROTA' : 'OFERTA ROTA') : (dem ? 'DEMANDA' : 'OFERTA'));
 
+  // Barra de confianza
+  const barra = card.querySelector('.mu-conf-bar');
+  if (barra) barra.style.width = z.confianza + '%';
+  const cn2 = card.querySelector('.mu-conf em');
+  if (cn2) { const t = z.confianza + ''; if (cn2.firstChild && cn2.firstChild.textContent !== t) cn2.firstChild.textContent = t; }
+
+  const claseCol = z.rota ? 'gris' : (dem ? 'verde' : 'rojo');
   ['oro', 'verde', 'azul', 'rojo', 'gris', 'ido'].forEach((k) => {
-    card.classList.toggle(k, k === (dem ? 'verde' : 'rojo'));
+    card.classList.toggle(k, k === claseCol);
   });
+  card.classList.toggle('es-rota', !!z.rota);
   card.dataset.lado = dem ? 'compra' : 'venta';
 
   clase('.mu-dist2', 'cerca', z.retest && !z.dentro);
@@ -1947,13 +2111,38 @@ function estilos() {
   #mu-overlay .mu-conse{font-family:var(--sans,sans-serif);font-size:12.5px;color:#c8cfd8;
     line-height:1.55;margin-bottom:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07)}
   #mu-overlay .mu-conse b{color:#fff;font-weight:700}
-  #mu-overlay .mu-metricas{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}
+  #mu-overlay .mu-metricas{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:9px}
   #mu-overlay .mu-metricas div{text-align:center;padding:7px 3px;border-radius:8px;
     background:rgba(255,255,255,.035)}
   #mu-overlay .mu-metricas b{display:block;font-family:var(--mono,monospace);font-weight:700;
     font-size:12px;color:#eaecef}
-  #mu-overlay .mu-metricas span{font-family:var(--mono,monospace);font-size:8.5px;color:#5c6672;
-    text-transform:uppercase;letter-spacing:.5px}
+  #mu-overlay .mu-metricas span{font-family:var(--mono,monospace);font-size:8px;color:#5c6672;
+    text-transform:uppercase;letter-spacing:.4px}
+
+  /* Barra de CONFIANZA — jerarquía visual del score combinado */
+  #mu-overlay .mu-conf{display:flex;align-items:center;gap:8px;margin-top:8px}
+  #mu-overlay .mu-conf-bar{height:5px;border-radius:20px;flex:1;min-width:0;
+    background:linear-gradient(90deg,#f6465d,#E8B84B,#2ee86a);transition:width .4s ease;
+    box-shadow:0 0 8px rgba(232,184,75,.25)}
+  #mu-overlay .verde .mu-conf-bar{background:linear-gradient(90deg,#1a7a44,#2ee86a)}
+  #mu-overlay .rojo .mu-conf-bar{background:linear-gradient(90deg,#7a1a28,#f6465d)}
+  #mu-overlay .gris .mu-conf-bar{background:linear-gradient(90deg,#3a424c,#8b96a3)}
+  #mu-overlay .mu-conf em{font-style:normal;font-family:var(--mono,monospace);font-weight:800;
+    font-size:13px;color:#eaecef;display:flex;align-items:baseline;gap:3px}
+  #mu-overlay .mu-conf em span{font-size:8px;color:#5c6672;text-transform:uppercase;letter-spacing:.4px}
+  /* Insignias de validación */
+  #mu-overlay .mu-badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+  #mu-overlay .mu-b{font-style:normal;font-family:var(--mono,monospace);font-size:9px;font-weight:700;
+    padding:2px 7px;border-radius:20px;letter-spacing:.3px;
+    background:rgba(255,255,255,.05);color:#aeb6c0;border:1px solid rgba(255,255,255,.08)}
+  #mu-overlay .mu-b.conf{background:rgba(77,159,255,.14);color:#7fbaff;border-color:rgba(77,159,255,.3)}
+  #mu-overlay .mu-b.libro{background:rgba(232,184,75,.14);color:#E8B84B;border-color:rgba(232,184,75,.3)}
+  #mu-overlay .mu-b.flujo{background:rgba(46,232,106,.13);color:#3ee88a;border-color:rgba(46,232,106,.28)}
+  #mu-overlay .mu-b.rota{background:rgba(139,150,163,.14);color:#b7bdc6;border-color:rgba(139,150,163,.3)}
+  /* Zona rota: se ve apagada y con una línea diagonal sutil */
+  #mu-overlay .mu-card.es-rota{opacity:.72;border-left-color:#6b7681!important}
+  #mu-overlay .mu-card.es-rota .mu-lado{color:#8b96a3!important}
+  #mu-overlay .mu-card{transition:border-color .2s ease, box-shadow .2s ease, opacity .2s ease}
 
   /* Los cuatro botones de filtro */
   #mu-overlay .mu-fbtn{flex:1;min-width:calc(50% - 4px);min-height:46px;padding:0 12px;
