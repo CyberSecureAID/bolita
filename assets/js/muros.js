@@ -820,44 +820,54 @@ function _calor(v) {
   for (const e of _ESCALONES) if (p <= e.hasta) return e.c;
   return _ESCALONES[_ESCALONES.length - 1].c;
 }
-function dibujarCalorZona(g, Z, xL, xR, yTop, yBot) {
-  const W = xR - xL, H = yBot - yTop;
-  if (W < 4 || H < 4) return;
-  const nRows = Math.max(10, Math.min(46, Math.floor(H / 3)));
+function dibujarCalorZona(g, Z, xAcumIni, xR, yTop, yBot, mXt, paso) {
+  const H = yBot - yTop;
+  if (xR - xAcumIni < 4 || H < 4) return;
+  const nRows = Math.max(12, Math.min(54, Math.floor(H / 3)));
   const seed = ((Math.abs(Math.floor(Z.t0 / 1000)) % 997) / 997);
   const cl = (x, a, b) => Math.max(a, Math.min(b, x));
-  // NODOS calientes (área de interés): más presencia de ROJO y AMARILLO. La banda
-  // caliente es más ancha y fuerte; verde y azul quedan de fondo.
-  const baseFrac = Z.dir === 'demanda' ? 0.70 : 0.30;
-  const cen = cl(baseFrac + (seed - 0.5) * 0.28, 0.16, 0.84);
+  const rango = Z.hi - Z.lo || 1;
+  // NODOS calientes (área de interés): ROJO con mucho cuerpo, amarillo alrededor.
+  const baseFrac = Z.dir === 'demanda' ? 0.68 : 0.32;
+  const cen = cl(baseFrac + (seed - 0.5) * 0.26, 0.18, 0.82);
   const nodos = [
-    { f: cen, s: 1.25 },                                  // nodo principal → rojo intenso
-    { f: cl(cen + 0.13 + seed * 0.05, 0.1, 0.9), s: 0.95 },
-    { f: cl(cen - 0.15 - seed * 0.04, 0.1, 0.9), s: 0.9 },
-    { f: cl(cen + 0.27, 0.1, 0.9), s: 0.62 },
-    { f: cl(cen - 0.28, 0.1, 0.9), s: 0.55 }
+    { f: cen, s: 1.5 }, { f: cl(cen + 0.10 + seed * 0.04, 0.1, 0.9), s: 1.15 },
+    { f: cl(cen - 0.12 - seed * 0.03, 0.1, 0.9), s: 1.1 },
+    { f: cl(cen + 0.22, 0.1, 0.9), s: 0.8 }, { f: cl(cen - 0.24, 0.1, 0.9), s: 0.72 }
   ];
-  const spread = 0.075 + seed * 0.03;                    // banda más ancha (más amarillo alrededor)
-  const rowHot = Math.round((1 - cen) * nRows - 0.5);    // fila del nodo principal
+  const spread = 0.085 + seed * 0.03;
+  const rowHot = Math.round((1 - cen) * nRows - 0.5);
+  const velas = Z.velas || [];
+  const medio = paso ? paso / 2 : 3;
   for (let r = 0; r < nRows; r++) {
-    const frac = 1 - (r + 0.5) / nRows;                  // 1 arriba, 0 abajo
+    const frac = 1 - (r + 0.5) / nRows;                 // 1 arriba, 0 abajo
+    const pRow = Z.lo + frac * rango;                    // precio de esta fila
     let base = 0;
     for (const nd of nodos) { const d = (frac - nd.f) / spread; base = Math.max(base, nd.s * Math.exp(-d * d)); }
-    if (r === rowHot) base = Math.max(base, 1.05);       // rojo garantizado (área de interés)
-    base = base * 0.95 + 0.08;                           // fondo tenue: sin huecos negros
-    if (base < 0.11) continue;
+    if (r === rowHot) base = Math.max(base, 1.15);       // rojo garantizado, con cuerpo
+    base = base * 0.96 + 0.07;
+    if (base < 0.10) continue;
+    // ESCALONADO: la fila nace en el borde DERECHO de la última vela de la
+    // acumulación que cubre este precio (la toca, sin quedar encima). Si una
+    // vela de impulso cubre todo, todas nacen de su borde → sale recta.
+    let xIni = xAcumIni;
+    for (let k = velas.length - 1; k >= 0; k--) {
+      const v = velas[k];
+      if (pRow <= v.h && pRow >= v.l) { xIni = mXt(v.t) + medio; break; }
+    }
+    xIni = Math.max(0, Math.min(xR - 2, xIni));
     const y = yTop + (r / nRows) * H, hh = Math.max(1, H / nRows + 0.6);
-    // Gradiente HORIZONTAL: caliente a la izquierda, enfriando a la derecha.
-    const grad = g.createLinearGradient(xL, 0, xR, 0);
-    const stops = 6;
+    // Gradiente HORIZONTAL tipo SOPLETE: rojo→amarillo→verde→azul al final.
+    const grad = g.createLinearGradient(xIni, 0, xR, 0);
+    const stops = 7;
     for (let s2 = 0; s2 <= stops; s2++) {
       const t = s2 / stops;
-      const v = base * Math.pow(1 - t, 1.35);            // enfría hacia la derecha (difuminado)
-      const rgb = _calor(Math.max(0.06, v));
-      if (rgb) grad.addColorStop(t, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${0.6 * (1 - 0.28 * t)})`);
+      const v = base * Math.pow(1 - t, 1.25);            // se enfría hacia la derecha (candela)
+      const rgb = _calor(Math.max(0.05, v));
+      if (rgb) grad.addColorStop(t, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${0.62 * (1 - 0.25 * t)})`);
     }
     g.fillStyle = grad;
-    g.fillRect(xL, y, W, hh);
+    g.fillRect(xIni, y, xR - xIni, hh);
   }
 }
 
@@ -908,7 +918,10 @@ function detectarEstructuras(velas) {
     // ya lo limita el impulso, así que se adapta solo a cada temporalidad.
     if (len >= 4 && cruces >= 2 && alt >= atr * 0.4) {
       const dir = mov > 0 ? 'demanda' : 'oferta';   // impulso alcista → demanda; bajista → oferta
-      brutas.push({ i0: a, i1: i - 1, hi, lo, t0: velas[a].t, t1: velas[i - 1].t, dir, imp });
+      const _vz = velas.slice(a, i);
+      const liq = _vz.reduce((s, v) => s + (v.vol || 0), 0);
+      const liqC = _vz.reduce((s, v) => s + (v.volC || 0), 0);
+      brutas.push({ i0: a, i1: i - 1, hi, lo, t0: velas[a].t, t1: velas[i - 1].t, dir, imp, velas: _vz, liq, liqC });
       i += K; continue;
     }
     i++;
@@ -2053,25 +2066,75 @@ function dibujar() {
      una banda roja de "interés". Las líneas de entrada explícitas no se
      muestran. Las velas se dibujan después, así la acumulación queda visible. */
   const _zs = M.estructuras || [];
+  M._zonaBtns = [];   // botones 3D (para el clic que muestra la liquidez del periodo)
   _zs.forEach((Z) => {
     if (Z.hi < pMin || Z.lo > pMax) return;
     const baj = Z.dir === 'oferta';
     const col = baj ? '246,70,93' : '46,232,106';
     const xL = Math.max(0, Math.min(x1, mXt(Z.t0)));      // borde izquierdo del rectángulo (donde nace)
-    const xCal = Math.max(xL, Math.min(x1, mXt(Z.t1)));   // el CALOR arranca a la DERECHA de las velas de la acumulación
+    const xCal = Math.max(xL, Math.min(x1, mXt(Z.t1)));   // el CALOR arranca a la DERECHA de las velas
     const xR = x1;
     const yT = Y(Math.min(pMax, Z.hi)), yB = Y(Math.max(pMin, Z.lo)), alto = Math.max(3, yB - yT);
     g.save();
-    // mapa de calor solo en la PROYECCIÓN (desde la derecha de las velas), para
-    // que la acumulación quede visible.
-    dibujarCalorZona(g, Z, xCal, xR, yT, yB);
+    // mapa de calor ESCALONADO (nace del borde derecho de cada vela) tipo soplete.
+    dibujarCalorZona(g, Z, xCal, xR, yT, yB, mXt, paso);
     // marco discreto de la zona (todo el rectángulo, incluida la acumulación)
     g.strokeStyle = `rgba(${col},0.7)`; g.lineWidth = 1.1;
     g.beginPath(); g.moveTo(xL, yT + .5); g.lineTo(xR, yT + .5); g.stroke();
     g.beginPath(); g.moveTo(xL, yB - .5); g.lineTo(xR, yB - .5); g.stroke();
     g.beginPath(); g.moveTo(xL + .5, yT); g.lineTo(xL + .5, yB); g.stroke();
     g.restore();
+    // ── BOTÓN 3D al extremo derecho del rectángulo ──
+    const bs = 15, bx = x1 - bs - 5, by = (yT + yB) / 2 - bs / 2;
+    if (by > 2 && by + bs < y1 - 2) {
+      g.save();
+      g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
+      const gb = g.createLinearGradient(bx, by, bx, by + bs);
+      gb.addColorStop(0, `rgba(${col},0.95)`); gb.addColorStop(1, `rgba(${col},0.55)`);
+      g.fillStyle = gb; redondeado(g, bx, by, bs, bs, 4); g.fill();
+      g.shadowColor = 'transparent';
+      g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1; redondeado(g, bx + .5, by + .5, bs - 1, bs - 1, 4); g.stroke();
+      g.fillStyle = '#0b0e12'; g.font = 'bold 11px ui-monospace,monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('≋', bx + bs / 2, by + bs / 2 + .5);
+      g.textBaseline = 'alphabetic'; g.restore();
+      M._zonaBtns.push({ x: bx, y: by, w: bs, h: bs, zona: Z });
+    }
   });
+
+  /* ── Tooltip de LIQUIDEZ negociada del periodo (al pulsar el botón 3D) ── */
+  if (M._zonaTip && M._zonaTip.zona) {
+    const Z = M._zonaTip.zona;
+    const baj = Z.dir === 'oferta';
+    const col = baj ? '246,70,93' : '46,232,106';
+    const liq = Z.liq || 0, liqC = Z.liqC || 0, liqV = Math.max(0, liq - liqC);
+    const pComp = liq > 0 ? Math.round((liqC / liq) * 100) : 50;
+    const lineas = [
+      ['Liquidez del rango', dinero(liq)],
+      ['Compradora', dinero(liqC) + '  (' + pComp + '%)'],
+      ['Vendedora', dinero(liqV) + '  (' + (100 - pComp) + '%)'],
+      ['Velas en rango', String((Z.velas || []).length)]
+    ];
+    g.save();
+    g.font = '10px ui-monospace,monospace';
+    let wTip = 0; lineas.forEach((l) => { wTip = Math.max(wTip, g.measureText(l[0] + '   ' + l[1]).width); });
+    wTip = Math.min(x1 - 12, wTip + 20); const hTip = 14 * lineas.length + 24;
+    let tx = M._zonaTip.x - wTip - 8, ty = Math.max(4, Math.min(y1 - hTip - 4, M._zonaTip.y - 6));
+    if (tx < 4) tx = M._zonaTip.x + 22;
+    g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 14; g.shadowOffsetY = 4;
+    g.fillStyle = 'rgba(14,18,24,.97)'; redondeado(g, tx, ty, wTip, hTip, 8); g.fill();
+    g.shadowColor = 'transparent';
+    g.strokeStyle = `rgba(${col},.5)`; g.lineWidth = 1; redondeado(g, tx + .5, ty + .5, wTip - 1, hTip - 1, 8); g.stroke();
+    g.textAlign = 'left'; g.font = 'bold 10px ui-monospace,monospace'; g.fillStyle = `rgba(${col},1)`;
+    g.fillText(baj ? 'ZONA DE OFERTA' : 'ZONA DE DEMANDA', tx + 10, ty + 15);
+    lineas.forEach((l, i) => {
+      const yy = ty + 32 + i * 14;
+      g.font = '10px ui-monospace,monospace'; g.fillStyle = '#93a0ad'; g.textAlign = 'left';
+      g.fillText(l[0], tx + 10, yy);
+      g.fillStyle = '#e8ecf2'; g.textAlign = 'right';
+      g.fillText(l[1], tx + wTip - 10, yy);
+    });
+    g.textAlign = 'left'; g.restore();
+  }
 
 
   /* ── LAS VELAS ── */
@@ -2285,6 +2348,15 @@ function engancharGestos(cv) {
     // Al primer toque en el gráfico, la línea guía de sugerencia se retira.
     if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
     if (M._tend && M._tend.guia) { M._tend.guia = false; dibujar(); }
+
+    // ── Botón 3D de una zona: muestra/oculta la liquidez negociada del periodo ──
+    for (const b of (M._zonaBtns || [])) {
+      if (lx >= b.x - 3 && lx <= b.x + b.w + 3 && ly >= b.y - 3 && ly <= b.y + b.h + 3) {
+        M._zonaTip = (M._zonaTip && M._zonaTip.zona === b.zona) ? null : { zona: b.zona, x: b.x, y: b.y };
+        dibujar(); return;
+      }
+    }
+    if (M._zonaTip) { M._zonaTip = null; dibujar(); }
 
     // ── Herramienta de posición (misma dinámica que Smart Levels) ──
     if (M._pos) {
