@@ -12,7 +12,7 @@ const GRUPOS = [
   ]},
   { sub: 'Gráficas de análisis', items: [
     { k: 'liquidity', ic: 'pool', t: 'Liquidity Pools' },
-    { k: 'muros', ic: 'candles', t: 'Radar Institucional' },
+    { k: 'muros', ic: 'candles', t: 'Lógica Estructural Avanzada' },
     { k: 'niveles', ic: 'chart', t: 'Smart Levels' },
   ]},
   { sub: 'Más', items: [

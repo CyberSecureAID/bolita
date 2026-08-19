@@ -132,7 +132,7 @@ function selectorGrafica(par) {
   const OPCIONES = [
     { g: 'grafica',   ic: IC.candles, t: 'Gráfica Limpia',       s: 'Vela en vivo (TradingView), gratis' },
     { g: 'niveles',   ic: IC.chart,   t: 'Smart Levels',         s: 'Niveles y operaciones al toque' },
-    { g: 'muros',     ic: IC.book2 || IC.candles, t: 'Radar Institucional', s: 'Flujo de órdenes y muros' },
+    { g: 'muros',     ic: IC.book2 || IC.candles, t: 'Lógica Estructural Avanzada', s: 'Flujo de órdenes y muros' },
     { g: 'liquidity', ic: IC.pool,    t: 'Liquidity Pools',      s: 'Profundidad y liquidez' },
   ];
   const fila = (o) => `<button class="mv-sheet-op" data-g="${o.g}">${o.ic}<div><b>${esc(o.t)}</b><small>${esc(o.s)}</small></div></button>`;

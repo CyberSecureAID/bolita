@@ -1,4 +1,4 @@
-// muros.js — Detector de Radar Institucional
+// muros.js — Lógica Estructural Avanzada
 //
 // EL PROBLEMA QUE RESUELVE
 //
@@ -37,7 +37,7 @@ const PARES = [
   { id: 'AVAX',  s: 'AVAXUSDT',  n: 'Avalanche',  cg: 'avalanche-2' },
   { id: 'LINK',  s: 'LINKUSDT',  n: 'Chainlink',  cg: 'chainlink' },
   { id: 'DOT',   s: 'DOTUSDT',   n: 'Polkadot',   cg: 'polkadot' },
-  { id: 'MATIC', s: 'MATICUSDT', n: 'Polygon',    cg: 'matic-network' },
+  { id: 'POL',   s: 'POLUSDT',   n: 'Polygon',    cg: 'matic-network' },
   { id: 'LTC',   s: 'LTCUSDT',   n: 'Litecoin',   cg: 'litecoin' },
   { id: 'TRX',   s: 'TRXUSDT',   n: 'TRON',       cg: 'tron' },
   { id: 'SHIB',  s: 'SHIBUSDT',  n: 'Shiba Inu',  cg: 'shiba-inu' },
@@ -48,7 +48,65 @@ const PARES = [
   { id: 'OP',    s: 'OPUSDT',    n: 'Optimism',   cg: 'optimism' },
   { id: 'ATOM',  s: 'ATOMUSDT',  n: 'Cosmos',     cg: 'cosmos' },
   { id: 'UNI',   s: 'UNIUSDT',   n: 'Uniswap',    cg: 'uniswap' },
-  { id: 'INJ',   s: 'INJUSDT',   n: 'Injective',  cg: 'injective-protocol' }
+  { id: 'INJ',   s: 'INJUSDT',   n: 'Injective',  cg: 'injective-protocol' },
+  { id: 'TON',   s: 'TONUSDT',   n: 'Toncoin',    cg: 'the-open-network' },
+  { id: 'APT',   s: 'APTUSDT',   n: 'Aptos',      cg: 'aptos' },
+  { id: 'FIL',   s: 'FILUSDT',   n: 'Filecoin',   cg: 'filecoin' },
+  { id: 'ETC',   s: 'ETCUSDT',   n: 'Ethereum Classic', cg: 'ethereum-classic' },
+  { id: 'HBAR',  s: 'HBARUSDT',  n: 'Hedera',     cg: 'hedera-hashgraph' },
+  { id: 'ICP',   s: 'ICPUSDT',   n: 'Internet Computer', cg: 'internet-computer' },
+  { id: 'IMX',   s: 'IMXUSDT',   n: 'Immutable',  cg: 'immutable-x' },
+  { id: 'RENDER',s: 'RENDERUSDT',n: 'Render',     cg: 'render-token' },
+  { id: 'STX',   s: 'STXUSDT',   n: 'Stacks',     cg: 'blockstack' },
+  { id: 'TIA',   s: 'TIAUSDT',   n: 'Celestia',   cg: 'celestia' },
+  { id: 'SEI',   s: 'SEIUSDT',   n: 'Sei',        cg: 'sei-network' },
+  { id: 'ALGO',  s: 'ALGOUSDT',  n: 'Algorand',   cg: 'algorand' },
+  { id: 'VET',   s: 'VETUSDT',   n: 'VeChain',    cg: 'vechain' },
+  { id: 'GALA',  s: 'GALAUSDT',  n: 'Gala',       cg: 'gala' },
+  { id: 'SAND',  s: 'SANDUSDT',  n: 'The Sandbox',cg: 'the-sandbox' },
+  { id: 'MANA',  s: 'MANAUSDT',  n: 'Decentraland', cg: 'decentraland' },
+  { id: 'AXS',   s: 'AXSUSDT',   n: 'Axie Infinity', cg: 'axie-infinity' },
+  { id: 'AAVE',  s: 'AAVEUSDT',  n: 'Aave',       cg: 'aave' },
+  { id: 'MKR',   s: 'MKRUSDT',   n: 'Maker',      cg: 'maker' },
+  { id: 'GRT',   s: 'GRTUSDT',   n: 'The Graph',  cg: 'the-graph' },
+  { id: 'LDO',   s: 'LDOUSDT',   n: 'Lido DAO',   cg: 'lido-dao' },
+  { id: 'CRV',   s: 'CRVUSDT',   n: 'Curve',      cg: 'curve-dao-token' },
+  { id: 'SNX',   s: 'SNXUSDT',   n: 'Synthetix',  cg: 'havven' },
+  { id: 'RUNE',  s: 'RUNEUSDT',  n: 'THORChain',  cg: 'thorchain' },
+  { id: 'FLOW',  s: 'FLOWUSDT',  n: 'Flow',       cg: 'flow' },
+  { id: 'CHZ',   s: 'CHZUSDT',   n: 'Chiliz',     cg: 'chiliz' },
+  { id: 'THETA', s: 'THETAUSDT', n: 'Theta',      cg: 'theta-token' },
+  { id: 'XLM',   s: 'XLMUSDT',   n: 'Stellar',    cg: 'stellar' },
+  { id: 'XTZ',   s: 'XTZUSDT',   n: 'Tezos',      cg: 'tezos' },
+  { id: 'EOS',   s: 'EOSUSDT',   n: 'EOS',        cg: 'eos' },
+  { id: 'IOTA',  s: 'IOTAUSDT',  n: 'IOTA',       cg: 'iota' },
+  { id: 'CAKE',  s: 'CAKEUSDT',  n: 'PancakeSwap',cg: 'pancakeswap-token' },
+  { id: 'DYDX',  s: 'DYDXUSDT',  n: 'dYdX',       cg: 'dydx-chain' },
+  { id: 'JUP',   s: 'JUPUSDT',   n: 'Jupiter',    cg: 'jupiter-exchange-solana' },
+  { id: 'PYTH',  s: 'PYTHUSDT',  n: 'Pyth',       cg: 'pyth-network' },
+  { id: 'WIF',   s: 'WIFUSDT',   n: 'dogwifhat',  cg: 'dogwifcoin' },
+  { id: 'BONK',  s: 'BONKUSDT',  n: 'Bonk',       cg: 'bonk' },
+  { id: 'FLOKI', s: 'FLOKIUSDT', n: 'Floki',      cg: 'floki' },
+  { id: 'JASMY', s: 'JASMYUSDT', n: 'JasmyCoin',  cg: 'jasmycoin' },
+  { id: 'ENA',   s: 'ENAUSDT',   n: 'Ethena',     cg: 'ethena' },
+  { id: 'W',     s: 'WUSDT',     n: 'Wormhole',   cg: 'wormhole' },
+  { id: 'STRK',  s: 'STRKUSDT',  n: 'Starknet',   cg: 'starknet' },
+  { id: 'PENDLE',s: 'PENDLEUSDT',n: 'Pendle',     cg: 'pendle' },
+  { id: 'ENS',   s: 'ENSUSDT',   n: 'ENS',        cg: 'ethereum-name-service' },
+  { id: 'COMP',  s: 'COMPUSDT',  n: 'Compound',   cg: 'compound-governance-token' },
+  { id: 'DASH',  s: 'DASHUSDT',  n: 'Dash',       cg: 'dash' },
+  { id: 'ZEC',   s: 'ZECUSDT',   n: 'Zcash',      cg: 'zcash' },
+  { id: 'KAVA',  s: 'KAVAUSDT',  n: 'Kava',       cg: 'kava' },
+  { id: 'MINA',  s: 'MINAUSDT',  n: 'Mina',       cg: 'mina-protocol' },
+  { id: 'ROSE',  s: 'ROSEUSDT',  n: 'Oasis',      cg: 'oasis-network' },
+  { id: 'ZIL',   s: 'ZILUSDT',   n: 'Zilliqa',    cg: 'zilliqa' },
+  { id: 'QNT',   s: 'QNTUSDT',   n: 'Quant',      cg: 'quant-network' },
+  { id: 'GMT',   s: 'GMTUSDT',   n: 'GMT',        cg: 'stepn' },
+  { id: 'APE',   s: 'APEUSDT',   n: 'ApeCoin',    cg: 'apecoin' },
+  { id: 'LRC',   s: 'LRCUSDT',   n: 'Loopring',   cg: 'loopring' },
+  { id: 'ANKR',  s: 'ANKRUSDT',  n: 'Ankr',       cg: 'ankr' },
+  { id: 'WLD',   s: 'WLDUSDT',   n: 'Worldcoin',  cg: 'worldcoin-wld' },
+  { id: 'NOT',   s: 'NOTUSDT',   n: 'Notcoin',    cg: 'notcoin' }
 ];
 
 let _par = 'BNB';
@@ -70,13 +128,49 @@ const TFS = [
 ];
 
 async function traerVelas(simbolo, tf, n = 120) {
-  const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=${simbolo}&interval=${tf}&limit=${n}`);
+  const r = await muFetch(`/api/v3/klines?symbol=${simbolo}&interval=${tf}&limit=${n}`);
   if (!r.ok) throw new Error('sin velas');
   const j = await r.json();
   return j.map((x) => ({
     t: Math.floor(x[0] / 1000),
-    o: Number(x[1]), h: Number(x[2]), l: Number(x[3]), c: Number(x[4])
+    o: Number(x[1]), h: Number(x[2]), l: Number(x[3]), c: Number(x[4]),
+    vol: Number(x[7]) || Number(x[5]) || 0,      // volumen en dólares (quote)
+    volC: Number(x[10]) || 0                      // parte COMPRADORA (taker buy, en dólares)
   }));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DATOS con RESPALDO. El radar necesita el libro (api/v3/depth). Binance ha
+   ido geo-bloqueando api.binance.com en algunas regiones; cuando pasa, el
+   libro deja de llegar y el radar se queda "sin órdenes" (aunque antes
+   funcionara). Probamos varios hosts EQUIVALENTES de datos públicos —mismo
+   formato, misma API, sin clave— empezando por el que funcionó la última vez.
+   Incluye data-api.binance.vision (el espejo de datos de Binance), que suele
+   responder donde el principal está bloqueado. Cada intento con límite de
+   tiempo para no colgarse. Es ADITIVO: si api.binance.com responde, no cambia
+   nada. ══════════════════════════════════════════════════════════════ */
+const MU_HOSTS = [
+  'https://api.binance.com',
+  'https://data-api.binance.vision',
+  'https://api-gcp.binance.com',
+  'https://api1.binance.com',
+  'https://api2.binance.com'
+];
+let _muHost = 0;
+async function muFetch(path) {
+  const orden = [_muHost, ...MU_HOSTS.map((_, i) => i).filter((i) => i !== _muHost)];
+  let err;
+  for (const i of orden) {
+    try {
+      const ctl = new AbortController();
+      const to = setTimeout(() => ctl.abort(), 4000);
+      const r = await fetch(MU_HOSTS[i] + path, { signal: ctl.signal });
+      clearTimeout(to);
+      if (r.ok) { _muHost = i; return r; }
+      err = new Error('HTTP ' + r.status);
+    } catch (e) { err = e; }
+  }
+  throw err || new Error('sin datos');
 }
 
 /** Rectángulo con esquinas redondeadas. */
@@ -104,7 +198,14 @@ const M = {
   zoom: 1,
   cruzY: -1,
   velas: [],          // las velas del gráfico
-  tf: '5m',           // temporalidad
+  zonas: [],          // zonas de acumulación (demanda/oferta) desde las velas
+  perfil: null,       // perfil de volumen (para el histograma lateral)
+  zonasHTF: [],       // zonas de la temporalidad superior (confluencia)
+  mercado: null,      // VWAP, VAH/VAL, sesión, sesgo, backtest
+  delta: null,        // order-flow real (aggTrades): agresor comprador vs vendedor
+  contexto: null,     // contexto multi-símbolo (BTC/ETH en demanda/oferta)
+  tema: (() => { try { return localStorage.getItem('mu_tema') === 'claro' ? 'claro' : 'oscuro'; } catch (_) { return 'oscuro'; } })(),
+  tf: '1h',           // temporalidad por defecto del radar
   ancho: window.innerWidth < 760 ? 65 : 100,  // cuántas velas se ven
   filtro: 'todos',
   maxMuro: 1,
@@ -114,13 +215,18 @@ const M = {
 
 const CADA = 1500;          // una foto cada 1,5 segundos
 const MAX_FOTOS = 220;      // ~5,5 minutos de historia
-const MIN_TOMAS = 6;        // antes de juzgar, hay que mirar un rato
+const MIN_TOMAS = 2;        // en cuanto hay un par de fotos, ya se muestran los muros
 
 /* ══════════════════════════════════════════════════════════════
    LOS DATOS — profundidad del libro, API pública sin clave
    ══════════════════════════════════════════════════════════════ */
 async function traerLibro(simbolo) {
-  const r = await fetch(`https://api.binance.com/api/v3/depth?symbol=${simbolo}&limit=500`);
+  /* limit=100 (no 500): el libro pesado (peso 25) es justo el que Binance
+     tiende a limitar/bloquear —sobre todo con IPs compartidas—, que es por lo
+     que las velas cargaban pero las órdenes no. Con 100 niveles por lado (peso
+     5) el radar sigue viendo los muros que importan (los cercanos al precio) y
+     deja de chocar con el límite. */
+  const r = await muFetch(`/api/v3/depth?symbol=${simbolo}&limit=100`);
   if (!r.ok) throw new Error('sin datos');
   const j = await r.json();
   return {
@@ -174,16 +280,13 @@ function procesar(foto) {
   if (!todos.length) return;
 
   // ¿Qué es "grande" AQUÍ? Se compara con el propio libro, no con un
-  // número fijo: así funciona igual en BTC que en PEPE.
-  /* El umbral se calcula sobre el percentil 90, no la mediana. Con la
-     mediana, en libros muy poblados el corte quedaba tan alto que ni
-     los muros grandes lo pasaban. */
-  /* [UNIFICADO] El umbral del panel era mucho más exigente que el del
-     dibujo: se veían muros en el mapa pero el panel decía "libro
-     tranquilo". Ahora usan la misma referencia. */
+  // número fijo: así funciona igual en BTC que en PEPE. Umbral relativo a la
+  // mediana, un poco más permisivo que antes para no quedarse en "libro
+  // tranquilo", pero sin forzar candidatos: solo entra lo que de verdad
+  // destaca sobre el resto del libro.
   const vals = todos.map((x) => x.v).sort((a, b) => a - b);
   const base = vals[Math.floor(vals.length * 0.55)] || 1;
-  const umbral = base * 2.2;
+  const umbral = Math.max(1e-9, base * 1.9);
 
   const ahora = foto.t;
   const clave = (x) => x.lado + ':' + x.k;   // entero estable entre fotos
@@ -259,7 +362,7 @@ function juzgar() {
   const fuera = [];
 
   M.niveles.forEach((nv) => {
-    if (nv.tomas < 3) return;
+    if (nv.tomas < 2) return;
     const vivo = nv.ausente === 0;
     const segundos = (nv.visto - nv.nacio) / 1000;
     const consumidoPct = nv.vInicial > 0 ? nv.consumido / nv.vInicial : 0;
@@ -290,7 +393,12 @@ function juzgar() {
       nota = 'Esta orden lleva ahí sin moverse desde que empezamos a vigilar. Todavía no ha llegado el precio a probarla.';
       prioridad = 80;
 
-    } else if (vivo && segundos > 6) {
+    } else if (vivo) {
+      /* Muro grande recién visto: se muestra YA como "en observación" (un
+         muro de millones es real desde que aparece; no hay que esperar 10-20 s
+         para dibujarlo). Su veredicto se afina solo con los segundos: si
+         aguanta pasa a firme/probado, si huye pasa a falso. El filtro de zonas
+         de más abajo evita que esto sea un chorro. */
       tipo = 'vigilando';
       titulo = 'En observación';
       nota = 'Orden nueva. Aún no sabemos si aguantará: hay que ver qué hace cuando el precio se acerque.';
@@ -322,7 +430,34 @@ function juzgar() {
      desaparecía de golpe — que es lo que viste. Ahora los que ya
      estaban se mantienen unos segundos y, si de verdad se han ido, se
      avisa antes de quitarlos: un muro que desaparece ES información. */
-  const nuevos = fuera.slice(0, 10);
+  /* ══ CALIBRACIÓN — de "chorro de muros" a ZONAS estratégicas ══
+     El libro real tiene decenas de órdenes pegadas; mostrarlas todas es ruido
+     inoperable. Un trader quiere las ZONAS que importan, no cada nivel suelto. */
+
+  /* 1) FUSIÓN. Muros del mismo lado a menos de ~0,25% entre sí son la MISMA
+        zona de liquidez. Como 'fuera' ya viene ordenado por importancia, el
+        primero del racimo es el líder (conserva precio y veredicto) y le
+        sumamos la liquidez de sus vecinos: la tarjeta muestra el peso REAL de
+        toda la zona, no el de una orden suelta. */
+  const DIST_ZONA = 0.0025;
+  const zonas = [];
+  fuera.forEach((m) => {
+    const z = zonas.find((x) => x.lado === m.lado && Math.abs(x.p - m.p) / Math.max(1e-9, M.precio) < DIST_ZONA);
+    if (z) { z.v += m.v; z.vMax = Math.max(z.vMax, m.vMax); z.enZona = (z.enZona || 1) + 1; }
+    else zonas.push({ ...m, enZona: 1 });
+  });
+
+  /* 2) SIGNIFICANCIA. Se muestran las zonas con veredicto fuerte
+        (blindada/probada/falsa) SIEMPRE —son las estratégicas—, y del resto
+        solo las que pesan de verdad frente a la mayor de la pantalla. Así no
+        se cuela liquidez menor que solo estorba. */
+  const maxV = Math.max(1, ...zonas.map((x) => x.v));
+  const esFuerte = (m) => m.tipo === 'recargable' || m.tipo === 'probado' || m.tipo === 'falso';
+  const sig = zonas.filter((m) => esFuerte(m) || m.v >= maxV * 0.30);
+
+  /* 3) TOPE BAJO. Como mucho 6 zonas: suficiente para leer el mapa de un
+        vistazo y tomar una decisión. */
+  const nuevos = sig.slice(0, 6);
   const antes = M.muros || [];
 
   antes.forEach((v) => {
@@ -348,7 +483,7 @@ function juzgar() {
     const pb = b.prioridad - Math.abs(b.dist) * 900;
     return pb - pa;
   });
-  M.muros = nuevos.slice(0, 12);
+  M.muros = nuevos.slice(0, 8);
 }
 
 /* Utilidades de formato */
@@ -373,13 +508,393 @@ const tiempo = (s) => {
   return m + ' min' + (m > 1 ? '' : '');
 };
 
+/* ══════════════════════════════════════════════════════════════
+   DETECTOR DE ZONAS DE ACUMULACIÓN  (desde las VELAS)
 
+   Dónde el precio LATERALIZÓ y se acumuló volumen = dónde los grandes
+   construyeron posición. Esas zonas actúan como DEMANDA (si están debajo del
+   precio) o como OFERTA (si están encima), y son los mejores puntos de
+   RETESTEO. Se construye un PERFIL DE VOLUMEN: se reparte el volumen (en $) de
+   cada vela por su rango, y las franjas con mucho más volumen que la media son
+   las zonas. Se fusionan las contiguas, se puntúa su fuerza y se cuentan los
+   TOQUES (cuántas velas volvieron a ella).
+
+   Todo sale de las velas (klines), que llegan siempre y rápido: por eso las
+   tarjetas se llenan en 1-2 s, sin depender del libro de órdenes.
+   ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   ESTRUCTURAS DE ACUMULACIÓN / DISTRIBUCIÓN (cajas de rango)
+   Detecta los tramos donde el precio OSCILA lateralmente dentro de un
+   canal (acumulación o distribución), separados por impulsos. Estas cajas
+   son las verdaderas zonas de reacción: el precio respeta sus bordes. Se
+   dibujan como rectángulos y la herramienta de posición se ancla a ellos.
+   ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   ZONAS SWING (ORDER BLOCKS) — lógica estructural
+   Una zona válida es una ACUMULACIÓN / OSCILACIÓN en rango que precede a un
+   IMPULSO que rompe la estructura previa. El impulso debe ser claramente mayor
+   que el rango (2–3×). Según la dirección del impulso:
+     · impulso ALCISTA  → zona de DEMANDA (soporte). Sirve para LARGOS.
+     · impulso BAJISTA  → zona de OFERTA  (resistencia). Sirve para CORTOS.
+   Solo se conservan las zonas RELEVANTES al precio actual (demanda por debajo,
+   oferta por encima) y NO MITIGADAS (el precio no las ha perforado todavía).
+   Se proyectan hacia la derecha (niveles vigentes).
+   ══════════════════════════════════════════════════════════════ */
+function detectarEstructuras(velas) {
+  const n = velas ? velas.length : 0;
+  if (n < 30) return [];
+  const precio = velas[n - 1].c || velas[n - 1].o || 1;
+  const K = 6;                          // ventana del impulso
+  const MINIMP = precio * 0.012;        // impulso mínimo ~1.2%
+  const brutas = [];
+  let i = 8;
+  // 1) DETECTAR IMPULSOS y, para cada uno, la CONSOLIDACIÓN que lo precede.
+  //    (Buscar el impulso primero es lo fiable: la acumulación es lo que hay
+  //    justo antes de que el precio se dispare.)
+  while (i < n - 3) {
+    const desde = velas[i - 1].c;
+    let hasta = desde;
+    for (let k = i; k < Math.min(n, i + K); k++) hasta = velas[k].c;
+    const mov = hasta - desde;
+    if (Math.abs(mov) < MINIMP) { i++; continue; }
+    // Consolidación previa: extender hacia atrás mientras el rango sea ESTRECHO
+    // (menor que el propio impulso). Ese rango es la zona swing.
+    let a = i - 1;
+    let hi = velas[a].h, lo = velas[a].l;
+    while (a > 0) {
+      const nHi = Math.max(hi, velas[a - 1].h), nLo = Math.min(lo, velas[a - 1].l);
+      if ((nHi - nLo) > Math.abs(mov) * 0.75) break;
+      hi = nHi; lo = nLo; a--;
+    }
+    const len = i - a, alt = hi - lo;
+    if (len >= 4 && alt >= precio * 0.0015 && alt <= precio * 0.03) {
+      const dir = mov > 0 ? 'demanda' : 'oferta';   // impulso alcista → demanda; bajista → oferta
+      brutas.push({ i0: a, i1: i - 1, hi, lo, t0: velas[a].t, t1: velas[i - 1].t, dir });
+      i += K; continue;
+    }
+    i++;
+  }
+  // 2) RELEVANCIA + NO MITIGADA respecto al precio actual.
+  const holgura = precio * 0.0006;
+  const validas = brutas.filter((z) => {
+    if (z.dir === 'demanda') {
+      if (z.lo >= precio) return false;                            // quedó detrás
+      for (let k = z.i1 + 1; k < n; k++) if (velas[k].c < z.lo - holgura) return false;  // perforada
+      return true;
+    }
+    if (z.hi <= precio) return false;                              // quedó detrás
+    for (let k = z.i1 + 1; k < n; k++) if (velas[k].c > z.hi + holgura) return false;    // perforada
+    return true;
+  });
+  // 3) La demanda más cercana por debajo y la oferta más cercana por encima (2 de cada).
+  const dem = validas.filter((z) => z.dir === 'demanda').sort((a, b) => b.hi - a.hi).slice(0, 2);
+  const ofe = validas.filter((z) => z.dir === 'oferta').sort((a, b) => a.lo - b.lo).slice(0, 2);
+  return dem.concat(ofe);
+}
+
+function detectarZonas(velas, precio, opts) {
+  opts = opts || {};
+  if (!velas || velas.length < 24 || !(precio > 0)) return { zonas: [], perfil: null };
+  const vis = velas.slice(-260);
+  let lo = Infinity, hi = -Infinity;
+  vis.forEach((v) => { if (v.l < lo) lo = v.l; if (v.h > hi) hi = v.h; });
+  if (!(hi > lo)) return { zonas: [], perfil: null };
+  const N = 90;
+  const paso = (hi - lo) / N;
+  const vol = new Array(N).fill(0);
+  const volC = new Array(N).fill(0);        // parte compradora
+  const toca = new Array(N).fill(0);
+  vis.forEach((v) => {
+    const b0 = Math.max(0, Math.floor((v.l - lo) / paso));
+    const b1 = Math.min(N - 1, Math.floor((v.h - lo) / paso));
+    const spread = (b1 - b0 + 1) || 1;
+    const cuota = (v.vol || 1) / spread;
+    // Si no hay taker-buy, se estima por el color de la vela (verde=más compra).
+    const compra = v.volC > 0 ? v.volC : (v.vol || 1) * (v.c >= v.o ? 0.55 : 0.45);
+    const cuotaC = compra / spread;
+    for (let b = b0; b <= b1; b++) { vol[b] += cuota; volC[b] += cuotaC; toca[b]++; }
+  });
+  const maxBin = Math.max(...vol, 1);
+  const media = vol.reduce((a, b) => a + b, 0) / N || 1;
+  const umbral = media * 1.4;
+  /* PICOS del perfil = nodos de alto volumen. Cada pico se expande a zona
+     mientras el volumen siga alto (>=45% del pico) y sin pasarse de ancho. */
+  const picos = [];
+  for (let b = 0; b < N; b++) {
+    const izq = b === 0 ? -Infinity : vol[b - 1];
+    const der = b === N - 1 ? -Infinity : vol[b + 1];
+    if (vol[b] >= umbral && vol[b] >= izq && vol[b] >= der) picos.push(b);
+  }
+  picos.sort((a, b) => vol[b] - vol[a]);
+  const usados = new Array(N).fill(false);
+  const maxW = Math.max(2, Math.round(N * 0.06));
+  const brutas = [];
+  picos.forEach((pk) => {
+    if (usados[pk]) return;
+    let b0 = pk, b1 = pk;
+    const piso = vol[pk] * 0.5;
+    while (b0 > 0 && !usados[b0 - 1] && vol[b0 - 1] >= piso && (pk - (b0 - 1)) <= maxW) b0--;
+    while (b1 < N - 1 && !usados[b1 + 1] && vol[b1 + 1] >= piso && ((b1 + 1) - pk) <= maxW) b1++;
+    let v = 0, vc = 0, t = 0;
+    for (let b = b0; b <= b1; b++) { v += vol[b]; vc += volC[b]; t += toca[b]; usados[b] = true; }
+    brutas.push({ b0, b1, v, vc, t, pk });
+  });
+  const perfil = { vol, lo, hi, N, max: maxBin };
+  if (!brutas.length) return { zonas: [], perfil };
+  const maxV = Math.max(...brutas.map((z) => z.v), 1);
+  const ult = vis[vis.length - 1];
+  const cierre = ult ? ult.c : precio;
+  const htf = opts.htf || [];
+  const libro = opts.libro || null;
+  const margen = (hi - lo) * 0.01;
+
+  const zonas = brutas.map((z) => {
+    const pLow = lo + z.b0 * paso;
+    const pHigh = lo + (z.b1 + 1) * paso;
+    const p = (pLow + pHigh) / 2;
+    const pPoc = lo + (z.pk + 0.5) * paso;              // punto de control (máx volumen)
+    const dentro = precio >= pLow && precio <= pHigh;
+    const lado = p < precio ? 'demanda' : 'oferta';
+    const dist = (p - precio) / precio;
+    const retest = !dentro && Math.abs(dist) < 0.0035;
+
+    // 1) VOLUMEN FIRMADO
+    const compradorPct = z.v > 0 ? Math.max(0, Math.min(1, z.vc / z.v)) : 0.5;
+    const alineado = lado === 'demanda' ? compradorPct >= 0.5 : compradorPct <= 0.5;
+
+    // 2) REACCIONES (rechazos reales): mecha dentro de la zona, cuerpo fuera
+    let reacciones = 0;
+    vis.forEach((v) => {
+      if (lado === 'demanda') {
+        if (v.l <= pHigh && v.l >= pLow - paso && Math.min(v.o, v.c) > pHigh) reacciones++;
+      } else {
+        if (v.h >= pLow && v.h <= pHigh + paso && Math.max(v.o, v.c) < pLow) reacciones++;
+      }
+    });
+
+    // 4) RUPTURA / FLIP: el precio estaba en/junto a la zona y la perforó hace poco
+    const recientes = vis.slice(-16);
+    const antes = recientes.length ? recientes[0].c : cierre;
+    let rota = false;
+    if (antes >= pLow && cierre < pLow - margen * 0.5) rota = true;   // rompió hacia abajo
+    if (antes <= pHigh && cierre > pHigh + margen * 0.5) rota = true; // rompió hacia arriba
+
+    // 5) CONFLUENCIA MULTI-TEMPORALIDAD
+    const confluencia = htf.some((h) => h.pHigh >= pLow && h.pLow <= pHigh);
+
+    // 6) CONFIRMACIÓN CON EL LIBRO EN VIVO
+    let libroConf = false;
+    if (libro && libro.muros) libroConf = libro.muros.some((m) => m >= pLow && m <= pHigh);
+
+    // CONFIANZA combinada (0..100)
+    let conf = (z.v / maxV) * 34;
+    conf += Math.min(20, reacciones * 6);
+    conf += alineado ? 16 : 0;
+    conf += confluencia ? 16 : 0;
+    conf += libroConf ? 10 : 0;
+    conf += Math.min(4, z.t / 20);
+    if (rota) conf *= 0.35;
+    conf = Math.max(0, Math.min(100, Math.round(conf)));
+    const fuerza = Math.max(1, Math.min(5, Math.round(conf / 20)));
+
+    return {
+      pLow, pHigh, p, pPoc, v: z.v, volRel: z.v / maxV,
+      compradorPct, reacciones, confluencia, libro: libroConf, rota, alineado,
+      confianza: conf, fuerza, toques: z.t, lado, dist, retest, dentro
+    };
+  });
+
+  /* FUSIÓN de zonas apiladas: cuando dos zonas del MISMO lado quedan pegadas
+     (rango casi tocándose), son un solo nivel fragmentado y se unen. PERO con
+     TOPE DE ANCHO: nunca se encadenan tantas que formen una banda gigante
+     (eso confunde más que ayuda). Si la zona resultante superaría el ancho
+     máximo, se dejan separadas. */
+  const anchoMax = Math.max((hi - lo) * 0.10, precio * 0.012);   // tope de ancho de una zona fusionada
+  const fusionar = (lista) => {
+    const orden = lista.slice().sort((a, b) => a.pLow - b.pLow);
+    const out = [];
+    orden.forEach((z) => {
+      const prev = out[out.length - 1];
+      const gap = prev ? (z.pLow - prev.pHigh) / (precio || 1) : Infinity;
+      const anchoUnido = prev ? (Math.max(prev.pHigh, z.pHigh) - Math.min(prev.pLow, z.pLow)) : Infinity;
+      if (prev && prev.lado === z.lado && gap <= 0.004 && anchoUnido <= anchoMax) {
+        const vTot = prev.v + z.v;
+        prev.pPoc = prev.v >= z.v ? prev.pPoc : z.pPoc;      // POC del sub-nodo mayor
+        prev.pLow = Math.min(prev.pLow, z.pLow);
+        prev.pHigh = Math.max(prev.pHigh, z.pHigh);
+        prev.p = (prev.pLow + prev.pHigh) / 2;
+        prev.compradorPct = (prev.compradorPct * prev.v + z.compradorPct * z.v) / vTot;
+        prev.v = vTot;
+        prev.reacciones += z.reacciones;
+        prev.toques += z.toques;
+        prev.confluencia = prev.confluencia || z.confluencia;
+        prev.libro = prev.libro || z.libro;
+        prev.alineado = prev.compradorPct >= 0.5 ? prev.lado === 'demanda' : prev.lado === 'oferta';
+        prev.confianza = Math.min(100, Math.max(prev.confianza, z.confianza) + 4);
+        prev.fuerza = Math.max(1, Math.min(5, Math.round(prev.confianza / 20)));
+        prev.rota = prev.rota && z.rota;
+        prev.dentro = prev.dentro || z.dentro;
+        prev.dist = (prev.p - precio) / precio;
+        prev.retest = !prev.dentro && Math.abs(prev.dist) < 0.0035;
+      } else {
+        out.push(Object.assign({}, z));
+      }
+    });
+    return out;
+  };
+  const zonasF = fusionar(zonas);
+  zonas.length = 0; Array.prototype.push.apply(zonas, zonasF);
+
+  /* SOLO ZONAS OPERABLES. El mayor volumen se acumula en el CENTRO de la
+     oscilación (donde el precio pasó más tiempo), pero eso NO es soporte ni
+     resistencia: es trayectoria, no ubicación. Las zonas de reacción reales
+     están en los EXTREMOS del rango (máximos = resistencia, mínimos = soporte)
+     o donde el precio RECHAZÓ (mechas). Se descartan los nodos del medio sin
+     rechazos: son ruido y confunden al trader. */
+  {
+    const rec = vis.slice(-90);
+    const recHi = rec.length ? Math.max.apply(null, rec.map((v) => v.h)) : hi;
+    const recLo = rec.length ? Math.min.apply(null, rec.map((v) => v.l)) : lo;
+    const recRango = Math.max(1e-9, recHi - recLo);
+    const posRel = (z) => (z.pPoc - recLo) / recRango;            // 0 = mínimo, 1 = máximo
+    const operable = (z) => {
+      if (z.dentro) return true;                                  // el precio está aquí ahora
+      const pr = posRel(z);
+      if (pr >= 0.66 || pr <= 0.34) return true;                  // tercio superior (R) o inferior (S)
+      if (z.reacciones >= 3) return true;                         // rechazos fuertes en cualquier nivel
+      return false;                                               // nodo del centro sin rechazos → ruido
+    };
+    const filtradas = zonas.filter(operable);
+    if (filtradas.length >= 2) { zonas.length = 0; Array.prototype.push.apply(zonas, filtradas); }
+  }
+
+  /* ANCLAJE: si es la moneda/temporalidad activa, se pegan las zonas a su sitio
+     estable (no saltan ni cambian de ancho de golpe). */
+  if (opts.ancla) anclarZonas(zonas, precio, opts.ancla);
+
+  /* El alcance útil de una zona depende de la temporalidad: en 15m un 8% ya es
+     lejos, pero en 1D los movimientos son mucho mayores y hay que abrir el
+     rango, o el diario aparece vacío. Aun así, nunca tan lejos que sea ruido. */
+  const CAP = { '1m': 0.05, '5m': 0.06, '15m': 0.08, '30m': 0.10, '1h': 0.12, '2h': 0.16, '4h': 0.20, '1d': 0.30, '1w': 0.45 };
+  const cerca = CAP[M.tf] || 0.12;
+  const lejos = cerca * 1.5;
+  let usar = zonas.filter((z) => z.dentro || Math.abs(z.dist) <= cerca);
+  if (usar.length < 2) {
+    const extra = zonas
+      .filter((z) => usar.indexOf(z) < 0 && Math.abs(z.dist) <= lejos)
+      .sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))
+      .slice(0, 3 - usar.length);
+    usar = usar.concat(extra);
+  }
+  usar.sort((a, b) => (b.confianza - Math.min(30, Math.abs(b.dist) * 900)) - (a.confianza - Math.min(30, Math.abs(a.dist) * 900)));
+  return { zonas: usar.slice(0, 6), perfil };
+}
+
+/* Paleta del GRÁFICO según el tema. Solo cambia el "chrome" neutro (fondo,
+   rejilla, ejes, velas); los colores semánticos (verde/rojo/dorado/azul de las
+   zonas y niveles) se mantienen para que el significado no cambie. */
+function pal() {
+  return M.tema === 'claro'
+    ? { fondo: '#eef1f5', rejilla: 'rgba(0,0,0,.05)', ejeBg: 'rgba(236,239,244,.96)', ejeBorde: 'rgba(0,0,0,.10)', ejeTxt: '#6b7480', velaUp: '#0a9e86', velaDown: '#e0424f' }
+    : { fondo: '#0a0e14', rejilla: 'rgba(255,255,255,.03)', ejeBg: 'rgba(10,14,20,.94)', ejeBorde: 'rgba(255,255,255,.06)', ejeTxt: '#4a525c', velaUp: '#26a69a', velaDown: '#ef5350' };
+}
+
+/* De 15m sube a 1h, de 5m a 30m, etc. — para la confluencia multi-temporalidad. */
+const TF_SUPERIOR = { '1m': '15m', '5m': '30m', '15m': '1h', '30m': '2h', '1h': '4h', '4h': '1d', '1d': '1w' };
+
+/* ══════════════════════════════════════════════════════════════
+   ANÁLISIS DE MERCADO — niveles institucionales + backtest
+
+   Calcula, todo desde las velas (fiable e instantáneo):
+   · VWAP anclado al inicio de la ventana (el precio medio ponderado por
+     volumen: la referencia que miran las mesas).
+   · ÁREA DE VALOR (VAH/VAL) y POC del perfil: el rango donde se negoció el
+     70% del volumen.
+   · MÁXIMO/MÍNIMO de sesión (~24 h).
+   · SESGO del mercado por volumen firmado (comprador/vendedor).
+   · BACKTEST: recorre el histórico y mide cuántas veces el precio, al llegar
+     a un nodo de alto volumen, REBOTÓ de verdad (reacción ≥ 0,4%). Da una
+     tasa de acierto con su muestra: números, no promesas.
+   ══════════════════════════════════════════════════════════════ */
+function analizarMercado(velas, precio, perfil) {
+  if (!velas || velas.length < 30) return null;
+  const vis = velas.slice(-260);
+  // VWAP anclado
+  let pv = 0, vv = 0;
+  vis.forEach((v) => { const tp = (v.h + v.l + v.c) / 3; pv += tp * (v.vol || 0); vv += (v.vol || 0); });
+  const vwap = vv > 0 ? pv / vv : precio;
+  // Sesión ~24h (según nº de velas que caben)
+  const ses = velas.slice(-96);
+  let sHi = -Infinity, sLo = Infinity;
+  ses.forEach((v) => { if (v.h > sHi) sHi = v.h; if (v.l < sLo) sLo = v.l; });
+  // Sesgo por volumen firmado
+  let vc = 0, vt = 0;
+  vis.forEach((v) => { const comp = v.volC > 0 ? v.volC : (v.vol || 0) * (v.c >= v.o ? 0.55 : 0.45); vc += comp; vt += (v.vol || 0); });
+  const compradorPct = vt > 0 ? vc / vt : 0.5;
+  const sesgo = compradorPct >= 0.56 ? 'comprador' : compradorPct <= 0.44 ? 'vendedor' : 'neutral';
+
+  // Área de valor (VAH/VAL) a partir del perfil: 70% del volumen alrededor del POC
+  let vah = null, val = null, poc = null;
+  if (perfil && perfil.vol) {
+    const pf = perfil; const N = pf.N; const paso = (pf.hi - pf.lo) / N;
+    let pocB = 0; for (let b = 1; b < N; b++) if (pf.vol[b] > pf.vol[pocB]) pocB = b;
+    poc = pf.lo + (pocB + 0.5) * paso;
+    const total = pf.vol.reduce((a, b) => a + b, 0);
+    let acum = pf.vol[pocB], lo = pocB, hi = pocB;
+    while (acum < total * 0.7 && (lo > 0 || hi < N - 1)) {
+      const izq = lo > 0 ? pf.vol[lo - 1] : -1;
+      const der = hi < N - 1 ? pf.vol[hi + 1] : -1;
+      if (der >= izq) { hi++; acum += pf.vol[hi]; } else { lo--; acum += pf.vol[lo]; }
+    }
+    val = pf.lo + lo * paso; vah = pf.lo + (hi + 1) * paso;
+  }
+
+  // BACKTEST: reacciones históricas en nodos de alto volumen
+  let aciertos = 0, muestra = 0;
+  if (perfil && perfil.vol) {
+    const pf = perfil; const N = pf.N; const paso = (pf.hi - pf.lo) / N;
+    const media = pf.vol.reduce((a, b) => a + b, 0) / N || 1;
+    for (let b = 0; b < N; b++) {
+      if (pf.vol[b] < media * 1.5) continue;
+      const nivel = pf.lo + (b + 0.5) * paso;
+      // buscar toques históricos y ver si el precio reaccionó ≥0,4%
+      for (let i = 5; i < vis.length - 5; i++) {
+        const v = vis[i];
+        const toca = v.l <= nivel + paso && v.h >= nivel - paso;
+        if (!toca) continue;
+        const desde = vis[i].c;
+        let maxReac = 0;
+        for (let j = i + 1; j <= Math.min(vis.length - 1, i + 6); j++) {
+          maxReac = Math.max(maxReac, Math.abs(vis[j].c - desde) / desde);
+        }
+        muestra++;
+        if (maxReac >= 0.004) aciertos++;
+        i += 3; // no contar el mismo toque varias veces
+      }
+    }
+  }
+  const winRate = muestra >= 8 ? Math.round((aciertos / muestra) * 100) : null;
+
+  return { vwap, vah, val, poc, sHi, sLo, sesgo, compradorPct, winRate, muestra };
+}
+
+
+
+/* Lazy-loader del módulo de noticias: si news.js no está cargado (por ejemplo,
+   si no se subió el index.html actualizado), lo carga al vuelo y luego abre. */
+function abrirNoticiasSeguro(cual) {
+  const fn = () => { try { window.abrirCalendario && window.abrirCalendario(); } catch (_) {} };
+  if (typeof window.abrirCalendario === 'function') { fn(); return; }
+  if (document.getElementById('news-js-lazy')) { setTimeout(() => abrirNoticiasSeguro(cual), 300); return; }
+  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=10';
+  s.onload = fn;
+  document.head.appendChild(s);
+}
 
 /* ══════════════════════════════════════════════════════════════
    ABRIR
    ══════════════════════════════════════════════════════════════ */
-export async function abrirMuros(par) {
-  if (par) _par = par;
+export async function abrirMuros() {
   estilos();
   const prev = $('mu-overlay'); if (prev) prev.remove();
 
@@ -389,6 +904,7 @@ export async function abrirMuros(par) {
 
   const d = document.createElement('div');
   d.id = 'mu-overlay';
+  if (M.tema === 'claro') d.classList.add('mu-claro');
   d.innerHTML = `<div class="mu-bg"></div>
     <div class="mu-c">
       <div class="mu-barra">
@@ -401,15 +917,29 @@ export async function abrirMuros(par) {
         <div class="mu-tfs">
           ${TFS.map((t) => `<button class="mu-tf ${t.id === M.tf ? 'on' : ''}" data-tf="${t.id}">${t.n}</button>`).join('')}
         </div>
+        <button class="mu-tfchip" id="mu-tfchip" type="button" aria-label="Temporalidad">
+          <b id="mu-tfchip-t">${esc((TFS.find((t) => t.id === M.tf) || TFS[0]).n)}</b>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
 
         <div class="mu-px">
           <span>Precio ahora</span>
           <b id="mu-px-v">—</b>
         </div>
 
-        <div class="mu-vivo"><i></i><span id="mu-estado">Observando…</span></div>
+        <span id="mu-estado" class="mu-estado-err"></span>
 
         <div class="mu-der">
+          <button class="mu-analista" id="mu-analista" title="Analyst">
+            <img src="assets/img/jesus-avatar.webp" alt="">
+            <span class="mu-an-txt">Analyst</span>
+          </button>
+          <button class="mu-ico" id="mu-cal" title="Calendario económico">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4M7.5 13h2M11 13h2M14.5 13h2M7.5 16.5h2M11 16.5h2"/></svg>
+          </button>
+          <button class="mu-ico" id="mu-tema" title="Tema claro/oscuro">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          </button>
           <button class="mu-ico" id="mu-foto" title="Compartir imagen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
           </button>
@@ -421,7 +951,12 @@ export async function abrirMuros(par) {
         </div>
       </div>
 
-      <div class="mu-cuerpo">
+      <div class="mu-mtabs" id="mu-mtabs">
+        <button class="mu-mtab on" data-vista="graf" type="button">Gr\u00e1fica</button>
+        <button class="mu-mtab" data-vista="ord" type="button">\u00d3rdenes <i id="mu-mtab-n">0</i></button>
+      </div>
+
+      <div class="mu-cuerpo m-graf" id="mu-cuerpo">
         <div class="mu-graf" id="mu-graf">
           <canvas class="mu-cv" id="mu-cv"></canvas>
           <div class="mu-esperando" id="mu-esperando">
@@ -432,32 +967,17 @@ export async function abrirMuros(par) {
           </div>
           <img class="mu-marca" src="assets/img/cco-marca.webp" alt="">
         </div>
-
-        <aside class="mu-panel" id="mu-panel">
-          <div class="mu-panel-t">Órdenes detectadas</div>
-          <div class="mu-chips">
-            <button class="mu-fbtn verde" data-filtro="compra">
-              <b>Soporte</b><i class="mu-cuenta" id="mu-n-compra">0</i>
-            </button>
-            <button class="mu-fbtn rojo" data-filtro="venta">
-              <b>Resistencia</b><i class="mu-cuenta" id="mu-n-venta">0</i>
-            </button>
-            <button class="mu-fbtn oro" data-filtro="fuertes">
-              <b>★ Fuertes</b><i class="mu-cuenta" id="mu-n-fuertes">0</i>
-            </button>
-            <button class="mu-fbtn gris" data-filtro="falsos">
-              <b>✕ Falsas</b><i class="mu-cuenta" id="mu-n-falsos">0</i>
-            </button>
-          </div>
-          <div class="mu-lista" id="mu-lista"></div>
-        </aside>
       </div>
+      <div class="mu-alerta" id="mu-alerta"></div>
     </div>`;
   document.body.appendChild(d);
 
   const cerrar = () => {
-    clearInterval(_reloj); clearInterval(_relojVelas);
-    document.querySelectorAll('#mu-picker').forEach((x) => x.remove());
+    clearInterval(_reloj); clearInterval(_relojVelas); clearInterval(_relojPulso);
+    cerrarWSLibro();
+    M._pos = null; M._tend = null; M._posList = null; quitarPager(); quitarGuiaSVG();  // las herramientas viven DENTRO del radar
+    if (_planFuera) { document.removeEventListener('pointerdown', _planFuera, true); _planFuera = null; }
+    document.querySelectorAll('#mu-picker, #mu-tfmenu, #mu-plan, #mu-tend, #mu-poscfg, #mu-tendcfg').forEach((x) => x.remove());
     const e = $('mu-overlay'); if (e) e.remove();
     /* Al cerrar se vuelve a la portada de Liquidity, no se sale. */
     try { if (window.__lqpVolver) window.__lqpVolver(); } catch (_) {}
@@ -468,11 +988,65 @@ export async function abrirMuros(par) {
   $('mu-sel').onclick = (e) => { e.stopPropagation(); menuPares(); };
 
   $('mu-foto').onclick = () => guardarImagen();
+  { const bc = $('mu-cal'); if (bc) bc.onclick = () => abrirNoticiasSeguro('calendario'); }
+  $('mu-analista').onclick = () => abrirAnalista();
+  $('mu-tema').onclick = () => {
+    M.tema = M.tema === 'claro' ? 'oscuro' : 'claro';
+    try { localStorage.setItem('mu_tema', M.tema); } catch (_) {}
+    const ov = $('mu-overlay'); if (ov) ov.classList.toggle('mu-claro', M.tema === 'claro');
+    dibujar();
+  };
+
+  /* ONBOARDING: la primera vez que se abre el radar, se muestra el tutorial
+     solo (una sola vez por navegador). */
+  try {
+    if (!localStorage.getItem('mu_onboard_v1')) {
+      localStorage.setItem('mu_onboard_v1', '1');
+      setTimeout(() => { if ($('mu-cv')) ayuda(); }, 900);
+    }
+  } catch (_) {}
 
   d.querySelectorAll('[data-tf]').forEach((b) => b.onclick = () => {
     M.tf = b.dataset.tf;
+    M._pos = null; M._tend = null; M._posList = null; quitarPager(); cerrarPosCfg(); cerrarTendCfg();
+    reiniciarAlertas();
     d.querySelectorAll('[data-tf]').forEach((x) => x.classList.toggle('on', x.dataset.tf === M.tf));
+    const ch = $('mu-tfchip-t'); if (ch) ch.textContent = b.textContent;   // refleja en el chip móvil
     cargarVelas();
+  });
+
+  /* Temporalidad en móvil: el chip muestra solo la activa y despliega una
+     lista con TODAS. Reutiliza los botones reales .mu-tf (dispara su click),
+     así no duplicamos la lógica de carga. */
+  const chip = $('mu-tfchip');
+  if (chip) chip.onclick = (e) => {
+    e.stopPropagation();
+    const ya = $('mu-tfmenu'); if (ya) { ya.remove(); return; }
+    const menu = document.createElement('div'); menu.id = 'mu-tfmenu';
+    menu.innerHTML = TFS.map((t) => `<button type="button" class="mu-tfmenu-it ${t.id === M.tf ? 'on' : ''}" data-mtf="${t.id}">${t.n}</button>`).join('');
+    document.body.appendChild(menu);
+    const r = chip.getBoundingClientRect();
+    const w = menu.offsetWidth || 200;
+    menu.style.top = (r.bottom + 6) + 'px';
+    menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+    menu.querySelectorAll('.mu-tfmenu-it').forEach((it) => it.onclick = () => {
+      const real = d.querySelector(`.mu-tf[data-tf="${it.dataset.mtf}"]`);
+      if (real) real.click();                 // dispara el handler real (carga la vela)
+      menu.remove();
+    });
+    const cerrarM = (ev) => { if (!menu.contains(ev.target) && ev.target !== chip && !chip.contains(ev.target)) { menu.remove(); document.removeEventListener('click', cerrarM); } };
+    setTimeout(() => document.addEventListener('click', cerrarM), 10);
+  };
+
+  /* Pestañas de móvil: Gráfica / Órdenes. Le dan al panel de órdenes TODO el
+     alto de la pantalla, para que las tarjetas se vean cómodas. En escritorio
+     estas pestañas están ocultas y se ve todo a la vez. */
+  d.querySelectorAll('.mu-mtab').forEach((b) => b.onclick = () => {
+    const vista = b.dataset.vista;
+    d.querySelectorAll('.mu-mtab').forEach((x) => x.classList.toggle('on', x === b));
+    const cuerpo = $('mu-cuerpo');
+    if (cuerpo) { cuerpo.classList.toggle('m-graf', vista === 'graf'); cuerpo.classList.toggle('m-ord', vista === 'ord'); }
+    if (vista === 'graf') { requestAnimationFrame(() => { if ($('mu-cv')) dibujar(); }); }
   });
   /* Los filtros se apagan al volver a pulsarlos: sin ninguno activo
      se ven todas las órdenes, que es lo natural. */
@@ -485,6 +1059,13 @@ export async function abrirMuros(par) {
   ponerLogos();
   arrancar();
   cargarVelas();
+  /* Pulso: redibuja suave (~8 fps) solo si hay una zona activa (retesteo/dentro),
+     para que la animación sea fluida aunque el WebSocket no esté. */
+  clearInterval(_relojPulso);
+  _relojPulso = setInterval(() => {
+    if (!$('mu-cv')) { clearInterval(_relojPulso); return; }
+    if (M.zonas.some((z) => (z.dentro || z.retest) && !z.rota)) dibujar();
+  }, 130);
 
   let _t = null;
   window.addEventListener('resize', () => {
@@ -496,27 +1077,31 @@ export async function abrirMuros(par) {
 /* ══════════════════════════════════════════════════════════════
    EL RELOJ — una foto cada 1,5 s
    ══════════════════════════════════════════════════════════════ */
-let _reloj = null, _relojVelas = null;
+let _reloj = null, _relojVelas = null, _relojPulso = null;
+let _htfTs = 0;                        // última vez que se pidió la temporalidad superior
+let _delTs = 0;                        // última vez que se pidió el order-flow (aggTrades)
+let _ultLibro = null;                  // último libro bueno (REST o WS) para confirmar zonas
 let _fallos = 0;
+let _wsL = null, _wsLibro = null, _wsPar = null;   // libro por WebSocket (respaldo)
+let _ultDibujoWS = 0;                              // throttle del redibujo en vivo
 let _huella = '';
 let _ultPintado = 0;
 
 /** Actualiza solo los números que cambian, sin rehacer las tarjetas.
  *  Así no parpadean. */
 function refrescarNumeros() {
-  M.muros.forEach((m) => {
-    const b = document.querySelector(`[data-mp="${m.p}"]`);
+  M.zonas.forEach((z) => {
+    const b = document.querySelector(`[data-mp="${z.p}"]`);
     if (!b) return;
     const card = b.closest('.mu-card');
     if (!card) return;
+    const dem = z.lado === 'demanda';
     const pon = (sel, txt) => {
       const e = card.querySelector(sel);
       if (e && e.textContent !== txt) e.textContent = txt;
     };
-    const esVenta = m.p > M.precio;
-    pon('.mu-imp', dinero(m.v));
-    pon('.mu-firme', tiempo(m.segundos));
-    pon('.mu-dist2', (Math.abs(m.dist) * 100).toFixed(2) + '% ' + (esVenta ? '↑' : '↓'));
+    pon('.mu-imp', dinero(z.v));
+    pon('.mu-dist2', z.dentro ? 'AQU\u00cd' : (Math.abs(z.dist) * 100).toFixed(2) + '% ' + (dem ? '\u2193' : '\u2191'));
   });
 }
 
@@ -529,6 +1114,31 @@ async function cargarVelas() {
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
       M.velas = await traerVelas(par.s, M.tf, 400);
+      const px = (M.precio > 0) ? M.precio : (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
+      /* CONFLUENCIA MULTI-TEMPORALIDAD: se traen las zonas de la temporalidad
+         superior (15m→1h, etc.) cada ~60 s y se usan para validar. */
+      const sup = TF_SUPERIOR[M.tf];
+      if (sup && px > 0 && Date.now() - _htfTs > 60000) {
+        try {
+          const vh = await traerVelas(par.s, sup, 300);
+          M.zonasHTF = detectarZonas(vh, px, {}).zonas;
+          _htfTs = Date.now();
+        } catch (_) {}
+      }
+      /* Las zonas salen de las VELAS: se llenan en ~1 s, sin depender del libro. */
+      const r = detectarZonas(M.velas, px, { htf: M.zonasHTF, libro: murosDelLibro(), ancla: _par + "|" + M.tf });
+      M.zonas = r.zonas; M.perfil = r.perfil; M.estructuras = detectarEstructuras(M.velas);
+      /* NIVELES INSTITUCIONALES + BACKTEST, y boost de confianza cuando una
+         zona coincide con VWAP / borde del área de valor / POC. */
+      M.mercado = analizarMercado(M.velas, px, M.perfil);
+      aplicarReferencias(M.zonas, M.mercado, px);
+      seguirVida(M.zonas);
+      /* ORDER-FLOW real (aggTrades), cada ~8 s. */
+      if (Date.now() - _delTs > 8000) { _delTs = Date.now(); traerDelta(par.s).then((d) => { if (d) M.delta = d; }); }
+      /* CONTEXTO multi-símbolo (BTC/ETH), cacheado 90 s. */
+      traerContexto().then((c) => { M.contexto = c; });
+      if (M.velas.length) { M.cargando = false; M.error = null; }
+      pintarPanel();
       dibujar();
     } catch (_) {}
   };
@@ -536,56 +1146,285 @@ async function cargarVelas() {
   _relojVelas = setInterval(traer, 12000);
 }
 
+/* Sube la confianza de una zona cuando coincide con un nivel institucional
+   (VWAP, VAH, VAL o POC): son imanes de precio que las mesas vigilan. */
+function aplicarReferencias(zonas, mercado, precio) {
+  if (!mercado) return;
+  const refs = [mercado.vwap, mercado.vah, mercado.val, mercado.poc].filter((x) => x > 0);
+  zonas.forEach((z) => {
+    const coincide = refs.some((rp) => rp >= z.pLow && rp <= z.pHigh);
+    z.ref = coincide;
+    if (coincide && !z.rota) {
+      z.confianza = Math.min(100, z.confianza + 10);
+      z.fuerza = Math.max(1, Math.min(5, Math.round(z.confianza / 20)));
+    }
+  });
+}
+
+/* Extrae los MUROS reales del libro en vivo (niveles con tamaño >= 4× la
+   mediana) para confirmar zonas: acumulación + muro real = alta convicción. */
+function murosDelLibro() {
+  const L = _wsLibro || _ultLibro;
+  if (!L) return null;
+  const todos = [...(L.compras || []), ...(L.ventas || [])]
+    .map((o) => ({ p: o.p, d: o.p * o.q })).filter((o) => o.d > 0);
+  if (todos.length < 6) return null;
+  const ds = todos.map((o) => o.d).sort((a, b) => a - b);
+  const med = ds[Math.floor(ds.length / 2)] || 0;
+  if (!(med > 0)) return null;
+  return { muros: todos.filter((o) => o.d >= med * 4).map((o) => o.p) };
+}
+
+/* ORDER-FLOW REAL: los aggTrades traen cada operación con la marca de si el
+   comprador fue el agresor. Sumamos el volumen agresor comprador vs vendedor
+   (delta) de los últimos ~1000 trades: es lo que mueve el precio de verdad. */
+async function traerDelta(simbolo) {
+  try {
+    const r = await muFetch(`/api/v3/aggTrades?symbol=${simbolo}&limit=1000`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!Array.isArray(j) || !j.length) return null;
+    let comp = 0, vend = 0;
+    j.forEach((t) => {
+      const q = Number(t.q) * Number(t.p);            // $ de la operación
+      if (t.m) vend += q; else comp += q;             // m=true → comprador es maker → agresor vendedor
+    });
+    const total = comp + vend || 1;
+    return { comp, vend, delta: comp - vend, ratio: comp / total, t: Date.now() };
+  } catch (_) { return null; }
+}
+
+/* CONTEXTO MULTI-SÍMBOLO: mira si BTC y ETH están en zona de demanda/oferta
+   cerca de su precio. Una zona en una alt es más fiable si BTC acompaña. */
+let _ctxTs = 0, _ctxCache = null;
+async function traerContexto() {
+  if (Date.now() - _ctxTs < 90000 && _ctxCache) return _ctxCache;
+  const guias = [{ id: 'BTC', s: 'BTCUSDT' }, { id: 'ETH', s: 'ETHUSDT' }];
+  const out = [];
+  for (const g of guias) {
+    try {
+      const v = await traerVelas(g.s, M.tf, 260);
+      if (!v.length) continue;
+      const px = v[v.length - 1].c;
+      const r = detectarZonas(v, px, {});
+      const cerca = r.zonas.find((z) => z.dentro || Math.abs(z.dist) < 0.004);
+      out.push({ id: g.id, estado: cerca ? cerca.lado : 'neutral', px });
+    } catch (_) {}
+  }
+  _ctxCache = out.length ? out : null; _ctxTs = Date.now();
+  return _ctxCache;
+}
+
+/* CICLO DE VIDA de cada zona + ALERTAS. Se sigue por precio redondeado:
+   nace → se testea → se confirma → se rompe, con marcas de tiempo. Y avisa
+   (banner + pitido corto) cuando el precio entra en una zona fuerte o una
+   zona se rompe. */
+const _vidaZonas = new Map();
+
+/* ══════════════════════════════════════════════════════════════
+   ANCLAJE DE ZONAS — que un nivel real no salte ni cambie de ancho
+
+   Los niveles de soporte/resistencia NO se mueven de sitio. Pero la detección,
+   al recalcular con el precio vivo, puede reubicar/redimensionar una zona un
+   poco cada vez y eso "baila". Aquí cada zona detectada se EMPAREJA con su
+   ancla previa (mismo lado, POC cercano) y se PEGA a esa geometría estable,
+   que solo deriva muy despacio. Las anclas viejas con muchos toques ganan
+   prioridad (son S/R reales donde el precio ha reaccionado muchas veces).
+   La DETECCIÓN real no cambia: esto solo estabiliza posición y tamaño.
+   ══════════════════════════════════════════════════════════════ */
+const _anclas = new Map();       // clave 'PAR|TF' -> lista de anclas estables
+function anclarZonas(zonas, precio, clave) {
+  if (!clave) return;
+  const ahora = Date.now();
+  let anc = _anclas.get(clave);
+  if (!anc) { anc = []; _anclas.set(clave, anc); }
+  anc.forEach((a) => { a._m = false; });
+  const tol = 0.005;             // POC dentro del 0,5% se considera la misma zona
+  const k = 0.08;                // suavizado fuerte: la geometría se mueve muy poco
+  zonas.forEach((z) => {
+    let mejor = null, mejorD = Infinity;
+    anc.forEach((a) => {
+      if (a._m || a.lado !== z.lado) return;
+      const d = Math.abs(a.pPoc - z.pPoc) / (precio || 1);
+      if (d < tol && d < mejorD) { mejorD = d; mejor = a; }
+    });
+    if (mejor) {
+      mejor._m = true; mejor.visto = ahora;
+      mejor.pLow = mejor.pLow * (1 - k) + z.pLow * k;
+      mejor.pHigh = mejor.pHigh * (1 - k) + z.pHigh * k;
+      mejor.pPoc = mejor.pPoc * (1 - k) + z.pPoc * k;
+      if (z.dentro || z.retest) mejor.toques = (mejor.toques || 0) + 1;
+      // pegar la zona a la geometría estable del ancla
+      z.pLow = mejor.pLow; z.pHigh = mejor.pHigh; z.pPoc = mejor.pPoc;
+      z.p = (z.pLow + z.pHigh) / 2;
+      z.dist = (z.p - precio) / precio;
+      z.dentro = precio >= z.pLow && precio <= z.pHigh;
+      z.retest = !z.dentro && Math.abs(z.dist) < 0.0035;
+      // prioridad a niveles longevos y muy reaccionados (S/R reales)
+      const edadMin = (ahora - (mejor.nace || ahora)) / 60000;
+      const bono = Math.min(14, (mejor.toques || 0) * 1.5 + Math.min(6, edadMin / 5));
+      z.confianza = Math.min(100, Math.round(z.confianza + bono));
+      z.fuerza = Math.max(1, Math.min(5, Math.round(z.confianza / 20)));
+      z.anclada = edadMin > 3;   // lleva un rato fija: es un nivel de referencia
+    } else {
+      anc.push({ lado: z.lado, pLow: z.pLow, pHigh: z.pHigh, pPoc: z.pPoc, nace: ahora, visto: ahora, toques: 0, _m: true });
+    }
+  });
+  // conservar las anclas no vistas un rato (para que no parpadeen), podar las viejas
+  const vivos = anc.filter((a) => ahora - a.visto < 300000);
+  _anclas.set(clave, vivos);
+}
+let _alerta = null, _alertaTs = 0, _alertaDesde = 0;
+/* Al abrir o cambiar de par/temporalidad, se silencian las alertas unos
+   segundos y se limpia el ciclo de vida, para no lanzar un aviso de golpe. */
+function reiniciarAlertas() { _vidaZonas.clear(); _alertaDesde = Date.now() + 4000; }
+function seguirVida(zonas) {
+  const ahora = Date.now();
+  const usadas = new Set();
+  zonas.forEach((z) => {
+    /* IDENTIDAD ESTABLE: el precio de una zona deriva un poco entre recálculos.
+       Si usáramos el precio exacto como clave, cada tick crearía una zona
+       "nueva" y la alerta se repetiría en bucle. Por eso emparejamos cada zona
+       con la entrada existente más cercana del mismo lado (tolerancia ~0,6%). */
+    let mejorK = null, mejorD = Infinity;
+    _vidaZonas.forEach((v, k) => {
+      if (usadas.has(k) || v.lado !== z.lado) return;
+      const d = Math.abs(v.p - z.p) / (z.p || 1);
+      if (d < 0.006 && d < mejorD) { mejorD = d; mejorK = k; }
+    });
+    let v = mejorK ? _vidaZonas.get(mejorK) : null;
+    if (!v) {
+      // Nace: se guarda si YA contenía el precio, para no alertar solo por empezar a seguirla.
+      v = { lado: z.lado, p: z.p, nace: ahora, tests: 0, confirmada: false, rota: false, dentroAntes: (z.dentro || z.retest), reaccion: 0 };
+      _vidaZonas.set(z.lado + ':' + ahora + ':' + Math.random().toString(36).slice(2, 6), v);
+    }
+    const claveActual = mejorK || [..._vidaZonas.keys()].find((k) => _vidaZonas.get(k) === v);
+    usadas.add(claveActual);
+    v.p = z.p; v.ultVisto = ahora;
+
+    // test: el precio entró/tocó (transición fuera → dentro)
+    if ((z.dentro || z.retest) && !v.dentroAntes) { v.tests++; v.ultTest = ahora; }
+    // confirmada: fuerte y con reacciones
+    if (z.fuerza >= 4 && z.reacciones >= 2) v.confirmada = true;
+    // ALERTAS: solo en la transición real (no mientras el precio sigue dentro)
+    if (z.dentro && !v.dentroAntes && z.fuerza >= 4) lanzarAlerta('entra', z);
+    if (z.rota && !v.rota) { v.rota = true; v.rotaTs = ahora; lanzarAlerta('rompe', z); }
+    v.dentroAntes = z.dentro || z.retest;
+    z.vida = v;
+  });
+  // limpiar las que llevan mucho sin verse
+  _vidaZonas.forEach((v, k) => { if (ahora - (v.ultVisto || v.nace) > 600000) _vidaZonas.delete(k); });
+}
+function lanzarAlerta(tipo, z) {
+  if (Date.now() < _alertaDesde) return;        // silencio al abrir/cambiar
+  if (Date.now() - _alertaTs < 4000) return;   // no spamear
+  _alertaTs = Date.now();
+  const dem = z.lado === 'demanda';
+  _alerta = tipo === 'entra'
+    ? { txt: `Precio en zona ${dem ? 'de demanda' : 'de oferta'} fuerte · ${dinero(z.v)}`, col: dem ? '#2ee86a' : '#f6465d' }
+    : { txt: `Zona ${dem ? 'de demanda' : 'de oferta'} ROTA · ${fmt(z.p)}`, col: '#E8B84B' };
+  pitar();
+  const b = $('mu-alerta');
+  if (b) {
+    b.textContent = _alerta.txt;
+    b.style.setProperty('--ac', _alerta.col);
+    b.classList.add('on');
+    clearTimeout(_alertaT);
+    _alertaT = setTimeout(() => b.classList.remove('on'), 9000);   // se lee con calma
+    b.onclick = () => { b.classList.remove('on'); clearTimeout(_alertaT); };   // o se cierra al tocar
+  }
+}
+let _alertaT = null, _audio = null;
+function pitar() {
+  try {
+    _audio = _audio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = _audio.createOscillator(), g = _audio.createGain();
+    o.type = 'sine'; o.frequency.value = 880; g.gain.value = 0.04;
+    o.connect(g); g.connect(_audio.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, _audio.currentTime + 0.25);
+    o.stop(_audio.currentTime + 0.26);
+  } catch (_) {}
+}
+
 function arrancar() {
   clearInterval(_reloj);
   _fallos = 0;
+  reiniciarAlertas();
+  const par0 = PARES.find((p) => p.id === _par) || PARES[0];
+  conectarWSLibro(par0.s);              // libro en vivo por WebSocket (respaldo)
   const tomar = async () => {
     if (!$('mu-cv')) { clearInterval(_reloj); return; }
+    const par = PARES.find((p) => p.id === _par) || PARES[0];
+    /* El libro solo sirve para el PRECIO en vivo (marcador + vela). Las zonas
+       salen de las velas, así que aunque el libro falle, el radar funciona. */
+    let foto = null;
     try {
-      const par = PARES.find((p) => p.id === _par) || PARES[0];
-      const foto = await traerLibro(par.s);
-      procesar(foto);
-      _fallos = 0;
-      M.cargando = M.fotos.length < MIN_TOMAS;
-      M.error = null;
-      M.maxMuro = Math.max(1, ...M.muros.map((x) => x.v));
-      const px = $('mu-px-v');
-      if (px) px.textContent = fmt(M.precio);
-      dibujar();
+      const f = await traerLibro(par.s);
+      if (f && f.compras && f.compras.length && f.ventas && f.ventas.length) foto = f;
+    } catch (_) {}
+    if (!foto && _wsLibro && (Date.now() - _wsLibro.t) < 6000) foto = _wsLibro;
+    if (foto) procesar(foto);                       // actualiza M.precio
+    if (foto) _ultLibro = foto;
+    if (!(M.precio > 0) && M.velas.length) M.precio = M.velas[M.velas.length - 1].c;
 
-      /* [CORREGIDO] El panel se repintaba entero en cada toma, y por
-         eso las tarjetas parpadeaban. Ahora solo se reconstruye si de
-         verdad cambió algo relevante: qué muros hay y en qué estado. */
-      /* [CORREGIDO] La huella incluía el importe, que cambia en cada
-         foto: por eso el panel se repintaba siempre y las tarjetas
-         parpadeaban. Ahora solo cuenta QUÉ muros hay y en qué estado.
-         Los números se actualizan sin tocar el HTML. */
-      /* [CORREGIDO de nuevo] Aún parpadeaba: la huella cambiaba porque
-         el orden de la lista bailaba entre tomas. Ahora se ordena
-         antes de comparar, y además hay una espera mínima de 3
-         segundos entre repintados: si un muro entra y sale, el panel
-         no se reconstruye a cada segundo. */
-      const huella = M.muros.map((m) => `${m.p.toFixed(6)}|${m.tipo}`).sort().join(',');
-      const ahora2 = Date.now();
-      if (huella !== _huella && ahora2 - _ultPintado > 3000) {
-        _huella = huella; _ultPintado = ahora2;
-        pintarPanel();
-      } else {
-        refrescarNumeros();
-      }
-    } catch (_) {
-      /* Un fallo suelto no rompe nada: se sigue con lo que hay. Solo
-         tras varios seguidos se avisa, porque entonces sí pasa algo. */
-      _fallos++;
-      if (_fallos >= 4) {
-        M.error = 'Sin conexión con el mercado. Reintentando…';
-        pintarPanel();
-      }
+    if (M.velas.length && M.precio > 0) {
+      const r = detectarZonas(M.velas, M.precio, { htf: M.zonasHTF, libro: murosDelLibro(), ancla: _par + "|" + M.tf });
+      M.zonas = r.zonas; M.perfil = r.perfil; M.estructuras = detectarEstructuras(M.velas);   // zonas + estructuras
+      M.mercado = analizarMercado(M.velas, M.precio, M.perfil);
+      aplicarReferencias(M.zonas, M.mercado, M.precio);
+      seguirVida(M.zonas);
+      M.cargando = false; M.error = null;
     }
+    const px = $('mu-px-v'); if (px && M.precio > 0) px.textContent = fmt(M.precio);
+    dibujar();
+
+    /* El panel se reconstruye solo si cambian las zonas (para no parpadear). */
+    const huella = M.zonas.map((z) => `${z.p.toFixed(6)}|${z.lado}|${z.fuerza}|${z.rota ? 1 : 0}|${z.confluencia ? 1 : 0}|${z.libro ? 1 : 0}`).sort().join(',');
+    const ahora2 = Date.now();
+    if (huella !== _huella && ahora2 - _ultPintado > 2500) { _huella = huella; _ultPintado = ahora2; pintarPanel(); }
+    else refrescarNumeros();
   };
   tomar();
   _reloj = setInterval(tomar, CADA);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   LIBRO EN VIVO POR WEBSOCKET — respaldo con la misma fuente que Trade
+   (stream.binance.com). Mantiene los 20 niveles por lado más cercanos al
+   precio; se usa solo si el REST del libro no llega.
+   ══════════════════════════════════════════════════════════════ */
+function conectarWSLibro(sym) {
+  cerrarWSLibro();
+  _wsPar = sym;
+  try {
+    _wsL = new WebSocket(`wss://stream.binance.com:9443/ws/${sym.toLowerCase()}@depth20@100ms`);
+    _wsL.onmessage = (ev) => {
+      try {
+        const j = JSON.parse(ev.data);
+        const b = j.bids || j.b, a = j.asks || j.a;
+        if (!b || !a) return;
+        _wsLibro = {
+          t: Date.now(),
+          compras: b.map((x) => ({ p: Number(x[0]), q: Number(x[1]) })).filter((x) => x.q > 0),
+          ventas: a.map((x) => ({ p: Number(x[0]), q: Number(x[1]) })).filter((x) => x.q > 0)
+        };
+        /* PRECIO EN TIEMPO REAL. El libro (REST) solo llega cada 1,5 s, y por
+           eso la vela y la línea de precio se veían "atrasadas". El WebSocket
+           llega ~10 veces/segundo: con él movemos el precio y la última vela al
+           instante (redibujo suave, máx ~6/seg) para que vayan siempre pegados
+           al mercado. */
+        const mb = _wsLibro.compras[0], ms = _wsLibro.ventas[0];
+        if (mb && ms) {
+          M.precio = (mb.p + ms.p) / 2;
+          const px = $('mu-px-v'); if (px) px.textContent = fmt(M.precio);
+          const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+          if (now - _ultDibujoWS > 160 && $('mu-cv') && !M.cargando) { _ultDibujoWS = now; dibujar(); }
+        }
+      } catch (_) {}
+    };
+  } catch (_) {}
+}
+function cerrarWSLibro() { if (_wsL) { try { _wsL.close(); } catch (_) {} _wsL = null; } _wsLibro = null; }
 
 /* ══════════════════════════════════════════════════════════════
    EL DIBUJO — mapa de profundidad en el tiempo
@@ -656,7 +1495,8 @@ function dibujar() {
   }
   const g = cv.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  g.fillStyle = '#0a0e14';
+  const P = pal();
+  g.fillStyle = P.fondo;
   g.fillRect(0, 0, W, H);
 
   const esp = $('mu-esperando');
@@ -675,13 +1515,13 @@ function dibujar() {
 
   const mDer = 88, mAba = 22;
   const x1 = W - mDer, y1 = H - mAba;
-  const xVelas = x1 * 0.82;      // las velas ocupan casi todo
+  const xVelas = x1;             // las velas llegan HASTA el eje de precios (sin banda muerta)
 
   /* La ventana visible: el ancho es el zoom y el desplazamiento el
      arrastre. Muestra SIEMPRE `ancho` velas completas (sin aplastar ni
      dejar telón), con un respiro del 15% a la derecha. */
   const ancho = Math.min(M.velas.length, M.ancho || 70);
-  const huecoMax = Math.floor(ancho * 0.15);
+  const huecoMax = Math.floor(ancho * 0.45);
   const desp = Math.max(-huecoMax, Math.min(M.desplaz || 0, Math.max(0, M.velas.length - ancho)));
   M.desplaz = desp;
   const fin = M.velas.length - desp;
@@ -709,7 +1549,22 @@ function dibujar() {
      el usuario no puede usarlo. */
   let pAlto = Math.max(...vis.map((v) => v.h));
   let pBajo = Math.min(...vis.map((v) => v.l));
-  M.muros.forEach((m) => { if (m.p > pAlto) pAlto = m.p; if (m.p < pBajo) pBajo = m.p; });
+  if (M.precio > 0) { pAlto = Math.max(pAlto, M.precio); pBajo = Math.min(pBajo, M.precio); }
+  /* Las zonas amplían la escala SOLO si están cerca del rango de las velas.
+     Una zona lejana no debe aplastar las velas: se recorta al borde del
+     gráfico (el dibujo ya usa Math.min/max con pMin/pMax). */
+  const margenR = (pAlto - pBajo) * 0.35 || 1;
+  M.zonas.forEach((z) => {
+    if (z.pHigh <= pAlto + margenR && z.pHigh > pAlto) pAlto = z.pHigh;
+    if (z.pLow >= pBajo - margenR && z.pLow < pBajo) pBajo = z.pLow;
+  });
+  if (M.mercado) {
+    [M.mercado.vwap, M.mercado.vah, M.mercado.val].forEach((p) => {
+      if (!(p > 0)) return;
+      if (p <= pAlto + margenR && p > pAlto) pAlto = p;
+      if (p >= pBajo - margenR && p < pBajo) pBajo = p;
+    });
+  }
   /* El zoom vertical estira o comprime la escala de precios, como al
      arrastrar el borde derecho en TradingView. */
   /* El arrastre vertical desplaza el rango de precios. */
@@ -722,7 +1577,9 @@ function dibujar() {
   const Y = (p) => y1 - y1 * ((p - pMin) / Math.max(1e-12, pMax - pMin));
   /* Se guarda para que el módulo de órdenes sepa qué precio hay a
      cada altura del gráfico. */
-  M._geo = { pMin, pMax, y1 };
+  M._geo = { pMin, pMax, y1, xVelas, n: vis.length, vis,
+             paso: xVelas / (ancho || vis.length), pri: fin - ancho, fin, ancho,
+             tfMs: (M.velas.length > 1 ? (M.velas[1].t - M.velas[0].t) : 60000), t0: M.velas[0].t };
 
   /* Tus órdenes y alertas, con el estilo común de las tres. */
   if (_od) {
@@ -733,69 +1590,67 @@ function dibujar() {
   }
 
   /* ── Rejilla ── */
-  g.strokeStyle = 'rgba(255,255,255,.03)';
+  g.strokeStyle = P.rejilla;
   g.lineWidth = 1;
   for (let i = 1; i < 6; i++) {
     const y = (y1 / 6) * i;
     g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
   }
 
+  /* (El perfil de volumen se ha eliminado por completo: no se dibuja ni el
+     mapa de calor de fondo ni la silueta lateral. Solo se conserva el cálculo
+     interno de VAH/VAL/POC para el análisis, que no se pinta.) */
+
+  /* (Los niveles institucionales VWAP/VAH/VAL se dibujan MÁS ABAJO, después
+     del eje, con la línea a todo el ancho y la denominación en el eje derecho.) */
+
   /* ══════════════════════════════════════════════════════════
-     LOS MUROS — cada uno con su línea y su importe
+     ZONAS DE ACUMULACIÓN
 
-     Esto es lo que convierte el gráfico en herramienta: ver la
-     cantidad escrita al nivel exacto donde está puesta.
+     Banda LIMPIA a todo el ancho (muy sutil, para no tapar las velas) que
+     marca el rango de la zona, con sus bordes finos y la línea POC. A la
+     derecha, un PANEL de proyección sólido y redondeado = la zona de retesteo,
+     con el importe y las insignias. Verde = demanda · Rojo = oferta.
      ══════════════════════════════════════════════════════════ */
-  M.muros.forEach((m) => {
-    if (m.p < pMin || m.p > pMax) return;
-    const y = Y(m.p);
-    const c = COLORES[m.tipo];
-    const sel = M.seleccionado === m.p;
+  const pulso = 0.5 + 0.5 * Math.sin(Date.now() / 450);
+  /* PASE 1 (detrás de las velas): solo las BANDAS y bordes de cada zona, muy
+     sutiles, para no tapar el precio. Las líneas de entrada, etiquetas y el
+     perfil van DESPUÉS (encima de las velas) para que no queden troceados.
 
-    /* [CORREGIDO] El color venía del veredicto, y por eso todas salían
-       azules. En el gráfico manda el LADO: rojo si es venta, verde si
-       es compra. Sin confirmar quedan grises, como en las tarjetas. */
-    const sinProbar = m.tipo === 'vigilando' || m.tipo === 'ido';
-    const col = sinProbar ? '#6b7681' : (m.p > M.precio ? '#f6465d' : '#2ee86a');
+     CLAVE: cuando dos zonas están cerca, sus bandas se SOLAPARÍAN en un bloque
+     ilegible. Por eso cada banda se recorta hasta el punto medio con su vecina
+     (dejando un hueco): las zonas lejanas conservan su altura, las juntas se
+     estrechan, y todo se sigue rigiendo por la línea punteada central. */
+  /* ── ESTRUCTURAS DE ACUMULACIÓN / DISTRIBUCIÓN (cajas de rango) ──
+     En vez de decenas de franjas de volumen (ruido), se dibujan las CAJAS
+     donde el precio oscila: sus bordes son respetados por el precio. El
+     rango más reciente (el actual) se resalta; ahí es donde se opera. */
+  /* ── (Lienzo limpio) ──
+     Se retiró el dibujo anterior de zonas. Sobre esta gráfica limpia se
+     construirá la estrategia "Lógica Estructural Avanzada" por fases:
+     tendencia (jerárquica + corto plazo) → evento → zona swing → entradas. */
+  let bandaSolo = null;   // (compatibilidad con el resto del dibujo)
 
-    // La banda: su grosor dice cuánto dinero hay
-    const alto = Math.max(4, Math.min(18, (m.v / (M.maxMuro || m.v)) * 18));
-    g.fillStyle = col + (sel ? '3a' : '1e');
-    g.fillRect(0, y - alto / 2, x1, alto);
-
-    g.strokeStyle = col;
-    g.lineWidth = sel ? 2.2 : 1.4;
-    if (m.tipo === 'falso' || m.tipo === 'vigilando' || m.tipo === 'ido') g.setLineDash([7, 5]);
-    g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
-    g.setLineDash([]);
-
-    // La etiqueta con el importe
-    const et = dinero(m.v);
-    g.font = 'bold 11px ui-monospace,monospace';
-    const wCaja = g.measureText(et).width + 32;
-    g.fillStyle = col;
-    redondeado(g, xVelas + 12, y - 10, wCaja, 20, 5); g.fill();
-    g.fillStyle = sinProbar ? '#0b0e12' : (m.p > M.precio ? '#2a0509' : '#04210f');
-    g.font = 'bold 10px system-ui,sans-serif';
-    g.textAlign = 'center';
-    g.fillText(c.icono, xVelas + 23, y + 3.5);
-    g.font = 'bold 11px ui-monospace,monospace';
-    g.textAlign = 'left';
-    g.fillText(et, xVelas + 33, y + 4);
-  });
 
   /* ── LAS VELAS ── */
-  const paso = xVelas / vis.length;
+  const paso = xVelas / (ancho || vis.length);   // ancho fijo: al ir al futuro NO se estiran
   const cuerpo = Math.max(1.6, paso * 0.6);
   vis.forEach((v, i) => {
     const x = i * paso + paso / 2;
-    const col = v.c >= v.o ? '#26a69a' : '#ef5350';
+    const col = v.c >= v.o ? P.velaUp : P.velaDown;
     g.strokeStyle = col; g.fillStyle = col;
     g.lineWidth = Math.max(1, paso * 0.12);
     g.beginPath(); g.moveTo(x, Y(v.h)); g.lineTo(x, Y(v.l)); g.stroke();
     const yA = Y(Math.max(v.o, v.c)), yB = Y(Math.min(v.o, v.c));
     g.fillRect(x - cuerpo / 2, yA, cuerpo, Math.max(1.4, yB - yA));
   });
+
+  /* (PERFIL DE VOLUMEN eliminado: la silueta lateral ya no se dibuja.) */
+
+  /* ── PASE 2 ── (Se retiró TODO el dibujo de liquidez sobre la gráfica: las
+     píldoras de importe ($…M), los hilos y los chips de estado. El usuario los
+     quiere solo en las tarjetas del lado derecho, no rayando el gráfico. En la
+     gráfica mandan las CAJAS de acumulación/distribución y los niveles clave. */
 
   /* ── El precio actual ── */
   const yP = Y(M.precio);
@@ -804,10 +1659,27 @@ function dibujar() {
   g.beginPath(); g.moveTo(0, yP); g.lineTo(x1, yP); g.stroke();
   g.setLineDash([]);
 
+  /* ── NIVELES INSTITUCIONALES: la LÍNEA en el gráfico con protagonismo (la
+     denominación va como tachuela alargada en el eje, conectada a la línea). ── */
+  if (M.mercado) {
+    const mk = M.mercado;
+    const refLinea = (p, col, patron, ancho, glow, halo) => {
+      if (!(p > 0) || p < pMin || p > pMax) return;
+      const y = Y(p);
+      if (halo) { g.strokeStyle = halo; g.lineWidth = ancho + 4; g.setLineDash([]); g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke(); }
+      g.save();
+      if (glow) { g.shadowColor = col; g.shadowBlur = 9; }
+      g.strokeStyle = col; g.lineWidth = ancho; if (patron.length) g.setLineDash(patron);
+      g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
+      g.restore(); g.setLineDash([]);
+    };
+  /* ── (VWAP / VAH / VAL retirados de la gráfica a petición: lienzo limpio) ── */
+  }
+
   /* ── La escala, con los niveles marcados ── */
-  g.fillStyle = 'rgba(10,14,20,.94)';
+  g.fillStyle = P.ejeBg;
   g.fillRect(x1, 0, mDer, H);
-  g.strokeStyle = 'rgba(255,255,255,.06)';
+  g.strokeStyle = P.ejeBorde;
   g.beginPath(); g.moveTo(x1 + .5, 0); g.lineTo(x1 + .5, H); g.stroke();
 
   g.font = '10px ui-monospace,monospace';
@@ -816,32 +1688,49 @@ function dibujar() {
     const p = pMin + (pMax - pMin) * (i / 6);
     const y = Y(p);
     if (Math.abs(y - yP) < 15) continue;
-    if (M.muros.some((m) => Math.abs(Y(m.p) - y) < 15)) continue;
-    g.fillStyle = '#4a525c';
+    g.fillStyle = P.ejeTxt;
     g.fillText(fmt(p), x1 + 7, y + 3.5);
   }
-  M.muros.forEach((m) => {
-    if (m.p < pMin || m.p > pMax) return;
-    const y = Y(m.p);
-    const sinProbar = m.tipo === 'vigilando' || m.tipo === 'ido';
-    const col = sinProbar ? '#6b7681' : (m.p > M.precio ? '#f6465d' : '#2ee86a');
-    g.fillStyle = col;
-    redondeado(g, x1 + 2, y - 9, mDer - 5, 18, 4); g.fill();
-    g.fillStyle = sinProbar ? '#0b0e12' : (m.p > M.precio ? '#2a0509' : '#04210f');
-    g.font = 'bold 10px ui-monospace,monospace';
-    g.fillText(fmt(m.p), x1 + 7, y + 3.5);
-  });
+  /* (Tachuelas de precio de las zonas retiradas: la gráfica quedó limpia.) */
   g.fillStyle = '#E8B84B';
   redondeado(g, x1 + 2, yP - 11, mDer - 5, 22, 5); g.fill();
   g.fillStyle = '#2a1c00';
   g.font = 'bold 12px ui-monospace,monospace';
   g.fillText(fmt(M.precio), x1 + 7, yP + 4);
 
+  /* Tachuela ALARGADA de los niveles institucionales en el eje (como las
+     demás), conectada a su línea: denominación + precio. Se reparten sin
+     solaparse entre sí, con el precio ni con las zonas. */
+  if (M.mercado) {
+    const mk = M.mercado;
+    const usadas = [yP];
+    M.zonas.forEach((z) => { if (z.p >= pMin && z.p <= pMax) usadas.push(Y(z.p)); });
+    const refTag = (p, txt, col, txtcol) => {
+      if (!(p > 0) || p < pMin || p > pMax) return;
+      let y = Y(p);
+      let guard = 0;
+      while (usadas.some((u) => Math.abs(u - y) < 15) && guard++ < 20) y -= 15;
+      usadas.push(y);
+      // hilo de conexión desde la línea real al centro de la tachuela
+      if (Math.abs(y - Y(p)) > 3) { g.strokeStyle = col; g.lineWidth = 1; g.beginPath(); g.moveTo(x1 + 1, Y(p)); g.lineTo(x1 + 8, y); g.stroke(); }
+      g.fillStyle = col;
+      redondeado(g, x1 + 2, y - 9, mDer - 5, 18, 4); g.fill();
+      g.fillStyle = txtcol; g.textAlign = 'left';
+      g.font = 'bold 9px ui-monospace,monospace';
+      g.fillText(txt, x1 + 7, y + 3.2);
+      g.textAlign = 'right';
+      g.font = '8.5px ui-monospace,monospace';
+      g.fillText(fmt(p), W - 5, y + 3.2);
+      g.textAlign = 'left';
+    };
+    void refTag;   // VAH / VAL / VWAP retirados de la gráfica (lienzo limpio).
+  }
+
   /* ── Las horas ── */
-  g.fillStyle = 'rgba(10,14,20,.94)';
+  g.fillStyle = P.ejeBg;
   g.fillRect(0, y1, W, mAba);
   g.font = '9px ui-monospace,monospace';
-  g.fillStyle = '#4a525c';
+  g.fillStyle = P.ejeTxt;
   const cada = Math.max(1, Math.floor(vis.length / 5));
   g.textAlign = 'center';
   vis.forEach((v, i) => {
@@ -852,6 +1741,43 @@ function dibujar() {
     g.fillText(d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }), x, y1 + 14);
   });
   g.textAlign = 'left';
+
+  /* ── Herramienta de posición y línea de tendencia (viven en el radar) ── */
+  M._guiaDst = null;
+  if (M._tend) dibujarTendencia(g);
+  if (M._pos) dibujarPosicion(g);
+  pintarGuiaSVG();
+
+  /* ── CROSSHAIR: cruz + precio del cursor en el eje ── */
+  if (M._cursor && M._cursor.x < x1 && M._cursor.y < y1 && M._cursor.x > 0 && M._cursor.y > 0) {
+    const cx = M._cursor.x, cy = M._cursor.y;
+    const pCur = pMin + (pMax - pMin) * ((y1 - cy) / y1);
+    g.save();
+    g.strokeStyle = M.tema === 'claro' ? 'rgba(40,50,62,.5)' : 'rgba(200,210,224,.42)';
+    g.lineWidth = 1; g.setLineDash([4, 4]);
+    g.beginPath(); g.moveTo(cx, 0); g.lineTo(cx, y1); g.stroke();          // vertical
+    g.beginPath(); g.moveTo(0, cy); g.lineTo(x1, cy); g.stroke();          // horizontal
+    g.restore(); g.setLineDash([]);
+    // tachuela de precio del cursor en el eje
+    g.fillStyle = M.tema === 'claro' ? '#2a323d' : '#e8ecf2';
+    redondeado(g, x1 + 2, cy - 9, mDer - 5, 18, 4); g.fill();
+    g.fillStyle = M.tema === 'claro' ? '#eef2f7' : '#0b0e12';
+    g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'left';
+    g.fillText(fmt(pCur), x1 + 7, cy + 3.5);
+    // tachuela de la hora del cursor abajo
+    const idx = Math.floor(cx / paso);
+    if (idx >= 0 && idx < vis.length) {
+      const d = new Date(vis[idx].t * 1000);
+      const ht = d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+      g.font = 'bold 9px ui-monospace,monospace';
+      const hw = g.measureText(ht).width + 12;
+      g.fillStyle = M.tema === 'claro' ? '#2a323d' : '#e8ecf2';
+      redondeado(g, Math.max(2, Math.min(x1 - hw, cx - hw / 2)), y1 + 3, hw, 15, 4); g.fill();
+      g.fillStyle = M.tema === 'claro' ? '#eef2f7' : '#0b0e12'; g.textAlign = 'center';
+      g.fillText(ht, Math.max(2 + hw / 2, Math.min(x1 - hw / 2, cx)), y1 + 13.5);
+      g.textAlign = 'left';
+    }
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -861,9 +1787,45 @@ function dibujar() {
    precio se amontonan. La rueda y el pellizco cambian el rango que
    se muestra; el doble clic vuelve a verlo todo.
    ══════════════════════════════════════════════════════════════ */
+/* Arrastres de la herramienta de posición (misma dinámica que Smart Levels).
+   Todo se convierte a tiempo/precio para que quede pegado al gráfico. */
+function arrastrarLinea(e, cual) {
+  const cv = $('mu-cv'); const r = cv.getBoundingClientRect();
+  const mover = (ev) => { const p = mPy(ev.clientY - r.top); const P = M._pos; if (!P) return;
+    if (cual === 'entry') P.pe = p; else if (cual === 'target') P.pTarget = p; else P.pStop = p; dibujar(); posPosCfg(); };
+  const soltar = () => { window.removeEventListener('mousemove', mover); window.removeEventListener('mouseup', soltar); };
+  window.addEventListener('mousemove', mover); window.addEventListener('mouseup', soltar);
+}
+function arrastrarBorde(e, lado) {
+  const cv = $('mu-cv'); const r = cv.getBoundingClientRect();
+  const mover = (ev) => { const t = mTx(ev.clientX - r.left); const P = M._pos; if (!P) return;
+    if (lado === 'izq') P.t0 = t; else P.t1 = t; dibujar(); posPosCfg(); };
+  const soltar = () => { window.removeEventListener('mousemove', mover); window.removeEventListener('mouseup', soltar); };
+  window.addEventListener('mousemove', mover); window.addEventListener('mouseup', soltar);
+}
+function arrastrarPosEntera(e) {
+  const cv = $('mu-cv'); const r = cv.getBoundingClientRect();
+  let ax = e.clientX - r.left, ay = e.clientY - r.top;
+  const mover = (ev) => { const P = M._pos; if (!P) return;
+    const nx = ev.clientX - r.left, ny = ev.clientY - r.top;
+    const dt = mTx(nx) - mTx(ax), dp = mPy(ny) - mPy(ay);
+    P.t0 += dt; P.t1 += dt; P.pe += dp; P.pTarget += dp; P.pStop += dp;
+    ax = nx; ay = ny; dibujar(); posPosCfg(); };
+  const soltar = () => { window.removeEventListener('mousemove', mover); window.removeEventListener('mouseup', soltar); };
+  window.addEventListener('mousemove', mover); window.addEventListener('mouseup', soltar);
+}
+function arrastrarTend(e) {
+  const cv = $('mu-cv'); const r = cv.getBoundingClientRect(); let ay = e.clientY - r.top;
+  const mover = (ev) => { const T = M._tend; if (!T) return; const ny = ev.clientY - r.top;
+    const dp = mPy(ny) - mPy(ay); T.segs.forEach((s) => { s.p0 += dp; s.p1 += dp; }); ay = ny; dibujar(); posTendCfg(); };
+  const soltar = () => { window.removeEventListener('mousemove', mover); window.removeEventListener('mouseup', soltar); };
+  window.addEventListener('mousemove', mover); window.addEventListener('mouseup', soltar);
+}
+
 function engancharGestos(cv) {
   const zoom = (f) => {
-    M.ancho = Math.max(20, Math.min(140, Math.round((M.ancho || 70) * f)));
+    const maxA = Math.max(60, (M.velas.length || 400) - 4);   // alejar hasta ver casi todas las velas cargadas
+    M.ancho = Math.max(20, Math.min(maxA, Math.round((M.ancho || 70) * f)));
     dibujar();
   };
 
@@ -875,7 +1837,43 @@ function engancharGestos(cv) {
 
   cv.addEventListener('mousedown', (e) => {
     const r = cv.getBoundingClientRect();
-    modoG = enEscalaM(e.clientX - r.left) ? 'y' : 'libre';
+    const lx = e.clientX - r.left, ly = e.clientY - r.top;
+    const dentroR = (rc) => rc && lx >= rc.x - 8 && lx <= rc.x + rc.w + 8 && ly >= rc.y - 8 && ly <= rc.y + rc.h + 8;
+
+    // Al primer toque en el gráfico, la línea guía de sugerencia se retira.
+    if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
+    if (M._tend && M._tend.guia) { M._tend.guia = false; dibujar(); }
+
+    // ── Herramienta de posición (misma dinámica que Smart Levels) ──
+    if (M._pos) {
+      const P = M._pos;
+      // 1) botones de la tarjeta (ocultar / mini / flechas)
+      if (P.oculto && dentroR(P._miniBtn)) { P.oculto = false; cerrarPosCfg(); dibujar(); return; }
+      if (!P.oculto && dentroR(P._hideBtn)) { P.oculto = true; cerrarPosCfg(); dibujar(); return; }
+      const ORD = ['der', 'abajo', 'izq', 'arriba'];
+      if (!P.oculto && dentroR(P._arrL)) { P.cardPos = ORD[(ORD.indexOf(P.cardPos || 'der') + 3) % 4]; dibujar(); return; }
+      if (!P.oculto && dentroR(P._arrR)) { P.cardPos = ORD[(ORD.indexOf(P.cardPos || 'der') + 1) % 4]; dibujar(); return; }
+      const G = P._pos;
+      if (G) {
+        const dentroX = lx >= G.x - 7 && lx <= G.x + G.w + 7;
+        // 2) borde izq/der → redimensionar (cambia t0/t1)
+        if (dentroX && ly >= Math.min(G.yt, G.ye, G.ys) - 6 && ly <= Math.max(G.yt, G.ye, G.ys) + 6) {
+          if (Math.abs(lx - G.x) < 7) { mostrarPosCfg(); return arrastrarBorde(e, 'izq'); }
+          if (Math.abs(lx - (G.x + G.w)) < 7) { mostrarPosCfg(); return arrastrarBorde(e, 'der'); }
+          // 3) sobre una de las 3 líneas → arrastrar esa línea
+          if (Math.abs(ly - G.yt) < 7) { mostrarPosCfg(); return arrastrarLinea(e, 'target'); }
+          if (Math.abs(ly - G.ye) < 7) { mostrarPosCfg(); return arrastrarLinea(e, 'entry'); }
+          if (Math.abs(ly - G.ys) < 7) { mostrarPosCfg(); return arrastrarLinea(e, 'stop'); }
+          // 4) dentro de la franja → arrastrar toda la posición + mostrar config
+          mostrarPosCfg(); return arrastrarPosEntera(e);
+        }
+      }
+    }
+    // ── Tendencia ──
+    if (M._tend && cercaTend(lx, ly)) { mostrarTendCfg(); return arrastrarTend(e); }
+
+    cerrarPosCfg(); cerrarTendCfg();
+    modoG = enEscalaM(lx) ? 'y' : 'libre';
     arr = true; ax = e.clientX; ay = e.clientY;
     cv.style.cursor = modoG === 'y' ? 'ns-resize' : 'grabbing';
   });
@@ -894,7 +1892,7 @@ function engancharGestos(cv) {
     const mov = Math.round((e.clientX - ax) / Math.max(1, paso));
     if (mov !== 0) {
       const tope = Math.max(0, M.velas.length - (M.ancho || 70));
-      const suelo = -Math.floor((M.ancho || 70) * 0.15);   // respiro a la derecha
+      const suelo = -Math.floor((M.ancho || 70) * 0.45);   // respiro a la derecha
       M.desplaz = Math.max(suelo, Math.min(tope, (M.desplaz || 0) + mov));
       ax = e.clientX; cambio = true;
     }
@@ -906,6 +1904,51 @@ function engancharGestos(cv) {
     if (cambio) dibujar();
   });
   window.addEventListener('mouseup', () => { arr = false; cv.style.cursor = 'crosshair'; });
+
+  /* CROSSHAIR estilo TradingView: al mover el cursor por el gráfico se dibuja
+     una cruz y el precio exacto aparece en el eje derecho. */
+  // Cursor de la herramienta sobre el radar. Se decide aquí y se RE-APLICA a
+  // nivel window (más abajo) porque orden.js engancha su propio mousemove al
+  // canvas y repone 'crosshair', pisando la manito. Igual que en Smart Levels.
+  const cursorHerramienta = (lx, ly) => {
+    const dRp = (rc, p) => rc && lx >= rc.x - p && lx <= rc.x + rc.w + p && ly >= rc.y - p && ly <= rc.y + rc.h + p;
+    if (M._pos) {
+      const P = M._pos;
+      if ((!P.oculto && (dRp(P._hideBtn, 8) || dRp(P._arrL, 8) || dRp(P._arrR, 8))) || (P.oculto && dRp(P._miniBtn, 8))) return 'pointer';  // manita en botones
+      const G = P._pos;
+      if (G && lx >= G.x - 8 && lx <= G.x + G.w + 8 && ly >= Math.min(G.yt, G.ye, G.ys) - 8 && ly <= Math.max(G.yt, G.ye, G.ys) + 8) {
+        if (Math.abs(lx - G.x) < 9 || Math.abs(lx - (G.x + G.w)) < 9) return 'ew-resize';   // bordes → estirar
+        if (Math.abs(ly - G.yt) < 9 || Math.abs(ly - G.ye) < 9 || Math.abs(ly - G.ys) < 9) return 'ns-resize';  // líneas → subir/bajar
+        return 'grab';                                                                       // cuerpo → mover
+      }
+    }
+    if (M._tend && cercaTend(lx, ly)) return 'grab';
+    return '';
+  };
+
+  cv.addEventListener('mousemove', (e) => {
+    if (arr) return;                    // durante el arrastre no se dibuja la cruz
+    const r = cv.getBoundingClientRect();
+    const lx = e.clientX - r.left, ly = e.clientY - r.top;
+    M._cursor = { x: lx, y: ly };
+    const cur = cursorHerramienta(lx, ly);
+    cv.style.cursor = cur || (enEscalaM(lx) ? 'ns-resize' : 'crosshair');
+    dibujar();
+  });
+  /* orden.js registra DESPUÉS su propio mousemove sobre el canvas y repone
+     'crosshair', comiéndose la manito. Este handler a nivel window corre en la
+     fase de burbujeo (después del canvas) y re-impone el cursor correcto cuando
+     estamos sobre la herramienta. Copiado tal cual de Smart Levels. */
+  window.addEventListener('mousemove', (e) => {
+    if (arr) return;
+    const cvv = $('mu-cv'); if (!cvv) return;
+    const r = cvv.getBoundingClientRect();
+    const lx = e.clientX - r.left, ly = e.clientY - r.top;
+    if (lx < 0 || ly < 0 || lx > r.width || ly > r.height) return;
+    const cur = cursorHerramienta(lx, ly);
+    if (cur) cvv.style.cursor = cur;
+  });
+  cv.addEventListener('mouseleave', () => { if (M._cursor) { M._cursor = null; cv.style.cursor = 'default'; dibujar(); } });
 
   cv.addEventListener('dblclick', () => {
     M.ancho = window.innerWidth < 760 ? 65 : 100; M.desplaz = 0; M.zoomY = 1; M.offsetY = 0;
@@ -938,7 +1981,34 @@ function engancharGestos(cv) {
   /* Táctil: un dedo mueve, dos hacen zoom. */
   let d0 = 0, tx = 0;
   cv.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) { tx = e.touches[0].clientX; arr = true; }
+    if (e.touches.length === 1) {
+      const r = cv.getBoundingClientRect();
+      const lx = e.touches[0].clientX - r.left, ly = e.touches[0].clientY - r.top;
+      if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
+      if (M._tend && M._tend.guia) { M._tend.guia = false; dibujar(); }
+      const dR = (rc) => rc && lx >= rc.x - 8 && lx <= rc.x + rc.w + 8 && ly >= rc.y - 8 && ly <= rc.y + rc.h + 8;
+      if (M._pos) {
+        const P = M._pos, ORD = ['der', 'abajo', 'izq', 'arriba'];
+        if (P.oculto && dR(P._miniBtn)) { P.oculto = false; cerrarPosCfg(); dibujar(); return; }
+        if (!P.oculto && dR(P._hideBtn)) { P.oculto = true; cerrarPosCfg(); dibujar(); return; }
+        if (!P.oculto && dR(P._arrL)) { P.cardPos = ORD[(ORD.indexOf(P.cardPos || 'der') + 3) % 4]; dibujar(); return; }
+        if (!P.oculto && dR(P._arrR)) { P.cardPos = ORD[(ORD.indexOf(P.cardPos || 'der') + 1) % 4]; dibujar(); return; }
+        const G = P._pos;
+        if (G && lx >= G.x - 9 && lx <= G.x + G.w + 9 && ly >= Math.min(G.yt, G.ye, G.ys) - 9 && ly <= Math.max(G.yt, G.ye, G.ys) + 9) {
+          let act;
+          if (Math.abs(lx - G.x) < 10) act = { k: 'borde', lado: 'izq' };
+          else if (Math.abs(lx - (G.x + G.w)) < 10) act = { k: 'borde', lado: 'der' };
+          else if (Math.abs(ly - G.yt) < 10) act = { k: 'linea', cual: 'target' };
+          else if (Math.abs(ly - G.ye) < 10) act = { k: 'linea', cual: 'entry' };
+          else if (Math.abs(ly - G.ys) < 10) act = { k: 'linea', cual: 'stop' };
+          else act = { k: 'entera', lx, ly };
+          M._touchArr = act; mostrarPosCfg(); return;
+        }
+      }
+      if (M._tend && cercaTend(lx, ly)) { M._touchArr = { k: 'tend', ly }; mostrarTendCfg(); return; }
+      cerrarPosCfg(); cerrarTendCfg();
+      tx = e.touches[0].clientX; arr = true;
+    }
     else if (e.touches.length === 2) {
       arr = false;
       d0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
@@ -946,13 +2016,24 @@ function engancharGestos(cv) {
     }
   }, { passive: true });
   cv.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1 && M._touchArr) {
+      e.preventDefault();
+      const r = cv.getBoundingClientRect();
+      const lx = e.touches[0].clientX - r.left, ly = e.touches[0].clientY - r.top;
+      const A = M._touchArr, P = M._pos, T = M._tend;
+      if (A.k === 'linea' && P) { const p = mPy(ly); if (A.cual === 'entry') P.pe = p; else if (A.cual === 'target') P.pTarget = p; else P.pStop = p; posPosCfg(); }
+      else if (A.k === 'borde' && P) { const t = mTx(lx); if (A.lado === 'izq') P.t0 = t; else P.t1 = t; posPosCfg(); }
+      else if (A.k === 'entera' && P) { const dt = mTx(lx) - mTx(A.lx), dp = mPy(ly) - mPy(A.ly); P.t0 += dt; P.t1 += dt; P.pe += dp; P.pTarget += dp; P.pStop += dp; A.lx = lx; A.ly = ly; posPosCfg(); }
+      else if (A.k === 'tend' && T) { const dp = mPy(ly) - mPy(A.ly); T.segs.forEach((s) => { s.p0 += dp; s.p1 += dp; }); A.ly = ly; posTendCfg(); }
+      dibujar(); return;
+    }
     if (e.touches.length === 1 && arr) {
       e.preventDefault();
       const paso = (cv.clientWidth * 0.7) / (M.ancho || 70);
       const mov = Math.round((e.touches[0].clientX - tx) / Math.max(1, paso));
       if (mov !== 0) {
         const tope = Math.max(0, M.velas.length - (M.ancho || 70));
-        const sueloT = -Math.floor((M.ancho || 70) * 0.15);
+        const sueloT = -Math.floor((M.ancho || 70) * 0.45);
         M.desplaz = Math.max(sueloT, Math.min(tope, (M.desplaz || 0) + mov));
         tx = e.touches[0].clientX;
         dibujar();
@@ -964,7 +2045,7 @@ function engancharGestos(cv) {
       if (Math.abs(d - d0) > 8) { zoom(d0 / d); d0 = d; }
     }
   }, { passive: false });
-  cv.addEventListener('touchend', () => { arr = false; d0 = 0; });
+  cv.addEventListener('touchend', () => { arr = false; d0 = 0; M._touchArr = null; });
 
   cv.style.cursor = 'grab';
 }
@@ -1016,7 +2097,10 @@ function calor(v) {
    la distancia del precio y sube la tensión cuando se acerca.
    ══════════════════════════════════════════════════════════════ */
 function narrar(m, esVenta, dist) {
-  const cerca = dist < 0.12, muyCerca = dist < 0.05;
+  /* 'muyCerca' = el precio está de verdad ENCIMA del nivel (a ~0,015%). Antes
+     estaba en 0,05% y por eso decía "tocando este nivel" cuando el precio aún
+     estaba lejos: una mentira que un trader detecta al instante. */
+  const cerca = dist < 0.12, muyCerca = dist < 0.015;
 
   if (m.tipo === 'falso') {
     return 'Se retira cada vez que el precio se acerca. <b>Es humo</b>: no cuente con este nivel.';
@@ -1050,98 +2134,164 @@ function narrar(m, esVenta, dist) {
   return `Orden recién puesta hace ${tiempo(m.segundos)}. Todavía no sabemos si va en serio.`;
 }
 
+/* Narrador de ZONAS de acumulación: dice qué es y qué esperar, con la verdad
+   de la distancia (nada de "tocando" cuando no lo está). */
+function narrarZona(z, dem, dist) {
+  if (z.dentro) {
+    return dem
+      ? '<b>El precio está DENTRO de la zona de demanda.</b> Aquí se decide si rebota o la pierde.'
+      : '<b>El precio está DENTRO de la zona de oferta.</b> Aquí se decide si la rechaza o la rompe.';
+  }
+  if (z.retest) {
+    return dem
+      ? `El precio está <b>a ${dist.toFixed(2)}%</b> de retestear esta demanda. Atento a un posible rebote.`
+      : `El precio está <b>a ${dist.toFixed(2)}%</b> de retestear esta oferta. Atento a un posible rechazo.`;
+  }
+  const f = z.fuerza >= 4 ? 'Zona <b>fuerte</b>' : 'Zona';
+  return dem
+    ? `${f} de demanda: se acumularon ${dinero(z.v)} en ${z.toques} velas. Suele sostener las caídas.`
+    : `${f} de oferta: se acumularon ${dinero(z.v)} en ${z.toques} velas. Suele frenar las subidas.`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   COCKPIT — el resumen que un gestor lee en 2 segundos
+   ══════════════════════════════════════════════════════════════ */
+function pintarCockpit() {
+  const c = $('mu-cockpit'); if (!c) return;
+  const m = M.mercado;
+  const zs = M.zonas || [];
+  const cercana = zs.slice().sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))[0];
+  const fuerteProx = zs.filter((z) => z.fuerza >= 4 && !z.rota).sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))[0];
+  const sesgo = m ? m.sesgo : 'neutral';
+  const sesgoCol = sesgo === 'comprador' ? '#2ee86a' : sesgo === 'vendedor' ? '#f6465d' : '#8b96a3';
+  let deltaTxt = '\u2014', deltaCol = '#8b96a3';
+  if (M.delta) {
+    const r = M.delta.ratio;
+    deltaTxt = (r >= 0.5 ? '+' : '') + Math.round((r - 0.5) * 200) + '%';
+    deltaCol = r >= 0.55 ? '#2ee86a' : r <= 0.45 ? '#f6465d' : '#8b96a3';
+  }
+  const ctx = (M.contexto || []).map((g) => {
+    const col = g.estado === 'demanda' ? '#2ee86a' : g.estado === 'oferta' ? '#f6465d' : '#6b7681';
+    const ic = g.estado === 'demanda' ? '\u25b2' : g.estado === 'oferta' ? '\u25bc' : '\u00b7';
+    return `<span style="color:${col}">${g.id} ${ic}</span>`;
+  }).join(' ');
+  const celda = (val, lbl, col) => `<div class="mu-ck"><b style="color:${col || 'var(--mu-tx)'}">${val}</b><span>${lbl}</span></div>`;
+  c.innerHTML =
+    celda(`<span style="color:${sesgoCol};text-transform:capitalize">${sesgo}</span>`, 'sesgo mercado') +
+    celda(m && m.winRate != null ? m.winRate + '%' : '\u2014', m && m.muestra ? 'acierto \u00b7 ' + m.muestra : 'acierto', m && m.winRate >= 60 ? '#2ee86a' : (m && m.winRate != null ? '#E8B84B' : '#8b96a3')) +
+    celda(deltaTxt, 'flujo agresor', deltaCol) +
+    celda(cercana ? (cercana.dentro ? 'AQU\u00cd' : (Math.abs(cercana.dist) * 100).toFixed(2) + '%') : '\u2014', 'zona cercana', cercana && cercana.dentro ? '#E8B84B' : 'var(--mu-tx)') +
+    celda(fuerteProx ? fmt(fuerteProx.p) : '\u2014', 'pr\u00f3x. fuerte', fuerteProx ? (fuerteProx.lado === 'demanda' ? '#2ee86a' : '#f6465d') : '#8b96a3') +
+    (ctx ? `<div class="mu-ck mu-ck-ctx"><b>${ctx}</b><span>BTC \u00b7 ETH</span></div>` : '');
+}
+
 function pintarPanel() {
+  if (!document.getElementById('mu-panel')) return;   // panel retirado: nada que pintar
   const lista = $('mu-lista'); if (!lista) return;
   const estado = $('mu-estado');
+  pintarCockpit();
 
-  /* Las cuentas de cada filtro, siempre visibles. */
+  /* Las cuentas de cada filtro (ahora sobre las ZONAS). */
   const cuenta = (id, f) => {
     const el = $('mu-n-' + id);
-    if (el) el.textContent = M.muros.filter(f).length;
+    if (el) el.textContent = M.zonas.filter(f).length;
   };
-  cuenta('compra', (m) => m.p <= M.precio);
-  cuenta('venta', (m) => m.p > M.precio);
-  cuenta('fuertes', (m) => m.tipo === 'recargable' || m.tipo === 'probado');
-  cuenta('falsos', (m) => m.tipo === 'falso' || m.tipo === 'ido');
+  cuenta('compra', (z) => z.lado === 'demanda');
+  cuenta('venta', (z) => z.lado === 'oferta');
+  cuenta('fuertes', (z) => z.fuerza >= 4);
+  cuenta('falsos', (z) => z.retest || z.dentro);
+  const mtn = $('mu-mtab-n'); if (mtn) mtn.textContent = M.zonas.length;
 
   if (M.error) { if (estado) estado.textContent = M.error; return; }
 
-  if (M.cargando) {
-    if (estado) estado.textContent = `${M.fotos.length}/${MIN_TOMAS}`;
-    lista.innerHTML = `<div class="mu-esperar">Analizando el libro de órdenes…</div>`;
+  if (M.cargando || !M.zonas.length && !M.velas.length) {
+    if (estado) estado.textContent = '';
+    lista.innerHTML = `<div class="mu-esperar">Leyendo el mercado…</div>`;
     return;
   }
-  if (estado) estado.textContent = 'En directo';
+  if (estado) estado.textContent = '';
 
   /* El filtro. Sin ninguno activo se ven todas. */
-  let lst = M.muros.slice();
-  if (M.filtro === 'fuertes') lst = lst.filter((m) => m.tipo === 'recargable' || m.tipo === 'probado');
-  else if (M.filtro === 'compra') lst = lst.filter((m) => m.p <= M.precio);
-  else if (M.filtro === 'venta') lst = lst.filter((m) => m.p > M.precio);
-  else if (M.filtro === 'falsos') lst = lst.filter((m) => m.tipo === 'falso' || m.tipo === 'ido');
+  let lst = M.zonas.slice();
+  if (M.filtro === 'fuertes') lst = lst.filter((z) => z.fuerza >= 4);
+  else if (M.filtro === 'compra') lst = lst.filter((z) => z.lado === 'demanda');
+  else if (M.filtro === 'venta') lst = lst.filter((z) => z.lado === 'oferta');
+  else if (M.filtro === 'falsos') lst = lst.filter((z) => z.retest || z.dentro);
 
   if (!lst.length) {
     lista.innerHTML = `<div class="mu-esperar">
-      <b>${M.filtro === 'todos' ? 'Libro tranquilo' : 'Nada de ese tipo'}</b>
+      <b>${M.filtro === 'todos' ? 'Sin zonas claras' : 'Nada de ese tipo'}</b>
       ${M.filtro === 'todos'
-        ? 'Nadie está poniendo órdenes grandes en ' + esc(_par) + ' ahora mismo.'
-        : 'Pruebe con otro filtro o quítelo para ver todas.'}
+        ? 'No hay acumulación destacable en ' + esc(_par) + ' en este rango.'
+        : 'Prueba con otro filtro o quítalo para ver todas.'}
     </div>`;
     return;
   }
 
-  const tarjeta = (m, id) => {
-    const c = COLORES[m.tipo];
-    const esVenta = m.p > M.precio;
-    const pct = (Math.abs(m.dist) * 100).toFixed(2);
+  const tarjeta = (z, id) => {
+    const dem = z.lado === 'demanda';
+    const pct = (Math.abs(z.dist) * 100).toFixed(2);
+    const fuerza = z.fuerza;                          // 1..5
+    const clase = z.rota ? 'gris' : (dem ? 'verde' : 'rojo');
+    const abierta = M.seleccionado === z.p;
+    const conse = narrarZona(z, dem, Math.abs(z.dist) * 100);
+    const compPct = Math.round(z.compradorPct * 100);
+    const flujo = dem
+      ? `${compPct}% comprador`
+      : `${100 - compPct}% vendedor`;
+    const queHacer = z.rota
+      ? 'Zona <b>rota</b>: el precio la perforó. Podría actuar al revés (flip) si vuelve a ella.'
+      : dem
+        ? 'Zona de <b>demanda</b>: posible rebote / entrada en largo al retestear el nivel.'
+        : 'Zona de <b>oferta</b>: posible rechazo / entrada en corto al retestear el nivel.';
 
-    let fuerza = 0;
-    if (m.tipo === 'recargable' || m.tipo === 'probado') fuerza = 3;
-    else if (m.tipo === 'real') fuerza = m.segundos > 240 ? 3 : 2;
-    else if (m.tipo === 'vigilando') fuerza = 1;
+    // Insignias
+    const badges = [
+      z.ref ? '<i class="mu-b ref">\u25c7 VWAP/VA</i>' : '',
+      z.confluencia ? '<i class="mu-b conf">\u25c8 ' + (TF_SUPERIOR[M.tf] || 'HTF') + '</i>' : '',
+      z.libro ? '<i class="mu-b libro">\u25a3 libro</i>' : '',
+      z.alineado && !z.rota ? '<i class="mu-b flujo">\u2713 flujo</i>' : '',
+      z.rota ? '<i class="mu-b rota">\u2715 rota</i>' : ''
+    ].join('');
 
-    /* ══════════════════════════════════════════════════════════
-       EL NARRADOR
+    // Línea de tiempo del ciclo de vida
+    const v = z.vida;
+    const hace = (t) => { if (!t) return ''; const s = Math.round((Date.now() - t) / 1000); if (s < 60) return s + 's'; if (s < 3600) return Math.round(s / 60) + 'min'; if (s < 86400) return Math.round(s / 3600) + 'h'; return Math.round(s / 86400) + 'd'; };
+    const timeline = v ? `
+        <div class="mu-timeline">
+          <span class="tl on"><i></i>formada<b>hace ${hace(v.nace)}</b></span>
+          <span class="tl ${v.tests > 0 ? 'on' : ''}"><i></i>testeada<b>${v.tests}\u00d7</b></span>
+          <span class="tl ${v.confirmada ? 'on' : ''}"><i></i>${v.confirmada ? 'confirmada' : 'sin confirmar'}<b>${v.confirmada ? '\u2713' : '\u2026'}</b></span>
+          <span class="tl ${z.rota ? 'rota' : ''}"><i></i>${z.rota ? 'ROTA' : 'vigente'}<b>${z.rota ? hace(v.rotaTs) : '\u2713'}</b></span>
+        </div>` : '';
 
-       El texto no describe un estado fijo: cuenta lo que está
-       pasando AHORA. Cambia según la distancia del precio, y cuando
-       se acerca sube la tensión, como un comentarista.
-       ══════════════════════════════════════════════════════════ */
-    const dist = Math.abs(m.dist) * 100;
-    const cerca = dist < 0.12;
-    const muyCerca = dist < 0.05;
-    const conse = narrar(m, esVenta, dist);
-
-    const queHacer = (m.tipo === 'recargable' || m.tipo === 'probado')
-      ? (esVenta ? 'Buen sitio para recoger beneficios si va largo.' : 'Buen sitio para colocar su stop justo por debajo.')
-      : m.tipo === 'falso' ? 'Si su plan dependía de este nivel, revíselo.'
-      : 'Déle unos minutos más para tener veredicto.';
-
-    /* La tarjeta: lo esencial en dos líneas, el resto se despliega. */
-    const abierta = M.seleccionado === m.p;
     return `
-    <div class="mu-card ${c.clase} f${fuerza} ${abierta ? 'sel' : ''}"
-         data-id="${id}" data-lado="${esVenta ? 'venta' : 'compra'}">
-      <button class="mu-cab-card" data-mp="${m.p}">
+    <div class="mu-card ${clase} f${fuerza >= 4 ? 3 : fuerza >= 2 ? 2 : 1} ${abierta ? 'sel' : ''} ${z.rota ? 'es-rota' : ''}"
+         data-id="${id}" data-lado="${dem ? 'compra' : 'venta'}">
+      <button class="mu-cab-card" data-mp="${z.p}">
         <div class="mu-l1">
-          <span class="mu-lado">${esVenta ? 'EN VENTA' : 'EN COMPRA'}</span>
-          <span class="mu-imp">${dinero(m.v)}</span>
+          <span class="mu-lado">${z.rota ? (dem ? 'DEMANDA ROTA' : 'OFERTA ROTA') : (dem ? 'DEMANDA' : 'OFERTA')}</span>
+          ${fuerza >= 4 && !z.rota ? '<i class="mu-fuerte">\u2605 FUERTE</i>' : ''}
+          <span class="mu-imp">${dinero(z.v)}</span>
         </div>
         <div class="mu-l2">
-          <span class="mu-nivel">${fmt(m.p)}</span>
-          <span class="mu-dist2 ${muyCerca ? 'urge' : cerca ? 'cerca' : ''}">${pct}% ${esVenta ? '↑' : '↓'}</span>
-          <span class="mu-sello">${c.icono} ${esc(c.nom || '')}</span>
-          <span class="mu-fl">${abierta ? '▲' : '▼'}</span>
+          <span class="mu-nivel">${fmt(z.pLow)}\u2013${fmt(z.pHigh)}</span>
+          <span class="mu-dist2 ${z.dentro ? 'urge' : z.retest ? 'cerca' : ''}">${z.dentro ? 'AQU\u00cd' : pct + '% ' + (dem ? '\u2193' : '\u2191')}</span>
+          <span class="mu-fl">${abierta ? '\u25b2' : '\u25bc'}</span>
         </div>
-        ${muyCerca ? '<div class="mu-aviso-vivo">● El precio está tocando este nivel</div>' : ''}
+        <div class="mu-conf"><i class="mu-conf-bar" style="width:${Math.round(z.confianza)}%"></i><em>${Math.round(z.confianza)}<span>conf.</span></em></div>
+        ${badges ? `<div class="mu-badges">${badges}</div>` : ''}
+        ${z.dentro || z.retest ? `<div class="mu-aviso-vivo">\u27f3 ${z.dentro ? 'El precio est\u00e1 en la zona ahora' : 'El precio est\u00e1 por retestear esta zona'}</div>` : ''}
       </button>
       ${abierta ? `<div class="mu-detalle">
-        <div class="mu-conse mu-escribe">${conse}</div>
+        <div class="mu-conse mu-escribe">${conse}</div>${timeline}
         <div class="mu-metricas">
-          <div><b class="mu-firme">${tiempo(m.segundos)}</b><span>firme</span></div>
-          <div><b class="mu-rec-n">${m.recargas || 0}×</b><span>repuesta</span></div>
-          <div><b class="mu-eje-n">${Math.round(Math.min(100, m.consumidoPct * 100))}%</b><span>ejecutado</span></div>
-          <div><b>${'●'.repeat(fuerza)}${'○'.repeat(3 - fuerza)}</b><span>fuerza</span></div>
+          <div><b>${fmt(z.pPoc)}</b><span>POC (entrada)</span></div>
+          <div><b>${flujo}</b><span>flujo firmado</span></div>
+          <div><b>${z.reacciones}</b><span>reacciones</span></div>
+          <div><b>${z.toques}</b><span>toques</span></div>
+          <div><b>${z.confluencia ? 'S\u00ed' : 'No'}</b><span>confluencia ${TF_SUPERIOR[M.tf] || ''}</span></div>
+          <div><b>${'\u25cf'.repeat(fuerza)}${'\u25cb'.repeat(5 - fuerza)}</b><span>fuerza</span></div>
         </div>
         <div class="mu-hacer">${queHacer}</div>
       </div>` : ''}
@@ -1229,10 +2379,10 @@ function pintarPanel() {
 }
 
 /** Actualiza una tarjeta sin recrearla: solo lo que cambió. */
-function actualizar(card, m) {
-  const c = COLORES[m.tipo];
-  const esVenta = m.p > M.precio;
-  const dist = Math.abs(m.dist) * 100;
+function actualizar(card, z) {
+  const dem = z.lado === 'demanda';
+  const dist = Math.abs(z.dist) * 100;
+  const fuerza = z.fuerza;
 
   const pon = (sel, txt) => {
     const e = card.querySelector(sel);
@@ -1243,35 +2393,40 @@ function actualizar(card, m) {
     if (e) e.classList.toggle(cl, si);
   };
 
-  pon('.mu-imp', dinero(m.v));
-  pon('.mu-nivel', fmt(m.p));
-  pon('.mu-dist2', dist.toFixed(2) + '% ' + (esVenta ? '↑' : '↓'));
-  pon('.mu-sello', c.icono + ' ' + (c.nom || ''));
-  pon('.mu-lado', esVenta ? 'EN VENTA' : 'EN COMPRA');
+  pon('.mu-imp', dinero(z.v));
+  pon('.mu-nivel', fmt(z.pLow) + '\u2013' + fmt(z.pHigh));
+  pon('.mu-dist2', z.dentro ? 'AQU\u00cd' : dist.toFixed(2) + '% ' + (dem ? '\u2193' : '\u2191'));
+  pon('.mu-lado', z.rota ? (dem ? 'DEMANDA ROTA' : 'OFERTA ROTA') : (dem ? 'DEMANDA' : 'OFERTA'));
 
-  // El veredicto puede cambiar: la tarjeta cambia de color con él
+  // Barra de confianza
+  const barra = card.querySelector('.mu-conf-bar');
+  if (barra) barra.style.width = Math.round(z.confianza) + '%';
+  const cn2 = card.querySelector('.mu-conf em');
+  if (cn2) { const t = Math.round(z.confianza) + ''; if (cn2.firstChild && cn2.firstChild.textContent !== t) cn2.firstChild.textContent = t; }
+
+  const claseCol = z.rota ? 'gris' : (dem ? 'verde' : 'rojo');
   ['oro', 'verde', 'azul', 'rojo', 'gris', 'ido'].forEach((k) => {
-    card.classList.toggle(k, k === c.clase);
+    card.classList.toggle(k, k === claseCol);
   });
-  card.dataset.lado = esVenta ? 'venta' : 'compra';
+  // Clase de fuerza (f1/f2/f3) y chip "FUERTE" en vivo
+  const fClass = fuerza >= 4 ? 'f3' : fuerza >= 2 ? 'f2' : 'f1';
+  ['f1', 'f2', 'f3'].forEach((k) => card.classList.toggle(k, k === fClass));
+  const l1 = card.querySelector('.mu-l1');
+  let chip = card.querySelector('.mu-fuerte');
+  if (fuerza >= 4 && !z.rota && !chip && l1) {
+    chip = document.createElement('i'); chip.className = 'mu-fuerte'; chip.textContent = '\u2605 FUERTE';
+    l1.insertBefore(chip, l1.querySelector('.mu-imp'));
+  } else if ((fuerza < 4 || z.rota) && chip) { chip.remove(); }
+  card.classList.toggle('es-rota', !!z.rota);
+  card.dataset.lado = dem ? 'compra' : 'venta';
 
-  clase('.mu-dist2', 'cerca', dist < 0.12 && dist >= 0.05);
-  clase('.mu-dist2', 'urge', dist < 0.05);
+  clase('.mu-dist2', 'cerca', z.retest && !z.dentro);
+  clase('.mu-dist2', 'urge', z.dentro);
 
-  // El detalle, si está abierto
   const det = card.querySelector('.mu-detalle');
   if (det) {
-    pon('.mu-firme', tiempo(m.segundos));
-    const rec = card.querySelector('.mu-rec-n');
-    if (rec) rec.textContent = (m.recargas || 0) + '×';
-    const eje = card.querySelector('.mu-eje-n');
-    if (eje) eje.textContent = Math.round(Math.min(100, m.consumidoPct * 100)) + '%';
-
-    /* El narrador: solo se reescribe si el mensaje cambió, y entonces
-       se reanima. Así el efecto de escritura marca los momentos que
-       importan en vez de repetirse cada segundo. */
     const cn = card.querySelector('.mu-conse');
-    const txt = narrar(m, esVenta, dist);
+    const txt = narrarZona(z, dem, dist);
     if (cn && cn.innerHTML !== txt) {
       cn.innerHTML = txt;
       cn.classList.remove('mu-escribe');
@@ -1323,6 +2478,7 @@ function menuPares() {
 
   m.querySelectorAll('[data-mv]').forEach((b) => b.onclick = () => {
     _par = b.dataset.mv;
+    M._pos = null; M._tend = null; M._posList = null; quitarPager(); cerrarPosCfg(); cerrarTendCfg();
     /* Una ficha de otra moneda no puede quedarse abierta. */
     try { if (_od && _od.cerrarFichas) _od.cerrarFichas(); } catch (_) {}
     const bb = anc.querySelector('b'); if (bb) bb.textContent = _par;
@@ -1345,7 +2501,7 @@ function menuPares() {
   }, { once: true }), 10);
 }
 
-const CLAVE_LOGOS = 'aurex-logos';
+const CLAVE_LOGOS = 'aurex-logos-v2';   // versionada: al ampliar la lista, se recargan todos los logos
 let _logos = null;
 async function ponerLogos() {
   if (!_logos) {
@@ -1381,64 +2537,54 @@ async function ponerLogos() {
    ══════════════════════════════════════════════════════════════ */
 const PASOS_MU = [
   {
-    t: 'El libro de órdenes miente',
-    d: 'En cualquier exchange puede ver las órdenes de compra y venta esperando. Lo que no le dicen es que <b>la mayoría de las grandes son falsas</b>: se ponen para asustar y se retiran justo cuando el precio se acerca.',
-    x: 'Un trader que persigue esas órdenes pierde dinero de forma sistemática.'
+    t: 'Qué es la Lógica Estructural Avanzada',
+    d: 'Es una estrategia para <b>entrar al mercado con la mayor probabilidad posible de acertar</b>. No adivina: sigue tres pasos claros para saber <b>hacia dónde va el precio</b> y <b>en qué punto exacto entrar</b>. Aquí abajo te la explicamos paso a paso, aunque nunca hayas operado antes.',
+    x: 'La idea es sencilla: entender la tendencia, esperar el momento correcto y entrar donde el riesgo es pequeño y el beneficio grande.'
   },
   {
-    t: 'Nosotros las vigilamos',
-    d: 'Tomamos una foto del libro <b>cada segundo y medio</b> y seguimos la vida de cada orden grande: cuánto lleva puesta, si se ha ejecutado, si desapareció y volvió.',
-    x: 'Ningún exchange guarda esa historia. Ahí está la diferencia.'
+    t: 'Paso 1 · Determina DOS tendencias',
+    d: 'Todo empieza sabiendo hacia dónde va el precio, pero en <b>dos escalas a la vez</b>: la de <b>largo plazo</b> (el rumbo grande) y la de <b>corto plazo</b> (el movimiento pequeño de ahora). La de largo plazo manda; la de corto plazo es la que se mueve buscando encontrarse con ella.',
+    x: 'Piensa en una corriente de mar (largo plazo) y una ola pequeña encima (corto plazo). La ola sube y baja, pero al final la corriente decide.'
   },
   {
-    t: 'La tarjeta le dice qué es',
-    d: 'Cada orden grande genera una tarjeta con <b>cuánto dinero hay</b>, <b>a qué precio</b> y <b>a qué distancia</b> del precio actual. Roja si es venta, verde si es compra.',
-    x: 'Toque la tarjeta para desplegar el detalle completo.'
+    t: 'Paso 1 · Qué temporalidad mirar',
+    d: 'La tendencia de <b>largo plazo</b> se mira en una temporalidad más grande que la que vas a operar: si operas en <b>1 hora</b>, míralo en <b>diario</b>. Si operas en <b>15 minutos</b>, míralo en <b>4 horas</b>. Si operas en <b>5 minutos</b>, en <b>4 horas o 1 hora</b>. Si operas en <b>2 o 4 horas</b>, míralo en <b>diario o semanal</b>.',
+    x: 'Regla simple: la tendencia grande siempre se lee en una temporalidad bastante mayor que la que usas para entrar.'
   },
   {
-    t: '★ Orden blindada',
-    d: 'La señal más fuerte que existe. La orden <b>se consume y vuelve a aparecer</b> al mismo precio, una y otra vez.',
-    x: 'Es alguien grande reponiendo su posición para no mover el mercado. Ese nivel casi siempre aguanta: buen sitio para su stop.'
+    t: 'Paso 1 · El triángulo de confluencia',
+    d: 'Al trazar las dos tendencias se forma una especie de <b>triángulo</b>: la de corto plazo se va acercando a la de largo plazo hasta que <b>se tocan</b>. Ese punto donde se encuentran es el más importante de todo, porque ahí el precio tiene que <b>decidir</b>.',
+    x: 'No entramos en cualquier sitio: esperamos a ese punto de encuentro, donde ocurren las mejores oportunidades.'
   },
   {
-    t: '✓ Nivel probado',
-    d: 'El precio ya llegó hasta ahí y <b>la orden lo frenó</b>, comiéndose parte del flujo que venía.',
-    x: 'Tiene defensa demostrada. Si vuelve, es probable que reaccione igual.'
+    t: 'Paso 2 · Qué pasa en el punto de encuentro',
+    d: 'Cuando las dos tendencias se tocan, solo pueden pasar <b>dos cosas</b>. <b>Una:</b> se rompe la tendencia de largo plazo y nace un movimiento nuevo en la otra dirección (por ejemplo, venía bajando y arranca a subir). <b>Dos:</b> se rompe la tendencia de corto plazo y el precio <b>retoma</b> el rumbo grande de siempre (venía bajando de fondo y sigue bajando).',
+    x: 'Sea cual sea de las dos, esa ruptura es la señal de que algo grande empieza. Ahí es donde nos preparamos.'
   },
   {
-    t: '● Orden firme',
-    d: 'Lleva mucho tiempo sin moverse, pero <b>el precio todavía no lo ha puesto a prueba</b>.',
-    x: 'La constancia es buena señal, pero espere a ver qué pasa cuando llegue.'
+    t: 'Paso 2 · La zona de acumulación (zona swing)',
+    d: 'Justo <b>antes</b> de esa ruptura, el precio suele quedarse un rato <b>oscilando en un rango</b> (subiendo y bajando en el mismo sitio): eso es una <b>acumulación</b>. Si después de esa acumulación sale un <b>impulso fuerte</b> que rompe la tendencia, ese rango se convierte en nuestra <b>zona swing</b>: la marcamos como un rectángulo que se proyecta hacia la derecha.',
+    x: 'La acumulación es la "plataforma de lanzamiento". El impulso confirma que era buena. El rectángulo queda ahí esperando a que el precio vuelva.'
   },
   {
-    t: '✕ Orden falsa',
-    d: 'Lo hemos visto <b>huir cuando el precio se acerca</b> y volver cuando se aleja. Esa orden nunca se ejecuta.',
-    x: 'No la use como referencia. Si su plan dependía de ese nivel, revíselo.'
+    t: 'Paso 2 · También sirven los retrocesos',
+    d: 'No siempre hay que esperar una ruptura. Cuando el precio ya va claro en una dirección (sube, descansa, sube, descansa…), cada <b>descanso</b> o <b>retroceso</b> que forma una pequeña acumulación es también una oportunidad para <b>subirte a la ola</b> a favor de la tendencia.',
+    x: 'Aprovechamos el retroceso para entrar barato y acompañar al precio en su dirección predominante.'
   },
   {
-    t: 'Por qué cambian de estado',
-    d: 'Una orden puede pasar de falsa a fiable, o al revés. <b>El mercado cambia y el veredicto también.</b>',
-    x: 'Si una orden que huía empieza a reponerse, sube de categoría. Es información viva, no una etiqueta fija.'
+    t: 'Paso 3 · Dónde entrar exactamente',
+    d: 'Cuando el precio <b>regresa</b> a la zona swing, entramos en su borde. Si el movimiento es bajista, la primera entrada va en la <b>línea de abajo</b> del rectángulo. Puedes poner una <b>segunda entrada</b> en la línea de arriba (opcional), donde justo va el <b>stop loss</b> de la primera. Así repartes el riesgo.',
+    x: 'Una entrada o dos, tú decides. El stop siempre va al otro lado del rectángulo.'
   },
   {
-    t: 'El texto le cuenta qué pasa',
-    d: 'La descripción de cada tarjeta <b>cambia sola</b> según lo que ocurre: le avisa cuando el precio se acerca, cuando está tocando el nivel y cuando la orden se está ejecutando.',
-    x: 'Como un comentarista: no tiene que estar mirando los números.'
+    t: 'Paso 3 · Cuánto arriesgar (riesgo/beneficio)',
+    d: 'Buscamos siempre una relación <b>riesgo/beneficio de 1:2</b>: arriesgar 1 para ganar 2. La excepción son las zonas <b>demasiado anchas</b>: cuando el rango de acumulación es tan grande como la mitad del impulso (o más), no se le puede pedir tanto al mercado. En ese caso operamos <b>1:1</b> o, si es muy incierto, <b>no operamos</b>.',
+    x: 'Ganar de forma constante es más importante que ganar mucho de golpe. Si la zona no da un buen 1:2, mejor esperar la siguiente.'
   },
   {
-    t: 'Cómo sacarle partido',
-    d: 'Busque <b>desequilibrios</b>: si hay tres muros fuertes debajo y ninguno arriba, el camino de menor resistencia es hacia arriba.',
-    x: 'Opere a favor del lado vacío, no contra el lado defendido.'
-  },
-  {
-    t: 'Combínelo con Liquidity Pools',
-    d: 'El mapa de liquidaciones dice <b>hacia dónde</b> quiere ir el precio. Esta herramienta dice <b>qué lo está frenando ahora</b>.',
-    x: 'Un muro falso justo delante de un imán de liquidez es de las señales más claras que va a encontrar.'
-  },
-  {
-    t: 'Una última cosa',
-    d: 'Esto es <b>información, no una señal</b>. Le decimos qué es real y qué es humo, con datos del libro de Binance.',
-    x: 'La decisión de entrar o salir sigue siendo suya. Nosotros le quitamos la venda.'
+    t: 'La regla de oro',
+    d: 'La mayor probabilidad de éxito aparece cuando <b>todo se alinea</b>: entras a favor de la tendencia de largo plazo, en una zona swing real, con su impulso confirmado, y con un riesgo/beneficio sano. Cuando esas piezas encajan, la probabilidad de acertar sube muchísimo.',
+    x: 'Esto es un servicio de pago porque es una estrategia real y probada. Tómate tu tiempo en entenderla: es la base de todo.'
   }
 ];
 
@@ -1451,7 +2597,7 @@ function ayuda() {
   d.innerHTML = `<div class="mu-bg"></div>
     <div class="mua-c">
       <button class="mua-x" id="mua-x" aria-label="Cerrar">✕</button>
-      <div class="mua-eyebrow">Radar Institucional</div>
+      <div class="mua-eyebrow">Lógica Estructural Avanzada</div>
       <div id="mua-cuerpo"></div>
     </div>`;
   document.body.appendChild(d);
@@ -1502,7 +2648,7 @@ function estilos() {
   if ($('mu-css')) return;
   const s = document.createElement('style'); s.id = 'mu-css';
   s.textContent = `
-  #mu-overlay{position:fixed;inset:0;z-index:9740;display:flex;align-items:center;justify-content:center}
+  #mu-overlay{--mu-tx:#eaecef;position:fixed;inset:0;z-index:9740;display:flex;align-items:center;justify-content:center}
   #mu-overlay .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.94)}
   #mu-overlay .mu-c{position:relative;width:100%;height:100vh;height:100dvh;
     display:flex;flex-direction:column;background:#080b10}
@@ -1519,6 +2665,8 @@ function estilos() {
   .mu-logo{width:20px;height:20px;border-radius:50%;flex:0 0 auto;display:block;
     background:rgba(255,255,255,.06) center/cover no-repeat;border:1px solid #2b3139}
   .mu-logo.con{background-color:transparent;border-color:transparent}
+  #mu-overlay .mu-estado-err{align-self:center;font-family:var(--mono,monospace);font-size:10px;color:#f6465d;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
   #mu-overlay .mu-vivo{display:flex;align-items:center;gap:7px;min-width:0;
     font-family:var(--mono,monospace);font-size:10.5px;color:#7d8794;
     text-transform:uppercase;letter-spacing:.7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1526,10 +2674,40 @@ function estilos() {
     animation:muLat 1.8s ease-in-out infinite}
   @keyframes muLat{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(46,232,106,.5)}50%{opacity:.55;box-shadow:0 0 0 5px rgba(46,232,106,0)}}
   /* Temporalidad y precio en la barra */
-  #mu-overlay .mu-tfs{display:flex;gap:2px;flex:0 0 auto;padding:3px;background:#12161c;border-radius:9px}
+  #mu-overlay .mu-tfs{display:none;gap:2px;flex:0 0 auto;padding:3px;background:#12161c;border-radius:9px}
   #mu-overlay .mu-tf{min-height:30px;padding:0 11px;border-radius:7px;border:none;background:transparent;
     color:#7d8794;font-family:var(--mono,monospace);font-size:11px;font-weight:700;cursor:pointer}
   #mu-overlay .mu-tf.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);color:#3a2800}
+
+  /* Chip de temporalidad (solo móvil) + su desplegable. En escritorio se ve la
+     fila .mu-tfs completa y el chip está oculto. */
+  #mu-overlay .mu-tfchip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;
+    border-radius:11px;background:#12161c;border:1px solid #2b3139;color:#eaecef;cursor:pointer;
+    font-family:var(--mono,monospace);font-weight:800;font-size:13.5px;flex:0 0 auto}
+  #mu-overlay .mu-tfchip svg{width:14px;height:14px;opacity:.65}
+  #mu-tfmenu{position:fixed;z-index:12000;background:#12161c;border:1px solid #2b3139;border-radius:14px;
+    padding:6px;box-shadow:0 18px 44px rgba(0,0,0,.6);display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;
+    min-width:210px;max-height:60vh;overflow-y:auto;animation:muMenu .16s ease}
+  @keyframes muMenu{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  #mu-tfmenu .mu-tfmenu-it{min-height:42px;border-radius:10px;border:1px solid transparent;
+    background:rgba(255,255,255,.04);color:#c7cdd6;font-family:var(--mono,monospace);font-weight:700;
+    font-size:13px;cursor:pointer}
+  #mu-tfmenu .mu-tfmenu-it:hover{border-color:#3a424c;color:#eaecef}
+  #mu-tfmenu .mu-tfmenu-it.on{background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 55%,#c79426);
+    color:#3a2800;border-color:var(--gold,#E8B84B)}
+
+  /* Pestañas móvil Gráfica/Órdenes (ocultas en escritorio) */
+  #mu-overlay .mu-mtabs{display:none;flex:0 0 auto;gap:6px;padding:8px 10px;background:#0b0e12;
+    border-bottom:1px solid #1c2128}
+  #mu-overlay .mu-mtab{flex:1;min-height:40px;border-radius:11px;border:1px solid #232a33;
+    background:rgba(255,255,255,.03);color:#8b96a3;font-family:var(--display,sans-serif);font-weight:800;
+    font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+  #mu-overlay .mu-mtab i{font-style:normal;min-width:20px;height:20px;padding:0 5px;border-radius:20px;
+    display:inline-grid;place-items:center;background:rgba(255,255,255,.08);color:#c7cdd6;
+    font-family:var(--mono,monospace);font-size:11px;font-weight:700}
+  #mu-overlay .mu-mtab.on{background:linear-gradient(180deg,rgba(232,184,75,.16),rgba(232,184,75,.06));
+    border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  #mu-overlay .mu-mtab.on i{background:rgba(232,184,75,.2);color:var(--gold,#E8B84B)}
   #mu-overlay .mu-px{display:flex;flex-direction:column;gap:1px;flex:0 0 auto;padding-left:6px}
   #mu-overlay .mu-px span{font-family:var(--mono,monospace);font-size:8.5px;color:#5c6672;
     text-transform:uppercase;letter-spacing:1.1px}
@@ -1544,12 +2722,17 @@ function estilos() {
   #mu-overlay .mu-fchip.on{background:rgba(232,184,75,.14);border-color:var(--gold-soft,#C9A84B);
     color:var(--gold,#E8B84B)}
   #mu-overlay .mu-der{position:absolute;right:10px;top:50%;transform:translateY(-50%);
-    display:flex;gap:6px;background:#0b0e12;padding-left:8px}
+    display:flex;gap:6px;background:transparent;padding-left:8px}
   #mu-overlay .mu-ico{width:36px;height:36px;min-height:36px;flex:0 0 auto;border-radius:10px;
     display:grid;place-items:center;padding:0;cursor:pointer;
-    background:rgba(255,255,255,.05);border:1px solid #2b3139;color:#8b96a3;
-    font-family:var(--mono,monospace);font-size:14px;font-weight:700}
+    background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.03));border:1px solid #2b3139;color:#8b96a3;
+    box-shadow:0 2px 5px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06);
+    font-family:var(--mono,monospace);font-size:14px;font-weight:700;transition:transform .1s ease,border-color .15s ease}
   #mu-overlay .mu-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  #mu-overlay .mu-ico:active{transform:translateY(1px);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+  #mu-overlay .mu-news{position:relative}
+  #mu-overlay .mu-news .mu-news-dot{position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:#f6465d;box-shadow:0 0 0 0 rgba(246,70,93,.6);animation:muNewsPulse 2.2s infinite}
+  @keyframes muNewsPulse{0%{box-shadow:0 0 0 0 rgba(246,70,93,.55)}70%{box-shadow:0 0 0 6px rgba(246,70,93,0)}100%{box-shadow:0 0 0 0 rgba(246,70,93,0)}}
   /* "Cómo funciona" con texto en escritorio, solo el signo en móvil. */
   #mu-overlay .mu-comofunciona{width:auto;padding:0 14px;gap:0;
     border-color:rgba(232,184,75,.4);color:var(--gold,#E8B84B)}
@@ -1602,9 +2785,31 @@ function estilos() {
   #mu-overlay .mu-panel{width:352px;flex:0 0 auto;display:flex;flex-direction:column;
     background:#0b0e12;border-left:1px solid #1c2128}
   #mu-overlay .mu-panel-t{flex:0 0 auto;padding:13px 16px 2px;text-align:center;
-    font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+    font-family:var(--mono,monospace);font-size:10px;color:#5c6672;
     text-transform:uppercase;letter-spacing:1.8px}
-  #mu-overlay .mu-lista{flex:1;overflow-y:auto;padding:10px}
+  #mu-overlay .mu-panel-t em{font-style:normal;color:var(--gold,#E8B84B);font-weight:700}
+  /* Cockpit institucional */
+  #mu-overlay .mu-cockpit{flex:0 0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+    padding:10px 14px 4px}
+  #mu-overlay .mu-ck{background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));
+    border:1px solid rgba(255,255,255,.06);border-radius:9px;padding:7px 8px;text-align:center;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+  #mu-overlay .mu-ck b{display:block;font-family:var(--mono,monospace);font-weight:800;font-size:13px;
+    line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #mu-overlay .mu-ck span{font-family:var(--mono,monospace);font-size:7.5px;color:#5c6672;
+    text-transform:uppercase;letter-spacing:.4px}
+  #mu-overlay .mu-ck-ctx b span{margin:0 3px;font-weight:800}
+  /* Banner de alerta */
+  #mu-overlay .mu-alerta{position:absolute;left:50%;top:60px;transform:translate(-50%,-14px);
+    z-index:60;padding:9px 15px 9px 14px;border-radius:11px;pointer-events:none;opacity:0;cursor:pointer;
+    font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;color:#eef2f7;
+    background:linear-gradient(180deg,rgba(22,28,36,.98),rgba(12,16,22,.98));
+    border:1px solid var(--ac,#E8B84B);
+    box-shadow:0 10px 30px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04), inset 0 0 18px color-mix(in srgb, var(--ac,#E8B84B) 14%, transparent);
+    transition:opacity .3s ease,transform .3s ease}
+  #mu-overlay .mu-alerta.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+  #mu-overlay .mu-alerta::before{content:'\\25C9';color:var(--ac,#E8B84B);margin-right:8px;font-size:11px}
+  #mu-overlay .mu-lista{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px}
   #mu-overlay .mu-grupo{font-family:var(--mono,monospace);font-size:9.5px;color:#5c6672;
     text-transform:uppercase;letter-spacing:1.2px;margin:12px 4px 8px}
   #mu-overlay .mu-grupo:first-child{margin-top:2px}
@@ -1646,20 +2851,27 @@ function estilos() {
   #mu-overlay .gris .mu-sello,#mu-overlay .ido .mu-sello{background:rgba(139,150,163,.12);color:#8b96a3}
   #mu-overlay .mu-fl{margin-left:auto;font-size:9px;color:#5c6672}
 
-  /* La tarjeta de venta se tiñe de rojo oscuro: contraste con el
-     dorado del importe. */
+  /* La tarjeta de venta se tiñe de rojo; la de compra, de verde. */
   #mu-overlay .mu-card[data-lado="venta"]{border-left-color:#f6465d}
   #mu-overlay .mu-card[data-lado="compra"]{border-left-color:#2ee86a}
+  /* FUERTE (f3): el lado manda el fondo, pero el borde y el glow son DORADOS
+     — compra fuerte = verde con dorado, venta fuerte = rojo con dorado. */
   #mu-overlay .mu-card[data-lado="venta"].f3{
     background:linear-gradient(145deg,rgba(120,20,32,.5),rgba(60,10,18,.22));
-    border-color:rgba(246,70,93,.42);box-shadow:0 4px 16px rgba(0,0,0,.45)}
+    border-color:rgba(232,184,75,.55);border-left-color:#E8B84B;
+    box-shadow:0 4px 18px rgba(0,0,0,.5), 0 0 0 1px rgba(232,184,75,.18), inset 0 0 22px rgba(232,184,75,.08)}
   #mu-overlay .mu-card[data-lado="compra"].f3{
     background:linear-gradient(145deg,rgba(12,90,50,.42),rgba(6,44,26,.2));
-    border-color:rgba(46,232,106,.4);box-shadow:0 4px 16px rgba(0,0,0,.45)}
+    border-color:rgba(232,184,75,.55);border-left-color:#E8B84B;
+    box-shadow:0 4px 18px rgba(0,0,0,.5), 0 0 0 1px rgba(232,184,75,.18), inset 0 0 22px rgba(232,184,75,.08)}
   #mu-overlay .mu-card[data-lado="venta"].f2{background:linear-gradient(145deg,rgba(120,20,32,.22),rgba(255,255,255,.012))}
   #mu-overlay .mu-card[data-lado="compra"].f2{background:linear-gradient(145deg,rgba(12,90,50,.2),rgba(255,255,255,.012))}
   #mu-overlay .mu-card.f0{opacity:.66}
   #mu-overlay .mu-card.sel{border-color:var(--gold-soft,#C9A84B)}
+  /* Chip "FUERTE" dorado dentro de la tarjeta */
+  #mu-overlay .mu-fuerte{font-style:normal;font-family:var(--mono,monospace);font-size:9px;font-weight:800;
+    letter-spacing:.5px;padding:2px 7px;border-radius:20px;color:#3a2800;
+    background:linear-gradient(180deg,#ffe89a,#E8B84B);box-shadow:0 1px 4px rgba(232,184,75,.4)}
 
   /* El detalle desplegado */
   #mu-overlay .mu-detalle{display:block;width:100%;padding:0 13px 12px;animation:muAbre .16s ease}
@@ -1677,39 +2889,87 @@ function estilos() {
   #mu-overlay .mu-conse{font-family:var(--sans,sans-serif);font-size:12.5px;color:#c8cfd8;
     line-height:1.55;margin-bottom:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07)}
   #mu-overlay .mu-conse b{color:#fff;font-weight:700}
-  #mu-overlay .mu-metricas{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}
+  #mu-overlay .mu-metricas{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:9px}
   #mu-overlay .mu-metricas div{text-align:center;padding:7px 3px;border-radius:8px;
     background:rgba(255,255,255,.035)}
   #mu-overlay .mu-metricas b{display:block;font-family:var(--mono,monospace);font-weight:700;
     font-size:12px;color:#eaecef}
-  #mu-overlay .mu-metricas span{font-family:var(--mono,monospace);font-size:8.5px;color:#5c6672;
-    text-transform:uppercase;letter-spacing:.5px}
+  #mu-overlay .mu-metricas span{font-family:var(--mono,monospace);font-size:8px;color:#5c6672;
+    text-transform:uppercase;letter-spacing:.4px}
+
+  /* Barra de CONFIANZA — jerarquía visual del score combinado */
+  #mu-overlay .mu-conf{display:flex;align-items:center;gap:8px;margin-top:8px}
+  #mu-overlay .mu-conf-bar{height:5px;border-radius:20px;flex:1;min-width:0;
+    background:linear-gradient(90deg,#f6465d,#E8B84B,#2ee86a);transition:width .4s ease;
+    box-shadow:0 0 8px rgba(232,184,75,.25)}
+  #mu-overlay .verde .mu-conf-bar{background:linear-gradient(90deg,#1a7a44,#2ee86a)}
+  #mu-overlay .rojo .mu-conf-bar{background:linear-gradient(90deg,#7a1a28,#f6465d)}
+  #mu-overlay .gris .mu-conf-bar{background:linear-gradient(90deg,#3a424c,#8b96a3)}
+  #mu-overlay .mu-conf em{font-style:normal;font-family:var(--mono,monospace);font-weight:800;
+    font-size:13px;color:var(--mu-tx);display:flex;align-items:baseline;gap:3px}
+  #mu-overlay .mu-conf em span{font-size:8px;color:#5c6672;text-transform:uppercase;letter-spacing:.4px}
+  /* Insignias de validación */
+  #mu-overlay .mu-badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+  #mu-overlay .mu-b{font-style:normal;font-family:var(--mono,monospace);font-size:9px;font-weight:700;
+    padding:2px 7px;border-radius:20px;letter-spacing:.3px;
+    background:rgba(255,255,255,.05);color:#aeb6c0;border:1px solid rgba(255,255,255,.08)}
+  #mu-overlay .mu-b.conf{background:rgba(77,159,255,.14);color:#7fbaff;border-color:rgba(77,159,255,.3)}
+  #mu-overlay .mu-b.libro{background:rgba(232,184,75,.14);color:#E8B84B;border-color:rgba(232,184,75,.3)}
+  #mu-overlay .mu-b.flujo{background:rgba(46,232,106,.13);color:#3ee88a;border-color:rgba(46,232,106,.28)}
+  #mu-overlay .mu-b.rota{background:rgba(139,150,163,.14);color:#b7bdc6;border-color:rgba(139,150,163,.3)}
+  #mu-overlay .mu-b.ref{background:rgba(120,170,255,.14);color:#9cc4ff;border-color:rgba(120,170,255,.3)}
+  /* Línea de tiempo del ciclo de vida de la zona */
+  #mu-overlay .mu-timeline{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:2px 0 10px}
+  #mu-overlay .mu-timeline .tl{position:relative;display:flex;flex-direction:column;align-items:center;
+    gap:2px;padding-top:12px;font-family:var(--mono,monospace);font-size:8px;color:#5c6672;
+    text-transform:uppercase;letter-spacing:.3px;text-align:center}
+  #mu-overlay .mu-timeline .tl i{position:absolute;top:3px;left:50%;transform:translateX(-50%);
+    width:8px;height:8px;border-radius:50%;background:#2b3139;border:1px solid #3a424c}
+  #mu-overlay .mu-timeline .tl::before{content:'';position:absolute;top:6px;left:-50%;width:100%;height:1px;background:#2b3139}
+  #mu-overlay .mu-timeline .tl:first-child::before{display:none}
+  #mu-overlay .mu-timeline .tl.on i{background:#2ee86a;border-color:#2ee86a;box-shadow:0 0 6px rgba(46,232,106,.5)}
+  #mu-overlay .mu-timeline .tl.rota i{background:#E8B84B;border-color:#E8B84B;box-shadow:0 0 6px rgba(232,184,75,.5)}
+  #mu-overlay .mu-timeline .tl b{font-weight:800;color:#c8cfd8;font-size:9px}
+  /* Zona rota: se ve apagada y con una línea diagonal sutil */
+  #mu-overlay .mu-card.es-rota{opacity:.72;border-left-color:#6b7681!important}
+  #mu-overlay .mu-card.es-rota .mu-lado{color:#8b96a3!important}
+  #mu-overlay .mu-card{transition:border-color .2s ease, box-shadow .2s ease, opacity .2s ease}
 
   /* Los cuatro botones de filtro */
-  #mu-overlay .mu-fbtn{flex:1;min-width:calc(50% - 4px);min-height:40px;padding:0 12px;
-    border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;
-    background:rgba(255,255,255,.035);border:1px solid #232a33;
-    font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;color:#8b96a3}
-  #mu-overlay .mu-fbtn .mu-cuenta{font-family:var(--mono,monospace);font-size:10px;font-style:normal;
-    min-width:19px;padding:1px 5px;border-radius:20px;background:rgba(255,255,255,.08);color:#b7bdc6}
-  #mu-overlay .mu-fbtn.verde{border-color:rgba(46,232,106,.28);color:#3ee88a}
-  #mu-overlay .mu-fbtn.rojo{border-color:rgba(246,70,93,.28);color:#ff6b7a}
-  #mu-overlay .mu-fbtn.oro{border-color:rgba(232,184,75,.28);color:#E8B84B}
-  #mu-overlay .mu-fbtn.gris{border-color:#2b3139;color:#8b96a3}
-  /* El filtro activo tiene que verse a la primera. */
-  #mu-overlay .mu-fbtn.on{border-width:2px;font-weight:800;transform:translateY(-1px)}
-  #mu-overlay .mu-fbtn.verde.on{background:linear-gradient(180deg,#4dffa0,#1fc96e);
-    border-color:#2ee86a;color:#04210f;box-shadow:0 3px 12px rgba(46,232,106,.3)}
-  #mu-overlay .mu-fbtn.verde.on .mu-cuenta{background:rgba(0,0,0,.25);color:#04210f}
-  #mu-overlay .mu-fbtn.rojo.on{background:linear-gradient(180deg,#ff8a95,#e03546);
-    border-color:#f6465d;color:#2a0509;box-shadow:0 3px 12px rgba(246,70,93,.3)}
-  #mu-overlay .mu-fbtn.rojo.on .mu-cuenta{background:rgba(0,0,0,.25);color:#2a0509}
-  #mu-overlay .mu-fbtn.oro.on{background:linear-gradient(180deg,#f7db8d,#E8B84B);
-    border-color:#E8B84B;color:#3a2800;box-shadow:0 3px 12px rgba(232,184,75,.3)}
-  #mu-overlay .mu-fbtn.oro.on .mu-cuenta{background:rgba(0,0,0,.22);color:#3a2800}
-  #mu-overlay .mu-fbtn.gris.on{background:linear-gradient(180deg,#b7bdc6,#8b96a3);
-    border-color:#b7bdc6;color:#0b0e12}
-  #mu-overlay .mu-fbtn.gris.on .mu-cuenta{background:rgba(0,0,0,.2);color:#0b0e12}
+  #mu-overlay .mu-fbtn{flex:1;min-width:calc(50% - 4px);min-height:46px;padding:0 12px;
+    border-radius:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+    background:linear-gradient(180deg,#1c232e,#11161e);border:1px solid #2b3541;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 3px 9px rgba(0,0,0,.45), 0 1px 0 rgba(0,0,0,.6);
+    font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;color:#aeb6c0;letter-spacing:.2px;
+    transition:transform .12s ease, box-shadow .12s ease, filter .12s ease}
+  #mu-overlay .mu-fbtn:hover{transform:translateY(-1.5px);filter:brightness(1.13);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.1), 0 6px 16px rgba(0,0,0,.55)}
+  #mu-overlay .mu-fbtn:active{transform:translateY(1px);box-shadow:inset 0 2px 6px rgba(0,0,0,.55)}
+  #mu-overlay .mu-fbtn .mu-cuenta{font-family:var(--mono,monospace);font-size:10.5px;font-style:normal;font-weight:700;
+    min-width:20px;padding:2px 6px;border-radius:20px;background:rgba(0,0,0,.38);color:#e4e9ef;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.45)}
+  #mu-overlay .mu-fbtn.verde{color:#4dffa0;border-color:rgba(46,232,106,.4)}
+  #mu-overlay .mu-fbtn.rojo{color:#ff7885;border-color:rgba(246,70,93,.4)}
+  #mu-overlay .mu-fbtn.oro{color:#f0c860;border-color:rgba(232,184,75,.42)}
+  #mu-overlay .mu-fbtn.gris{color:#aeb6c0;border-color:#38424f}
+  /* El filtro activo: relieve 3D encendido, se hunde un pelín como pulsado. */
+  #mu-overlay .mu-fbtn.on{font-weight:800;transform:translateY(0)}
+  #mu-overlay .mu-fbtn.verde.on{background:linear-gradient(180deg,#5cffab,#17c268);
+    border-color:#2ee86a;color:#04210f;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 4px 16px rgba(46,232,106,.4)}
+  #mu-overlay .mu-fbtn.verde.on .mu-cuenta{background:rgba(0,0,0,.28);color:#04210f}
+  #mu-overlay .mu-fbtn.rojo.on{background:linear-gradient(180deg,#ff8a95,#dd2f41);
+    border-color:#f6465d;color:#2a0509;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 4px 16px rgba(246,70,93,.4)}
+  #mu-overlay .mu-fbtn.rojo.on .mu-cuenta{background:rgba(0,0,0,.28);color:#2a0509}
+  #mu-overlay .mu-fbtn.oro.on{background:linear-gradient(180deg,#ffe89a,#e0ad3c);
+    border-color:#E8B84B;color:#3a2800;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 4px 16px rgba(232,184,75,.4)}
+  #mu-overlay .mu-fbtn.oro.on .mu-cuenta{background:rgba(0,0,0,.24);color:#3a2800}
+  #mu-overlay .mu-fbtn.gris.on{background:linear-gradient(180deg,#c6ccd4,#8b96a3);
+    border-color:#c6ccd4;color:#0b0e12;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 4px 14px rgba(0,0,0,.4)}
+  #mu-overlay .mu-fbtn.gris.on .mu-cuenta{background:rgba(0,0,0,.22);color:#0b0e12}
 
   #mu-overlay .mu-card-viejo{display:block;width:100%;text-align:left;margin-bottom:9px;padding:13px 14px;
     border-radius:13px;cursor:pointer;background:rgba(255,255,255,.022);
@@ -1815,6 +3075,99 @@ function estilos() {
   #mu-picker .mu-op svg{width:14px;height:14px;flex:0 0 auto;color:var(--gold,#E8B84B)}
 
   /* ── Ayuda ── */
+  /* Modal de validación de volumen */
+  #mu-val-box{position:fixed;inset:0;z-index:9780;display:flex;align-items:center;justify-content:center;padding:16px}
+  #mu-val-box .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.9)}
+  #mu-val-box .mv-c{position:relative;width:100%;max-width:520px;background:linear-gradient(180deg,#12171f,#0b0e12);
+    border:1px solid #232b35;border-radius:18px;padding:26px 22px 22px;box-shadow:0 24px 70px rgba(0,0,0,.65)}
+  #mu-val-box .mv-x{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:10px;
+    background:#1a212b;border:1px solid #2b3540;color:#aeb6c0;font-size:14px;cursor:pointer}
+  #mu-val-box .mv-eyebrow{font-family:var(--mono,monospace);font-size:10px;color:var(--gold,#E8B84B);
+    text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+  #mu-val-box .mv-t{font-family:var(--display,sans-serif);font-weight:800;font-size:20px;color:#f2f5f9;margin:0 0 10px}
+  #mu-val-box .mv-d{font-family:var(--sans,sans-serif);font-size:13.5px;line-height:1.6;color:#c2c9d2;margin:0 0 14px}
+  #mu-val-box .mv-d b{color:#fff} #mu-val-box code{font-family:var(--mono,monospace);font-size:12px;
+    background:rgba(232,184,75,.12);color:#E8B84B;padding:1px 6px;border-radius:5px}
+  #mu-val-box .mv-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+  #mu-val-box .mv-nums div{text-align:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);
+    border-radius:10px;padding:10px 6px}
+  #mu-val-box .mv-nums b{display:block;font-family:var(--mono,monospace);font-weight:800;font-size:15px;color:#eaecef}
+  #mu-val-box .mv-nums span{font-family:var(--mono,monospace);font-size:8px;color:#5c6672;text-transform:uppercase;letter-spacing:.4px}
+  /* Píldora Analista + su modal */
+  #mu-overlay .mu-analista{display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;height:36px;
+    padding:0 12px 0 4px;border-radius:999px;cursor:pointer;
+    background:linear-gradient(180deg,rgba(232,184,75,.18),rgba(232,184,75,.06));
+    border:1px solid rgba(232,184,75,.45);color:var(--gold,#E8B84B);
+    box-shadow:0 2px 6px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+    font-family:var(--display,sans-serif);font-weight:700;font-size:12px;white-space:nowrap;
+    transition:transform .1s ease,filter .15s ease}
+  #mu-overlay .mu-analista:hover{filter:brightness(1.12)}
+  #mu-overlay .mu-analista:active{transform:translateY(1px)}
+  #mu-overlay .mu-analista img{width:28px;height:28px;border-radius:50%;object-fit:cover;flex:0 0 auto;
+    border:1px solid rgba(232,184,75,.55)}
+  #mu-overlay.mu-claro .mu-analista{color:#9a7a1e;border-color:rgba(232,184,75,.6)}
+  @media(max-width:860px){
+    #mu-overlay .mu-analista{padding:0;width:32px;height:32px;justify-content:center}
+    #mu-overlay .mu-analista img{width:26px;height:26px}
+    #mu-overlay .mu-an-txt{display:none}
+    #mu-overlay .mu-der{gap:4px;padding-left:4px}
+    #mu-overlay .mu-der .mu-ico{width:32px;height:32px;min-height:32px}
+  }
+  #mu-ana-box{position:fixed;inset:0;z-index:9785;display:flex;align-items:center;justify-content:center;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+  #mu-ana-box .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.9)}
+  #mu-ana-box .an-c{position:relative;width:100%;max-width:440px;height:min(560px,82vh);display:flex;flex-direction:column;
+    background:linear-gradient(180deg,#12171f,#0b0e12);border:1px solid #232b35;border-radius:18px;overflow:hidden;
+    box-shadow:0 24px 70px rgba(0,0,0,.65)}
+  #mu-ana-box .an-top{display:flex;align-items:center;gap:11px;padding:13px 14px;border-bottom:1px solid #1c232c;
+    background:linear-gradient(180deg,rgba(255,255,255,.04),transparent)}
+  #mu-ana-box .an-ava{width:40px;height:40px;border-radius:50%;object-fit:cover;flex:0 0 auto;
+    border:2px solid var(--an,#E8B84B);box-shadow:0 0 12px color-mix(in srgb,var(--an,#E8B84B) 40%,transparent)}
+  #mu-ana-box .an-top-t{flex:1;min-width:0}
+  #mu-ana-box .an-nombre{font-family:var(--display,sans-serif);font-weight:800;font-size:15px;color:#f2f5f9}
+  #mu-ana-box .an-estado{font-family:var(--mono,monospace);font-size:10px;color:var(--an,#E8B84B);margin-top:1px}
+  #mu-ana-box .mv-x{width:30px;height:30px;border-radius:8px;background:#1a212b;border:1px solid #2b3540;color:#aeb6c0;font-size:12px;cursor:pointer;flex:0 0 auto}
+  #mu-ana-box .an-chat{flex:1;overflow-y:auto;padding:14px;padding-bottom:18px;display:flex;flex-direction:column;gap:9px;min-height:120px}
+  #mu-ana-box .an-burb{align-self:flex-start;max-width:92%;background:#1a212b;border:1px solid #262f3a;
+    border-radius:13px 13px 13px 4px;padding:9px 12px;font-family:var(--sans,sans-serif);font-size:13.5px;
+    line-height:1.55;color:#d3d9e0}
+  #mu-ana-box .an-burb b{color:#fff}
+  #mu-overlay.mu-claro ~ #mu-ana-box .an-burb{background:#eef1f5;border-color:rgba(0,0,0,.1);color:#1a2028}
+
+  /* 4 botones iguales del analista (rejilla 2x2, sin desbordar en móvil) */
+  #mu-ana-box .an-acc{padding:12px 14px calc(14px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid rgba(255,255,255,.06);background:linear-gradient(180deg,transparent,rgba(0,0,0,.15))}
+  #mu-ana-box .an-b{padding:11px 6px;border:1px solid #2b3540;border-radius:11px;cursor:pointer;
+    font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;color:#e7ecf2;background:#1a212b;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform .1s ease,filter .15s ease}
+  #mu-ana-box .an-b:active{transform:translateY(1px)}
+  #mu-ana-box .an-b:disabled{opacity:.4;cursor:not-allowed}
+  #mu-ana-box .an-b em{font-style:normal;display:inline-grid;place-items:center;min-width:16px;height:16px;padding:0 3px;margin-left:3px;border-radius:8px;background:rgba(0,0,0,.35);font-size:10.5px;vertical-align:middle}
+  #mu-overlay #mu-pager{display:inline-flex;align-items:center;gap:5px;height:32px;margin-left:6px;padding:0 4px 0 9px;border-radius:9px;
+    background:#12171f;border:1px solid rgba(232,184,75,.5);color:#f2d488;font-family:var(--mono,ui-monospace,monospace);font-weight:800;font-size:12px;flex:0 0 auto}
+  #mu-overlay #mu-pager button{width:24px;height:24px;border-radius:7px;border:1px solid rgba(232,184,75,.4);background:rgba(232,184,75,.12);color:#f2d488;font-size:15px;cursor:pointer;display:grid;place-items:center;line-height:1}
+  #mu-overlay #mu-pager button:active{transform:translateY(1px)}
+  @media(max-width:860px){#mu-overlay #mu-pager span{display:none}}
+  #mu-ana-box .an-b-l{background:linear-gradient(180deg,rgba(46,232,106,.22),rgba(46,232,106,.08));border-color:rgba(46,232,106,.5);color:#7cffb0}
+  #mu-ana-box .an-b-s{background:linear-gradient(180deg,rgba(246,70,93,.22),rgba(246,70,93,.08));border-color:rgba(246,70,93,.5);color:#ff97a4}
+  #mu-ana-box .an-b-t{background:linear-gradient(180deg,rgba(232,184,75,.2),rgba(232,184,75,.07));border-color:rgba(232,184,75,.5);color:#f2d488}
+
+  /* Config flotante de la herramienta de posición / tendencia (hijo del radar) */
+  #mu-poscfg,#mu-tendcfg{position:absolute;z-index:40;display:flex;align-items:center;gap:4px;padding:4px 5px;border-radius:10px;
+    background:#12171f;border:1px solid #2b3540;box-shadow:0 8px 22px rgba(0,0,0,.6)}
+  #mu-poscfg .pc-et,#mu-tendcfg .pc-et{font-family:var(--mono,monospace);font-weight:800;font-size:9.5px;color:#c8cfd8;padding:0 5px;white-space:nowrap}
+  #mu-poscfg button,#mu-tendcfg button{width:26px;height:26px;border-radius:6px;border:1px solid #2b3540;background:#1a212b;
+    color:#c8cfd8;font-size:12px;cursor:pointer;display:grid;place-items:center}
+  #mu-poscfg button[data-a="del"],#mu-tendcfg button[data-a="del"]{color:#f6465d}
+  #mu-poscfg button:active,#mu-tendcfg button:active{transform:translateY(1px)}
+
+  #mu-val-box .mv-note{font-family:var(--sans,sans-serif);font-size:12px;line-height:1.55;color:#9aa3ad;margin:0 0 12px}
+  #mu-val-box .mv-note b{color:#c2c9d2}
+  #mu-val-box .mv-links{display:flex;flex-wrap:wrap;gap:8px}
+  #mu-val-box .mv-copy{flex:1;text-align:center;cursor:pointer;
+    font-family:var(--display,sans-serif);font-weight:700;font-size:12.5px;color:#0b0e12;
+    background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B));padding:11px 8px;border:none;border-radius:10px;
+    box-shadow:0 3px 0 #8f6a1a}
+  #mu-val-box .mv-copy:active{transform:translateY(2px);box-shadow:0 1px 0 #8f6a1a}
+
   #mu-ayuda-box{position:fixed;inset:0;z-index:9770;display:flex;align-items:center;justify-content:center;padding:16px}
   #mu-ayuda-box .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.93)}
   #mu-ayuda-box .mua-c{position:relative;width:100%;max-width:560px;max-height:calc(100vh - 32px);
@@ -1882,19 +3235,747 @@ function estilos() {
     font-family:var(--display,sans-serif);font-weight:800;font-size:14px;cursor:pointer;
     box-shadow:0 4px 0 #8f6a1a}
 
-  /* ── Móvil: el panel pasa abajo ── */
+  /* ══ TEMA CLARO ══ (solo el chrome; los colores semánticos se mantienen) */
+  #mu-overlay.mu-claro{--mu-tx:#1a2028}
+  #mu-overlay.mu-claro .mu-c{background:#eef1f5}
+  #mu-overlay.mu-claro .mu-bg{background:rgba(230,234,240,.6)}
+  #mu-overlay.mu-claro .mu-barra{background:#e4e8ee;border-bottom-color:rgba(0,0,0,.08)}
+  #mu-overlay.mu-claro .mu-panel{background:#e9edf2;border-left-color:rgba(0,0,0,.08)}
+  #mu-overlay.mu-claro .mu-mtabs{background:#e4e8ee}
+  #mu-overlay.mu-claro .mu-vivo span,
+  #mu-overlay.mu-claro .mu-px b,
+  #mu-overlay.mu-claro .mu-precio,
+  #mu-overlay.mu-claro .mu-nivel,
+  #mu-overlay.mu-claro .mu-conse,
+  #mu-overlay.mu-claro .mu-conse b,
+  #mu-overlay.mu-claro .mu-ck b{color:#1a2028}
+  #mu-overlay.mu-claro .mu-px span,
+  #mu-overlay.mu-claro .mu-ck span,
+  #mu-overlay.mu-claro .mu-metricas span,
+  #mu-overlay.mu-claro .mu-timeline .tl{color:#6b7480}
+  #mu-overlay.mu-claro .mu-der{background:transparent}
+  #mu-overlay.mu-claro .mu-ico{background:linear-gradient(180deg,#ffffff,#e7ebf1);border-color:rgba(0,0,0,.14);color:#3a424c;
+    box-shadow:0 2px 5px rgba(60,72,90,.22), inset 0 1px 0 rgba(255,255,255,.9)}
+  #mu-overlay.mu-claro .mu-ico:hover{border-color:var(--gold,#E8B84B);color:#9a7a1e}
+  #mu-overlay.mu-claro .mu-sel,#mu-overlay.mu-claro .mu-tfchip{background:#dfe4ec;border-color:rgba(0,0,0,.12);color:#1a2028}
+  #mu-overlay.mu-claro .mu-ck{background:linear-gradient(180deg,#fff,#eef1f5);border-color:rgba(0,0,0,.08)}
+  #mu-overlay.mu-claro .mu-card{background:linear-gradient(145deg,#fff,#f2f5f9);border-color:rgba(0,0,0,.1)}
+  #mu-overlay.mu-claro .mu-card .mu-nivel{color:#1a2028}
+  #mu-overlay.mu-claro .mu-card[data-lado="compra"].f3{background:linear-gradient(145deg,#e9f9f0,#f2f5f9)}
+  #mu-overlay.mu-claro .mu-card[data-lado="venta"].f3{background:linear-gradient(145deg,#fdeef0,#f2f5f9)}
+  #mu-overlay.mu-claro .mu-metricas div{background:rgba(0,0,0,.04)}
+  #mu-overlay.mu-claro .mu-metricas b{color:#1a2028}
+  #mu-overlay.mu-claro .mu-fbtn{background:linear-gradient(180deg,#fff,#e6eaf0);border-color:rgba(0,0,0,.12);
+    color:#5c6672;box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 2px 6px rgba(0,0,0,.12)}
+  #mu-overlay.mu-claro .mu-fbtn .mu-cuenta{background:rgba(0,0,0,.1);color:#3a424c}
+  #mu-overlay.mu-claro .mu-dist2{background:rgba(0,0,0,.06);color:#3a424c}
+  #mu-overlay.mu-claro .mu-hacer{background:rgba(0,0,0,.04);color:#3a424c}
+  #mu-overlay.mu-claro .mu-timeline .tl b{color:#3a424c}
+  #mu-overlay.mu-claro .mu-esperar{color:#5c6672}
+  #mu-overlay.mu-claro .mu-esperar b{color:#3a424c}
+
+  /* ── Móvil: temporalidad en chip + pestañas Gráfica/Órdenes ── */
   @media(max-width:860px){
     #mu-overlay .mu-cuerpo{flex-direction:column}
-    #mu-overlay .mu-graf{flex:0 0 auto;height:46vh;min-height:230px}
-    #mu-overlay .mu-panel{width:100%;flex:1;min-height:0;border-left:none;border-top:1px solid #1c2128}
-    #mu-overlay .mu-barra{padding:8px 92px 8px 10px;gap:9px}
+    #mu-overlay .mu-tfs{display:none}          /* la fila se reemplaza por el chip */
+    #mu-overlay .mu-tfchip{display:inline-flex}
+    #mu-overlay .mu-mtabs{display:flex}
+    /* La barra ya NO desborda. El "Precio ahora" se oculta (ya está grande en
+       la gráfica). */
+    /* La barra ya NO desborda ni se amontona. En móvil, la fila de acciones
+       (analista, news, iconos, cerrar) fluye en su PROPIA línea, alineada a la
+       derecha y con salto si hiciera falta, en vez de superponerse. */
+    #mu-overlay .mu-barra{flex-wrap:wrap;gap:8px;padding:8px 10px;align-items:center}
+    #mu-overlay .mu-der{position:static;transform:none;order:5;width:100%;justify-content:flex-end;
+      flex-wrap:wrap;gap:6px;padding-left:0;margin-top:2px}
+    #mu-overlay .mu-sel{order:1}
+    #mu-overlay .mu-tfchip{order:2}
+    #mu-overlay #mu-estado{order:3}
+    #mu-overlay .mu-px{display:none}
+    #mu-overlay .mu-vivo{flex:0 0 auto}
     #mu-overlay .mu-vivo span{display:none}
+    /* Una vista a la vez, a pantalla completa: así las tarjetas de órdenes
+       tienen TODO el alto para verse cómodas. */
+    #mu-overlay .mu-cuerpo.m-graf .mu-graf{display:block;flex:1 1 auto;height:auto;min-height:0}
+    #mu-overlay .mu-cuerpo.m-graf .mu-panel{display:none}
+    #mu-overlay .mu-cuerpo.m-ord .mu-graf{display:none}
+    #mu-overlay .mu-cuerpo.m-ord .mu-panel{display:flex;flex:1 1 auto;width:100%;border-left:none;min-height:0}
+    #mu-overlay .mu-panel{width:100%;border-left:none;border-top:none}
+    #mu-overlay .mu-chips{padding:11px 12px}
+    #mu-overlay .mu-cockpit{padding:9px 12px 3px;gap:5px}
+    #mu-overlay .mu-ck{padding:6px 4px}
+    #mu-overlay .mu-ck b{font-size:12px}
+    #mu-overlay .mu-ck span{font-size:7px}
+    /* La lista SÍ hace scroll (min-height:0 en toda la cadena) y deja hueco
+       abajo para que el nav de la app no tape la última tarjeta. */
+    #mu-overlay .mu-cuerpo.m-ord .mu-lista{min-height:0;-webkit-overflow-scrolling:touch;
+      padding:10px 12px calc(84px + env(safe-area-inset-bottom, 0px))}
     #mu-overlay .mu-marca{height:24px;left:10px;bottom:26px}
     #mu-overlay .mu-precio{font-size:19px}
     #mu-ayuda-box .mua-c{padding:20px 14px}
     #mu-ayuda-box .mua-tabs{margin-right:46px;flex-direction:column}
   }`;
   document.head.appendChild(s);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ANALISTA — chatbot que lee la estructura y dice qué hacer
+
+   Interpreta lo que el sistema YA muestra (zonas reales ancladas, VWAP,
+   sesgo, dónde está el precio) y lo explica como si lo escribiera un analista.
+   Devuelve además un PLAN operativo (entrada/SL/TP con R:R 1:1) para la
+   herramienta «Muéstrame». Si no hay entrada limpia, lo dice con honestidad.
+   ══════════════════════════════════════════════════════════════ */
+function analizarRadar() {
+  const par = PARES.find((p) => p.id === _par) || PARES[0];
+  const base = par.s.replace(/USDT$|USDC$|FDUSD$|BUSD$/, '');
+  const px = M.precio || (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
+  const mk = M.mercado;
+  const zonas = (M.zonas || []).filter((z) => !z.rota);
+  const vwapTxt = mk && mk.vwap ? (px >= mk.vwap ? 'El precio está **por encima del VWAP**, lo que favorece a los compradores.' : 'El precio está **por debajo del VWAP**, lo que favorece a los vendedores.') : '';
+
+  // Variación estable por moneda (misma moneda → misma redacción; monedas distintas → distinta).
+  const _h = base.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const V = (arr) => arr[_h % arr.length];
+  const intro = V([`Miremos **${base}** en **${M.tf}**.`, `Vamos con **${base} · ${M.tf}**.`,
+    `Esto es lo que leo en **${base} · ${M.tf}**.`, `Repasemos **${base}** en **${M.tf}**.`]);
+  // Contexto REAL del mercado de esta moneda (cambia según datos, no es genérico).
+  const cprB = mk && mk.compradorPct != null ? Math.round(mk.compradorPct) : null;
+  const posVA = (mk && mk.vah && mk.val)
+    ? (px > mk.vah ? 'cotiza **por encima del valor** (extendido al alza)'
+      : px < mk.val ? 'cotiza **por debajo del valor** (extendido a la baja)'
+      : 'cotiza **dentro del área de valor**')
+    : '';
+  const ctxMercado = mk ? `En **${base}** el sesgo es **${mk.sesgo || 'neutral'}**`
+    + (cprB != null ? ` con **${cprB}%** de presión ${cprB >= 50 ? 'compradora' : 'vendedora'}` : '')
+    + (mk.winRate != null ? ` y un acierto histórico del **${Math.round(mk.winRate)}%**` : '')
+    + (posVA ? `; ${posVA}` : '') + '.' : '';
+
+  if (!px || !zonas.length) {
+    return { titulo: 'Sin lectura clara', tono: 'espera', base,
+      parrafos: [`Ahora mismo no veo zonas de acumulación fiables y cercanas en **${base} · ${M.tf}**.`, `Sin un nivel con volumen de referencia, lo prudente es **esperar**. No hay una entrada con ventaja aquí.`],
+      op: null };
+  }
+
+  const dentro = zonas.find((z) => z.dentro);
+  const dem = zonas.filter((z) => z.lado === 'demanda').sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))[0];
+  const ofe = zonas.filter((z) => z.lado === 'oferta').sort((a, b) => Math.abs(a.dist) - Math.abs(b.dist))[0];
+
+  /* Construye un plan R:R 1:1 acotando el riesgo: el stop se apoya en el borde
+     de la zona, pero se limita a un máximo sensato (no un stop gigantesco si el
+     rango es enorme). */
+  const planLong = (z) => {
+    const entrada = z.pPoc;
+    const rango = z.pHigh - z.pLow;
+    const riesgoMax = px * 0.02;                       // tope de riesgo: 2% del precio
+    const riesgo = Math.min(Math.max(entrada - z.pLow, px * 0.003) + px * 0.001, riesgoMax);
+    const sl = entrada - riesgo;
+    const tp = entrada + riesgo;                        // R:R 1:1
+    return { tipo: 'long', zona: z, entrada, sl, tp, ancho: rango / z.p };
+  };
+  const planShort = (z) => {
+    const entrada = z.pPoc;
+    const rango = z.pHigh - z.pLow;
+    const riesgoMax = px * 0.02;
+    const riesgo = Math.min(Math.max(z.pHigh - entrada, px * 0.003) + px * 0.001, riesgoMax);
+    const sl = entrada + riesgo;
+    const tp = entrada - riesgo;
+    return { tipo: 'short', zona: z, entrada, sl, tp, ancho: rango / z.p };
+  };
+  const avisoAncho = (op) => op.ancho > 0.02
+    ? 'Ojo: el rango de esta zona es amplio, así que el stop queda ancho. Arriesga poco capital y no entres todo de golpe.'
+    : 'Sé prudente con el tamaño de la posición: arriesga solo una parte pequeña de tu capital.';
+  const notaSpot = 'Si operas en **spot**, no necesitas stop loss (compras y mantienes). Si usas **apalancamiento**, respeta estos niveles al pie de la letra.';
+
+  let titulo, tono, parrafos, op;
+
+  if (dentro && dentro.lado === 'demanda' && dentro.fuerza >= 3) {
+    op = planLong(dentro); titulo = 'Zona de alta demanda'; tono = 'compra';
+    parrafos = [
+      `${intro} ${ctxMercado} El precio está **dentro de una zona de demanda fuerte** en **${fmt(dentro.pPoc)}** (rango ${fmt(dentro.pLow)}–${fmt(dentro.pHigh)}), con **${dinero(dentro.v)}** acumulados.`,
+      `Es un nivel con mucho volumen comprador. Escenario de posible **compra (long)** apoyada en esta demanda.` + (vwapTxt ? ' ' + vwapTxt : ''),
+      `Plan: entrada cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (riesgo/beneficio 1:1).`,
+      avisoAncho(op), notaSpot
+    ];
+  } else if (dentro && dentro.lado === 'oferta' && dentro.fuerza >= 3) {
+    op = planShort(dentro); titulo = 'Zona de alta oferta'; tono = 'venta';
+    parrafos = [
+      `${intro} ${ctxMercado} El precio está **dentro de una zona de oferta fuerte** en **${fmt(dentro.pPoc)}** (rango ${fmt(dentro.pLow)}–${fmt(dentro.pHigh)}), con **${dinero(dentro.v)}** acumulados.`,
+      `Hay mucho volumen vendedor aquí. Si estás comprado, **cuidado**: es zona de posible **toma de beneficios o venta (short)**.` + (vwapTxt ? ' ' + vwapTxt : ''),
+      `Plan: entrada corta cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (1:1).`,
+      avisoAncho(op), notaSpot
+    ];
+  } else if ((dem && dem.fuerza >= 3) || (ofe && ofe.fuerza >= 3)) {
+    const cDem = dem && dem.fuerza >= 3 ? dem : null;
+    const cOfe = ofe && ofe.fuerza >= 3 ? ofe : null;
+    // primaria = la de MAYOR relevancia (confianza), no solo la más cercana
+    let prim, sec;
+    if (cDem && cOfe) { if (cDem.confianza >= cOfe.confianza) { prim = cDem; sec = cOfe; } else { prim = cOfe; sec = cDem; } }
+    else { prim = cDem || cOfe; sec = null; }
+    const primLong = prim.lado === 'demanda';
+    op = primLong ? planLong(prim) : planShort(prim);
+    tono = primLong ? 'compra' : 'venta';
+    titulo = primLong ? 'Demanda debajo del precio' : 'Oferta encima del precio';
+    const ladoTxt = primLong ? 'demanda' : 'oferta';
+    const posTxt = primLong ? 'debajo' : 'encima';
+    parrafos = [
+      `${intro} ${ctxMercado} La zona más relevante ahora es una **${ladoTxt}** en **${fmt(prim.pPoc)}** (rango ${fmt(prim.pLow)}–${fmt(prim.pHigh)}) con **${dinero(prim.v)}**, a un **${(Math.abs(prim.dist) * 100).toFixed(2)}%** por ${posTxt}.`,
+      (primLong
+        ? `El precio se impulsó por encima, así que queda como apoyo. Si **vuelve a probarla** y aguanta, es una posible **entrada en largo**.`
+        : `Actúa como resistencia. Si el precio sube y se frena ahí, es una posible **entrada en corto**.`) + (vwapTxt ? ' ' + vwapTxt : ''),
+      `Plan: entrada cerca de **${fmt(op.entrada)}**, stop en **${fmt(op.sl)}** y objetivo en **${fmt(op.tp)}** (riesgo/beneficio 1:1).`
+    ];
+    if (sec) {
+      const secLong = sec.lado === 'demanda';
+      parrafos.push(`También hay una **${secLong ? 'demanda' : 'oferta'}** relevante en **${fmt(sec.pPoc)}** (${dinero(sec.v)}), ${secLong ? 'por debajo' : 'por encima'}. Segunda opción: ${secLong ? 'largo si el precio cae y la respeta' : 'corto si el precio sube y la respeta'}. No operes las dos a la vez sin plan.`);
+    }
+    parrafos.push(avisoAncho(op), notaSpot);
+  } else {
+    titulo = 'Sin entrada limpia'; tono = 'espera'; op = null;
+    parrafos = [
+      `${intro} ${ctxMercado} El precio está **en medio del rango**, sin una zona fuerte lo bastante cerca para dar una entrada con ventaja.`,
+      `Lo profesional aquí es **esperar**. Deja que el precio busque una de las zonas marcadas (demanda debajo u oferta encima) y opera la reacción en ese nivel.`,
+      `Forzar una entrada en el medio es donde se pierde dinero.`
+    ];
+  }
+  return { titulo, tono, base, parrafos, op };
+}
+
+function abrirAnalista() {
+  const clave = _par + '|' + M.tf;
+  let a, alInstante = false;
+  if (_anaCache && _anaCache.clave === clave) { a = _anaCache.a; alInstante = true; }   // ya lo dijo: sale cargado
+  else { a = analizarRadar(); if (a && (a.op || (M.zonas && M.zonas.filter((z) => !z.rota).length))) _anaCache = { clave, a }; }
+  _analisis = a;
+  document.getElementById('mu-ana-box')?.remove();
+  const col = a.tono === 'compra' ? '#2ee86a' : a.tono === 'venta' ? '#f6465d' : '#E8B84B';
+  const saludo = 'Le he echado un ojo a la gráfica. Esto es lo que veo ahora mismo:';
+  const guion = [saludo].concat(a.parrafos);
+  const d = document.createElement('div');
+  d.id = 'mu-ana-box';
+  d.innerHTML = `<div class="mu-bg"></div>
+    <div class="an-c" style="--an:${col}">
+      <div class="an-top">
+        <img class="an-ava" src="assets/img/jesus-avatar.webp" alt="">
+        <div class="an-top-t">
+          <div class="an-nombre">Analyst</div>
+          <div class="an-estado" id="an-estado">en línea</div>
+        </div>
+        <button class="mv-x" aria-label="Cerrar">\u2715</button>
+      </div>
+      <div class="an-chat" id="an-chat"></div>
+      <div class="an-acc" id="an-acc"></div>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => { clearTimeout(_anaT); d.remove(); };
+  d.querySelector('.mu-bg').onclick = cerrar;
+  d.querySelector('.mv-x').onclick = cerrar;
+
+  const chat = d.querySelector('#an-chat');
+  const estado = d.querySelector('#an-estado');
+  const acc = d.querySelector('#an-acc');
+  const parseB = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  const burbuja = (txt) => { const b = document.createElement('div'); b.className = 'an-burb'; b.innerHTML = parseB(txt); chat.appendChild(b); chat.scrollTop = chat.scrollHeight; };
+  const acciones = () => {
+    estado.textContent = 'en línea';
+    const nL = contarOps('long'), nS = contarOps('short');
+    acc.innerHTML =
+      `<button class="an-b an-b-l" id="an-long" ${nL ? '' : 'disabled'}>\u25b2 Largo${nL > 1 ? ' <em>' + nL + '</em>' : ''}</button>` +
+      `<button class="an-b an-b-s" id="an-short" ${nS ? '' : 'disabled'}>\u25bc Corto${nS > 1 ? ' <em>' + nS + '</em>' : ''}</button>` +
+      `<button class="an-b an-b-t" id="an-tend">\u2197 Tendencia</button>` +
+      `<button class="an-b an-b-x" id="an-exportar">\u2913 Exportar</button>`;
+    if (nL) acc.querySelector('#an-long').onclick = () => { cerrar(); mostrarPlan(a, 'long'); };
+    if (nS) acc.querySelector('#an-short').onclick = () => { cerrar(); mostrarPlan(a, 'short'); };
+    acc.querySelector('#an-tend').onclick = () => { cerrar(); mostrarTendencia(); };
+    acc.querySelector('#an-exportar').onclick = () => exportarAnalisis(a);
+  };
+
+  // Siempre INSTANTÁNEO: al tocar el analista, el análisis ya está escrito
+  // (actualizado a la moneda/temporalidad/estructura actual). Sin máquina de escribir.
+  estado.textContent = 'en línea';
+  guion.forEach(burbuja);
+  acciones();
+  return;
+}
+let _anaT = null, _analisis = null, _planFuera = null, _anaCache = null;
+
+/* «Muéstrame»: dibuja una línea discontinua curva DESDE el ícono del analista
+   hasta el nivel de entrada, y proyecta una herramienta de posición (long/short)
+   con R:R 1:1 (entrada, stop y objetivo), POR ENCIMA de toda la interfaz. Se
+   cierra con un clic fuera. */
+function _hex2rgb(hex) { const n = parseInt((hex || '#22d3ee').slice(1), 16); return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`; }
+/* tiempo/precio <-> pantalla (mismo mapeo que Smart Levels: anclado a TIMESTAMP,
+   por eso las herramientas se PEGAN al gráfico al moverlo o hacer zoom). */
+function mXt(t) { const g = M._geo; if (!g) return 0; const i = (t - g.t0) / g.tfMs; return (i - g.pri) * g.paso + g.paso / 2; }
+function mTx(x) { const g = M._geo; if (!g) return 0; const iF = (x - g.paso / 2) / g.paso + g.pri; return g.t0 + iF * g.tfMs; }
+function mYp(p) { const g = M._geo; if (!g) return 0; return g.y1 - g.y1 * ((p - g.pMin) / Math.max(1e-9, g.pMax - g.pMin)); }
+function mPy(y) { const g = M._geo; if (!g) return 0; return g.pMin + (g.pMax - g.pMin) * ((g.y1 - y) / g.y1); }
+/* Guía SVG (hija del radar): sale de la píldora Analyst y llega a la herramienta.
+   Un SVG puede dibujarse por encima de la cabecera y el lienzo, cosa que el
+   lienzo no puede (queda recortado). Se quita al primer toque / al cerrar. */
+function pintarGuiaSVG() {
+  const ov = document.getElementById('mu-overlay');
+  let svg = document.getElementById('mu-guia');
+  const dst = M._guiaDst;
+  if (!ov || !dst) { if (svg) svg.remove(); return; }
+  const pill = document.getElementById('mu-analista'), cv = document.getElementById('mu-cv');
+  if (!pill || !cv) { if (svg) svg.remove(); return; }
+  const ovr = ov.getBoundingClientRect(), pr = pill.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+  const x0 = pr.left + pr.width / 2 - ovr.left, y0 = pr.bottom - ovr.top;
+  const x1 = cr.left - ovr.left + dst.x, y1 = cr.top - ovr.top + dst.y;
+  const mx = (x0 + x1) / 2, my = y0 + (y1 - y0) * 0.28;
+  if (!svg) {
+    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.id = 'mu-guia';
+    svg.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:26');
+    svg.innerHTML = '<path fill="none" stroke-dasharray="6 5" stroke-width="1.8"/><circle r="3.5"/>';
+    ov.appendChild(svg);
+  }
+  const path = svg.querySelector('path'), dot = svg.querySelector('circle');
+  path.setAttribute('d', `M ${x0} ${y0} Q ${mx} ${my} ${x1} ${y1}`);
+  path.setAttribute('stroke', dst.col);
+  dot.setAttribute('cx', x0); dot.setAttribute('cy', y0); dot.setAttribute('fill', dst.col);
+}
+function quitarGuiaSVG() { document.getElementById('mu-guia')?.remove(); }
+
+/* Lista TODAS las operaciones de alta probabilidad de un lado, ordenadas de
+   mejor a peor (confianza, y a igualdad, cercanía). Sirve para el contador y el
+   paginador del analista. */
+/* Las operaciones salen de las ZONAS SWING, respetando la estructura:
+   · LARGO  → solo en zonas de DEMANDA (soporte, por debajo del precio).
+   · CORTO  → solo en zonas de OFERTA  (resistencia, por encima del precio).
+   Entrada en el borde de la zona que da la cara al precio, stop al otro lado de
+   la zona (su altura) y objetivo 1:1. Nunca se ofrece un largo en resistencia ni
+   un corto en soporte. */
+function zonasOp(tipo) {
+  const zs = M.estructuras || [];
+  if (tipo === 'long') return zs.filter((z) => z.dir === 'demanda');
+  return zs.filter((z) => z.dir === 'oferta');
+}
+function opDeZona(tipo, z) {
+  if (!z) return null;
+  const alt = Math.max(1e-9, z.hi - z.lo);
+  const centro = (z.hi + z.lo) / 2;
+  if (tipo === 'long') {
+    // Demanda: se compra en el TECHO de la zona (primer toque), stop bajo el piso.
+    const entrada = z.hi;
+    return { tipo, entrada, sl: z.lo, tp: entrada + alt, zonaPoc: centro, caja: z };
+  }
+  // Oferta: se vende en el PISO de la zona (primer toque), stop sobre el techo.
+  const entrada = z.lo;
+  return { tipo, entrada, sl: z.hi, tp: entrada - alt, zonaPoc: centro, caja: z };
+}
+function construirOp(tipo) { const zs = zonasOp(tipo); return zs.length ? opDeZona(tipo, zs[0]) : null; }
+function hayOp(tipo) { return zonasOp(tipo).length > 0; }
+function contarOps(tipo) { return zonasOp(tipo).length; }
+
+/* Proyecta la MISMA herramienta de posición de Smart Levels (poslarga/poscorta).
+   Con un lado forzado (botón Largo/Corto) arma la LISTA de operaciones y muestra
+   la primera; el paginador junto a Analyst permite recorrerlas una a una. */
+function mostrarPlan(a, tipoForzado) {
+  if (tipoForzado) {
+    const zs = zonasOp(tipoForzado); if (!zs.length) return;
+    M._posList = { tipo: tipoForzado, zonas: zs, idx: 0 };
+    proyectarDeLista();
+  } else {
+    const op = a && a.op; if (!op) return;
+    M._posList = null; quitarPager(); ponerPos(op);
+  }
+  const tabChart = [...document.querySelectorAll('.mu-mtab')].find((x) => /hart|r\u00e1fic|gr\u00e1fic/i.test(x.textContent));
+  if (tabChart && !tabChart.classList.contains('on')) tabChart.click();
+}
+function proyectarDeLista() {
+  const L = M._posList; if (!L || !L.zonas.length) return;
+  L.idx = ((L.idx % L.zonas.length) + L.zonas.length) % L.zonas.length;
+  const op = opDeZona(L.tipo, L.zonas[L.idx]); if (!op) return;
+  ponerPos(op); pintarPager();
+}
+function ponerPos(op) {
+  const g = M._geo; if (!g || !g.vis.length) return;
+  const vis = g.vis;
+  // Anclar la herramienta al RANGO (la caja): así la entrada cae en su borde.
+  let t0 = vis[Math.max(0, vis.length - 20)].t;
+  if (op.caja && op.caja.t0) t0 = op.caja.t0;
+  const t1 = vis[vis.length - 1].t + 8 * g.tfMs;
+  M._pos = { tipo: op.tipo === 'long' ? 'poslarga' : 'poscorta',
+    pe: op.entrada, pTarget: op.tp, pStop: op.sl, t0, t1, zonaPoc: op.zonaPoc != null ? op.zonaPoc : op.entrada,
+    cTarget: '#2ee86a', cEntry: '#eaecef', cStop: '#ff3b52', grosor: 2, intensidad: 1,
+    cardPos: 'der', oculto: false, guia: true };
+  cerrarPosCfg(); dibujar();
+}
+
+/* Paginador «1/N ›» junto a la píldora Analyst para recorrer las operaciones. */
+function pintarPager() {
+  const L = M._posList; const cab = document.querySelector('#mu-overlay .mu-der'); if (!cab) return;
+  quitarPager();
+  if (!L || L.zonas.length < 2) return;
+  const p = document.createElement('div'); p.id = 'mu-pager';
+  p.innerHTML = `<span>${L.idx + 1}/${L.zonas.length}</span><button title="Siguiente">\u203a</button>`;
+  const pill = document.getElementById('mu-analista');
+  pill.insertAdjacentElement('afterend', p);
+  p.querySelector('button').onclick = () => { L.idx++; proyectarDeLista(); };
+}
+function quitarPager() { document.getElementById('mu-pager')?.remove(); }
+
+/* Exporta TODO el análisis del analista como imagen (foto + título en inglés). */
+function exportarAnalisis(a) {
+  a = a || (_anaCache && _anaCache.a) || analizarRadar();
+  if (!a) return;
+  const par = PARES.find((p) => p.id === _par) || { id: _par };
+  const limpio = (s) => String(s).replace(/\*\*/g, '');
+  const parrafos = (a.parrafos || []).map(limpio);
+  const DPR = 2, Wd = 620, pad = 34;
+  const cv = document.createElement('canvas');
+  const g = cv.getContext('2d');
+  const anchoTxt = Wd - pad * 2;
+  // pre-medir para calcular la altura
+  g.font = '15px system-ui,sans-serif';
+  const envolver = (txt) => {
+    const pals = txt.split(' '); const li = []; let ln = '';
+    pals.forEach((w) => { const t = ln ? ln + ' ' + w : w; if (g.measureText(t).width > anchoTxt && ln) { li.push(ln); ln = w; } else ln = t; });
+    if (ln) li.push(ln); return li;
+  };
+  const bloques = parrafos.map(envolver);
+  let alto = 150;                                   // cabecera
+  bloques.forEach((li) => { alto += li.length * 23 + 16; });
+  alto += 60;                                       // pie
+  cv.width = Wd * DPR; cv.height = alto * DPR; g.scale(DPR, DPR);
+  // fondo
+  const grad = g.createLinearGradient(0, 0, 0, alto);
+  grad.addColorStop(0, '#12171f'); grad.addColorStop(1, '#0a0d12');
+  g.fillStyle = grad; g.fillRect(0, 0, Wd, alto);
+  g.strokeStyle = 'rgba(232,184,75,.5)'; g.lineWidth = 2; g.strokeRect(1, 1, Wd - 2, alto - 2);
+  const pintar = () => {
+    // título
+    g.textAlign = 'left';
+    g.fillStyle = '#E8B84B'; g.font = '800 20px system-ui,sans-serif';
+    g.fillText('Jesus: Technical Analysis', 108, 52);
+    g.fillStyle = '#8b95a1'; g.font = '600 13px ui-monospace,monospace';
+    g.fillText(`${par.id} · ${M.tf} · ${new Date().toLocaleDateString('en-GB')}`, 108, 74);
+    g.strokeStyle = 'rgba(255,255,255,.08)'; g.beginPath(); g.moveTo(pad, 104); g.lineTo(Wd - pad, 104); g.stroke();
+    // párrafos
+    let y = 138; g.textAlign = 'left';
+    bloques.forEach((li) => {
+      g.fillStyle = '#dfe5ec'; g.font = '15px system-ui,sans-serif';
+      li.forEach((ln) => { g.fillText(ln, pad, y); y += 23; });
+      y += 16;
+    });
+    // pie
+    g.fillStyle = '#6b7681'; g.font = '600 11px ui-monospace,monospace';
+    g.textAlign = 'center';
+    g.fillText('CriptoCuba Oficial · Lógica Estructural Avanzada', Wd / 2, alto - 26);
+    // descargar
+    cv.toBlob((b) => {
+      const url = URL.createObjectURL(b); const enl = document.createElement('a');
+      enl.href = url; enl.download = `analysis-${par.id}-${M.tf}.png`; enl.click();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }, 'image/png');
+  };
+  // avatar circular
+  const img = new Image();
+  img.onload = () => { g.save(); g.beginPath(); g.arc(66, 58, 30, 0, 6.283); g.clip(); g.drawImage(img, 36, 28, 60, 60); g.restore();
+    g.strokeStyle = 'rgba(232,184,75,.7)'; g.lineWidth = 2; g.beginPath(); g.arc(66, 58, 30, 0, 6.283); g.stroke(); pintar(); };
+  img.onerror = () => { g.fillStyle = '#E8B84B'; g.beginPath(); g.arc(66, 58, 30, 0, 6.283); g.fill(); pintar(); };
+  img.src = 'assets/img/jesus-avatar.webp';
+}
+
+/* Ancla de la tarjeta (idéntica a Smart Levels). */
+function _anclaTarjetaMu(pos, x, w, yt, ye, ys, cw, ch, x1, y1) {
+  const yTop = Math.min(yt, ye, ys), yBot = Math.max(yt, ye, ys), cyMid = (yTop + yBot) / 2;
+  let cx, cy; pos = pos || 'der';
+  if (pos === 'izq') { cx = x - cw - 12; cy = cyMid - ch / 2; }
+  else if (pos === 'arriba') { cx = x + w / 2 - cw / 2; cy = yTop - ch - 10; }
+  else if (pos === 'abajo') { cx = x + w / 2 - cw / 2; cy = yBot + 10; }
+  else { cx = x + w + 12; cy = cyMid - ch / 2; }
+  cx = Math.max(4, Math.min(x1 - cw - 4, cx)); cy = Math.max(4, Math.min(y1 - ch - 4, cy));
+  return { cx, cy };
+}
+
+/* Dibujo FIEL de la herramienta de posición de Smart Levels. */
+function dibujarPosicion(g) {
+  const P = M._pos, geo = M._geo; if (!P || !geo) return;
+  const largo = P.tipo === 'poslarga';
+  const x1 = geo.xVelas, y1 = geo.y1;
+  const Ax = mXt(P.t0), Bx = mXt(P.t1);
+  const pe = P.pe, pT = P.pTarget, pS = P.pStop;
+  const ye = mYp(pe), yt = mYp(pT), ys = mYp(pS);
+  const x = Math.min(Ax, Bx), w = Math.abs(Bx - Ax) || 130;
+  const gr = P.grosor || 2, inten = P.intensidad != null ? P.intensidad : 1;
+  const cT = P.cTarget || '#2ee86a', cE = P.cEntry || '#eaecef', cS = P.cStop || '#ff3b52';
+  const rgbT = _hex2rgb(cT), rgbS = _hex2rgb(cS);
+  const acc = largo ? '#2ee86a' : '#ff3b52', accRGB = largo ? '46,232,106' : '255,59,82';
+
+  // Puntico destino de la entrada; la línea guía la traza un SVG que SÍ sale de la píldora.
+  if (P.guia) { g.save(); g.fillStyle = acc; g.beginPath(); g.arc(x + w, ye, 4, 0, 6.283); g.fill(); g.restore(); }
+  M._guiaDst = P.guia ? { x: x + w, y: ye, col: acc } : (M._tend && M._tend.guia ? M._guiaDst : null);
+
+  // zonas ganancia / riesgo (tinte suave para no saturar el radar)
+  g.fillStyle = `rgba(${rgbT},${(0.10 * inten).toFixed(3)})`; g.fillRect(x, Math.min(ye, yt), w, Math.abs(yt - ye));
+  g.fillStyle = `rgba(${rgbS},${(0.10 * inten).toFixed(3)})`; g.fillRect(x, Math.min(ye, ys), w, Math.abs(ys - ye));
+  // 3 líneas objetivo / entrada / stop
+  [[cT, yt], [cE, ye], [cS, ys]].forEach((r) => {
+    g.strokeStyle = r[0]; g.lineWidth = gr; g.beginPath(); g.moveTo(x, r[1]); g.lineTo(x + w, r[1]); g.stroke();
+  });
+  // Punticos en los extremos editables (como Smart Levels): en cada punta de cada línea.
+  if (!P.oculto) {
+    g.save();
+    [[cT, yt], [cE, ye], [cS, ys]].forEach((r) => {
+      [x, x + w].forEach((xx) => {
+        g.fillStyle = '#0b0e12'; g.beginPath(); g.arc(xx, r[1], 3.6, 0, 6.283); g.fill();
+        g.fillStyle = r[0]; g.beginPath(); g.arc(xx, r[1], 2.4, 0, 6.283); g.fill();
+      });
+    });
+    g.restore();
+  }
+  P._pos = { x, w, yt, ye, ys };
+  const gPct = ((pT - pe) / pe) * 100, rPct = ((pS - pe) / pe) * 100;
+  const rr = Math.abs(rPct) > 0 ? Math.abs(gPct / rPct) : 0;
+
+  if (P.oculto) {
+    const mp = _anclaTarjetaMu(P.cardPos, x, w, yt, ye, ys, 20, 20, x1, y1);
+    g.save(); g.shadowColor = `rgba(${accRGB},.55)`; g.shadowBlur = 9;
+    g.fillStyle = acc; redondeado(g, mp.cx, mp.cy, 20, 20, 6); g.fill(); g.restore();
+    g.fillStyle = '#0b0f16'; g.font = '800 12px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(largo ? 'L' : 'S', mp.cx + 10, mp.cy + 10.5); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    P._miniBtn = { x: mp.cx, y: mp.cy, w: 20, h: 20 }; P._hideBtn = P._arrL = P._arrR = null;
+    return;
+  }
+  P._miniBtn = null;
+
+  // ── Tarjeta de presentación (idéntica a Smart Levels) ──
+  const cw = 226, ch = 140;
+  const ap = _anclaTarjetaMu(P.cardPos, x, w, yt, ye, ys, cw, ch, x1, y1);
+  const cx = ap.cx, cy = ap.cy;
+  g.save(); g.shadowColor = 'rgba(0,0,0,.62)'; g.shadowBlur = 22;
+  g.fillStyle = 'rgba(12,16,23,.97)'; redondeado(g, cx, cy, cw, ch, 16); g.fill(); g.restore();
+  g.strokeStyle = `rgba(${accRGB},.45)`; g.lineWidth = 1.2; redondeado(g, cx, cy, cw, ch, 16); g.stroke();
+  g.fillStyle = acc; redondeado(g, cx, cy + 14, 4, ch - 28, 2); g.fill();
+  g.textAlign = 'left';
+  g.fillStyle = acc; g.font = '800 11px system-ui,sans-serif';
+  g.fillText(largo ? 'POSICI\u00d3N LARGA' : 'POSICI\u00d3N CORTA', cx + 16, cy + 23);
+  const hb = { x: cx + cw - 34, y: cy + 9, w: 24, h: 19 };
+  g.fillStyle = 'rgba(255,255,255,.1)'; redondeado(g, hb.x, hb.y, hb.w, hb.h, 6); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1; redondeado(g, hb.x, hb.y, hb.w, hb.h, 6); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1.6;
+  g.beginPath(); g.moveTo(hb.x + 6, hb.y + 9.5); g.lineTo(hb.x + 18, hb.y + 9.5); g.stroke();
+  P._hideBtn = hb;
+  const colX = cx + 16;
+  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('TAKE PROFIT', colX, cy + 46);
+  g.save(); g.shadowColor = 'rgba(46,232,106,.65)'; g.shadowBlur = 14;
+  g.fillStyle = cT; g.font = '800 29px system-ui,sans-serif';
+  g.fillText(`+${Math.abs(gPct).toFixed(2)}%`, colX, cy + 75); g.restore();
+  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('STOP LOSS', colX, cy + 99);
+  g.save(); g.shadowColor = `rgba(${rgbS},.65)`; g.shadowBlur = 14;
+  g.fillStyle = cS; g.font = '800 25px system-ui,sans-serif';
+  g.fillText(`\u2212${Math.abs(rPct).toFixed(2)}%`, colX, cy + 125); g.restore();
+  const rx = cx + cw - 42, divX = cx + cw - 78;
+  g.strokeStyle = 'rgba(255,255,255,.09)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(divX, cy + 40); g.lineTo(divX, cy + ch - 34); g.stroke();
+  g.textAlign = 'center';
+  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('R : R', rx, cy + 56);
+  g.save(); g.shadowColor = 'rgba(232,184,75,.55)'; g.shadowBlur = 12;
+  g.fillStyle = '#E8B84B'; g.font = '800 24px system-ui,sans-serif';
+  const rrTxt = Math.abs(rr - Math.round(rr)) < 0.06 ? String(Math.round(rr)) : rr.toFixed(1);
+  g.fillText(`1:${rrTxt}`, rx, cy + 84); g.restore();
+  const ay2 = cy + ch - 18;
+  const alF = { x: rx - 27, y: ay2 - 11, w: 22, h: 22 }, arF = { x: rx + 5, y: ay2 - 11, w: 22, h: 22 };
+  [[alF, -1], [arF, 1]].forEach((f) => {
+    g.fillStyle = 'rgba(255,255,255,.09)'; redondeado(g, f[0].x, f[0].y, 22, 22, 6); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.2)'; g.lineWidth = 1; redondeado(g, f[0].x, f[0].y, 22, 22, 6); g.stroke();
+    g.strokeStyle = '#c3cad2'; g.lineWidth = 1.8; g.beginPath();
+    const mx = f[0].x + 11, my = f[0].y + 11;
+    if (f[1] < 0) { g.moveTo(mx + 3, my - 4); g.lineTo(mx - 3, my); g.lineTo(mx + 3, my + 4); }
+    else { g.moveTo(mx - 3, my - 4); g.lineTo(mx + 3, my); g.lineTo(mx - 3, my + 4); }
+    g.stroke();
+  });
+  P._arrL = alF; P._arrR = arF; g.textAlign = 'left';
+}
+
+/* ══ TENDENCIA (Faro) anclada a timestamps: se PEGA al gráfico ══
+   Une los MÍNIMOS si es alcista o los MÁXIMOS si es bajista, por tramos. */
+function mostrarTendencia() {
+  const geo = M._geo; if (!geo || !M.velas.length) return;
+  // Ventana amplia para que la tendencia salga COMPLETA desde la esquina:
+  // usamos las últimas ~150 velas (o las visibles si hay menos), no solo el trozo visible.
+  const N = Math.min(M.velas.length, Math.max(geo.vis.length, 150));
+  const win = M.velas.slice(M.velas.length - N);
+  const n = win.length; if (n < 6) return;
+  let sx = 0, sy = 0, sxy = 0, sxx = 0;
+  win.forEach((v, i) => { sx += i; sy += v.c; sxy += i * v.c; sxx += i * i; });
+  const m = (n * sxy - sx * sy) / Math.max(1e-9, n * sxx - sx * sx);
+  const alcista = m >= 0;
+  const pts = win.map((v) => ({ t: v.t, p: alcista ? v.l : v.h }));
+  // Envolvente adaptativa (cadena monótona): toca TODOS los mínimos si es
+  // alcista o TODOS los máximos si es bajista, re-pivotando en cada separación.
+  const hull = [];
+  const giro = (o, a, b) => (a.t - o.t) * (b.p - o.p) - (a.p - o.p) * (b.t - o.t);
+  for (const pt of pts) {
+    while (hull.length >= 2) { const c = giro(hull[hull.length - 2], hull[hull.length - 1], pt); if (alcista ? c <= 0 : c >= 0) hull.pop(); else break; }
+    hull.push(pt);
+  }
+  // Asegurar que arranca en la primera vela (la esquina) y llega a la última.
+  if (hull.length && hull[0].t !== pts[0].t) hull.unshift(pts[0]);
+  if (hull.length && hull[hull.length - 1].t !== pts[n - 1].t) hull.push(pts[n - 1]);
+  const segs = [];
+  for (let k = 0; k < hull.length - 1; k++) segs.push({ t0: hull[k].t, p0: hull[k].p, t1: hull[k + 1].t, p1: hull[k + 1].p });
+  if (!segs.length) return;
+  M._tend = { segs, dir: alcista ? 'alcista' : 'bajista', color: alcista ? '#2ee86a' : '#f6465d', grosor: 2, guia: true };
+  const tabChart = [...document.querySelectorAll('.mu-mtab')].find((x) => /hart|r\u00e1fic|gr\u00e1fic/i.test(x.textContent));
+  if (tabChart && !tabChart.classList.contains('on')) tabChart.click();
+  cerrarTendCfg(); dibujar();
+}
+function dibujarTendencia(g) {
+  const T = M._tend, geo = M._geo; if (!T || !T.segs.length || !geo) return;
+  const ult0 = T.segs[T.segs.length - 1];
+  const px2 = mXt(ult0.t1), py2 = mYp(ult0.p1);
+  // La línea guía la traza el SVG (sale de la píldora). Aquí solo el puntico destino.
+  if (T.guia) { g.save(); g.fillStyle = T.color; g.beginPath(); g.arc(px2, py2, 4, 0, 6.283); g.fill(); g.restore();
+    M._guiaDst = { x: px2, y: py2, col: T.color }; }
+  g.save(); g.strokeStyle = T.color; g.lineWidth = T.grosor; g.lineJoin = 'round'; g.shadowColor = T.color; g.shadowBlur = 5;
+  g.beginPath();
+  T.segs.forEach((s, k) => { const x0 = mXt(s.t0), yy0 = mYp(s.p0), x1p = mXt(s.t1), yy1 = mYp(s.p1); if (k === 0) g.moveTo(x0, yy0); g.lineTo(x1p, yy1); });
+  g.stroke(); g.shadowBlur = 0; g.fillStyle = T.color;
+  const pts = [{ t: T.segs[0].t0, p: T.segs[0].p0 }].concat(T.segs.map((s) => ({ t: s.t1, p: s.p1 })));
+  pts.forEach((pt) => { g.beginPath(); g.arc(mXt(pt.t), mYp(pt.p), 3, 0, 7); g.fill(); });
+  g.restore();
+  // La tachuela de dirección SOLO se ve mientras no se ha tocado la gráfica (con la guía).
+  if (T.guia) {
+    const ult = T.segs[T.segs.length - 1];
+    const tx = mXt(ult.t1), ty = mYp(ult.p1);
+    const txt = T.dir === 'alcista' ? '\u2197 Tendencia adaptativa alcista' : '\u2198 Tendencia adaptativa bajista';
+    g.font = 'bold 9.5px ui-monospace,monospace';
+    const w = g.measureText(txt).width + 14;
+    const bx = Math.max(4, Math.min(tx - w / 2, geo.xVelas - w - 4)), by = ty - (T.dir === 'alcista' ? 22 : -8);
+    g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 8; g.fillStyle = T.color; redondeado(g, bx, by, w, 16, 5); g.fill(); g.restore();
+    g.fillStyle = T.dir === 'alcista' ? '#04210f' : '#2a0509'; g.textAlign = 'left'; g.fillText(txt, bx + 7, by + 11); g.textAlign = 'left';
+  }
+}
+function cercaTend(lx, ly) {
+  const T = M._tend, g = M._geo; if (!T || !g) return false;
+  return T.segs.some((s) => {
+    const x0 = mXt(s.t0), y0 = mYp(s.p0), x1 = mXt(s.t1), y1 = mYp(s.p1);
+    const dx = x1 - x0, dy = y1 - y0, L2 = dx * dx + dy * dy;
+    let t = L2 ? ((lx - x0) * dx + (ly - y0) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+    return Math.hypot(lx - (x0 + t * dx), ly - (y0 + t * dy)) < 8;
+  });
+}
+function cerrarPosCfg() { document.getElementById('mu-poscfg')?.remove(); }
+function cerrarTendCfg() { document.getElementById('mu-tendcfg')?.remove(); }
+
+/* Config de la tendencia: dirección + color + grosor + eliminar (hija del radar). */
+function mostrarTendCfg() {
+  cerrarTendCfg(); const ov = $('mu-overlay'); if (!ov || !M._tend) return;
+  const c = document.createElement('div'); c.id = 'mu-tendcfg';
+  c.innerHTML = `<span class="pc-et">${M._tend.dir === 'alcista' ? '\u2197 alcista' : '\u2198 bajista'}</span>
+    <button data-a="color" title="Color">\u25c9</button><button data-a="grosor" title="Grosor">\u2261</button><button data-a="del" title="Eliminar">\u{1F5D1}</button>`;
+  ov.appendChild(c); posTendCfg();
+  const paleta = ['#2ee86a', '#f6465d', '#E8B84B', '#7fbaff', '#c58bff'], grosores = [1.5, 2.5, 3.5];
+  c.querySelector('[data-a="color"]').onclick = () => { const i = (paleta.indexOf(M._tend.color) + 1) % paleta.length; M._tend.color = paleta[i]; dibujar(); };
+  c.querySelector('[data-a="grosor"]').onclick = () => { let i = grosores.indexOf(M._tend.grosor); i = (i + 1) % grosores.length; M._tend.grosor = grosores[i < 0 ? 0 : i]; dibujar(); };
+  c.querySelector('[data-a="del"]').onclick = () => { M._tend = null; cerrarTendCfg(); dibujar(); };
+}
+function posTendCfg() {
+  const c = $('mu-tendcfg'), cv = $('mu-cv'), ov = $('mu-overlay'), g = M._geo, T = M._tend; if (!c || !cv || !ov || !g || !T) return;
+  const or = ov.getBoundingClientRect(), cr = cv.getBoundingClientRect(); const ox = cr.left - or.left, oy = cr.top - or.top;
+  const s = T.segs[T.segs.length - 1]; const x = mXt(s.t1), y = mYp(s.p1);
+  c.style.left = (ox + Math.max(6, Math.min(cv.clientWidth - 150, x - 60))) + 'px';
+  c.style.top = (oy + Math.max(6, y - 44)) + 'px';
+}
+/* Config de la posición: eliminar (hija del radar). */
+function mostrarPosCfg() {
+  cerrarPosCfg(); const ov = $('mu-overlay'); if (!ov || !M._pos) return;
+  const P = M._pos;
+  const c = document.createElement('div'); c.id = 'mu-poscfg';
+  c.innerHTML = `<span class="pc-et">${P.tipo === 'poslarga' ? '\u25b2 LARGA' : '\u25bc CORTA'}</span>` +
+    `<button data-a="color" title="Color">\u25c9</button>` +
+    `<button data-a="grosor" title="Grosor">\u2261</button>` +
+    `<button data-a="del" title="Eliminar">\u{1F5D1}</button>`;
+  ov.appendChild(c); posPosCfg();
+  const paleta = ['#eaecef', '#2ee86a', '#f6465d', '#E8B84B', '#7fbaff', '#c58bff'];
+  const grosores = [1.5, 2.5, 3.5];
+  c.querySelector('[data-a="color"]').onclick = () => { const i = (paleta.indexOf(P.cEntry) + 1) % paleta.length; P.cEntry = paleta[i]; dibujar(); };
+  c.querySelector('[data-a="grosor"]').onclick = () => { let i = grosores.indexOf(P.grosor); i = (i + 1) % grosores.length; P.grosor = grosores[i < 0 ? 1 : i]; dibujar(); };
+  c.querySelector('[data-a="del"]').onclick = () => { M._pos = null; M._posList = null; quitarPager(); cerrarPosCfg(); dibujar(); };
+}
+function posPosCfg() {
+  const c = $('mu-poscfg'), cv = $('mu-cv'), ov = $('mu-overlay'), P = M._pos; if (!c || !cv || !ov || !P || !P._pos) return;
+  const or = ov.getBoundingClientRect(), cr = cv.getBoundingClientRect(); const ox = cr.left - or.left, oy = cr.top - or.top;
+  c.style.left = (ox + Math.max(6, Math.min(cv.clientWidth - 120, P._pos.x))) + 'px';
+  c.style.top = (oy + Math.max(6, Math.min(P._pos.yt, P._pos.ye, P._pos.ys) - 34)) + 'px';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESUMEN DE VOLUMEN
+
+   Muestra las cifras de volumen real que sostienen las zonas, sin revelar
+   proveedores ni fuentes: es parte del valor.
+   ══════════════════════════════════════════════════════════════ */
+function validarVolumen() {
+  const par = PARES.find((p) => p.id === _par) || PARES[0];
+  const base = par.s.replace(/USDT$|USDC$|FDUSD$|BUSD$/, '');
+  const mk = M.mercado;
+  const zTot = (M.velas || []).reduce((s, v) => s + (v.vol || 0), 0);
+  const zFuerte = (M.zonas || []).slice().sort((a, b) => b.v - a.v)[0];
+  const hora = new Date().toLocaleString('es', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  document.getElementById('mu-val-box')?.remove();
+  const d = document.createElement('div');
+  d.id = 'mu-val-box';
+  d.innerHTML = `<div class="mu-bg"></div>
+    <div class="mv-c">
+      <button class="mv-x" aria-label="Cerrar">\u2715</button>
+      <div class="mv-eyebrow">Volumen \u00b7 ${esc(base)} \u00b7 ${esc(M.tf)}</div>
+      <h3 class="mv-t">Volumen negociado en tiempo real</h3>
+      <p class="mv-d">Estas son las cifras de <b>volumen real en d\u00f3lares</b> que sostienen las zonas detectadas. Cada zona muestra el capital acumulado que ha pasado por ese rango de precio.</p>
+      <div class="mv-nums">
+        <div><b>${dinero(zTot)}</b><span>volumen circundante</span></div>
+        <div><b>${zFuerte ? dinero(zFuerte.v) : '\u2014'}</b><span>volumen de la zona m\u00e1s fuerte</span></div>
+        <div><b>${mk && mk.vwap ? fmt(mk.vwap) : '\u2014'}</b><span>VWAP anclado</span></div>
+      </div>
+      <div class="mv-links">
+        <button class="mv-copy" id="mv-copy">Copiar alerta</button>
+      </div>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => d.remove();
+  d.querySelector('.mu-bg').onclick = cerrar;
+  d.querySelector('.mv-x').onclick = cerrar;
+  d.querySelector('#mv-copy').onclick = () => {
+    // Alerta pro: líneas cortas (seguras en móvil), emojis serios, fácil de leer.
+    // Negrita real (Unicode) para los títulos: se ve en WhatsApp, Telegram y notas.
+    const neg = (s) => s.replace(/[A-Za-z0-9]/g, (c) => {
+      const cc = c.charCodeAt(0);
+      if (cc >= 65 && cc <= 90) return String.fromCodePoint(0x1D5D4 + (cc - 65));
+      if (cc >= 97 && cc <= 122) return String.fromCodePoint(0x1D5EE + (cc - 97));
+      if (cc >= 48 && cc <= 57) return String.fromCodePoint(0x1D7EC + (cc - 48));
+      return c;
+    });
+    const icono = (z) => z.rota ? '\u26aa' : (z.lado === 'demanda' ? '\u{1F7E2}' : '\u{1F534}');
+    const tipo = (z) => z.rota ? 'ROTA   ' : (z.lado === 'demanda' ? 'DEMANDA' : 'OFERTA ');
+    const aqui = (z) => z.dentro ? '  \u25c0 AQU\u00cd' : '';
+    const niveles = (M.zonas || []).slice(0, 6).map((z) => `${icono(z)} ${tipo(z)} ${fmt(z.pLow)}\u2013${fmt(z.pHigh)}  ${dinero(z.v)}${aqui(z)}`).join('\n');
+    const sesgo = mk ? (mk.sesgo === 'comprador' ? 'Comprador' : mk.sesgo === 'vendedor' ? 'Vendedor' : 'Neutral') : 'Neutral';
+    const alerta =
+`\u{1F537} ${neg('LÓGICA ESTRUCTURAL AVANZADA')}
+
+${esc(base)} \u00b7 ${esc(M.tf)} \u00b7 ${hora}
+
+
+\u{1F4B5} Precio actual: ${fmt(M.precio)}
+\u{1F4C8} VWAP: ${mk && mk.vwap ? fmt(mk.vwap) : '\u2014'}
+\u{1F4CA} Volumen circundante: ${dinero(zTot)}
+
+
+\u{1F3AF} ${neg('ZONAS CLAVE')}
+
+${niveles || 'Sin zonas cercanas'}
+
+
+\u{1F9ED} ${neg('Sesgo')}: ${sesgo}`;
+    const btn = d.querySelector('#mv-copy');
+    const ok = () => { btn.textContent = '\u2713 Alerta copiada'; setTimeout(() => { btn.textContent = 'Copiar alerta'; }, 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(alerta).then(ok).catch(ok);
+    else { try { const ta = document.createElement('textarea'); ta.value = alerta; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } catch (_) {} ok(); }
+  };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1924,7 +4005,7 @@ function guardarImagen() {
       g.textAlign = 'left';
       g.fillStyle = '#E8B84B';
       g.font = `800 ${19 * e2}px system-ui,sans-serif`;
-      g.fillText('Radar Institucional · Flujo de Órdenes', x, yB + 34 * e2);
+      g.fillText('Lógica Estructural Avanzada', x, yB + 34 * e2);
       g.font = `700 ${14 * e2}px ui-monospace,monospace`;
       g.fillStyle = '#C9A84B';
       g.fillText('CriptoCubaOficial.com', x, yB + 56 * e2);

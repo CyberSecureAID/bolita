@@ -11,7 +11,7 @@ const SERVICIOS = [
   { t: 'Swap', k: 'swap', ic: 'swap', d: 'Intercambiar cripto' },
   { t: 'Marketplace', k: 'market', ic: 'market', d: 'Comprar y vender P2P' },
   { t: 'Smart Levels', k: 'niveles', ic: 'chart', d: 'Análisis y operar en gráfica' },
-  { t: 'Radar Institucional', k: 'muros', ic: 'candles', d: 'Flujo de órdenes' },
+  { t: 'Lógica Estructural Avanzada', k: 'muros', ic: 'candles', d: 'Flujo de órdenes' },
   { t: 'Liquidity Pools', k: 'liquidity', ic: 'pool', d: 'Profundidad y liquidez' },
   { t: 'Herramientas', k: 'tools', ic: 'tools', d: 'Utilidades de trading' },
   { t: 'Academia', k: 'academy', ic: 'book', d: 'Aprende a operar' },

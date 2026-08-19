@@ -531,11 +531,19 @@ async function traerVelas(simbolo, tf, n = 300) {
    ABRIR
    ══════════════════════════════════════════════════════════════ */
 /** ¿Tiene esta wallet la suscripción al día? */
+/* Wallet del OWNER (en minúsculas). Mientras esté vacío, seguimos en modo
+   desarrollo (todos entran, como hasta ahora). Cuando pongas tu dirección aquí,
+   solo TÚ entras directo a las herramientas; los demás verán los planes. */
+const OWNER = '';
+
 async function tieneAccesoPro() {
-  // Sin contrato desplegado, todo el mundo entra: fase de pruebas.
-  if (!PRO) return { ok: true, prueba: true };
+  const cuenta = ((wallet.cuentaActual && wallet.cuentaActual()) || '').toLowerCase();
+  if (OWNER && cuenta === OWNER.toLowerCase()) return { ok: true, owner: true };
+  // Sin OWNER definido: modo desarrollo (comportamiento actual).
+  if (!OWNER && !PRO) return { ok: true, prueba: true };
+  // OWNER definido pero aún sin contrato: los que no son owner ven los planes.
+  if (!PRO) return { ok: false, sinPlan: true };
   try {
-    const cuenta = wallet.cuentaActual && wallet.cuentaActual();
     if (!cuenta) return { ok: false, sinWallet: true };
     const prov = await wallet.proveedor();
     const c = new ethers.Contract(PRO, ABI_PRO, prov);
@@ -566,7 +574,7 @@ const SERVICIOS = [
   },
   {
     id: 'libro',
-    nombre: 'Radar Institucional',
+    nombre: 'Lógica Estructural Avanzada',
     lema: 'Vea lo que hacen los grandes',
     desc: 'El libro de órdenes miente: la mayoría de las órdenes grandes son falsas. Vigilamos cada una y le decimos cuáles tienen dinero real detrás.',
     img: 'assets/img/serv-libro.webp',
@@ -624,7 +632,7 @@ async function portada() {
             <div class="lqp-nom">${esc(sv.nombre)}</div>
             <div class="lqp-lema">${esc(sv.lema)}</div>
             <div class="lqp-desc">${esc(sv.desc)}</div>
-            ${sv.listo ? '<span class="lqp-abrir">Abrir →</span>' : '<span class="lqp-pronto">Próximamente</span>'}
+            ${sv.listo ? '<span class="lqp-abrir">Abrir</span>' : '<span class="lqp-pronto">Próximamente</span>'}
           </button>`).join('')}
       </div>
 
@@ -666,10 +674,19 @@ async function portada() {
   });
 
   d.querySelectorAll('[data-serv]').forEach((b) => b.onclick = async () => {
+    if (b._abriendo) return;            // evita que 70 clics apilen la apertura mientras se verifica el acceso
+    b._abriendo = true;
+    setTimeout(() => { b._abriendo = false; }, 2500);
     const sv = SERVICIOS.find((x) => x.id === b.dataset.serv);
-    if (!sv || !sv.listo) return;
+    if (!sv || !sv.listo) { b._abriendo = false; return; }
     const a = await tieneAccesoPro();
-    if (!a.ok) { avisoSinAcceso(); return; }
+    if (!a.ok) {
+      // No es owner / no tiene plan: mostramos los planes de suscripción.
+      d.classList.add('lqp-verplanes');
+      const pl = d.querySelector('.lqp-planes') || d.querySelector('.lqp-sep');
+      if (pl) pl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     /* [CORREGIDO] Antes se destruía la portada, así que al cerrar la
        herramienta se salía de Liquidity entero. Ahora solo se oculta
        y vuelve cuando el usuario cierra la herramienta. */
@@ -752,6 +769,9 @@ async function abrirPools() {
           </button>
           <button class="lq-ayuda" id="lq-foto" title="Guardar imagen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          </button>
+          <button class="lq-ayuda" id="lq-cal" title="Calendario económico">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4M7.5 13h2M11 13h2M14.5 13h2"/></svg>
           </button>
           <button class="lq-ayuda apagado" id="lq-perfil" title="Perfil de volumen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M21 6H9M21 11H5M21 16H12M21 21H8"/></svg>
@@ -880,6 +900,7 @@ async function abrirPools() {
   };
 
   $('lq-foto').onclick = () => guardarImagen();
+  { const bc = $('lq-cal'); if (bc) bc.onclick = () => { try { window.abrirCalendario && window.abrirCalendario(); } catch (_) {} }; }
 
   pintar();
   // Al girar el móvil o cambiar de tamaño, se vuelve a dibujar.
@@ -1521,66 +1542,148 @@ function dibujar() {
       const { z, alcista, col, cRGB, volC, volV } = carta;
       const fmtV = fmtVol;
       const volT = volC + volV || 1;
-      const pw = Math.min(212, x1 - 12);
-      const ph = 134;
+      const pctC = Math.round((volC / volT) * 100);
+      const pctV = 100 - pctC;
+      const dist = ((z.precio - precioAhora) / precioAhora) * 100;
+      const signo = dist >= 0 ? '+' : '';
+
+      const pw = Math.min(236, x1 - 12);
+      const ph = 188;
       const px = Math.max(6, Math.min(x1 - pw - 6, carta.x));
       let py = carta.y + carta.h + 8;
       if (py + ph > y1 - 4) py = Math.max(4, carta.y - ph - 8);
 
+      // sombra + cuerpo
       g.save();
-      g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 14; g.shadowOffsetY = 4;
-      g.fillStyle = 'rgba(15,19,26,.99)';
-      redondeadoLq(g, px, py, pw, ph, 12); g.fill();
+      g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 18; g.shadowOffsetY = 6;
+      g.fillStyle = 'rgba(17,21,28,.995)';
+      redondeadoLq(g, px, py, pw, ph, 14); g.fill();
       g.restore();
-      g.strokeStyle = `rgba(${cRGB},.5)`; g.lineWidth = 1.2;
-      redondeadoLq(g, px, py, pw, ph, 12); g.stroke();
 
-      // recorte para que NADA se desborde de la tarjeta
+      // recorte al cuerpo (nada se desborda)
       g.save();
-      redondeadoLq(g, px, py, pw, ph, 12); g.clip();
+      redondeadoLq(g, px, py, pw, ph, 14); g.clip();
 
-      const tx = px + 12;
+      // ── CABECERA con degradado del color del rol ──
+      const hb = 28;
+      const gh = g.createLinearGradient(px, py, px, py + hb);
+      gh.addColorStop(0, `rgba(${cRGB},.30)`);
+      gh.addColorStop(1, `rgba(${cRGB},.05)`);
+      g.fillStyle = gh; g.fillRect(px, py, pw, hb);
+      g.strokeStyle = `rgba(${cRGB},.45)`; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(px, py + hb + .5); g.lineTo(px + pw, py + hb + .5); g.stroke();
+
+      const tx = px + 13;
       g.textAlign = 'left';
-      g.fillStyle = col; g.font = 'bold 10px ui-monospace,monospace';
-      g.fillText((alcista ? '\u25b2 SOPORTE' : '\u25bc RESISTENCIA') + ' \u00b7 ALTA LIQUIDEZ', tx, py + 18);
-      g.fillStyle = '#e6eaef';
-      g.fillText(fmt(z.precio), tx, py + 33);
+      g.fillStyle = col; g.font = 'bold 10.5px ui-monospace,monospace';
+      g.fillText(alcista ? '\u25b2 SOPORTE \u00b7 DEMANDA'
+                         : '\u25bc RESISTENCIA \u00b7 OFERTA', tx, py + 18);
 
-      g.fillStyle = '#c4ccd4'; g.font = '9px ui-monospace,monospace';
-      g.fillText('Muchas \u00f3rdenes juntas aqu\u00ed: el', tx, py + 48);
-      g.fillText('precio suele frenar o rebotar.', tx, py + 59);
-      g.fillStyle = '#9aa4af';
-      g.fillText(alcista ? '\u00datil para entradas o tu stop.'
-                         : '\u00datil para salidas o tu stop.', tx, py + 72);
+      // ── PRECIO (hero) + píldora de distancia al precio actual ──
+      g.fillStyle = '#f2f5f8'; g.font = 'bold 16px ui-monospace,monospace';
+      g.fillText(fmt(z.precio), tx, py + hb + 22);
+      g.font = 'bold 9px ui-monospace,monospace';
+      const dtxt = signo + dist.toFixed(2) + '%';
+      const dpw = g.measureText(dtxt).width + 16;
+      const dpx = px + pw - dpw - 12, dpy = py + hb + 8;
+      g.fillStyle = `rgba(${cRGB},.16)`; redondeadoLq(g, dpx, dpy, dpw, 17, 8); g.fill();
+      g.strokeStyle = `rgba(${cRGB},.5)`; g.lineWidth = 1; redondeadoLq(g, dpx, dpy, dpw, 17, 8); g.stroke();
+      g.fillStyle = col; g.textAlign = 'center';
+      g.fillText(dtxt, dpx + dpw / 2, dpy + 12);
+      g.textAlign = 'left';
 
-      g.fillStyle = '#8b95a1'; g.font = '8.5px ui-monospace,monospace';
-      g.fillText('Vol. negociado (' + z.filas + ' muros):', tx, py + 88);
-      const bx = tx, by = py + 93, bw = pw - 24, bh = 9;
-      const wc = bw * (volC / volT);
-      g.fillStyle = 'rgba(46,232,106,.95)'; g.fillRect(bx, by, wc, bh);
-      g.fillStyle = 'rgba(255,70,90,.95)'; g.fillRect(bx + wc, by, bw - wc, bh);
-      g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 1; g.strokeRect(bx, by, bw, bh);
-      g.font = 'bold 8.5px ui-monospace,monospace';
-      g.fillStyle = '#2ee86a'; g.textAlign = 'left';
-      g.fillText('Compras ' + fmtV(volC), bx, by + bh + 12);
-      g.fillStyle = '#ff6b7a'; g.textAlign = 'right';
-      g.fillText('Ventas ' + fmtV(volV), bx + bw, by + bh + 12);
-      const dom = volC > volV * 1.25 ? ['Dominan compradores', '#2ee86a']
-        : volV > volC * 1.25 ? ['Dominan vendedores', '#ff6b7a']
-        : ['Compras y ventas parejas', '#c4ccd4'];
-      g.textAlign = 'left'; g.fillStyle = dom[1]; g.font = '8.5px ui-monospace,monospace';
-      g.fillText(dom[0], tx, py + ph - 9);
+      // ── RANGO de la zona (izq) + medidor de FUERZA en puntos (der) ──
+      g.fillStyle = '#8b95a1'; g.font = '9px ui-monospace,monospace'; g.textAlign = 'left';
+      const rango = (z.pLow && z.pHigh && Math.abs(z.pHigh - z.pLow) > 1e-9)
+        ? 'Zona ' + fmt(z.pLow) + '\u2013' + fmt(z.pHigh)
+        : 'Muro de liquidez';
+      g.fillText(rango, tx, py + hb + 40);
+      const nf = Math.max(1, Math.min(5, z.filas || 1));   // fuerza = nº de muros (1..5)
+      const dgap = 7, dr = 2.3, dyC = py + hb + 37, dxEnd = px + pw - 14;
+      for (let i = 0; i < 5; i++) {
+        g.beginPath(); g.arc(dxEnd - (4 - i) * dgap, dyC, dr, 0, Math.PI * 2);
+        g.fillStyle = i < nf ? col : 'rgba(255,255,255,.18)'; g.fill();
+      }
+
+      // ── QUÉ ES (lógica correcta: encima=venta/oferta, debajo=compra/demanda) ──
+      g.fillStyle = '#c8d0d8'; g.font = '9.5px ui-monospace,monospace';
+      if (alcista) {
+        g.fillText('Compra acumulada DEBAJO del precio.', tx, py + hb + 58);
+        g.fillText('Piso que sostiene las ca\u00eddas.', tx, py + hb + 71);
+      } else {
+        g.fillText('Venta acumulada ENCIMA del precio.', tx, py + hb + 58);
+        g.fillText('Techo que frena las subidas.', tx, py + hb + 71);
+      }
+
+      // ── FLUJO en la zona, con % (velas verdes vs rojas que pasaron por ella).
+      //    Si la zona NO tuvo actividad (volC=volV=0) no inventamos nada: barra
+      //    neutra y aviso honesto, en vez de pintarla toda roja. ──
+      const sinFlujo = (volC + volV) <= 0;
+      g.fillStyle = '#8b95a1'; g.font = '8.5px ui-monospace,monospace'; g.textAlign = 'left';
+      g.fillText('Flujo en la zona', tx, py + hb + 90);
+      if (!sinFlujo) { g.textAlign = 'right'; g.fillText('Total ' + fmtV(volT), px + pw - 13, py + hb + 90); g.textAlign = 'left'; }
+      const bx = tx, by = py + hb + 96, bw = pw - 26, bh = 10;
+      g.save(); redondeadoLq(g, bx, by, bw, bh, 5); g.clip();
+      if (sinFlujo) {
+        g.fillStyle = 'rgba(150,160,172,.30)'; g.fillRect(bx, by, bw, bh);
+      } else {
+        const wc = Math.max(0, Math.min(bw, bw * (volC / volT)));
+        g.fillStyle = 'rgba(46,232,106,.95)'; g.fillRect(bx, by, wc, bh);
+        g.fillStyle = 'rgba(255,70,90,.95)'; g.fillRect(bx + wc, by, bw - wc, bh);
+      }
       g.restore();
+      g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 1; redondeadoLq(g, bx, by, bw, bh, 5); g.stroke();
+      if (sinFlujo) {
+        g.fillStyle = '#8b95a1'; g.font = '8.5px ui-monospace,monospace'; g.textAlign = 'center';
+        g.fillText('Sin actividad reciente en la zona', bx + bw / 2, by + bh + 13);
+        g.textAlign = 'left';
+      } else {
+        g.font = 'bold 8.5px ui-monospace,monospace';
+        g.fillStyle = '#2ee86a'; g.textAlign = 'left';
+        g.fillText('\u25b2 ' + fmtV(volC) + '  ' + pctC + '%', bx, by + bh + 13);
+        g.fillStyle = '#ff6b7a'; g.textAlign = 'right';
+        g.fillText(pctV + '%  ' + fmtV(volV) + ' \u25bc', bx + bw, by + bh + 13);
+        g.textAlign = 'left';
+      }
 
-      // X para cerrar (esquina superior derecha)
-      const xw = 16, xx = px + pw - xw - 6, xy = py + 6;
-      g.strokeStyle = 'rgba(200,208,216,.8)'; g.lineWidth = 1.4; g.lineCap = 'round';
+      /* ── CHIP de lectura. Correcta para SPOT (aquí no hay cortos): en una
+         resistencia, si predominó la COMPRA es que compraron caro y el precio
+         los dejó abajo → oferta al recuperar ("atrapados arriba"). En un
+         soporte, si predominó la VENTA pero el piso aguantó → esa venta fue
+         ABSORBIDA por la demanda (no "vendedor atrapado", que en spot no
+         existe). Sin dominio claro = zona en disputa. Sin flujo = solo un
+         nivel de liquidez. Nada de frases vacías. ── */
+      let dom;
+      if (sinFlujo) {
+        dom = [alcista ? 'Piso de liquidez' : 'Techo de liquidez', '150,160,172'];
+      } else if (!alcista) {                 // RESISTENCIA (techo · oferta)
+        dom = volV > volC * 1.25 ? ['Oferta firme: techo s\u00f3lido', '255,107,122']
+            : volC > volV * 1.25 ? ['Compradores atrapados arriba', '245,183,74']
+            : ['Techo en disputa', '196,204,212'];
+      } else {                               // SOPORTE (piso · demanda)
+        dom = volC > volV * 1.25 ? ['Demanda firme: piso s\u00f3lido', '46,232,106']
+            : volV > volC * 1.25 ? ['Ventas absorbidas: piso probado', '245,183,74']
+            : ['Piso en disputa', '196,204,212'];
+      }
+      const chy = py + ph - 26, chh = 18, chx = px + 10, chw = pw - 20;
+      g.fillStyle = `rgba(${dom[1]},.14)`; redondeadoLq(g, chx, chy, chw, chh, 7); g.fill();
+      g.strokeStyle = `rgba(${dom[1]},.42)`; g.lineWidth = 1; redondeadoLq(g, chx, chy, chw, chh, 7); g.stroke();
+      g.fillStyle = `rgb(${dom[1]})`;
+      g.beginPath(); g.arc(chx + 11, chy + chh / 2, 2.6, 0, Math.PI * 2); g.fill();
+      g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left';
+      g.fillText(dom[0], chx + 19, chy + chh / 2 + 3.2);
+
+      g.restore();   // fin recorte
+
+      // ── X para cerrar (en la cabecera) ──
+      const xw = 15, xx = px + pw - xw - 8, xy = py + 7;
+      g.strokeStyle = 'rgba(220,226,232,.85)'; g.lineWidth = 1.5; g.lineCap = 'round';
       g.beginPath();
-      g.moveTo(xx + 4, xy + 4); g.lineTo(xx + xw - 4, xy + xw - 4);
-      g.moveTo(xx + xw - 4, xy + 4); g.lineTo(xx + 4, xy + xw - 4);
+      g.moveTo(xx + 3, xy + 3); g.lineTo(xx + xw - 3, xy + xw - 3);
+      g.moveTo(xx + xw - 3, xy + 3); g.lineTo(xx + 3, xy + xw - 3);
       g.stroke(); g.lineCap = 'butt';
 
-      V.tachCerrar = { x: xx, y: xy, w: xw, h: xw };
+      V.tachCerrar = { x: xx - 5, y: xy - 5, w: xw + 10, h: xw + 10 };
       V.tachPanel = { x: px, y: py, w: pw, h: ph };
     }
   }
@@ -2453,6 +2556,9 @@ function estilos() {
     padding:0;cursor:pointer;background:rgba(255,255,255,.05);border:1px solid #2b3139;color:#8b96a3;
     font-family:var(--mono,monospace);font-size:14px;font-weight:700}
   #lq-overlay .lq-ayuda:hover,#lq-overlay .lq-x:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  #lq-overlay .lq-news{position:relative}
+  #lq-overlay .lq-news .lq-news-dot{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:#f6465d;box-shadow:0 0 0 0 rgba(246,70,93,.6);animation:lqNewsPulse 2.2s infinite}
+  @keyframes lqNewsPulse{0%{box-shadow:0 0 0 0 rgba(246,70,93,.55)}70%{box-shadow:0 0 0 6px rgba(246,70,93,0)}100%{box-shadow:0 0 0 0 rgba(246,70,93,0)}}
 
   /* El gráfico se lo come todo. */
   #lq-overlay .lq-caja{flex:1;min-height:0;position:relative;background:#07090c;
