@@ -4245,7 +4245,7 @@ function exportarAnalisis(a) {
     // pie
     g.fillStyle = '#6b7681'; g.font = '600 11px ui-monospace,monospace';
     g.textAlign = 'center';
-    g.fillText('CriptoCuba Oficial · Lógica Estructural Avanzada', Wd / 2, alto - 26);
+    g.fillText('CriptoCubaOficial.com \u00b7 Heat Pools', Wd / 2, alto - 26);
     // descargar
     cv.toBlob((b) => {
       const url = URL.createObjectURL(b); const enl = document.createElement('a');
@@ -4278,75 +4278,119 @@ function _anclaTarjetaMu(pos, x, w, yt, ye, ys, cw, ch, x1, y1) {
    Single: una posición por zona relevante (1:2). Double: dos por zona (la 2ª
    entra en el stop de la 1ª, mismo diámetro, 1:2). Se escalonan en el tiempo
    para NO pisarse. Tarjeta minimizada por defecto. */
-/* Comparte la señal: copia un texto organizado al portapapeles y genera una
-   imagen PNG con entradas/SL/TP numerados, para pegar en grupos y canales. */
+/* Comparte la señal: copia un texto limpio al portapapeles y genera una imagen
+   PROFESIONAL (gráfico arriba + señal abajo, mismo fondo, logo de la moneda y
+   pie con la marca). Crece proporcional según la cantidad de señales. */
 function compartirSenal() {
   const pos = M._posAuto || posicionesDeZonas();
   const sh = $('mu-share');
-  if (!pos.length) { if (sh) { const t = sh.textContent; sh.textContent = 'No signals'; setTimeout(() => { sh.textContent = t; }, 1400); } return; }
+  const flash = (m) => { if (sh) { const t = sh.dataset.base || sh.textContent; sh.dataset.base = t; sh.textContent = m; setTimeout(() => { sh.textContent = t; }, 1500); } };
+  if (!pos.length) { flash('No signals'); return; }
   const par = PARES.find((p) => p.id === _par) || { id: _par };
   const dec = (v) => { const a = Math.abs(v); return a >= 1000 ? v.toFixed(1) : a >= 1 ? v.toFixed(3) : v.toFixed(5); };
   const hora = new Date().toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
-  const precio = M.precio ? dec(M.precio) : '—';
+  const precio = M.precio ? dec(M.precio) : '\u2014';
   const ents = pos.map((p) => dec(p.pe)), sls = pos.map((p) => dec(p.pStop)), tps = pos.map((p) => dec(p.pTarget));
+  const n = ents.length;
   const lista = (arr) => arr.map((v, i) => `${i + 1}: ${v}`).join('\n');
   const txt =
-`🔥 HEAT POOLS — SIGNAL
+`HEAT POOLS \u2014 SIGNAL
 
-🪙 ${par.id}   ⏱ ${M.tf}
-💵 Price: ${precio}
-🕒 ${hora} UTC
+${par.id} \u00b7 ${M.tf} \u00b7 ${hora} UTC \u00b7 Price ${precio}
 
-📍 Entries:
+ENTRY
 ${lista(ents)}
 
-🛑 Stop Loss:
+STOP LOSS
 ${lista(sls)}
 
-🎯 Take Profit:
+TAKE PROFIT
 ${lista(tps)}
 
-⚖️ Risk : Reward — 1:2
+RISK : REWARD \u2014 1:2
 
-— CriptoCuba Oficial · Heat Pools`;
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(txt).then(() => { if (sh) { const t = sh.textContent; sh.textContent = 'Copied ✓'; setTimeout(() => { sh.textContent = t; }, 1400); } }).catch(() => {});
-  }
-  // ── Imagen PNG ──
+CriptoCubaOficial.com \u00b7 Heat Pools`;
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => flash('Copied \u2713')).catch(() => {});
+
+  // ── Imagen ──
+  const chart = $('mu-cv');
+  const W = 1180, BG = '#0a0d12';
+  const chartH = chart && chart.width ? Math.round(W * (chart.height / chart.width)) : 0;
+  const padX = 40, headH = 118, rowH = 46, rrH = 74, footH = 66;
+  const bodyH = headH + n * rowH + rrH;
+  const H = chartH + bodyH + footH;
   const cv = document.createElement('canvas'), g = cv.getContext('2d');
-  const Wd = 620, pad = 28;
-  const filas = Math.max(ents.length, 1);
-  const alto = 250 + filas * 22;
-  cv.width = Wd; cv.height = alto;
-  const grad = g.createLinearGradient(0, 0, 0, alto);
-  grad.addColorStop(0, '#12171f'); grad.addColorStop(1, '#0a0d12');
-  g.fillStyle = grad; g.fillRect(0, 0, Wd, alto);
-  g.strokeStyle = 'rgba(46,232,106,.5)'; g.lineWidth = 2; g.strokeRect(1, 1, Wd - 2, alto - 2);
-  g.textAlign = 'left';
-  g.fillStyle = '#39e07a'; g.font = '800 22px system-ui,sans-serif';
-  g.fillText('🔥 Heat Pools — Signal', pad, 46);
-  g.fillStyle = '#8b95a1'; g.font = '600 13px ui-monospace,monospace';
-  g.fillText(`${par.id}  ·  ${M.tf}  ·  ${hora} UTC   ·   Price ${precio}`, pad, 72);
-  g.strokeStyle = 'rgba(255,255,255,.08)'; g.beginPath(); g.moveTo(pad, 92); g.lineTo(Wd - pad, 92); g.stroke();
-  const colW = (Wd - pad * 2) / 3;
-  const cols = [['📍 Entry', ents, '#eaecef'], ['🛑 Stop', sls, '#ff5b6e'], ['🎯 Target', tps, '#2ee86a']];
-  cols.forEach((c, ci) => {
-    const cx = pad + ci * colW;
-    g.fillStyle = c[2]; g.font = '800 14px system-ui,sans-serif'; g.fillText(c[0], cx, 122);
-    g.font = '600 14px ui-monospace,monospace';
-    c[1].forEach((v, i) => { g.fillStyle = '#dfe5ec'; g.fillText(`${i + 1}:  ${v}`, cx, 150 + i * 22); });
+  cv.width = W; cv.height = H;
+
+  const cargar = (src, cors) => new Promise((res) => { const im = new Image(); if (cors) im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+
+  Promise.all([
+    cargar(`https://assets.coincap.io/assets/icons/${par.id.toLowerCase()}@2x.png`, true),
+    cargar('assets/img/cco-marca.png', false)
+  ]).then(([coin, marca]) => {
+    // Fondo continuo (una sola pieza)
+    g.fillStyle = BG; g.fillRect(0, 0, W, H);
+    // Gráfico arriba
+    if (chart && chart.width) g.drawImage(chart, 0, 0, W, chartH);
+    const y0 = chartH;
+    // separación sutil (mismo fondo, solo una línea tenue)
+    g.strokeStyle = 'rgba(255,255,255,.06)'; g.lineWidth = 1; g.beginPath(); g.moveTo(padX, y0 + 0.5); g.lineTo(W - padX, y0 + 0.5); g.stroke();
+
+    // Logo de la moneda (círculo)
+    const lx = padX, ly = y0 + 30, ls = 52;
+    g.save(); g.beginPath(); g.arc(lx + ls / 2, ly + ls / 2, ls / 2, 0, 6.2832); g.closePath();
+    g.fillStyle = '#141b25'; g.fill();
+    if (coin) { g.clip(); g.drawImage(coin, lx, ly, ls, ls); }
+    else { g.fillStyle = '#E8B84B'; g.font = '800 18px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(par.id.slice(0, 4), lx + ls / 2, ly + ls / 2 + 1); }
+    g.restore();
+
+    // Título + subtítulo
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    g.fillStyle = '#2ee86a'; g.font = '800 30px system-ui,sans-serif';
+    g.fillText('Heat Pools', lx + ls + 18, y0 + 48);
+    g.fillStyle = '#e8ecf2'; g.font = '800 30px system-ui,sans-serif';
+    g.fillText('  Signal', lx + ls + 18 + g.measureText('Heat Pools').width, y0 + 48);
+    g.fillStyle = '#8b95a1'; g.font = '600 15px ui-monospace,monospace';
+    g.fillText(`${par.id}   \u00b7   ${M.tf}   \u00b7   ${hora} UTC   \u00b7   Price ${precio}`, lx + ls + 18, y0 + 74);
+
+    // Tres columnas
+    const colY = y0 + headH + 10;
+    const colW = (W - padX * 2) / 3;
+    const cols = [['ENTRY', ents, '#e8ecf2'], ['STOP LOSS', sls, '#ff5b6e'], ['TARGET', tps, '#2ee86a']];
+    cols.forEach((c, ci) => {
+      const cx = padX + ci * colW;
+      g.fillStyle = c[2]; g.font = '800 15px system-ui,sans-serif'; g.textAlign = 'left';
+      g.fillText(c[0], cx, colY);
+      g.strokeStyle = `${c[2]}`; g.globalAlpha = .25; g.lineWidth = 1; g.beginPath(); g.moveTo(cx, colY + 10); g.lineTo(cx + colW - 40, colY + 10); g.stroke(); g.globalAlpha = 1;
+      c[1].forEach((v, i) => {
+        const ry = colY + 34 + i * rowH;
+        g.fillStyle = '#5a6570'; g.font = '700 15px ui-monospace,monospace'; g.fillText(`${i + 1}`, cx, ry);
+        g.fillStyle = '#eef2f6'; g.font = '700 20px ui-monospace,monospace'; g.fillText(v, cx + 26, ry + 1);
+      });
+    });
+
+    // Risk : Reward
+    const rry = colY + 34 + n * rowH + 22;
+    g.fillStyle = '#E8B84B'; g.font = '800 20px system-ui,sans-serif'; g.textAlign = 'left';
+    g.fillText('Risk : Reward', padX, rry);
+    g.fillText('1 : 2', padX + 190, rry);
+
+    // Pie (cinta) con marca de la web + Heat Pools
+    const fy = H - footH;
+    g.fillStyle = 'rgba(255,255,255,.03)'; g.fillRect(0, fy, W, footH);
+    g.strokeStyle = 'rgba(232,184,75,.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(padX, fy + 0.5); g.lineTo(W - padX, fy + 0.5); g.stroke();
+    const mh = 30;
+    if (marca) { const mw = marca.width * (mh / marca.height); g.drawImage(marca, padX, fy + (footH - mh) / 2, mw, mh); }
+    g.fillStyle = '#c7ced6'; g.font = '700 15px system-ui,sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+    g.fillText('CriptoCubaOficial.com', padX + (marca ? 118 : 0), fy + footH / 2);
+    g.fillStyle = '#E8B84B'; g.font = '800 15px system-ui,sans-serif'; g.textAlign = 'right';
+    g.fillText('Heat Pools', W - padX, fy + footH / 2);
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+
+    try {
+      cv.toBlob((b) => { if (!b) return; const url = URL.createObjectURL(b), a = document.createElement('a'); a.href = url; a.download = `heatpools-${par.id}-${M.tf}-${Date.now()}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 4000); }, 'image/png');
+    } catch (e) { flash('Copied \u2713 (image blocked)'); }
   });
-  const yRR = 150 + filas * 22 + 24;
-  g.fillStyle = '#E8B84B'; g.font = '800 18px system-ui,sans-serif'; g.textAlign = 'left';
-  g.fillText('⚖️  Risk : Reward — 1:2', pad, yRR);
-  g.fillStyle = '#6b7681'; g.font = '600 11px ui-monospace,monospace'; g.textAlign = 'center';
-  g.fillText('CriptoCuba Oficial · Heat Pools', Wd / 2, alto - 16);
-  cv.toBlob((b) => {
-    if (!b) return;
-    const url = URL.createObjectURL(b), a = document.createElement('a');
-    a.href = url; a.download = `heatpools-${par.id}-${M.tf}-${Date.now()}.png`; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-  }, 'image/png');
 }
 
 function posicionesDeZonas() {
