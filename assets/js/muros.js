@@ -614,6 +614,89 @@ function _regresion(seg) {
   }
   return { m, b, n, arriba, abajo, sd: Math.sqrt(ss / n) };
 }
+/* ══════════════════════════════════════════════════════════════
+   FASE 3 · CONFLUENCIA + EVENTO DE ENTRADA
+   1) Confluencia: dónde se cruzan el riel operativo del corto plazo y la línea
+      central jerárquica (el vértice del triángulo).
+   2) Ruptura con impulso: cerca de la confluencia, el precio rompe la línea de
+      corto plazo con cuerpo de vela y 2-3 velas largas.
+   3) Retesteo: tras la ruptura, el precio vuelve a la línea rota → gatillo de
+      entrada, a favor de la dirección de la ruptura.
+   ══════════════════════════════════════════════════════════════ */
+function calcEvento() {
+  const velas = M.velas;
+  if (!velas || velas.length < 40) return null;
+  const n = velas.length;
+  const K = 8;                                        // ventana reciente donde se busca la ruptura
+  // Línea de referencia: la tendencia de corto plazo tal como estaba ANTES de la
+  // ventana de ruptura (para que la ruptura sea un evento y no se auto-borre al
+  // reajustarse la recta).
+  const ref = _canalTendencia(velas.slice(0, n - K), 90);
+  if (!ref || !ref.canal || ref.dir === 'lateral') return null;
+  const C = ref.canal, dtC = C.t1 - C.t0;
+  if (!dtC) return null;
+  const mC = (C.p1 - C.p0) / dtC;                      // pendiente del centro (precio/ms)
+  const alc = ref.dir === 'alcista';
+  const offOp = alc ? -C.abajo : C.arriba;             // riel operativo (el que da la cara)
+  const opA = C.p0 + offOp - mC * C.t0;                // intercepto absoluto del riel
+  const lineaOp = (t) => opA + mC * t;                 // precio del riel en el tiempo t
+  const tNow = velas[n - 1].t;
+  const tfMs = M._geo ? M._geo.tfMs : (velas.length > 1 ? velas[1].t - velas[0].t : 1);
+  const ev = { confluencia: null, ruptura: null, senal: null, dir: null, lineaOp: { opA, mC } };
+
+  // 1) CONFLUENCIA con la línea central jerárquica.
+  const TJ = M._tendJerar;
+  if (TJ && TJ.canal && TJ.dir !== 'lateral') {
+    const J = TJ.canal, dtJ = J.t1 - J.t0;
+    if (dtJ) {
+      const mJ = (J.p1 - J.p0) / dtJ, jA = J.p0 - mJ * J.t0;
+      if (Math.abs(mC - mJ) > 1e-18) {
+        const tX = (jA - opA) / (mC - mJ);
+        const pX = opA + mC * tX;
+        if (tX > tNow - 25 * tfMs && tX < tNow + 90 * tfMs) ev.confluencia = { t: tX, precio: pX };
+      }
+    }
+  }
+
+  // 2) RUPTURA del riel operativo con IMPULSO (contra el corto: si el corto sube,
+  //    la ruptura relevante es hacia abajo, y viceversa).
+  const rupturaAbajo = alc;
+  let sumaCuerpo = 0, cnt = 0;
+  for (let k = Math.max(1, n - 70); k < n - K; k++) { sumaCuerpo += Math.abs(velas[k].c - velas[k].o); cnt++; }
+  const cuerpoMed = cnt ? sumaCuerpo / cnt : 0;
+  for (let k = n - K; k < n; k++) {
+    const v = velas[k], pL = lineaOp(v.t), pLprev = lineaOp(velas[k - 1].t);
+    const rompe = rupturaAbajo ? (v.c < pL && velas[k - 1].c >= pLprev)
+                               : (v.c > pL && velas[k - 1].c <= pLprev);
+    if (!rompe) continue;
+    let largas = 0;
+    for (let j = k; j < Math.min(n, k + 3); j++) {
+      const cuerpo = velas[j].c - velas[j].o;
+      const enDir = rupturaAbajo ? cuerpo < 0 : cuerpo > 0;
+      if (enDir && Math.abs(cuerpo) > cuerpoMed * 1.3) largas++;
+    }
+    if (largas >= 2) {
+      ev.ruptura = { i: k, t: v.t, precio: pL, dir: rupturaAbajo ? 'bajista' : 'alcista' };
+      ev.dir = rupturaAbajo ? 'short' : 'long';
+      break;
+    }
+  }
+
+  // 3) RETESTEO tras la ruptura: el precio se aleja (impulso) y regresa a la línea.
+  if (ev.ruptura) {
+    const r = ev.ruptura, tol = (velas[n - 1].c || 1) * 0.0015;
+    let alejo = false, retesteo = false;
+    for (let k = r.i + 1; k < n; k++) {
+      const pL = lineaOp(velas[k].t), dist = Math.abs(velas[k].c - pL);
+      if (!alejo && dist > tol * 3) alejo = true;
+      if (alejo && dist <= tol) { retesteo = true; break; }
+    }
+    ev.senal = { tipo: ev.dir, estado: retesteo ? 'retesteo' : 'esperando_retesteo',
+                 precioEntrada: lineaOp(tNow) };
+  }
+  return ev;
+}
+
 function calcTendenciaCorto() { return _canalTendencia(M.velas, 90); }   // ventana FIJA: no cambia con el zoom
 /* Tendencia JERÁRQUICA: mismo canal por regresión, pero sobre las velas de la
    temporalidad grande y vistas "de lejos" (ventana amplia) para filtrar ruido. */
@@ -1251,6 +1334,7 @@ async function cargarVelas() {
       M.zonas = r.zonas; M.perfil = r.perfil;
       M._tendCorto = calcTendenciaCorto();
       M._tendJerar = calcTendenciaJerar();
+      M._evento = calcEvento();
       /* NIVELES INSTITUCIONALES + BACKTEST, y boost de confianza cuando una
          zona coincide con VWAP / borde del área de valor / POC. */
       M.mercado = analizarMercado(M.velas, px, M.perfil);
@@ -1492,7 +1576,7 @@ function arrancar() {
 
     if (M.velas.length && M.precio > 0) {
       const r = detectarZonas(M.velas, M.precio, { htf: M.zonasHTF, libro: murosDelLibro(), ancla: _par + "|" + M.tf });
-      M.zonas = r.zonas; M.perfil = r.perfil; M._tendCorto = calcTendenciaCorto(); M._tendJerar = calcTendenciaJerar();
+      M.zonas = r.zonas; M.perfil = r.perfil; M._tendCorto = calcTendenciaCorto(); M._tendJerar = calcTendenciaJerar(); M._evento = calcEvento();
       M.mercado = analizarMercado(M.velas, M.precio, M.perfil);
       aplicarReferencias(M.zonas, M.mercado, M.precio);
       seguirVida(M.zonas);
@@ -1811,6 +1895,62 @@ function dibujar() {
     }
   }
   let bandaSolo = null;   // (compatibilidad con el resto del dibujo)
+
+  /* ── FASE 3 · CONFLUENCIA, RUPTURA E IMPULSO, RETESTEO ── */
+  const EV = M._evento;
+  if (EV) {
+    // Confluencia: vértice donde el corto y la jerárquica se cruzan.
+    if (EV.confluencia) {
+      const cx = mXt(EV.confluencia.t), cy = Y(EV.confluencia.precio);
+      if (cx >= 0 && cx <= x1 + 2 && cy > 0 && cy < y1) {
+        g.save();
+        g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1; g.setLineDash([3, 4]);
+        g.beginPath(); g.moveTo(cx, 0); g.lineTo(cx, y1); g.stroke(); g.setLineDash([]);
+        g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.arc(cx, cy, 4, 0, 7); g.fill();
+        g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'center';
+        g.fillStyle = 'rgba(255,255,255,.9)'; g.fillText('CONFLUENCIA', cx, Math.max(12, cy - 10));
+        g.textAlign = 'left'; g.restore();
+      }
+    }
+    // Ruptura con impulso.
+    if (EV.ruptura && M._geo) {
+      const rx = mXt(EV.ruptura.t), ry = Y(EV.ruptura.precio);
+      if (rx >= 0 && rx <= x1) {
+        const col = EV.ruptura.dir === 'bajista' ? '246,70,93' : '46,232,106';
+        g.save();
+        g.fillStyle = `rgba(${col},1)`;
+        // triangulito en la dirección de la ruptura
+        g.beginPath();
+        if (EV.ruptura.dir === 'bajista') { g.moveTo(rx, ry + 10); g.lineTo(rx - 5, ry); g.lineTo(rx + 5, ry); }
+        else { g.moveTo(rx, ry - 10); g.lineTo(rx - 5, ry); g.lineTo(rx + 5, ry); }
+        g.closePath(); g.fill();
+        g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'center';
+        g.fillText('RUPTURA + IMPULSO', rx, EV.ruptura.dir === 'bajista' ? ry + 22 : ry - 14);
+        g.textAlign = 'left'; g.restore();
+      }
+    }
+    // Señal de entrada por retesteo.
+    if (EV.senal) {
+      const long = EV.senal.tipo === 'long';
+      const col = long ? '46,232,106' : '246,70,93';
+      const yE = Y(EV.senal.precioEntrada);
+      g.save();
+      if (EV.senal.estado === 'retesteo') {
+        // línea de entrada marcada + etiqueta destacada
+        g.strokeStyle = `rgba(${col},1)`; g.lineWidth = 2; g.setLineDash([]);
+        g.beginPath(); g.moveTo(0, yE); g.lineTo(x1, yE); g.stroke();
+        g.fillStyle = `rgba(${col},1)`; g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'left';
+        g.fillText(`ENTRADA ${long ? 'LARGO' : 'CORTO'} · RETESTEO`, 8, yE + (long ? 14 : -6));
+      } else {
+        // roto, esperando el retesteo
+        g.strokeStyle = `rgba(${col},.55)`; g.lineWidth = 1.2; g.setLineDash([5, 4]);
+        g.beginPath(); g.moveTo(0, yE); g.lineTo(x1, yE); g.stroke(); g.setLineDash([]);
+        g.fillStyle = `rgba(${col},.85)`; g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left';
+        g.fillText(`ROTO · esperar retesteo (${long ? 'largo' : 'corto'})`, 8, yE + (long ? 13 : -6));
+      }
+      g.restore();
+    }
+  }
 
 
   /* ── LAS VELAS ── */
