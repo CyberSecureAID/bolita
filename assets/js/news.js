@@ -11,12 +11,18 @@
   'use strict';
   if (window.abrirNoticias) return;
 
-  // Endpoints de CryptoCompare (CORS abierto, sin API key). Se piden en varios
-  // idiomas/categorías y se fusionan para tener volumen y variedad.
+  // Endpoints de CryptoCompare (CORS abierto, sin API key).
   var FUENTES = [
     'https://min-api.cryptocompare.com/data/v2/news/?lang=EN',
     'https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=Trading,Technical%20Analysis,Market',
     'https://min-api.cryptocompare.com/data/v2/news/?lang=ES'
+  ];
+  // Respaldo por RSS (por si CryptoCompare estuviera bloqueado en tu red).
+  var RSS = [
+    'https://es.cointelegraph.com/rss',
+    'https://cointelegraph.com/rss/tag/tech-analysis',
+    'https://es.investing.com/rss/news_301.rss',
+    'https://www.dailyforex.com/forex-rss'
   ];
 
   var _cache = null, _cacheAt = 0;
@@ -46,19 +52,66 @@
     });
   }
 
+  // Respaldo: leer un RSS vía servicios con CORS abierto (rss2json / allorigins).
+  function traerRSS(url) {
+    var vias = [
+      function () {
+        return conTimeout(fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(url), { cache: 'no-store' })
+          .then(function (r) { if (!r.ok) throw 0; return r.json(); }), 9000)
+          .then(function (j) {
+            if (!j || j.status !== 'ok' || !j.items || !j.items.length) throw 0;
+            var fuente = (j.feed && j.feed.title) || 'RSS';
+            return j.items.map(function (it) {
+              return { titulo: (it.title || '').trim(), link: it.link || '', desc: (it.description || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 220), fuente: fuente, img: it.thumbnail || (it.enclosure && it.enclosure.link) || '', ts: it.pubDate ? Date.parse(it.pubDate) : 0 };
+            }).filter(function (x) { return x.titulo && x.link; });
+          });
+      },
+      function () {
+        return conTimeout(fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), { cache: 'no-store' })
+          .then(function (r) { if (!r.ok) throw 0; return r.json(); }), 9000)
+          .then(function (j) { var it = parsearXML(j.contents || '', url); if (!it.length) throw 0; return it; });
+      }
+    ];
+    var i = 0;
+    function paso() { if (i >= vias.length) return Promise.resolve([]); return vias[i++]().catch(paso); }
+    return paso();
+  }
+
+  function parsearXML(xml, url) {
+    try {
+      var doc = new DOMParser().parseFromString(xml, 'text/xml');
+      var host = (url.split('/')[2] || 'RSS').replace('www.', '');
+      var items = [].slice.call(doc.querySelectorAll('item'));
+      if (!items.length) items = [].slice.call(doc.querySelectorAll('entry'));
+      return items.map(function (it) {
+        var g = function (s) { var n = it.querySelector(s); return n ? (n.textContent || '').trim() : ''; };
+        var link = g('link'); if (!link) { var l = it.querySelector('link'); if (l) link = l.getAttribute('href') || ''; }
+        var fecha = g('pubDate') || g('published') || g('updated');
+        return { titulo: g('title'), link: link, desc: (g('description') || g('summary') || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 220), fuente: host, img: '', ts: fecha ? Date.parse(fecha) : 0 };
+      }).filter(function (x) { return x.titulo && x.link; });
+    } catch (e) { return []; }
+  }
+
   function cargarTodo() {
     if (_cache && Date.now() - _cacheAt < 120000) return Promise.resolve(_cache);
     var ps = FUENTES.map(function (u) { return traer(u).catch(function () { return []; }); });
     return Promise.all(ps).then(function (listas) {
       var todo = [];
       listas.forEach(function (l) { todo = todo.concat(l); });
-      if (!todo.length) return [];
-      var visto = {}, out = [];
-      todo.forEach(function (n) { var k = (n.link || n.titulo).slice(0, 80); if (!visto[k]) { visto[k] = 1; out.push(n); } });
-      out.sort(function (a, b) { return b.ts - a.ts; });
-      _cache = out.slice(0, 60); _cacheAt = Date.now();
-      return _cache;
+      if (todo.length) return fusionar(todo);
+      // CryptoCompare no dio nada → respaldo RSS.
+      var rs = RSS.map(function (u) { return traerRSS(u).catch(function () { return []; }); });
+      return Promise.all(rs).then(function (l2) { var t2 = []; l2.forEach(function (l) { t2 = t2.concat(l); }); return fusionar(t2); });
     });
+  }
+
+  function fusionar(todo) {
+    if (!todo || !todo.length) return [];
+    var visto = {}, out = [];
+    todo.forEach(function (n) { var k = (n.link || n.titulo).slice(0, 80); if (k && !visto[k]) { visto[k] = 1; out.push(n); } });
+    out.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
+    _cache = out.slice(0, 60); _cacheAt = Date.now();
+    return _cache;
   }
 
   function hace(ts) {

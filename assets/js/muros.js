@@ -792,7 +792,7 @@ function analizarMercado(velas, precio, perfil) {
 function abrirNoticiasSeguro() {
   if (typeof window.abrirNoticias === 'function') { try { window.abrirNoticias(); } catch (_) {} return; }
   if (document.getElementById('news-js-lazy')) { setTimeout(abrirNoticiasSeguro, 300); return; }
-  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=2';
+  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=3';
   s.onload = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} };
   document.head.appendChild(s);
 }
@@ -1960,7 +1960,7 @@ function engancharGestos(cv) {
   cv.addEventListener('mousedown', (e) => {
     const r = cv.getBoundingClientRect();
     const lx = e.clientX - r.left, ly = e.clientY - r.top;
-    const dentroR = (rc) => rc && lx >= rc.x && lx <= rc.x + rc.w && ly >= rc.y && ly <= rc.y + rc.h;
+    const dentroR = (rc) => rc && lx >= rc.x - 8 && lx <= rc.x + rc.w + 8 && ly >= rc.y - 8 && ly <= rc.y + rc.h + 8;
 
     // Al primer toque en el gráfico, la línea guía de sugerencia se retira.
     if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
@@ -2037,9 +2037,10 @@ function engancharGestos(cv) {
     // Cursor según lo que hay debajo (misma dinámica que Smart Levels).
     let cur = '';
     const dR = (rc) => rc && lx >= rc.x && lx <= rc.x + rc.w && ly >= rc.y && ly <= rc.y + rc.h;
+    const dRp = (rc, p) => rc && lx >= rc.x - p && lx <= rc.x + rc.w + p && ly >= rc.y - p && ly <= rc.y + rc.h + p;
     if (M._pos) {
       const P = M._pos;
-      if ((!P.oculto && (dR(P._hideBtn) || dR(P._arrL) || dR(P._arrR))) || (P.oculto && dR(P._miniBtn))) cur = 'pointer';  // manita en botones
+      if ((!P.oculto && (dRp(P._hideBtn, 7) || dRp(P._arrL, 7) || dRp(P._arrR, 7))) || (P.oculto && dRp(P._miniBtn, 7))) cur = 'pointer';  // manita en botones (margen generoso)
       else { const G = P._pos;
         if (G && lx >= G.x - 8 && lx <= G.x + G.w + 8 && ly >= Math.min(G.yt, G.ye, G.ys) - 8 && ly <= Math.max(G.yt, G.ye, G.ys) + 8) {
           if (Math.abs(lx - G.x) < 8 || Math.abs(lx - (G.x + G.w)) < 8) cur = 'ew-resize';        // bordes → estirar
@@ -2090,7 +2091,7 @@ function engancharGestos(cv) {
       const lx = e.touches[0].clientX - r.left, ly = e.touches[0].clientY - r.top;
       if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
       if (M._tend && M._tend.guia) { M._tend.guia = false; dibujar(); }
-      const dR = (rc) => rc && lx >= rc.x && lx <= rc.x + rc.w && ly >= rc.y && ly <= rc.y + rc.h;
+      const dR = (rc) => rc && lx >= rc.x - 8 && lx <= rc.x + rc.w + 8 && ly >= rc.y - 8 && ly <= rc.y + rc.h + 8;
       if (M._pos) {
         const P = M._pos, ORD = ['der', 'abajo', 'izq', 'arriba'];
         if (P.oculto && dR(P._miniBtn)) { P.oculto = false; cerrarPosCfg(); dibujar(); return; }
@@ -3405,7 +3406,15 @@ function estilos() {
     #mu-overlay .mu-mtabs{display:flex}
     /* La barra ya NO desborda. El "Precio ahora" se oculta (ya está grande en
        la gráfica). */
-    #mu-overlay .mu-barra{flex-wrap:wrap;gap:8px;padding:8px 96px 8px 10px}
+    /* La barra ya NO desborda ni se amontona. En móvil, la fila de acciones
+       (analista, news, iconos, cerrar) fluye en su PROPIA línea, alineada a la
+       derecha y con salto si hiciera falta, en vez de superponerse. */
+    #mu-overlay .mu-barra{flex-wrap:wrap;gap:8px;padding:8px 10px;align-items:center}
+    #mu-overlay .mu-der{position:static;transform:none;order:5;width:100%;justify-content:flex-end;
+      flex-wrap:wrap;gap:6px;padding-left:0;margin-top:2px}
+    #mu-overlay .mu-sel{order:1}
+    #mu-overlay .mu-tfchip{order:2}
+    #mu-overlay #mu-estado{order:3}
     #mu-overlay .mu-px{display:none}
     #mu-overlay .mu-vivo{flex:0 0 auto}
     #mu-overlay .mu-vivo span{display:none}
@@ -3884,10 +3893,11 @@ function dibujarPosicion(g) {
   g.textAlign = 'left';
   g.fillStyle = acc; g.font = '800 11px system-ui,sans-serif';
   g.fillText(largo ? 'POSICI\u00d3N LARGA' : 'POSICI\u00d3N CORTA', cx + 16, cy + 23);
-  const hb = { x: cx + cw - 30, y: cy + 10, w: 20, h: 16 };
-  g.fillStyle = 'rgba(255,255,255,.07)'; redondeado(g, hb.x, hb.y, hb.w, hb.h, 5); g.fill();
-  g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.3;
-  g.beginPath(); g.moveTo(hb.x + 5, hb.y + 8); g.lineTo(hb.x + 15, hb.y + 8); g.stroke();
+  const hb = { x: cx + cw - 34, y: cy + 9, w: 24, h: 19 };
+  g.fillStyle = 'rgba(255,255,255,.1)'; redondeado(g, hb.x, hb.y, hb.w, hb.h, 6); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1; redondeado(g, hb.x, hb.y, hb.w, hb.h, 6); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1.6;
+  g.beginPath(); g.moveTo(hb.x + 6, hb.y + 9.5); g.lineTo(hb.x + 18, hb.y + 9.5); g.stroke();
   P._hideBtn = hb;
   const colX = cx + 16;
   g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('TAKE PROFIT', colX, cy + 46);
@@ -3902,17 +3912,18 @@ function dibujarPosicion(g) {
   g.strokeStyle = 'rgba(255,255,255,.09)'; g.lineWidth = 1;
   g.beginPath(); g.moveTo(divX, cy + 40); g.lineTo(divX, cy + ch - 34); g.stroke();
   g.textAlign = 'center';
-  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('R : R', rx, cy + 58);
+  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('R : R', rx, cy + 56);
   g.save(); g.shadowColor = 'rgba(232,184,75,.55)'; g.shadowBlur = 12;
-  g.fillStyle = '#E8B84B'; g.font = '800 26px system-ui,sans-serif';
+  g.fillStyle = '#E8B84B'; g.font = '800 24px system-ui,sans-serif';
   const rrTxt = Math.abs(rr - Math.round(rr)) < 0.06 ? String(Math.round(rr)) : rr.toFixed(1);
-  g.fillText(`1:${rrTxt}`, rx, cy + 90); g.restore();
-  const ay2 = cy + ch - 20;
-  const alF = { x: rx - 24, y: ay2 - 9, w: 18, h: 18 }, arF = { x: rx + 6, y: ay2 - 9, w: 18, h: 18 };
+  g.fillText(`1:${rrTxt}`, rx, cy + 84); g.restore();
+  const ay2 = cy + ch - 18;
+  const alF = { x: rx - 27, y: ay2 - 11, w: 22, h: 22 }, arF = { x: rx + 5, y: ay2 - 11, w: 22, h: 22 };
   [[alF, -1], [arF, 1]].forEach((f) => {
-    g.fillStyle = 'rgba(255,255,255,.06)'; redondeado(g, f[0].x, f[0].y, 18, 18, 5); g.fill();
-    g.strokeStyle = '#aeb6bf'; g.lineWidth = 1.6; g.beginPath();
-    const mx = f[0].x + 9, my = f[0].y + 9;
+    g.fillStyle = 'rgba(255,255,255,.09)'; redondeado(g, f[0].x, f[0].y, 22, 22, 6); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.2)'; g.lineWidth = 1; redondeado(g, f[0].x, f[0].y, 22, 22, 6); g.stroke();
+    g.strokeStyle = '#c3cad2'; g.lineWidth = 1.8; g.beginPath();
+    const mx = f[0].x + 11, my = f[0].y + 11;
     if (f[1] < 0) { g.moveTo(mx + 3, my - 4); g.lineTo(mx - 3, my); g.lineTo(mx + 3, my + 4); }
     else { g.moveTo(mx - 3, my - 4); g.lineTo(mx + 3, my); g.lineTo(mx - 3, my + 4); }
     g.stroke();
