@@ -830,6 +830,10 @@ export async function abrirMuros() {
             <img src="assets/img/jesus-avatar.webp" alt="">
             <span class="mu-an-txt">Analyst</span>
           </button>
+          <button class="mu-ico mu-news" id="mu-news" title="News">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13v14H5a1 1 0 0 1-1-1z"/><path d="M17 8h2.5a1.5 1.5 0 0 1 1.5 1.5V18a1 1 0 0 1-1 1"/><path d="M7 9h7M7 12h7M7 15h4"/></svg>
+            <span class="mu-news-dot"></span>
+          </button>
           <button class="mu-ico" id="mu-validar" title="Verificar volumen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 5-3.5 7.5-8.5 9C7.5 19.5 4 17 4 12V6l8-3 8 3z"/></svg>
           </button>
@@ -891,7 +895,7 @@ export async function abrirMuros() {
   const cerrar = () => {
     clearInterval(_reloj); clearInterval(_relojVelas); clearInterval(_relojPulso);
     cerrarWSLibro();
-    M._pos = null; M._tend = null;   // las herramientas viven DENTRO del radar
+    M._pos = null; M._tend = null; M._posList = null; quitarPager(); quitarGuiaSVG();  // las herramientas viven DENTRO del radar
     if (_planFuera) { document.removeEventListener('pointerdown', _planFuera, true); _planFuera = null; }
     document.querySelectorAll('#mu-picker, #mu-tfmenu, #mu-plan, #mu-tend, #mu-poscfg, #mu-tendcfg').forEach((x) => x.remove());
     const e = $('mu-overlay'); if (e) e.remove();
@@ -905,6 +909,7 @@ export async function abrirMuros() {
 
   $('mu-foto').onclick = () => guardarImagen();
   $('mu-validar').onclick = () => validarVolumen();
+  { const bn = $('mu-news'); if (bn) bn.onclick = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} }; }
   $('mu-analista').onclick = () => abrirAnalista();
   $('mu-tema').onclick = () => {
     M.tema = M.tema === 'claro' ? 'oscuro' : 'claro';
@@ -924,7 +929,7 @@ export async function abrirMuros() {
 
   d.querySelectorAll('[data-tf]').forEach((b) => b.onclick = () => {
     M.tf = b.dataset.tf;
-    M._pos = null; M._tend = null; cerrarPosCfg(); cerrarTendCfg();
+    M._pos = null; M._tend = null; M._posList = null; quitarPager(); cerrarPosCfg(); cerrarTendCfg();
     reiniciarAlertas();
     d.querySelectorAll('[data-tf]').forEach((x) => x.classList.toggle('on', x.dataset.tf === M.tf));
     const ch = $('mu-tfchip-t'); if (ch) ch.textContent = b.textContent;   // refleja en el chip móvil
@@ -1789,6 +1794,7 @@ function dibujar() {
   }
   M.zonas.forEach((z) => {
     if (z.p < pMin || z.p > pMax) return;
+    if (M._pos && bandaSolo && z !== bandaSolo.z) return;   // con herramienta activa, solo la zona de la operación
     const y = Y(z.p);
     const col = z.lado === 'demanda' ? '#2ee86a' : '#f6465d';
     g.fillStyle = col;
@@ -1850,8 +1856,10 @@ function dibujar() {
   g.textAlign = 'left';
 
   /* ── Herramienta de posición y línea de tendencia (viven en el radar) ── */
+  M._guiaDst = null;
   if (M._tend) dibujarTendencia(g);
   if (M._pos) dibujarPosicion(g);
+  pintarGuiaSVG();
 
   /* ── CROSSHAIR: cruz + precio del cursor en el eje ── */
   if (M._cursor && M._cursor.x < x1 && M._cursor.y < y1 && M._cursor.x > 0 && M._cursor.y > 0) {
@@ -2014,10 +2022,27 @@ function engancharGestos(cv) {
   cv.addEventListener('mousemove', (e) => {
     if (arr) return;                    // durante el arrastre no se dibuja la cruz
     const r = cv.getBoundingClientRect();
-    M._cursor = { x: e.clientX - r.left, y: e.clientY - r.top };
+    const lx = e.clientX - r.left, ly = e.clientY - r.top;
+    M._cursor = { x: lx, y: ly };
+    // Cursor según lo que hay debajo (misma dinámica que Smart Levels).
+    let cur = '';
+    const dR = (rc) => rc && lx >= rc.x && lx <= rc.x + rc.w && ly >= rc.y && ly <= rc.y + rc.h;
+    if (M._pos) {
+      const P = M._pos;
+      if ((!P.oculto && (dR(P._hideBtn) || dR(P._arrL) || dR(P._arrR))) || (P.oculto && dR(P._miniBtn))) cur = 'pointer';  // manita en botones
+      else { const G = P._pos;
+        if (G && lx >= G.x - 8 && lx <= G.x + G.w + 8 && ly >= Math.min(G.yt, G.ye, G.ys) - 8 && ly <= Math.max(G.yt, G.ye, G.ys) + 8) {
+          if (Math.abs(lx - G.x) < 8 || Math.abs(lx - (G.x + G.w)) < 8) cur = 'ew-resize';        // bordes → estirar
+          else if (Math.abs(ly - G.yt) < 8 || Math.abs(ly - G.ye) < 8 || Math.abs(ly - G.ys) < 8) cur = 'ns-resize';  // líneas → subir/bajar
+          else cur = 'grab';                                                                        // cuerpo → mover
+        }
+      }
+    }
+    if (!cur && M._tend && cercaTend(lx, ly)) cur = 'grab';
+    cv.style.cursor = cur || (enEscalaM(lx) ? 'ns-resize' : 'crosshair');
     dibujar();
   });
-  cv.addEventListener('mouseleave', () => { if (M._cursor) { M._cursor = null; dibujar(); } });
+  cv.addEventListener('mouseleave', () => { if (M._cursor) { M._cursor = null; cv.style.cursor = 'default'; dibujar(); } });
 
   cv.addEventListener('dblclick', () => {
     M.ancho = window.innerWidth < 760 ? 65 : 100; M.desplaz = 0; M.zoomY = 1; M.offsetY = 0;
@@ -2546,7 +2571,7 @@ function menuPares() {
 
   m.querySelectorAll('[data-mv]').forEach((b) => b.onclick = () => {
     _par = b.dataset.mv;
-    M._pos = null; M._tend = null; cerrarPosCfg(); cerrarTendCfg();
+    M._pos = null; M._tend = null; M._posList = null; quitarPager(); cerrarPosCfg(); cerrarTendCfg();
     /* Una ficha de otra moneda no puede quedarse abierta. */
     try { if (_od && _od.cerrarFichas) _od.cerrarFichas(); } catch (_) {}
     const bb = anc.querySelector('b'); if (bb) bb.textContent = _par;
@@ -2818,6 +2843,9 @@ function estilos() {
     font-family:var(--mono,monospace);font-size:14px;font-weight:700;transition:transform .1s ease,border-color .15s ease}
   #mu-overlay .mu-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
   #mu-overlay .mu-ico:active{transform:translateY(1px);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+  #mu-overlay .mu-news{position:relative}
+  #mu-overlay .mu-news .mu-news-dot{position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:#f6465d;box-shadow:0 0 0 0 rgba(246,70,93,.6);animation:muNewsPulse 2.2s infinite}
+  @keyframes muNewsPulse{0%{box-shadow:0 0 0 0 rgba(246,70,93,.55)}70%{box-shadow:0 0 0 6px rgba(246,70,93,0)}100%{box-shadow:0 0 0 0 rgba(246,70,93,0)}}
   /* "Cómo funciona" con texto en escritorio, solo el signo en móvil. */
   #mu-overlay .mu-comofunciona{width:auto;padding:0 14px;gap:0;
     border-color:rgba(232,184,75,.4);color:var(--gold,#E8B84B)}
@@ -3198,7 +3226,7 @@ function estilos() {
     #mu-overlay .mu-der{gap:4px;padding-left:4px}
     #mu-overlay .mu-der .mu-ico{width:32px;height:32px;min-height:32px}
   }
-  #mu-ana-box{position:fixed;inset:0;z-index:9785;display:flex;align-items:center;justify-content:center;padding:16px}
+  #mu-ana-box{position:fixed;inset:0;z-index:9785;display:flex;align-items:center;justify-content:center;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
   #mu-ana-box .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.9)}
   #mu-ana-box .an-c{position:relative;width:100%;max-width:440px;height:min(560px,82vh);display:flex;flex-direction:column;
     background:linear-gradient(180deg,#12171f,#0b0e12);border:1px solid #232b35;border-radius:18px;overflow:hidden;
@@ -3211,7 +3239,7 @@ function estilos() {
   #mu-ana-box .an-nombre{font-family:var(--display,sans-serif);font-weight:800;font-size:15px;color:#f2f5f9}
   #mu-ana-box .an-estado{font-family:var(--mono,monospace);font-size:10px;color:var(--an,#E8B84B);margin-top:1px}
   #mu-ana-box .mv-x{width:30px;height:30px;border-radius:8px;background:#1a212b;border:1px solid #2b3540;color:#aeb6c0;font-size:12px;cursor:pointer;flex:0 0 auto}
-  #mu-ana-box .an-chat{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px;min-height:120px}
+  #mu-ana-box .an-chat{flex:1;overflow-y:auto;padding:14px;padding-bottom:18px;display:flex;flex-direction:column;gap:9px;min-height:120px}
   #mu-ana-box .an-burb{align-self:flex-start;max-width:92%;background:#1a212b;border:1px solid #262f3a;
     border-radius:13px 13px 13px 4px;padding:9px 12px;font-family:var(--sans,sans-serif);font-size:13.5px;
     line-height:1.55;color:#d3d9e0}
@@ -3219,12 +3247,18 @@ function estilos() {
   #mu-overlay.mu-claro ~ #mu-ana-box .an-burb{background:#eef1f5;border-color:rgba(0,0,0,.1);color:#1a2028}
 
   /* 4 botones iguales del analista (rejilla 2x2, sin desbordar en móvil) */
-  #mu-ana-box .an-acc{padding:0 14px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #mu-ana-box .an-acc{padding:12px 14px calc(14px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid rgba(255,255,255,.06);background:linear-gradient(180deg,transparent,rgba(0,0,0,.15))}
   #mu-ana-box .an-b{padding:11px 6px;border:1px solid #2b3540;border-radius:11px;cursor:pointer;
     font-family:var(--display,sans-serif);font-weight:800;font-size:12.5px;color:#e7ecf2;background:#1a212b;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform .1s ease,filter .15s ease}
   #mu-ana-box .an-b:active{transform:translateY(1px)}
   #mu-ana-box .an-b:disabled{opacity:.4;cursor:not-allowed}
+  #mu-ana-box .an-b em{font-style:normal;display:inline-grid;place-items:center;min-width:16px;height:16px;padding:0 3px;margin-left:3px;border-radius:8px;background:rgba(0,0,0,.35);font-size:10.5px;vertical-align:middle}
+  #mu-overlay #mu-pager{display:inline-flex;align-items:center;gap:5px;height:32px;margin-left:6px;padding:0 4px 0 9px;border-radius:9px;
+    background:#12171f;border:1px solid rgba(232,184,75,.5);color:#f2d488;font-family:var(--mono,ui-monospace,monospace);font-weight:800;font-size:12px;flex:0 0 auto}
+  #mu-overlay #mu-pager button{width:24px;height:24px;border-radius:7px;border:1px solid rgba(232,184,75,.4);background:rgba(232,184,75,.12);color:#f2d488;font-size:15px;cursor:pointer;display:grid;place-items:center;line-height:1}
+  #mu-overlay #mu-pager button:active{transform:translateY(1px)}
+  @media(max-width:860px){#mu-overlay #mu-pager span{display:none}}
   #mu-ana-box .an-b-l{background:linear-gradient(180deg,rgba(46,232,106,.22),rgba(46,232,106,.08));border-color:rgba(46,232,106,.5);color:#7cffb0}
   #mu-ana-box .an-b-s{background:linear-gradient(180deg,rgba(246,70,93,.22),rgba(246,70,93,.08));border-color:rgba(246,70,93,.5);color:#ff97a4}
   #mu-ana-box .an-b-t{background:linear-gradient(180deg,rgba(232,184,75,.2),rgba(232,184,75,.07));border-color:rgba(232,184,75,.5);color:#f2d488}
@@ -3549,16 +3583,16 @@ function abrirAnalista() {
   const burbuja = (txt) => { const b = document.createElement('div'); b.className = 'an-burb'; b.innerHTML = parseB(txt); chat.appendChild(b); chat.scrollTop = chat.scrollHeight; };
   const acciones = () => {
     estado.textContent = 'en línea';
-    const okL = hayOp('long'), okS = hayOp('short');
+    const nL = contarOps('long'), nS = contarOps('short');
     acc.innerHTML =
-      `<button class="an-b an-b-l" id="an-long" ${okL ? '' : 'disabled'}>\u25b2 Largo</button>` +
-      `<button class="an-b an-b-s" id="an-short" ${okS ? '' : 'disabled'}>\u25bc Corto</button>` +
+      `<button class="an-b an-b-l" id="an-long" ${nL ? '' : 'disabled'}>\u25b2 Largo${nL > 1 ? ' <em>' + nL + '</em>' : ''}</button>` +
+      `<button class="an-b an-b-s" id="an-short" ${nS ? '' : 'disabled'}>\u25bc Corto${nS > 1 ? ' <em>' + nS + '</em>' : ''}</button>` +
       `<button class="an-b an-b-t" id="an-tend">\u2197 Tendencia</button>` +
-      `<button class="an-b an-b-x" id="an-limpiar">\u2715 Limpiar</button>`;
-    if (okL) acc.querySelector('#an-long').onclick = () => { cerrar(); mostrarPlan(a, 'long'); };
-    if (okS) acc.querySelector('#an-short').onclick = () => { cerrar(); mostrarPlan(a, 'short'); };
+      `<button class="an-b an-b-x" id="an-exportar">\u2913 Exportar</button>`;
+    if (nL) acc.querySelector('#an-long').onclick = () => { cerrar(); mostrarPlan(a, 'long'); };
+    if (nS) acc.querySelector('#an-short').onclick = () => { cerrar(); mostrarPlan(a, 'short'); };
     acc.querySelector('#an-tend').onclick = () => { cerrar(); mostrarTendencia(); };
-    acc.querySelector('#an-limpiar').onclick = () => { M._pos = null; M._tend = null; cerrarPosCfg(); cerrarTendCfg(); dibujar(); cerrar(); };
+    acc.querySelector('#an-exportar').onclick = () => exportarAnalisis(a);
   };
 
   if (alInstante) {
@@ -3598,64 +3632,88 @@ function mXt(t) { const g = M._geo; if (!g) return 0; const i = (t - g.t0) / g.t
 function mTx(x) { const g = M._geo; if (!g) return 0; const iF = (x - g.paso / 2) / g.paso + g.pri; return g.t0 + iF * g.tfMs; }
 function mYp(p) { const g = M._geo; if (!g) return 0; return g.y1 - g.y1 * ((p - g.pMin) / Math.max(1e-9, g.pMax - g.pMin)); }
 function mPy(y) { const g = M._geo; if (!g) return 0; return g.pMin + (g.pMax - g.pMin) * ((g.y1 - y) / g.y1); }
-/* Punto de origen de la guía = la píldora Analyst, proyectada sobre el lienzo. */
-function _origenGuia() {
-  const g = M._geo; const def = { x: (g ? g.xVelas : 400) * 0.92, y: 2 };
+/* Guía SVG (hija del radar): sale de la píldora Analyst y llega a la herramienta.
+   Un SVG puede dibujarse por encima de la cabecera y el lienzo, cosa que el
+   lienzo no puede (queda recortado). Se quita al primer toque / al cerrar. */
+function pintarGuiaSVG() {
+  const ov = document.getElementById('mu-overlay');
+  let svg = document.getElementById('mu-guia');
+  const dst = M._guiaDst;
+  if (!ov || !dst) { if (svg) svg.remove(); return; }
   const pill = document.getElementById('mu-analista'), cv = document.getElementById('mu-cv');
-  if (!pill || !cv || !g) return def;
-  const pr = pill.getBoundingClientRect(), cr = cv.getBoundingClientRect();
-  if (!pr.width) return def;
-  return {
-    x: Math.max(8, Math.min(g.xVelas - 6, pr.left + pr.width / 2 - cr.left)),
-    y: Math.max(2, Math.min(g.y1 - 20, pr.bottom - cr.top + 2))
-  };
+  if (!pill || !cv) { if (svg) svg.remove(); return; }
+  const ovr = ov.getBoundingClientRect(), pr = pill.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+  const x0 = pr.left + pr.width / 2 - ovr.left, y0 = pr.bottom - ovr.top;
+  const x1 = cr.left - ovr.left + dst.x, y1 = cr.top - ovr.top + dst.y;
+  const mx = (x0 + x1) / 2, my = y0 + (y1 - y0) * 0.28;
+  if (!svg) {
+    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.id = 'mu-guia';
+    svg.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:26');
+    svg.innerHTML = '<path fill="none" stroke-dasharray="6 5" stroke-width="1.8"/><circle r="3.5"/>';
+    ov.appendChild(svg);
+  }
+  const path = svg.querySelector('path'), dot = svg.querySelector('circle');
+  path.setAttribute('d', `M ${x0} ${y0} Q ${mx} ${my} ${x1} ${y1}`);
+  path.setAttribute('stroke', dst.col);
+  dot.setAttribute('cx', x0); dot.setAttribute('cy', y0); dot.setAttribute('fill', dst.col);
 }
+function quitarGuiaSVG() { document.getElementById('mu-guia')?.remove(); }
 
-/* Construye una operación long/short en una zona de ALTA PROBABILIDAD:
-   la entrada debe caer en el lado correcto del precio y con recorrido —
-   · short → una RESISTENCIA (oferta) por ENCIMA del precio,
-   · long  → un SOPORTE (demanda) por DEBAJO del precio.
-   Dentro de una ventana operable se prioriza la de mayor confianza; si no hay
-   ninguna cerca, se usa la más cercana del lado correcto (nunca una pegada al
-   precio ni una del lado equivocado, que es lo que bajaba la probabilidad). */
-function construirOp(tipo) {
+/* Lista TODAS las operaciones de alta probabilidad de un lado, ordenadas de
+   mejor a peor (confianza, y a igualdad, cercanía). Sirve para el contador y el
+   paginador del analista. */
+function zonasOp(tipo) {
   const px = M.precio || (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
   const zonas = (M.zonas || []).filter((z) => !z.rota);
   const lado = tipo === 'long' ? 'demanda' : 'oferta';
   const cand = zonas.filter((x) => x.lado === lado);
-  if (!cand.length || !px) return null;
+  if (!cand.length || !px) return [];
   const dist = (z) => Math.abs(z.pPoc - px) / px;
-  const ROOM = 0.004;   // la entrada necesita al menos ~0.4% de recorrido (no pegada al precio)
+  const ROOM = 0.004;
   const correcto = tipo === 'long'
     ? cand.filter((z) => z.pPoc <= px * (1 - ROOM))     // soporte por debajo
     : cand.filter((z) => z.pPoc >= px * (1 + ROOM));    // resistencia por encima
   const base = correcto.length ? correcto : cand;
-  const cerca = base.filter((z) => dist(z) <= 0.03);    // ventana operable ≤3%
-  const z = cerca.length
-    ? cerca.sort((a, b) => b.confianza - a.confianza)[0]  // la MÁS fuerte dentro de la ventana
-    : base.sort((a, b) => dist(a) - dist(b))[0];          // si no, la más cercana del lado correcto
-  if (!z) return null;
+  return base.slice().sort((a, b) => (b.confianza - a.confianza) || (dist(a) - dist(b)));
+}
+function opDeZona(tipo, z) {
+  const px = M.precio || (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
+  if (!z || !px) return null;
   const minR = px * 0.004, maxR = px * 0.018;   // riesgo sensato: 0.4%–1.8%, R:R 1:1
   if (tipo === 'long') {
-    const entrada = z.pPoc;
-    let riesgo = (entrada - z.pLow) + px * 0.0008;
-    riesgo = Math.min(Math.max(riesgo, minR), maxR);
+    const entrada = z.pPoc; let riesgo = Math.min(Math.max((entrada - z.pLow) + px * 0.0008, minR), maxR);
     return { tipo, entrada, sl: entrada - riesgo, tp: entrada + riesgo, zonaPoc: z.pPoc };
   }
-  const entrada = z.pPoc;
-  let riesgo = (z.pHigh - entrada) + px * 0.0008;
-  riesgo = Math.min(Math.max(riesgo, minR), maxR);
+  const entrada = z.pPoc; let riesgo = Math.min(Math.max((z.pHigh - entrada) + px * 0.0008, minR), maxR);
   return { tipo, entrada, sl: entrada + riesgo, tp: entrada - riesgo, zonaPoc: z.pPoc };
 }
-function hayOp(tipo) { return !!construirOp(tipo); }
+function construirOp(tipo) { const zs = zonasOp(tipo); return zs.length ? opDeZona(tipo, zs[0]) : null; }
+function hayOp(tipo) { return zonasOp(tipo).length > 0; }
+function contarOps(tipo) { return zonasOp(tipo).length; }
 
-/* Proyecta la MISMA herramienta de posición de Smart Levels (poslarga/poscorta),
-   anclada a tiempo+precio. Vive en el estado del radar; al cerrar desaparece. */
+/* Proyecta la MISMA herramienta de posición de Smart Levels (poslarga/poscorta).
+   Con un lado forzado (botón Largo/Corto) arma la LISTA de operaciones y muestra
+   la primera; el paginador junto a Analyst permite recorrerlas una a una. */
 function mostrarPlan(a, tipoForzado) {
-  const op = tipoForzado ? construirOp(tipoForzado) : (a && a.op);
-  if (!op) return;
+  if (tipoForzado) {
+    const zs = zonasOp(tipoForzado); if (!zs.length) return;
+    M._posList = { tipo: tipoForzado, zonas: zs, idx: 0 };
+    proyectarDeLista();
+  } else {
+    const op = a && a.op; if (!op) return;
+    M._posList = null; quitarPager(); ponerPos(op);
+  }
   const tabChart = [...document.querySelectorAll('.mu-mtab')].find((x) => /hart|r\u00e1fic|gr\u00e1fic/i.test(x.textContent));
   if (tabChart && !tabChart.classList.contains('on')) tabChart.click();
+}
+function proyectarDeLista() {
+  const L = M._posList; if (!L || !L.zonas.length) return;
+  L.idx = ((L.idx % L.zonas.length) + L.zonas.length) % L.zonas.length;
+  const op = opDeZona(L.tipo, L.zonas[L.idx]); if (!op) return;
+  ponerPos(op); pintarPager();
+}
+function ponerPos(op) {
   const g = M._geo; if (!g || !g.vis.length) return;
   const vis = g.vis;
   const t0 = vis[Math.max(0, vis.length - 20)].t;
@@ -3665,6 +3723,81 @@ function mostrarPlan(a, tipoForzado) {
     cTarget: '#2ee86a', cEntry: '#eaecef', cStop: '#ff3b52', grosor: 2, intensidad: 1,
     cardPos: 'der', oculto: false, guia: true };
   cerrarPosCfg(); dibujar();
+}
+
+/* Paginador «1/N ›» junto a la píldora Analyst para recorrer las operaciones. */
+function pintarPager() {
+  const L = M._posList; const cab = document.querySelector('#mu-overlay .mu-der'); if (!cab) return;
+  quitarPager();
+  if (!L || L.zonas.length < 2) return;
+  const p = document.createElement('div'); p.id = 'mu-pager';
+  p.innerHTML = `<span>${L.idx + 1}/${L.zonas.length}</span><button title="Siguiente">\u203a</button>`;
+  const pill = document.getElementById('mu-analista');
+  pill.insertAdjacentElement('afterend', p);
+  p.querySelector('button').onclick = () => { L.idx++; proyectarDeLista(); };
+}
+function quitarPager() { document.getElementById('mu-pager')?.remove(); }
+
+/* Exporta TODO el análisis del analista como imagen (foto + título en inglés). */
+function exportarAnalisis(a) {
+  a = a || (_anaCache && _anaCache.a) || analizarRadar();
+  if (!a) return;
+  const par = PARES.find((p) => p.id === _par) || { id: _par };
+  const limpio = (s) => String(s).replace(/\*\*/g, '');
+  const parrafos = (a.parrafos || []).map(limpio);
+  const DPR = 2, Wd = 620, pad = 34;
+  const cv = document.createElement('canvas');
+  const g = cv.getContext('2d');
+  const anchoTxt = Wd - pad * 2;
+  // pre-medir para calcular la altura
+  g.font = '15px system-ui,sans-serif';
+  const envolver = (txt) => {
+    const pals = txt.split(' '); const li = []; let ln = '';
+    pals.forEach((w) => { const t = ln ? ln + ' ' + w : w; if (g.measureText(t).width > anchoTxt && ln) { li.push(ln); ln = w; } else ln = t; });
+    if (ln) li.push(ln); return li;
+  };
+  const bloques = parrafos.map(envolver);
+  let alto = 150;                                   // cabecera
+  bloques.forEach((li) => { alto += li.length * 23 + 16; });
+  alto += 60;                                       // pie
+  cv.width = Wd * DPR; cv.height = alto * DPR; g.scale(DPR, DPR);
+  // fondo
+  const grad = g.createLinearGradient(0, 0, 0, alto);
+  grad.addColorStop(0, '#12171f'); grad.addColorStop(1, '#0a0d12');
+  g.fillStyle = grad; g.fillRect(0, 0, Wd, alto);
+  g.strokeStyle = 'rgba(232,184,75,.5)'; g.lineWidth = 2; g.strokeRect(1, 1, Wd - 2, alto - 2);
+  const pintar = () => {
+    // título
+    g.textAlign = 'left';
+    g.fillStyle = '#E8B84B'; g.font = '800 20px system-ui,sans-serif';
+    g.fillText('Jesus: Technical Analysis', 108, 52);
+    g.fillStyle = '#8b95a1'; g.font = '600 13px ui-monospace,monospace';
+    g.fillText(`${par.id} · ${M.tf} · ${new Date().toLocaleDateString('en-GB')}`, 108, 74);
+    g.strokeStyle = 'rgba(255,255,255,.08)'; g.beginPath(); g.moveTo(pad, 104); g.lineTo(Wd - pad, 104); g.stroke();
+    // párrafos
+    let y = 138; g.textAlign = 'left';
+    bloques.forEach((li) => {
+      g.fillStyle = '#dfe5ec'; g.font = '15px system-ui,sans-serif';
+      li.forEach((ln) => { g.fillText(ln, pad, y); y += 23; });
+      y += 16;
+    });
+    // pie
+    g.fillStyle = '#6b7681'; g.font = '600 11px ui-monospace,monospace';
+    g.textAlign = 'center';
+    g.fillText('CriptoCuba Oficial · Institutional Radar', Wd / 2, alto - 26);
+    // descargar
+    cv.toBlob((b) => {
+      const url = URL.createObjectURL(b); const enl = document.createElement('a');
+      enl.href = url; enl.download = `analysis-${par.id}-${M.tf}.png`; enl.click();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }, 'image/png');
+  };
+  // avatar circular
+  const img = new Image();
+  img.onload = () => { g.save(); g.beginPath(); g.arc(66, 58, 30, 0, 6.283); g.clip(); g.drawImage(img, 36, 28, 60, 60); g.restore();
+    g.strokeStyle = 'rgba(232,184,75,.7)'; g.lineWidth = 2; g.beginPath(); g.arc(66, 58, 30, 0, 6.283); g.stroke(); pintar(); };
+  img.onerror = () => { g.fillStyle = '#E8B84B'; g.beginPath(); g.arc(66, 58, 30, 0, 6.283); g.fill(); pintar(); };
+  img.src = 'assets/img/jesus-avatar.webp';
 }
 
 /* Ancla de la tarjeta (idéntica a Smart Levels). */
@@ -3693,13 +3826,9 @@ function dibujarPosicion(g) {
   const rgbT = _hex2rgb(cT), rgbS = _hex2rgb(cS);
   const acc = largo ? '#2ee86a' : '#ff3b52', accRGB = largo ? '46,232,106' : '255,59,82';
 
-  // Línea GUÍA punteada (desde arriba-derecha hasta la entrada). Se quita al primer toque.
-  if (P.guia) {
-    g.save(); g.strokeStyle = acc; g.lineWidth = 1.7; g.setLineDash([6, 5]);
-    const og = _origenGuia(); const gx = og.x, gy = og.y; g.beginPath(); g.moveTo(gx, gy);
-    g.quadraticCurveTo((gx + x + w) / 2, gy + (ye - gy) * 0.16, x + w, ye); g.stroke();
-    g.setLineDash([]); g.fillStyle = acc; g.beginPath(); g.arc(x + w, ye, 4, 0, 6.283); g.fill(); g.restore();
-  }
+  // Puntico destino de la entrada; la línea guía la traza un SVG que SÍ sale de la píldora.
+  if (P.guia) { g.save(); g.fillStyle = acc; g.beginPath(); g.arc(x + w, ye, 4, 0, 6.283); g.fill(); g.restore(); }
+  M._guiaDst = P.guia ? { x: x + w, y: ye, col: acc } : (M._tend && M._tend.guia ? M._guiaDst : null);
 
   // zonas ganancia / riesgo (tinte suave para no saturar el radar)
   g.fillStyle = `rgba(${rgbT},${(0.10 * inten).toFixed(3)})`; g.fillRect(x, Math.min(ye, yt), w, Math.abs(yt - ye));
@@ -3708,6 +3837,17 @@ function dibujarPosicion(g) {
   [[cT, yt], [cE, ye], [cS, ys]].forEach((r) => {
     g.strokeStyle = r[0]; g.lineWidth = gr; g.beginPath(); g.moveTo(x, r[1]); g.lineTo(x + w, r[1]); g.stroke();
   });
+  // Punticos en los extremos editables (como Smart Levels): en cada punta de cada línea.
+  if (!P.oculto) {
+    g.save();
+    [[cT, yt], [cE, ye], [cS, ys]].forEach((r) => {
+      [x, x + w].forEach((xx) => {
+        g.fillStyle = '#0b0e12'; g.beginPath(); g.arc(xx, r[1], 3.6, 0, 6.283); g.fill();
+        g.fillStyle = r[0]; g.beginPath(); g.arc(xx, r[1], 2.4, 0, 6.283); g.fill();
+      });
+    });
+    g.restore();
+  }
   P._pos = { x, w, yt, ye, ys };
   const gPct = ((pT - pe) / pe) * 100, rPct = ((pS - pe) / pe) * 100;
   const rr = Math.abs(rPct) > 0 ? Math.abs(gPct / rPct) : 0;
@@ -3805,15 +3945,11 @@ function mostrarTendencia() {
 }
 function dibujarTendencia(g) {
   const T = M._tend, geo = M._geo; if (!T || !T.segs.length || !geo) return;
-  // Guía punteada desde arriba (bajo la píldora) hasta la tendencia. Se quita al primer toque.
-  if (T.guia) {
-    const ult0 = T.segs[T.segs.length - 1];
-    const px2 = mXt(ult0.t1), py2 = mYp(ult0.p1);
-    g.save(); g.strokeStyle = T.color; g.lineWidth = 1.7; g.setLineDash([6, 5]);
-    const og = _origenGuia(); const gx = og.x, gy = og.y; g.beginPath(); g.moveTo(gx, gy);
-    g.quadraticCurveTo((gx + px2) / 2, gy + (py2 - gy) * 0.16, px2, py2); g.stroke();
-    g.setLineDash([]); g.fillStyle = T.color; g.beginPath(); g.arc(px2, py2, 4, 0, 6.283); g.fill(); g.restore();
-  }
+  const ult0 = T.segs[T.segs.length - 1];
+  const px2 = mXt(ult0.t1), py2 = mYp(ult0.p1);
+  // La línea guía la traza el SVG (sale de la píldora). Aquí solo el puntico destino.
+  if (T.guia) { g.save(); g.fillStyle = T.color; g.beginPath(); g.arc(px2, py2, 4, 0, 6.283); g.fill(); g.restore();
+    M._guiaDst = { x: px2, y: py2, col: T.color }; }
   g.save(); g.strokeStyle = T.color; g.lineWidth = T.grosor; g.lineJoin = 'round'; g.shadowColor = T.color; g.shadowBlur = 5;
   g.beginPath();
   T.segs.forEach((s, k) => { const x0 = mXt(s.t0), yy0 = mYp(s.p0), x1p = mXt(s.t1), yy1 = mYp(s.p1); if (k === 0) g.moveTo(x0, yy0); g.lineTo(x1p, yy1); });
@@ -3821,14 +3957,17 @@ function dibujarTendencia(g) {
   const pts = [{ t: T.segs[0].t0, p: T.segs[0].p0 }].concat(T.segs.map((s) => ({ t: s.t1, p: s.p1 })));
   pts.forEach((pt) => { g.beginPath(); g.arc(mXt(pt.t), mYp(pt.p), 3, 0, 7); g.fill(); });
   g.restore();
-  const ult = T.segs[T.segs.length - 1];
-  const tx = mXt(ult.t1), ty = mYp(ult.p1);
-  const txt = T.dir === 'alcista' ? '\u2197 Tendencia adaptativa alcista' : '\u2198 Tendencia adaptativa bajista';
-  g.font = 'bold 9.5px ui-monospace,monospace';
-  const w = g.measureText(txt).width + 14;
-  const bx = Math.max(4, Math.min(tx - w / 2, geo.xVelas - w - 4)), by = ty - (T.dir === 'alcista' ? 22 : -8);
-  g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 8; g.fillStyle = T.color; redondeado(g, bx, by, w, 16, 5); g.fill(); g.restore();
-  g.fillStyle = T.dir === 'alcista' ? '#04210f' : '#2a0509'; g.textAlign = 'left'; g.fillText(txt, bx + 7, by + 11); g.textAlign = 'left';
+  // La tachuela de dirección SOLO se ve mientras no se ha tocado la gráfica (con la guía).
+  if (T.guia) {
+    const ult = T.segs[T.segs.length - 1];
+    const tx = mXt(ult.t1), ty = mYp(ult.p1);
+    const txt = T.dir === 'alcista' ? '\u2197 Tendencia adaptativa alcista' : '\u2198 Tendencia adaptativa bajista';
+    g.font = 'bold 9.5px ui-monospace,monospace';
+    const w = g.measureText(txt).width + 14;
+    const bx = Math.max(4, Math.min(tx - w / 2, geo.xVelas - w - 4)), by = ty - (T.dir === 'alcista' ? 22 : -8);
+    g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 8; g.fillStyle = T.color; redondeado(g, bx, by, w, 16, 5); g.fill(); g.restore();
+    g.fillStyle = T.dir === 'alcista' ? '#04210f' : '#2a0509'; g.textAlign = 'left'; g.fillText(txt, bx + 7, by + 11); g.textAlign = 'left';
+  }
 }
 function cercaTend(lx, ly) {
   const T = M._tend, g = M._geo; if (!T || !g) return false;
@@ -3867,7 +4006,7 @@ function mostrarPosCfg() {
   const c = document.createElement('div'); c.id = 'mu-poscfg';
   c.innerHTML = `<span class="pc-et">${M._pos.tipo === 'poslarga' ? '\u25b2 LARGA' : '\u25bc CORTA'}</span><button data-a="del" title="Eliminar">\u{1F5D1}</button>`;
   ov.appendChild(c); posPosCfg();
-  c.querySelector('[data-a="del"]').onclick = () => { M._pos = null; cerrarPosCfg(); dibujar(); };
+  c.querySelector('[data-a="del"]').onclick = () => { M._pos = null; M._posList = null; quitarPager(); cerrarPosCfg(); dibujar(); };
 }
 function posPosCfg() {
   const c = $('mu-poscfg'), cv = $('mu-cv'), ov = $('mu-overlay'), P = M._pos; if (!c || !cv || !ov || !P || !P._pos) return;
