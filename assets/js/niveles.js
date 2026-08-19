@@ -119,6 +119,9 @@ export async function abrirNiveles() {
             <span class="nv-rg-tx">News</span>
             <span class="nv-news-dot"></span>
           </button>
+          <button class="nv-ico" id="nv-cal" title="Calendario económico">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4M7.5 13h2M11 13h2M14.5 13h2"/></svg>
+          </button>
           <button class="nv-ico" id="nv-widget" title="Superponer (ventana flotante encima de todo)">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="15" rx="2"/><rect x="12" y="11" width="7" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
           </button>
@@ -189,6 +192,7 @@ export async function abrirNiveles() {
   $('nv-x').onclick = cerrar;
   $('nv-ayuda').onclick = () => ayuda();
   { const rb = $('nv-news'); if (rb) rb.onclick = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} }; }
+  { const cb = $('nv-cal'); if (cb) cb.onclick = () => { try { window.abrirCalendario && window.abrirCalendario(); } catch (_) {} }; }
   $('nv-herr').onclick = (e) => { e.stopPropagation(); menuHerramientas($('nv-herr')); };
   { const hm = $('nv-herr-m'); if (hm) hm.onclick = (e) => { e.stopPropagation(); menuHerramientas(hm); }; }
   $('nv-foto').onclick = () => guardarImagen(N.par, N.tf);

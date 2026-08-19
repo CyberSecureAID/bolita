@@ -522,6 +522,53 @@ const tiempo = (s) => {
    Todo sale de las velas (klines), que llegan siempre y rápido: por eso las
    tarjetas se llenan en 1-2 s, sin depender del libro de órdenes.
    ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   ESTRUCTURAS DE ACUMULACIÓN / DISTRIBUCIÓN (cajas de rango)
+   Detecta los tramos donde el precio OSCILA lateralmente dentro de un
+   canal (acumulación o distribución), separados por impulsos. Estas cajas
+   son las verdaderas zonas de reacción: el precio respeta sus bordes. Se
+   dibujan como rectángulos y la herramienta de posición se ancla a ellos.
+   ══════════════════════════════════════════════════════════════ */
+function detectarEstructuras(velas) {
+  const n = velas ? velas.length : 0;
+  if (n < 24) return [];
+  const MINLEN = 8;                 // mínimo de velas para considerar una caja
+  const cajas = [];
+  let i = 0;
+  while (i < n - MINLEN) {
+    let hi = -Infinity, lo = Infinity;
+    for (let k = i; k < i + MINLEN; k++) { hi = Math.max(hi, velas[k].h); lo = Math.min(lo, velas[k].l); }
+    const h0 = Math.max(1e-9, hi - lo);
+    let j = i + MINLEN;
+    // Extender la caja mientras el precio no la ROMPA (no crezca demasiado).
+    while (j < n) {
+      const c = velas[j];
+      const nHi = Math.max(hi, c.h), nLo = Math.min(lo, c.l);
+      if ((nHi - nLo) > h0 * 1.35) break;   // se expandió → impulso/ruptura, fin de la caja
+      hi = nHi; lo = nLo; j++;
+    }
+    const len = j - i;
+    const alt = hi - lo;
+    if (len >= MINLEN) {
+      // 1) OSCILACIÓN real: el precio tocó arriba y abajo varias veces.
+      const zAlta = hi - alt * 0.30, zBaja = lo + alt * 0.30;
+      let tArr = 0, tAba = 0;
+      for (let k = i; k < j; k++) { if (velas[k].h >= zAlta) tArr++; if (velas[k].l <= zBaja) tAba++; }
+      // 2) SIN TENDENCIA NETA: si el precio terminó lejos de donde empezó, fue un
+      //    impulso disfrazado, no una acumulación → se descarta.
+      const desplaz = Math.abs(velas[j - 1].c - velas[i].o);
+      const esRango = tArr >= 2 && tAba >= 2 && desplaz < alt * 0.55;
+      if (esRango) {
+        cajas.push({ i0: i, i1: j - 1, hi, lo, t0: velas[i].t, t1: velas[j - 1].t, len });
+        i = j; continue;
+      }
+    }
+    i++;
+  }
+  // Nos quedamos con las más recientes (las relevantes para operar ahora).
+  return cajas.slice(-4);
+}
+
 function detectarZonas(velas, precio, opts) {
   opts = opts || {};
   if (!velas || velas.length < 24 || !(precio > 0)) return { zonas: [], perfil: null };
@@ -812,11 +859,12 @@ function analizarMercado(velas, precio, perfil) {
 
 /* Lazy-loader del módulo de noticias: si news.js no está cargado (por ejemplo,
    si no se subió el index.html actualizado), lo carga al vuelo y luego abre. */
-function abrirNoticiasSeguro() {
-  if (typeof window.abrirNoticias === 'function') { try { window.abrirNoticias(); } catch (_) {} return; }
-  if (document.getElementById('news-js-lazy')) { setTimeout(abrirNoticiasSeguro, 300); return; }
-  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=7';
-  s.onload = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} };
+function abrirNoticiasSeguro(cual) {
+  const fn = () => { try { (cual === 'calendario' ? window.abrirCalendario : window.abrirNoticias)(); } catch (_) {} };
+  if (typeof window.abrirNoticias === 'function' && typeof window.abrirCalendario === 'function') { fn(); return; }
+  if (document.getElementById('news-js-lazy')) { setTimeout(() => abrirNoticiasSeguro(cual), 300); return; }
+  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=8';
+  s.onload = fn;
   document.head.appendChild(s);
 }
 
@@ -866,6 +914,9 @@ export async function abrirMuros() {
           <button class="mu-ico mu-news" id="mu-news" title="News">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13v14H5a1 1 0 0 1-1-1z"/><path d="M17 8h2.5a1.5 1.5 0 0 1 1.5 1.5V18a1 1 0 0 1-1 1"/><path d="M7 9h7M7 12h7M7 15h4"/></svg>
             <span class="mu-news-dot"></span>
+          </button>
+          <button class="mu-ico" id="mu-cal" title="Calendario económico">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4M7.5 13h2M11 13h2M14.5 13h2M7.5 16.5h2M11 16.5h2"/></svg>
           </button>
           <button class="mu-ico" id="mu-validar" title="Verificar volumen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 5-3.5 7.5-8.5 9C7.5 19.5 4 17 4 12V6l8-3 8 3z"/></svg>
@@ -942,7 +993,8 @@ export async function abrirMuros() {
 
   $('mu-foto').onclick = () => guardarImagen();
   $('mu-validar').onclick = () => validarVolumen();
-  { const bn = $('mu-news'); if (bn) bn.onclick = () => abrirNoticiasSeguro(); }
+  { const bn = $('mu-news'); if (bn) bn.onclick = () => abrirNoticiasSeguro('noticias'); }
+  { const bc = $('mu-cal'); if (bc) bc.onclick = () => abrirNoticiasSeguro('calendario'); }
   $('mu-analista').onclick = () => abrirAnalista();
   $('mu-tema').onclick = () => {
     M.tema = M.tema === 'claro' ? 'oscuro' : 'claro';
@@ -1081,7 +1133,7 @@ async function cargarVelas() {
       }
       /* Las zonas salen de las VELAS: se llenan en ~1 s, sin depender del libro. */
       const r = detectarZonas(M.velas, px, { htf: M.zonasHTF, libro: murosDelLibro(), ancla: _par + "|" + M.tf });
-      M.zonas = r.zonas; M.perfil = r.perfil;
+      M.zonas = r.zonas; M.perfil = r.perfil; M.estructuras = detectarEstructuras(M.velas);
       /* NIVELES INSTITUCIONALES + BACKTEST, y boost de confianza cuando una
          zona coincide con VWAP / borde del área de valor / POC. */
       M.mercado = analizarMercado(M.velas, px, M.perfil);
@@ -1323,7 +1375,7 @@ function arrancar() {
 
     if (M.velas.length && M.precio > 0) {
       const r = detectarZonas(M.velas, M.precio, { htf: M.zonasHTF, libro: murosDelLibro(), ancla: _par + "|" + M.tf });
-      M.zonas = r.zonas; M.perfil = r.perfil;   // zonas + confluencia + libro, con precio vivo
+      M.zonas = r.zonas; M.perfil = r.perfil; M.estructuras = detectarEstructuras(M.velas);   // zonas + estructuras
       M.mercado = analizarMercado(M.velas, M.precio, M.perfil);
       aplicarReferencias(M.zonas, M.mercado, M.precio);
       seguirVida(M.zonas);
@@ -1575,57 +1627,33 @@ function dibujar() {
      ilegible. Por eso cada banda se recorta hasta el punto medio con su vecina
      (dejando un hueco): las zonas lejanas conservan su altura, las juntas se
      estrechan, y todo se sigue rigiendo por la línea punteada central. */
-  const bandas = M.zonas
-    .filter((z) => z.pHigh >= pMin && z.pLow <= pMax)
-    .map((z) => {
-      // ALTURA ACOTADA: la zona puede abarcar mucho por dentro, pero visualmente
-      // una franja de soporte/resistencia debe ser FINA (un nivel, no un bloque).
-      // Se recorta a ±~0.13% del precio alrededor del POC. Antes las bandas
-      // salían inmensas (media gráfica roja) e inoperables.
-      const half = (M.precio || z.pPoc) * 0.0013;
-      const zTop = Math.min(z.pHigh, z.pPoc + half);
-      const zBot = Math.max(z.pLow, z.pPoc - half);
-      return { z, yC: Y(z.pPoc), yT: Y(Math.min(pMax, zTop)), yB: Y(Math.max(pMin, zBot)) };
-    })
-    .sort((a, b) => a.yC - b.yC);
-  const HUECO = 5;
-  bandas.forEach((it, i) => {
-    const arriba = bandas[i - 1], abajo = bandas[i + 1];
-    if (arriba) { const medio = (it.yC + arriba.yC) / 2; if (it.yT < medio + HUECO) it.yT = medio + HUECO; }
-    if (abajo) { const medio = (it.yC + abajo.yC) / 2; if (it.yB > medio - HUECO) it.yB = medio - HUECO; }
-    // nunca invertir ni desaparecer: mínimo una franja fina centrada en el POC
-    if (it.yB - it.yT < 4) { it.yT = it.yC - 2; it.yB = it.yC + 2; }
+  /* ── ESTRUCTURAS DE ACUMULACIÓN / DISTRIBUCIÓN (cajas de rango) ──
+     En vez de decenas de franjas de volumen (ruido), se dibujan las CAJAS
+     donde el precio oscila: sus bordes son respetados por el precio. El
+     rango más reciente (el actual) se resalta; ahí es donde se opera. */
+  const cajas = (M.estructuras || []).filter((b) => b.hi >= pMin && b.lo <= pMax);
+  cajas.forEach((b, idx) => {
+    const esActual = idx === cajas.length - 1;
+    let xL = Math.max(0, Math.min(x1, mXt(b.t0)));
+    let xR = esActual ? xVelas : Math.max(0, Math.min(x1, mXt(b.t1)));
+    if (xR - xL < 2) return;
+    const yT = Y(Math.min(pMax, b.hi)), yB = Y(Math.max(pMin, b.lo));
+    const alto = Math.max(3, yB - yT);
+    const rgb = esActual ? '34,211,238' : '110,130,140';
+    g.fillStyle = `rgba(${rgb},${esActual ? 0.08 : 0.04})`;
+    g.fillRect(xL, yT, xR - xL, alto);
+    g.strokeStyle = `rgba(${rgb},${esActual ? 0.9 : 0.4})`;
+    g.lineWidth = esActual ? 1.7 : 1;
+    g.strokeRect(xL + 0.5, yT + 0.5, xR - xL - 1, alto - 1);
+    if (esActual) {
+      // Techo y piso del rango actual a todo el ancho: ahí se ubican las entradas.
+      g.strokeStyle = `rgba(${rgb},0.45)`; g.lineWidth = 1; g.setLineDash([5, 4]);
+      g.beginPath(); g.moveTo(0, yT); g.lineTo(x1, yT); g.stroke();
+      g.beginPath(); g.moveTo(0, yB); g.lineTo(x1, yB); g.stroke();
+      g.setLineDash([]);
+    }
   });
-  // Si hay una herramienta de posición proyectada, la gráfica se LIMPIA: se
-  // muestra solo la banda que sostiene la operación (el resto se oculta para no
-  // saturar). El perfil de volumen y las tarjetas de la derecha no se tocan.
-  let bandaSolo = null;
-  if (M._pos) {
-    const objetivo = M._pos.zonaPoc != null ? M._pos.zonaPoc : M._pos.pe;
-    let mejorD = Infinity;
-    bandas.forEach((it) => { const d = Math.abs(it.z.pPoc - objetivo); if (d < mejorD) { mejorD = d; bandaSolo = it; } });
-  }
-  bandas.forEach(({ z, yT, yB }) => {
-    if (bandaSolo && z !== bandaSolo.z) return;   // con herramienta activa, solo la banda de la operación
-    const alto = Math.max(4, yB - yT);
-    const dem = z.lado === 'demanda';
-    const rota = z.rota;
-    const col = rota ? '#6b7681' : (dem ? '#2ee86a' : '#f6465d');
-    const rgb = dem ? '46,232,106' : rota ? '107,118,129' : '246,70,93';
-    const aBanda = rota ? 0.05 : (0.06 + (z.confianza / 100) * 0.10);
-    g.fillStyle = `rgba(${rgb},${aBanda})`;
-    g.fillRect(0, yT, x1, alto);
-    const pg = g.createLinearGradient(xVelas, 0, x1, 0);
-    pg.addColorStop(0, `rgba(${rgb},${aBanda * 1.6})`);
-    pg.addColorStop(1, `rgba(${rgb},0)`);
-    g.fillStyle = pg;
-    g.fillRect(xVelas, yT, x1 - xVelas, alto);
-    g.strokeStyle = col + (rota ? '3a' : '66'); g.lineWidth = 1;
-    if (rota) g.setLineDash([5, 4]);
-    g.beginPath(); g.moveTo(0, yT + .5); g.lineTo(x1, yT + .5); g.stroke();
-    g.beginPath(); g.moveTo(0, yB - .5); g.lineTo(x1, yB - .5); g.stroke();
-    g.setLineDash([]);
-  });
+  let bandaSolo = null;   // (compatibilidad con el resto del dibujo; ya no hay bandas)
 
 
   /* ── LAS VELAS ── */
@@ -1675,15 +1703,9 @@ function dibujar() {
     const fuerte = z.fuerza >= 4 && !rota;
     const activa = (z.dentro || z.retest) && !rota;
 
-    // Línea de entrada = POC: continua de lado a lado, punteada, con glow si fuerte
-    if (z.pPoc >= pMin && z.pPoc <= pMax) {
-      g.save();
-      if (fuerte || activa) { g.shadowColor = col; g.shadowBlur = activa ? (6 + 6 * pulso) : 7; }
-      g.strokeStyle = col + (rota ? '99' : 'ff'); g.lineWidth = fuerte ? 1.8 : 1.3;
-      g.setLineDash([6, 5]);
-      g.beginPath(); g.moveTo(0, yPoc); g.lineTo(x1, yPoc); g.stroke();
-      g.restore(); g.setLineDash([]);
-    }
+    // (Las líneas POC de ancho completo se eliminaron: rayaban la gráfica. La
+    // estructura la dan las CAJAS de rango; aquí solo queda la píldora de
+    // liquidez anclada a la derecha para saber DÓNDE está el dinero.)
 
     // Etiqueta: importe + insignias, anclada a la derecha, en su posición
     // de-colisionada; un hilo la une a su línea real cuando se ha movido.
@@ -2636,7 +2658,7 @@ const PASOS_MU = [
   },
   {
     t: 'Demanda y oferta',
-    d: 'Las bandas <b>verdes son demanda</b> (soporte, por debajo del precio) y las <b>rojas son oferta</b> (resistencia, por encima). El precio tiende a reaccionar cuando llega a ellas.',
+    d: 'Los <b>rectángulos</b> son zonas de <b>acumulación/distribución</b>: el precio oscila dentro de un rango y respeta sus bordes. El <b>rango actual</b> se resalta en celeste. La entrada se ubica en el borde del rango (techo para un largo, piso para un corto), con el stop del tamaño del rango y objetivo 1:1.',
     x: 'Compras cerca de demanda fuerte, vendes cerca de oferta fuerte. El sesgo lo da el contexto.'
   },
   {
@@ -3654,43 +3676,27 @@ function quitarGuiaSVG() { document.getElementById('mu-guia')?.remove(); }
 /* Lista TODAS las operaciones de alta probabilidad de un lado, ordenadas de
    mejor a peor (confianza, y a igualdad, cercanía). Sirve para el contador y el
    paginador del analista. */
+/* Las operaciones ahora salen de las CAJAS de rango (acumulación/distribución):
+   · Largo  → entrada en el TECHO de la caja (ruptura alcista).
+   · Corto  → entrada en el PISO de la caja (ruptura bajista).
+   El stop equivale a la ALTURA de la caja (el diámetro de la oscilación) y el
+   objetivo la proyecta al otro lado: R:R 1:1. La caja más reciente (el rango
+   actual) va primera; el paginador recorre las anteriores. */
 function zonasOp(tipo) {
-  const px = M.precio || (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
-  const zonas = (M.zonas || []).filter((z) => !z.rota);
-  const lado = tipo === 'long' ? 'demanda' : 'oferta';
-  const cand = zonas.filter((x) => x.lado === lado);
-  if (!cand.length || !px) return [];
-  const ROOM = 0.004;
-  const correcto = tipo === 'long'
-    ? cand.filter((z) => z.pPoc <= px * (1 - ROOM))     // soporte por debajo
-    : cand.filter((z) => z.pPoc >= px * (1 + ROOM));    // resistencia por encima
-  const base = correcto.length ? correcto : cand;
-  // Rango reciente: el nodo de mayor VOLUMEN suele caer en el MEDIO del rango
-  // (donde el precio se consolidó), que NO es operable. Una buena operación va
-  // al EXTREMO: resistencia (máximo reciente) para short, soporte (mínimo) para
-  // long. Por eso puntuamos por cercanía al extremo, no solo por volumen.
-  const rec = (M.velas || []).slice(-80);
-  const hi = rec.length ? Math.max.apply(null, rec.map((v) => v.h)) : px;
-  const lo = rec.length ? Math.min.apply(null, rec.map((v) => v.l)) : px;
-  const rango = Math.max(1e-9, hi - lo);
-  const calidad = (z) => {
-    const lejosExtremo = tipo === 'long'
-      ? Math.max(0, (z.pLow - lo) / rango)    // long: cuánto se aleja del mínimo
-      : Math.max(0, (hi - z.pHigh) / rango);  // short: cuánto se aleja del máximo
-    return (z.confianza || 0) - 130 * lejosExtremo;
-  };
-  return base.slice().sort((a, b) => calidad(b) - calidad(a));
+  const cajas = M.estructuras || [];
+  if (!cajas.length) return [];
+  return cajas.slice().reverse();   // la más reciente (rango actual) primero
 }
-function opDeZona(tipo, z) {
-  const px = M.precio || (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
-  if (!z || !px) return null;
-  const minR = px * 0.004, maxR = px * 0.018;   // riesgo sensato: 0.4%–1.8%, R:R 1:1
+function opDeZona(tipo, caja) {
+  if (!caja) return null;
+  const alt = Math.max(1e-9, caja.hi - caja.lo);
+  const centro = (caja.hi + caja.lo) / 2;
   if (tipo === 'long') {
-    const entrada = z.pPoc; let riesgo = Math.min(Math.max((entrada - z.pLow) + px * 0.0008, minR), maxR);
-    return { tipo, entrada, sl: entrada - riesgo, tp: entrada + riesgo, zonaPoc: z.pPoc };
+    const entrada = caja.hi;
+    return { tipo, entrada, sl: entrada - alt, tp: entrada + alt, zonaPoc: centro, caja };
   }
-  const entrada = z.pPoc; let riesgo = Math.min(Math.max((z.pHigh - entrada) + px * 0.0008, minR), maxR);
-  return { tipo, entrada, sl: entrada + riesgo, tp: entrada - riesgo, zonaPoc: z.pPoc };
+  const entrada = caja.lo;
+  return { tipo, entrada, sl: entrada + alt, tp: entrada - alt, zonaPoc: centro, caja };
 }
 function construirOp(tipo) { const zs = zonasOp(tipo); return zs.length ? opDeZona(tipo, zs[0]) : null; }
 function hayOp(tipo) { return zonasOp(tipo).length > 0; }
@@ -3720,7 +3726,9 @@ function proyectarDeLista() {
 function ponerPos(op) {
   const g = M._geo; if (!g || !g.vis.length) return;
   const vis = g.vis;
-  const t0 = vis[Math.max(0, vis.length - 20)].t;
+  // Anclar la herramienta al RANGO (la caja): así la entrada cae en su borde.
+  let t0 = vis[Math.max(0, vis.length - 20)].t;
+  if (op.caja && op.caja.t0) t0 = op.caja.t0;
   const t1 = vis[vis.length - 1].t + 8 * g.tfMs;
   M._pos = { tipo: op.tipo === 'long' ? 'poslarga' : 'poscorta',
     pe: op.entrada, pTarget: op.tp, pStop: op.sl, t0, t1, zonaPoc: op.zonaPoc != null ? op.zonaPoc : op.entrada,

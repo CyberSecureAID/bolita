@@ -774,6 +774,9 @@ async function abrirPools() {
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13v14H5a1 1 0 0 1-1-1z"/><path d="M17 8h2.5a1.5 1.5 0 0 1 1.5 1.5V18a1 1 0 0 1-1 1"/><path d="M7 9h7M7 12h7M7 15h4"/></svg>
             <span class="lq-news-dot"></span>
           </button>
+          <button class="lq-ayuda" id="lq-cal" title="Calendario económico">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4M7.5 13h2M11 13h2M14.5 13h2"/></svg>
+          </button>
           <button class="lq-ayuda apagado" id="lq-perfil" title="Perfil de volumen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M21 6H9M21 11H5M21 16H12M21 21H8"/></svg>
           </button>
@@ -902,6 +905,7 @@ async function abrirPools() {
 
   $('lq-foto').onclick = () => guardarImagen();
   { const bn = $('lq-news'); if (bn) bn.onclick = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} }; }
+  { const bc = $('lq-cal'); if (bc) bc.onclick = () => { try { window.abrirCalendario && window.abrirCalendario(); } catch (_) {} }; }
 
   pintar();
   // Al girar el móvil o cambiar de tamaño, se vuelve a dibujar.
