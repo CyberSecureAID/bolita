@@ -120,11 +120,17 @@ let _zonasOd = [];           // dónde pulsar para cancelar
    ══════════════════════════════════════════════════════════════ */
 const TFS = [
   { id: '1m',  n: '1m' },
+  { id: '3m',  n: '3m' },
   { id: '5m',  n: '5m' },
   { id: '15m', n: '15m' },
+  { id: '30m', n: '30m' },
   { id: '1h',  n: '1H' },
+  { id: '2h',  n: '2H' },
   { id: '4h',  n: '4H' },
-  { id: '1d',  n: '1D' }
+  { id: '6h',  n: '6H' },
+  { id: '12h', n: '12H' },
+  { id: '1d',  n: '1D' },
+  { id: '1w',  n: '1W' }
 ];
 
 async function traerVelas(simbolo, tf, n = 120) {
@@ -791,6 +797,66 @@ function _canalTendencia(velas, N) {
                          t0, t1, p0: R.b, p1: R.m * (R.n - 1) + R.b } };
 }
 
+/* ══════════════════════════════════════════════════════════════
+   MAPA DE CALOR DE LA ZONA SWING
+   Paleta IDÉNTICA a la de Liquidity Pools (mismos escalones), pero dibujada
+   DENTRO de cada zona, de izquierda a derecha (desde que nace el rectángulo).
+   Cada zona tiene su banda "caliente" (roja) como área de interés, en una
+   posición y con una textura que varían por zona (semilla estable), para que
+   se vea real. Las velas se dibujan DESPUÉS, así la acumulación no se tapa.
+   ══════════════════════════════════════════════════════════════ */
+const _ESCALONES = [
+  { hasta: 0.20, c: [10, 36, 92] },     // azul oscuro
+  { hasta: 0.40, c: [30, 74, 168] },    // azul
+  { hasta: 0.58, c: [56, 130, 220] },   // azul claro
+  { hasta: 0.76, c: [8, 190, 12] },     // verde
+  { hasta: 0.89, c: [228, 229, 5] },    // amarillo
+  { hasta: 0.96, c: [255, 132, 0] },    // naranja (solo junto al rojo)
+  { hasta: 1.01, c: [255, 0, 0] }       // rojo
+];
+function _calor(v) {
+  if (v <= 0) return null;
+  const p = Math.max(0, Math.min(1, v));
+  for (const e of _ESCALONES) if (p <= e.hasta) return e.c;
+  return _ESCALONES[_ESCALONES.length - 1].c;
+}
+function dibujarCalorZona(g, Z, xL, xR, yTop, yBot) {
+  const W = xR - xL, H = yBot - yTop;
+  if (W < 4 || H < 4) return;
+  const nCols = Math.max(8, Math.floor(W / 7));
+  const nRows = Math.max(8, Math.min(22, Math.floor(H / 5)));
+  // Semilla estable por zona (posición y textura no cambian entre frames).
+  const seed = ((Math.abs(Math.floor(Z.t0 / 1000)) % 997) / 997);
+  const sa = seed * 6.2832, sb = seed * 12.9;
+  // Banda caliente cerca del borde operativo (demanda arriba, oferta abajo), con
+  // desplazamiento por zona para que no sea siempre la misma.
+  const baseFrac = Z.dir === 'demanda' ? 0.74 : 0.26;
+  const hotFrac = Math.max(0.15, Math.min(0.85, baseFrac + (seed - 0.5) * 0.34));
+  const spread = 0.14 + seed * 0.10;
+  const cw = Math.max(1, W / nCols - 0.6), rh = Math.max(1, H / nRows - 0.4);
+  // Pico rojo garantizado (área de interés): columna y fila sembradas por zona.
+  const peakCol = Math.floor((0.18 + seed * 0.62) * nCols);
+  const hotRow = Math.round((1 - hotFrac) * nRows - 0.5);
+  for (let c = 0; c < nCols; c++) {
+    const cx = xL + (c / nCols) * W;
+    // Envolvente temporal: unas columnas más calientes que otras (ondas suaves).
+    const env = 0.5 + 0.5 * Math.sin(c * 0.55 + sa) * Math.cos(c * 0.19 + sb);
+    for (let r = 0; r < nRows; r++) {
+      const frac = 1 - (r + 0.5) / nRows;          // 1 arriba, 0 abajo
+      const d = (frac - hotFrac) / spread;
+      let v = Math.exp(-d * d) * (0.5 + 0.55 * env);
+      v *= 0.86 + 0.14 * Math.sin(c * 1.3 + r * 0.9 + sb);   // textura fina
+      if (Math.abs(c - peakCol) <= 1 && Math.abs(r - hotRow) <= 1) v = Math.max(v, 0.98);  // rojo garantizado
+      v = Math.max(0, Math.min(1, v));
+      if (v < 0.12) continue;
+      const rgb = _calor(v);
+      if (!rgb) continue;
+      g.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.5)`;
+      g.fillRect(cx, yTop + (r / nRows) * H, cw, rh);
+    }
+  }
+}
+
 function detectarEstructuras(velas) {
   const n = velas ? velas.length : 0;
   if (n < 30) return [];
@@ -1043,7 +1109,7 @@ function detectarZonas(velas, precio, opts) {
   /* El alcance útil de una zona depende de la temporalidad: en 15m un 8% ya es
      lejos, pero en 1D los movimientos son mucho mayores y hay que abrir el
      rango, o el diario aparece vacío. Aun así, nunca tan lejos que sea ruido. */
-  const CAP = { '1m': 0.05, '5m': 0.06, '15m': 0.08, '30m': 0.10, '1h': 0.12, '2h': 0.16, '4h': 0.20, '1d': 0.30, '1w': 0.45 };
+  const CAP = { '1m': 0.05, '3m': 0.055, '5m': 0.06, '15m': 0.08, '30m': 0.10, '1h': 0.12, '2h': 0.16, '4h': 0.20, '6h': 0.24, '12h': 0.28, '1d': 0.30, '1w': 0.45 };
   const cerca = CAP[M.tf] || 0.12;
   const lejos = cerca * 1.5;
   let usar = zonas.filter((z) => z.dentro || Math.abs(z.dist) <= cerca);
@@ -1068,10 +1134,10 @@ function pal() {
 }
 
 /* De 15m sube a 1h, de 5m a 30m, etc. — para la confluencia multi-temporalidad. */
-const TF_SUPERIOR = { '1m': '15m', '5m': '30m', '15m': '1h', '30m': '2h', '1h': '4h', '4h': '1d', '1d': '1w' };
+const TF_SUPERIOR = { '1m': '15m', '3m': '15m', '5m': '30m', '15m': '1h', '30m': '2h', '1h': '4h', '2h': '6h', '4h': '1d', '6h': '1d', '12h': '1w', '1d': '1w', '1w': '1w' };
 /* Temporalidad JERÁRQUICA (largo plazo), con el salto grande que usa la
    estrategia: operar 15m→4h, 1h→diario, 5m→1h, 4h→diario, 1d→semanal. */
-const TF_JERARQUICO = { '1m': '1h', '5m': '1h', '15m': '4h', '30m': '4h', '1h': '1d', '2h': '1d', '4h': '1d', '1d': '1w' };
+const TF_JERARQUICO = { '1m': '1h', '3m': '1h', '5m': '1h', '15m': '4h', '30m': '4h', '1h': '1d', '2h': '1d', '4h': '1d', '6h': '1w', '12h': '1w', '1d': '1w', '1w': '1w' };
 
 /* ══════════════════════════════════════════════════════════════
    ANÁLISIS DE MERCADO — niveles institucionales + backtest
@@ -1386,7 +1452,7 @@ async function cargarVelas() {
     if (!$('mu-cv')) { clearInterval(_relojVelas); return; }
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
-      M.velas = await traerVelas(par.s, M.tf, 800);
+      M.velas = await traerVelas(par.s, M.tf, 1000);
       const px = (M.precio > 0) ? M.precio : (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
       /* CONFLUENCIA MULTI-TEMPORALIDAD: se traen las zonas de la temporalidad
          superior (15m→1h, etc.) cada ~60 s y se usan para validar. */
@@ -1897,7 +1963,7 @@ function dibujar() {
      paralelo dorado (centro punteado + dos rieles) que filtra el ruido, igual
      que lo trazas a mano. Marca el ciclo mayor con el que hay que fluir. */
   const TJ = M._tendJerar;
-  if (TJ && TJ.canal && TJ.dir !== 'lateral') {
+  if (M._verTendencias && TJ && TJ.canal && TJ.dir !== 'lateral') {
     const C = TJ.canal;
     const x0 = mXt(C.t0), x1r = mXt(C.t1);
     if (x1r !== x0) {
@@ -1925,7 +1991,7 @@ function dibujar() {
      (abajo si sube, arriba si baja) es la línea tendencial operativa. Todo se
      proyecta hacia la derecha. */
   const TC = M._tendCorto;
-  if (TC && TC.canal && TC.dir !== 'lateral') {
+  if (M._verTendencias && TC && TC.canal && TC.dir !== 'lateral') {
     const C = TC.canal;
     const x0 = mXt(C.t0), x1r = mXt(C.t1);
     if (x1r !== x0) {
@@ -1962,14 +2028,12 @@ function dibujar() {
   }
   let bandaSolo = null;   // (compatibilidad con el resto del dibujo)
 
-  /* ── ZONAS SWING + ENTRADAS ──
-     Cada zona es un rango de OSCILACIÓN (acumulación) que precedió a un IMPULSO.
-     Demanda (verde, debajo del precio) → largos; oferta (roja, encima) → cortos.
-     Se dibujan varias, proyectadas a la derecha. Las líneas de entrada/stop/
-     objetivo solo en la MÁS CERCANA al precio (la más operable), para no saturar. */
+  /* ── ZONAS SWING (con mapa de calor dentro) ──
+     La estrategia real va disfrazada: dentro de cada zona, de izquierda a
+     derecha, se pinta un mapa de calor (misma paleta que Liquidity Pools) con
+     una banda roja de "interés". Las líneas de entrada explícitas no se
+     muestran. Las velas se dibujan después, así la acumulación queda visible. */
   const _zs = M.estructuras || [];
-  let _zNear = null, _zNearD = Infinity;
-  _zs.forEach((z) => { const d = z.dir === 'demanda' ? (M.precio - z.hi) : (z.lo - M.precio); if (d >= 0 && d < _zNearD) { _zNearD = d; _zNear = z; } });
   _zs.forEach((Z) => {
     if (Z.hi < pMin || Z.lo > pMax) return;
     const baj = Z.dir === 'oferta';
@@ -1977,30 +2041,13 @@ function dibujar() {
     const xL = Math.max(0, Math.min(x1, mXt(Z.t0))), xR = x1;
     const yT = Y(Math.min(pMax, Z.hi)), yB = Y(Math.max(pMin, Z.lo)), alto = Math.max(3, yB - yT);
     g.save();
-    const gr = g.createLinearGradient(xL, 0, xR, 0);
-    gr.addColorStop(0, `rgba(${col},0.14)`); gr.addColorStop(1, `rgba(${col},0.04)`);
-    g.fillStyle = gr; g.fillRect(xL, yT, xR - xL, alto);
-    g.strokeStyle = `rgba(${col},0.8)`; g.lineWidth = 1.2;
+    // mapa de calor de izquierda a derecha dentro de la zona
+    dibujarCalorZona(g, Z, xL, xR, yT, yB);
+    // marco discreto de la zona
+    g.strokeStyle = `rgba(${col},0.7)`; g.lineWidth = 1.1;
     g.beginPath(); g.moveTo(xL, yT + .5); g.lineTo(xR, yT + .5); g.stroke();
     g.beginPath(); g.moveTo(xL, yB - .5); g.lineTo(xR, yB - .5); g.stroke();
-    g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left'; g.fillStyle = `rgba(${col},0.95)`;
-    const tag = Z.rr > 0 ? ` · 1:${Z.rr}` : ' · ancha';
-    g.fillText((baj ? 'OFERTA' : 'DEMANDA') + tag, xL + 4, yT + (baj ? 11 : alto - 5));
-
-    // Solo la zona más cercana muestra las líneas operativas completas.
-    if (Z === _zNear && Z.rr > 0) {
-      const linea = (p, cl, txt, dash) => {
-        if (p < pMin || p > pMax) return;
-        const y = Y(p); g.strokeStyle = cl; g.lineWidth = 1.4; g.setLineDash(dash || []);
-        g.beginPath(); g.moveTo(xL, y); g.lineTo(x1, y); g.stroke(); g.setLineDash([]);
-        g.fillStyle = cl; g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'right';
-        g.fillText(txt, x1 - 4, y - 3); g.textAlign = 'left';
-      };
-      linea(Z.e1, `rgba(${col},1)`, 'ENTRADA 1');
-      linea(Z.e2, `rgba(${col},.7)`, 'ENTRADA 2 (opcional)', [4, 4]);
-      linea(Z.sl, 'rgba(246,70,93,.95)', 'STOP', [3, 3]);
-      linea(Z.tp, 'rgba(46,232,106,.95)', `OBJETIVO 1:${Z.rr}`, []);
-    }
+    g.beginPath(); g.moveTo(xL + .5, yT); g.lineTo(xL + .5, yB); g.stroke();
     g.restore();
   });
 
@@ -2197,7 +2244,7 @@ function arrastrarTend(e) {
 
 function engancharGestos(cv) {
   const zoom = (f) => {
-    const maxA = Math.max(60, (M.velas.length || 800) - 2);   // alejar hasta ver casi TODA la historia cargada
+    const maxA = Math.max(60, (M.velas.length || 1000) - 2);   // alejar hasta ver casi TODA la historia cargada
     M.ancho = Math.max(12, Math.min(maxA, Math.round((M.ancho || 70) * f)));   // acercar hasta 12 velas
     dibujar();
   };
@@ -2339,7 +2386,7 @@ function engancharGestos(cv) {
       M.zoomY = Math.max(0.2, Math.min(6, (M.zoomY || 1) * (e.deltaY > 0 ? 1.12 : 0.9)));
       dibujar();
     } else {
-      zoom(e.deltaY > 0 ? 1.14 : 0.88);
+      zoom(e.deltaY > 0 ? 1.28 : 0.78);
     }
   }, { passive: false });
 
