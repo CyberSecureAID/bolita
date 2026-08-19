@@ -883,7 +883,7 @@ function detectarEstructuras(velas) {
   for (let k = Math.max(1, n - 60); k < n; k++) { sumR += Math.abs(velas[k].h - velas[k].l); cR++; }
   const atr = cR ? sumR / cR : precio * 0.005;
   const K = 6;                          // ventana del impulso
-  const MINIMP = Math.max(precio * 0.003, atr * 1.9);   // impulso mínimo relativo a la volatilidad
+  const MINIMP = Math.max(precio * 0.0025, atr * 1.6);   // impulso mínimo relativo a la volatilidad (más permisivo → más zonas)
   const brutas = [];
   let i = 8;
   // 1) IMPULSO + la OSCILACIÓN (acumulación) que lo precede.
@@ -917,7 +917,7 @@ function detectarEstructuras(velas) {
     for (let k = a; k <= i - 1; k++) { const l2 = velas[k].c >= mid ? 1 : 0; if (lado !== null && l2 !== lado) cruces++; lado = l2; }
     // La zona tiene que ser un rango real (al menos ~0.4 ATR de alto). El máximo
     // ya lo limita el impulso, así que se adapta solo a cada temporalidad.
-    if (len >= 4 && cruces >= 2 && alt >= atr * 0.4) {
+    if (len >= 3 && cruces >= 2 && alt >= atr * 0.35) {
       const dir = mov > 0 ? 'demanda' : 'oferta';   // impulso alcista → demanda; bajista → oferta
       const _vz = velas.slice(a, i);
       const liq = _vz.reduce((s, v) => s + (v.vol || 0), 0);
@@ -1936,6 +1936,17 @@ function dibujar() {
   let pAlto = Math.max(...vis.map((v) => v.h));
   let pBajo = Math.min(...vis.map((v) => v.l));
   if (M.precio > 0) { pAlto = Math.max(pAlto, M.precio); pBajo = Math.min(pBajo, M.precio); }
+  /* La escala también ABRE un poco para que las zonas swing cercanas (arriba y
+     abajo) entren en pantalla sin tener que alejar a mano. Con tope: nunca se
+     abre más de un 45% del rango de las velas, para no descuadrar el gráfico. */
+  if (M.estructuras && M.estructuras.length) {
+    const rV = (pAlto - pBajo) || 1;
+    const capHi = pAlto + rV * 0.45, capLo = pBajo - rV * 0.45;
+    M.estructuras.forEach((z) => {
+      if (z.hi <= capHi && z.hi >= pBajo) pAlto = Math.max(pAlto, z.hi);
+      if (z.lo >= capLo && z.lo <= pAlto) pBajo = Math.min(pBajo, z.lo);
+    });
+  }
   /* El zoom vertical estira o comprime la escala de precios, como al
      arrastrar el borde derecho en TradingView. */
   /* El arrastre vertical desplaza el rango de precios. */
@@ -2074,43 +2085,16 @@ function dibujar() {
      una banda roja de "interés". Las líneas de entrada explícitas no se
      muestran. Las velas se dibujan después, así la acumulación queda visible. */
   const _zs = M.estructuras || [];
-  M._zonaBtns = [];   // botones 3D (para el clic que muestra la liquidez del periodo)
   _zs.forEach((Z) => {
     if (Z.hi < pMin || Z.lo > pMax) return;
-    const baj = Z.dir === 'oferta';
-    const col = baj ? '246,70,93' : '46,232,106';
     const xCal = Math.max(0, Math.min(x1, mXt(Z.t1) + paso / 2));   // el color NACE en el borde derecho de la última vela (el impulso)
     const xR = x1;
     const yT = Y(Math.min(pMax, Z.hi)), yB = Y(Math.max(pMin, Z.lo));
     g.save();
     // Solo COLOR saliendo de las velas hacia la derecha. Sin recuadro vacío a la
-    // izquierda: nada de marco sobre la acumulación.
+    // izquierda y SIN botón: la zona es únicamente el mapa de calor.
     dibujarCalorZona(g, Z, xCal, xR, yT, yB, mXt, paso);
     g.restore();
-    // ── BOTÓN 3D al extremo derecho del rectángulo ──
-    const bs = 13, bx = x1 - bs - 5, by = (yT + yB) / 2 - bs / 2;
-    if (by > 2 && by + bs < y1 - 2) {
-      g.save();
-      g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
-      const gb = g.createLinearGradient(bx, by, bx, by + bs);
-      gb.addColorStop(0, `rgba(${col},0.95)`); gb.addColorStop(1, `rgba(${col},0.55)`);
-      g.fillStyle = gb; redondeado(g, bx, by, bs, bs, 4); g.fill();
-      g.shadowColor = 'transparent';
-      g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1; redondeado(g, bx + .5, by + .5, bs - 1, bs - 1, 4); g.stroke();
-      // icono de ondas (liquidez) dibujado a mano, para que se vea en cualquier fuente
-      g.strokeStyle = '#0b0e12'; g.lineWidth = 1.4; g.lineCap = 'round';
-      for (let iy = 0; iy < 3; iy++) {
-        const yy = by + 5 + iy * 3.1;
-        g.beginPath();
-        g.moveTo(bx + 3, yy);
-        g.quadraticCurveTo(bx + 5.2, yy - 2, bx + 7.5, yy);
-        g.quadraticCurveTo(bx + 9.8, yy + 2, bx + 12, yy);
-        g.stroke();
-      }
-      g.lineCap = 'butt';
-      g.restore();
-      M._zonaBtns.push({ x: bx, y: by, w: bs, h: bs, zona: Z });
-    }
   });
 
   /* (El tooltip de liquidez se dibuja al FINAL de dibujar(), para que quede por
@@ -2262,41 +2246,6 @@ function dibujar() {
       g.textAlign = 'left';
     }
   }
-
-  /* ── Tooltip de LIQUIDEZ del periodo (encima de TODO: velas, ejes, etc.) ── */
-  if (M._zonaTip && M._zonaTip.zona) {
-    const Z = M._zonaTip.zona;
-    const baj = Z.dir === 'oferta';
-    const col = baj ? '246,70,93' : '46,232,106';
-    const liq = Z.liq || 0, liqC = Z.liqC || 0, liqV = Math.max(0, liq - liqC);
-    const pComp = liq > 0 ? Math.round((liqC / liq) * 100) : 50;
-    const lineas = [
-      ['Liquidez del rango', dinero(liq)],
-      ['Compradora', dinero(liqC) + '  (' + pComp + '%)'],
-      ['Vendedora', dinero(liqV) + '  (' + (100 - pComp) + '%)'],
-      ['Velas en rango', String((Z.velas || []).length)]
-    ];
-    g.save();
-    g.font = '10px ui-monospace,monospace';
-    let wTip = 0; lineas.forEach((l) => { wTip = Math.max(wTip, g.measureText(l[0] + '     ' + l[1]).width); });
-    wTip = Math.min(x1 - 12, wTip + 22); const hTip = 14 * lineas.length + 26;
-    let tx = M._zonaTip.x - wTip - 8, ty = Math.max(4, Math.min(y1 - hTip - 4, M._zonaTip.y - 6));
-    if (tx < 4) tx = Math.min(x1 - wTip - 4, M._zonaTip.x + 22);
-    g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 14; g.shadowOffsetY = 4;
-    g.fillStyle = 'rgba(14,18,24,.98)'; redondeado(g, tx, ty, wTip, hTip, 8); g.fill();
-    g.shadowColor = 'transparent';
-    g.strokeStyle = `rgba(${col},.55)`; g.lineWidth = 1; redondeado(g, tx + .5, ty + .5, wTip - 1, hTip - 1, 8); g.stroke();
-    g.textAlign = 'left'; g.font = 'bold 10px ui-monospace,monospace'; g.fillStyle = `rgba(${col},1)`;
-    g.fillText(baj ? 'ZONA DE OFERTA' : 'ZONA DE DEMANDA', tx + 11, ty + 16);
-    lineas.forEach((l, i) => {
-      const yy = ty + 34 + i * 14;
-      g.font = '10px ui-monospace,monospace'; g.fillStyle = '#93a0ad'; g.textAlign = 'left';
-      g.fillText(l[0], tx + 11, yy);
-      g.fillStyle = '#e8ecf2'; g.textAlign = 'right';
-      g.fillText(l[1], tx + wTip - 11, yy);
-    });
-    g.textAlign = 'left'; g.restore();
-  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2362,15 +2311,6 @@ function engancharGestos(cv) {
     // Al primer toque en el gráfico, la línea guía de sugerencia se retira.
     if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
     if (M._tend && M._tend.guia) { M._tend.guia = false; dibujar(); }
-
-    // ── Botón 3D de una zona: muestra/oculta la liquidez negociada del periodo ──
-    for (const b of (M._zonaBtns || [])) {
-      if (lx >= b.x - 3 && lx <= b.x + b.w + 3 && ly >= b.y - 3 && ly <= b.y + b.h + 3) {
-        M._zonaTip = (M._zonaTip && M._zonaTip.zona === b.zona) ? null : { zona: b.zona, x: b.x, y: b.y };
-        dibujar(); return;
-      }
-    }
-    if (M._zonaTip) { M._zonaTip = null; dibujar(); }
 
     // ── Herramienta de posición (misma dinámica que Smart Levels) ──
     if (M._pos) {
