@@ -839,7 +839,6 @@ function dibujarCalorZona(g, Z, xAcumIni, xR, yTop, yBot, mXt, paso) {
   const rowHot = Math.round((1 - cen) * nRows - 0.5);
   const velas = Z.velas || [];
   const medio = paso ? paso / 2 : 3;
-  let lastXIni = xAcumIni;                              // continuidad: evita saltos bruscos
   for (let r = 0; r < nRows; r++) {
     const frac = 1 - (r + 0.5) / nRows;                 // 1 arriba, 0 abajo
     const pRow = Z.lo + frac * rango;
@@ -847,15 +846,10 @@ function dibujarCalorZona(g, Z, xAcumIni, xR, yTop, yBot, mXt, paso) {
     for (const nd of nodos) { const d = (frac - nd.f) / spread; base = Math.max(base, nd.s * Math.exp(-d * d)); }
     if (r === rowHot) base = Math.max(base, 1.3);       // rojo garantizado, con cuerpo
     base = Math.max(0.16, base * 0.97 + 0.06);          // SIEMPRE se pinta (rellena todo el rectángulo)
-    // ESCALONADO: la fila nace en el borde derecho de la vela más a la derecha que
-    // toca este precio. Si ninguna lo toca, sigue la anterior (sin saltos).
-    let xIni = null;
-    for (let k = velas.length - 1; k >= 0; k--) {
-      const v = velas[k];
-      if (pRow <= v.h && pRow >= v.l) { xIni = mXt(v.t) + medio; break; }
-    }
-    if (xIni === null) xIni = lastXIni; else lastXIni = xIni;
-    xIni = cl(xIni, 0, xR - 2);
+    // El color NACE en el borde derecho de la acumulación (la última vela / el
+    // impulso) y proyecta a la derecha. NUNCA se va hacia la izquierda: así el
+    // máximo/mínimo no lo supera el color y sale orgánico desde las velas.
+    const xIni = xAcumIni;
     const y = yTop + (r / nRows) * H, hh = Math.max(1, H / nRows + 0.7);
     // Gradiente SOPLETE: rojo con cuerpo → amarillo → verde → azul al final.
     const grad = g.createLinearGradient(xIni, 0, xR, 0);
@@ -930,15 +924,16 @@ function detectarEstructuras(velas) {
   const holgura = precio * 0.0006;
   const maxDist = Math.max(precio * 0.06, atr * 14);   // adaptativo: en TF grandes las zonas pueden estar más lejos
   const validas = brutas.filter((z) => {
+    const margen = (z.hi - z.lo) * 0.35;   // el precio puede asomar sin invalidar la zona (solo un cierre decidido la rompe)
     if (z.dir === 'demanda') {
       if (z.lo >= precio) return false;                            // quedó detrás
       if (precio - z.hi > maxDist) return false;                   // demasiado lejos
-      for (let k = z.i1 + 1; k < n; k++) if (velas[k].c < z.lo - holgura) return false;  // perforada
+      for (let k = z.i1 + 1; k < n; k++) if (velas[k].c < z.lo - margen) return false;  // perforada de verdad
       return true;
     }
     if (z.hi <= precio) return false;                              // quedó detrás
     if (z.lo - precio > maxDist) return false;                     // demasiado lejos
-    for (let k = z.i1 + 1; k < n; k++) if (velas[k].c > z.hi + holgura) return false;    // perforada
+    for (let k = z.i1 + 1; k < n; k++) if (velas[k].c > z.hi + margen) return false;    // perforada de verdad
     return true;
   });
   // 3) Plan de cada zona (entradas + R:R con la regla de la zona ancha).
@@ -2073,18 +2068,13 @@ function dibujar() {
     if (Z.hi < pMin || Z.lo > pMax) return;
     const baj = Z.dir === 'oferta';
     const col = baj ? '246,70,93' : '46,232,106';
-    const xL = Math.max(0, Math.min(x1, mXt(Z.t0)));      // borde izquierdo del rectángulo (donde nace)
-    const xCal = Math.max(xL, Math.min(x1, mXt(Z.t1)));   // el CALOR arranca a la DERECHA de las velas
+    const xCal = Math.max(0, Math.min(x1, mXt(Z.t1) + paso / 2));   // el color NACE en el borde derecho de la última vela (el impulso)
     const xR = x1;
-    const yT = Y(Math.min(pMax, Z.hi)), yB = Y(Math.max(pMin, Z.lo)), alto = Math.max(3, yB - yT);
+    const yT = Y(Math.min(pMax, Z.hi)), yB = Y(Math.max(pMin, Z.lo));
     g.save();
-    // mapa de calor ESCALONADO (nace del borde derecho de cada vela) tipo soplete.
+    // Solo COLOR saliendo de las velas hacia la derecha. Sin recuadro vacío a la
+    // izquierda: nada de marco sobre la acumulación.
     dibujarCalorZona(g, Z, xCal, xR, yT, yB, mXt, paso);
-    // marco discreto de la zona (todo el rectángulo, incluida la acumulación)
-    g.strokeStyle = `rgba(${col},0.7)`; g.lineWidth = 1.1;
-    g.beginPath(); g.moveTo(xL, yT + .5); g.lineTo(xR, yT + .5); g.stroke();
-    g.beginPath(); g.moveTo(xL, yB - .5); g.lineTo(xR, yB - .5); g.stroke();
-    g.beginPath(); g.moveTo(xL + .5, yT); g.lineTo(xL + .5, yB); g.stroke();
     g.restore();
     // ── BOTÓN 3D al extremo derecho del rectángulo ──
     const bs = 15, bx = x1 - bs - 5, by = (yT + yB) / 2 - bs / 2;
@@ -2112,40 +2102,8 @@ function dibujar() {
     }
   });
 
-  /* ── Tooltip de LIQUIDEZ negociada del periodo (al pulsar el botón 3D) ── */
-  if (M._zonaTip && M._zonaTip.zona) {
-    const Z = M._zonaTip.zona;
-    const baj = Z.dir === 'oferta';
-    const col = baj ? '246,70,93' : '46,232,106';
-    const liq = Z.liq || 0, liqC = Z.liqC || 0, liqV = Math.max(0, liq - liqC);
-    const pComp = liq > 0 ? Math.round((liqC / liq) * 100) : 50;
-    const lineas = [
-      ['Liquidez del rango', dinero(liq)],
-      ['Compradora', dinero(liqC) + '  (' + pComp + '%)'],
-      ['Vendedora', dinero(liqV) + '  (' + (100 - pComp) + '%)'],
-      ['Velas en rango', String((Z.velas || []).length)]
-    ];
-    g.save();
-    g.font = '10px ui-monospace,monospace';
-    let wTip = 0; lineas.forEach((l) => { wTip = Math.max(wTip, g.measureText(l[0] + '   ' + l[1]).width); });
-    wTip = Math.min(x1 - 12, wTip + 20); const hTip = 14 * lineas.length + 24;
-    let tx = M._zonaTip.x - wTip - 8, ty = Math.max(4, Math.min(y1 - hTip - 4, M._zonaTip.y - 6));
-    if (tx < 4) tx = M._zonaTip.x + 22;
-    g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 14; g.shadowOffsetY = 4;
-    g.fillStyle = 'rgba(14,18,24,.97)'; redondeado(g, tx, ty, wTip, hTip, 8); g.fill();
-    g.shadowColor = 'transparent';
-    g.strokeStyle = `rgba(${col},.5)`; g.lineWidth = 1; redondeado(g, tx + .5, ty + .5, wTip - 1, hTip - 1, 8); g.stroke();
-    g.textAlign = 'left'; g.font = 'bold 10px ui-monospace,monospace'; g.fillStyle = `rgba(${col},1)`;
-    g.fillText(baj ? 'ZONA DE OFERTA' : 'ZONA DE DEMANDA', tx + 10, ty + 15);
-    lineas.forEach((l, i) => {
-      const yy = ty + 32 + i * 14;
-      g.font = '10px ui-monospace,monospace'; g.fillStyle = '#93a0ad'; g.textAlign = 'left';
-      g.fillText(l[0], tx + 10, yy);
-      g.fillStyle = '#e8ecf2'; g.textAlign = 'right';
-      g.fillText(l[1], tx + wTip - 10, yy);
-    });
-    g.textAlign = 'left'; g.restore();
-  }
+  /* (El tooltip de liquidez se dibuja al FINAL de dibujar(), para que quede por
+     encima de las velas y no lo tapen.) */
 
 
   /* ── LAS VELAS ── */
@@ -2292,6 +2250,41 @@ function dibujar() {
       g.fillText(ht, Math.max(2 + hw / 2, Math.min(x1 - hw / 2, cx)), y1 + 13.5);
       g.textAlign = 'left';
     }
+  }
+
+  /* ── Tooltip de LIQUIDEZ del periodo (encima de TODO: velas, ejes, etc.) ── */
+  if (M._zonaTip && M._zonaTip.zona) {
+    const Z = M._zonaTip.zona;
+    const baj = Z.dir === 'oferta';
+    const col = baj ? '246,70,93' : '46,232,106';
+    const liq = Z.liq || 0, liqC = Z.liqC || 0, liqV = Math.max(0, liq - liqC);
+    const pComp = liq > 0 ? Math.round((liqC / liq) * 100) : 50;
+    const lineas = [
+      ['Liquidez del rango', dinero(liq)],
+      ['Compradora', dinero(liqC) + '  (' + pComp + '%)'],
+      ['Vendedora', dinero(liqV) + '  (' + (100 - pComp) + '%)'],
+      ['Velas en rango', String((Z.velas || []).length)]
+    ];
+    g.save();
+    g.font = '10px ui-monospace,monospace';
+    let wTip = 0; lineas.forEach((l) => { wTip = Math.max(wTip, g.measureText(l[0] + '     ' + l[1]).width); });
+    wTip = Math.min(x1 - 12, wTip + 22); const hTip = 14 * lineas.length + 26;
+    let tx = M._zonaTip.x - wTip - 8, ty = Math.max(4, Math.min(y1 - hTip - 4, M._zonaTip.y - 6));
+    if (tx < 4) tx = Math.min(x1 - wTip - 4, M._zonaTip.x + 22);
+    g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 14; g.shadowOffsetY = 4;
+    g.fillStyle = 'rgba(14,18,24,.98)'; redondeado(g, tx, ty, wTip, hTip, 8); g.fill();
+    g.shadowColor = 'transparent';
+    g.strokeStyle = `rgba(${col},.55)`; g.lineWidth = 1; redondeado(g, tx + .5, ty + .5, wTip - 1, hTip - 1, 8); g.stroke();
+    g.textAlign = 'left'; g.font = 'bold 10px ui-monospace,monospace'; g.fillStyle = `rgba(${col},1)`;
+    g.fillText(baj ? 'ZONA DE OFERTA' : 'ZONA DE DEMANDA', tx + 11, ty + 16);
+    lineas.forEach((l, i) => {
+      const yy = ty + 34 + i * 14;
+      g.font = '10px ui-monospace,monospace'; g.fillStyle = '#93a0ad'; g.textAlign = 'left';
+      g.fillText(l[0], tx + 11, yy);
+      g.fillStyle = '#e8ecf2'; g.textAlign = 'right';
+      g.fillText(l[1], tx + wTip - 11, yy);
+    });
+    g.textAlign = 'left'; g.restore();
   }
 }
 
