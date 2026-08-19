@@ -200,6 +200,7 @@ const M = {
   velas: [],          // las velas del gráfico
   zonas: [],          // zonas de acumulación (demanda/oferta) desde las velas
   perfil: null,       // perfil de volumen (para el histograma lateral)
+  verPerfil: true,    // mostrar/ocultar el perfil de volumen (toggle en la barra)
   zonasHTF: [],       // zonas de la temporalidad superior (confluencia)
   mercado: null,      // VWAP, VAH/VAL, sesión, sesgo, backtest
   delta: null,        // order-flow real (aggTrades): agresor comprador vs vendedor
@@ -792,7 +793,7 @@ function analizarMercado(velas, precio, perfil) {
 function abrirNoticiasSeguro() {
   if (typeof window.abrirNoticias === 'function') { try { window.abrirNoticias(); } catch (_) {} return; }
   if (document.getElementById('news-js-lazy')) { setTimeout(abrirNoticiasSeguro, 300); return; }
-  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=4';
+  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=5';
   s.onload = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} };
   document.head.appendChild(s);
 }
@@ -843,6 +844,9 @@ export async function abrirMuros() {
           <button class="mu-ico mu-news" id="mu-news" title="News">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13v14H5a1 1 0 0 1-1-1z"/><path d="M17 8h2.5a1.5 1.5 0 0 1 1.5 1.5V18a1 1 0 0 1-1 1"/><path d="M7 9h7M7 12h7M7 15h4"/></svg>
             <span class="mu-news-dot"></span>
+          </button>
+          <button class="mu-ico" id="mu-perfil" title="Perfil de volumen">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 5h11M4 10h16M4 15h7M4 20h13"/></svg>
           </button>
           <button class="mu-ico" id="mu-validar" title="Verificar volumen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 5-3.5 7.5-8.5 9C7.5 19.5 4 17 4 12V6l8-3 8 3z"/></svg>
@@ -920,6 +924,7 @@ export async function abrirMuros() {
   $('mu-foto').onclick = () => guardarImagen();
   $('mu-validar').onclick = () => validarVolumen();
   { const bn = $('mu-news'); if (bn) bn.onclick = () => abrirNoticiasSeguro(); }
+  { const bp = $('mu-perfil'); if (bp) { bp.classList.toggle('apagado', !M.verPerfil); bp.onclick = () => { M.verPerfil = !M.verPerfil; bp.classList.toggle('apagado', !M.verPerfil); dibujar(); }; } }
   $('mu-analista').onclick = () => abrirAnalista();
   $('mu-tema').onclick = () => {
     M.tema = M.tema === 'claro' ? 'oscuro' : 'claro';
@@ -1534,7 +1539,7 @@ function dibujar() {
   /* ── MAPA DE CALOR de volumen (fondo) ──
      Sombreado tenue a TODO el ancho según la densidad de volumen a cada
      precio: las zonas emergen del calor de forma orgánica. */
-  if (M.perfil && M.perfil.vol) {
+  if (M.verPerfil && M.perfil && M.perfil.vol) {
     const pf = M.perfil;
     for (let b = 0; b < pf.N; b++) {
       const pB = pf.lo + (b + 0.5) * (pf.hi - pf.lo) / pf.N;
@@ -1628,7 +1633,7 @@ function dibujar() {
   /* ── PERFIL DE VOLUMEN (ENCIMA de las velas) ──
      Silueta que sale del borde izquierdo y se DESVANECE a la derecha (sin corte
      duro). Los nodos más relevantes (POC y franjas de zonas) brillan más. */
-  if (M.perfil && M.perfil.vol) {
+  if (M.verPerfil && M.perfil && M.perfil.vol) {
     const pf = M.perfil;
     const wMax = Math.min(150, x1 * 0.26);
     const binH = y1 / pf.N;
@@ -1947,7 +1952,8 @@ function arrastrarTend(e) {
 
 function engancharGestos(cv) {
   const zoom = (f) => {
-    M.ancho = Math.max(20, Math.min(140, Math.round((M.ancho || 70) * f)));
+    const maxA = Math.max(60, (M.velas.length || 400) - 4);   // alejar hasta ver casi todas las velas cargadas
+    M.ancho = Math.max(20, Math.min(maxA, Math.round((M.ancho || 70) * f)));
     dibujar();
   };
 
@@ -1980,12 +1986,12 @@ function engancharGestos(cv) {
         const dentroX = lx >= G.x - 7 && lx <= G.x + G.w + 7;
         // 2) borde izq/der → redimensionar (cambia t0/t1)
         if (dentroX && ly >= Math.min(G.yt, G.ye, G.ys) - 6 && ly <= Math.max(G.yt, G.ye, G.ys) + 6) {
-          if (Math.abs(lx - G.x) < 7) return arrastrarBorde(e, 'izq');
-          if (Math.abs(lx - (G.x + G.w)) < 7) return arrastrarBorde(e, 'der');
+          if (Math.abs(lx - G.x) < 7) { mostrarPosCfg(); return arrastrarBorde(e, 'izq'); }
+          if (Math.abs(lx - (G.x + G.w)) < 7) { mostrarPosCfg(); return arrastrarBorde(e, 'der'); }
           // 3) sobre una de las 3 líneas → arrastrar esa línea
-          if (Math.abs(ly - G.yt) < 7) return arrastrarLinea(e, 'target');
-          if (Math.abs(ly - G.ye) < 7) return arrastrarLinea(e, 'entry');
-          if (Math.abs(ly - G.ys) < 7) return arrastrarLinea(e, 'stop');
+          if (Math.abs(ly - G.yt) < 7) { mostrarPosCfg(); return arrastrarLinea(e, 'target'); }
+          if (Math.abs(ly - G.ye) < 7) { mostrarPosCfg(); return arrastrarLinea(e, 'entry'); }
+          if (Math.abs(ly - G.ys) < 7) { mostrarPosCfg(); return arrastrarLinea(e, 'stop'); }
           // 4) dentro de la franja → arrastrar toda la posición + mostrar config
           mostrarPosCfg(); return arrastrarPosEntera(e);
         }
@@ -2872,6 +2878,7 @@ function estilos() {
   #mu-overlay .mu-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
   #mu-overlay .mu-ico:active{transform:translateY(1px);box-shadow:0 1px 3px rgba(0,0,0,.4)}
   #mu-overlay .mu-news{position:relative}
+  #mu-overlay .mu-ico.apagado{opacity:.4}
   #mu-overlay .mu-news .mu-news-dot{position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:#f6465d;box-shadow:0 0 0 0 rgba(246,70,93,.6);animation:muNewsPulse 2.2s infinite}
   @keyframes muNewsPulse{0%{box-shadow:0 0 0 0 rgba(246,70,93,.55)}70%{box-shadow:0 0 0 6px rgba(246,70,93,0)}100%{box-shadow:0 0 0 0 rgba(246,70,93,0)}}
   /* "Cómo funciona" con texto en escritorio, solo el signo en móvil. */
@@ -3705,13 +3712,26 @@ function zonasOp(tipo) {
   const lado = tipo === 'long' ? 'demanda' : 'oferta';
   const cand = zonas.filter((x) => x.lado === lado);
   if (!cand.length || !px) return [];
-  const dist = (z) => Math.abs(z.pPoc - px) / px;
   const ROOM = 0.004;
   const correcto = tipo === 'long'
     ? cand.filter((z) => z.pPoc <= px * (1 - ROOM))     // soporte por debajo
     : cand.filter((z) => z.pPoc >= px * (1 + ROOM));    // resistencia por encima
   const base = correcto.length ? correcto : cand;
-  return base.slice().sort((a, b) => (b.confianza - a.confianza) || (dist(a) - dist(b)));
+  // Rango reciente: el nodo de mayor VOLUMEN suele caer en el MEDIO del rango
+  // (donde el precio se consolidó), que NO es operable. Una buena operación va
+  // al EXTREMO: resistencia (máximo reciente) para short, soporte (mínimo) para
+  // long. Por eso puntuamos por cercanía al extremo, no solo por volumen.
+  const rec = (M.velas || []).slice(-80);
+  const hi = rec.length ? Math.max.apply(null, rec.map((v) => v.h)) : px;
+  const lo = rec.length ? Math.min.apply(null, rec.map((v) => v.l)) : px;
+  const rango = Math.max(1e-9, hi - lo);
+  const calidad = (z) => {
+    const lejosExtremo = tipo === 'long'
+      ? Math.max(0, (z.pLow - lo) / rango)    // long: cuánto se aleja del mínimo
+      : Math.max(0, (hi - z.pHigh) / rango);  // short: cuánto se aleja del máximo
+    return (z.confianza || 0) - 130 * lejosExtremo;
+  };
+  return base.slice().sort((a, b) => calidad(b) - calidad(a));
 }
 function opDeZona(tipo, z) {
   const px = M.precio || (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
@@ -4041,9 +4061,17 @@ function posTendCfg() {
 /* Config de la posición: eliminar (hija del radar). */
 function mostrarPosCfg() {
   cerrarPosCfg(); const ov = $('mu-overlay'); if (!ov || !M._pos) return;
+  const P = M._pos;
   const c = document.createElement('div'); c.id = 'mu-poscfg';
-  c.innerHTML = `<span class="pc-et">${M._pos.tipo === 'poslarga' ? '\u25b2 LARGA' : '\u25bc CORTA'}</span><button data-a="del" title="Eliminar">\u{1F5D1}</button>`;
+  c.innerHTML = `<span class="pc-et">${P.tipo === 'poslarga' ? '\u25b2 LARGA' : '\u25bc CORTA'}</span>` +
+    `<button data-a="color" title="Color">\u25c9</button>` +
+    `<button data-a="grosor" title="Grosor">\u2261</button>` +
+    `<button data-a="del" title="Eliminar">\u{1F5D1}</button>`;
   ov.appendChild(c); posPosCfg();
+  const paleta = ['#eaecef', '#2ee86a', '#f6465d', '#E8B84B', '#7fbaff', '#c58bff'];
+  const grosores = [1.5, 2.5, 3.5];
+  c.querySelector('[data-a="color"]').onclick = () => { const i = (paleta.indexOf(P.cEntry) + 1) % paleta.length; P.cEntry = paleta[i]; dibujar(); };
+  c.querySelector('[data-a="grosor"]').onclick = () => { let i = grosores.indexOf(P.grosor); i = (i + 1) % grosores.length; P.grosor = grosores[i < 0 ? 1 : i]; dibujar(); };
   c.querySelector('[data-a="del"]').onclick = () => { M._pos = null; M._posList = null; quitarPager(); cerrarPosCfg(); dibujar(); };
 }
 function posPosCfg() {

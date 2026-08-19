@@ -16,15 +16,12 @@
   // artículos viejos; con 'latest' trae lo de AHORA MISMO.
   var FUENTES = [
     'https://min-api.cryptocompare.com/data/v2/news/?lang=EN&sortOrder=latest',
-    'https://min-api.cryptocompare.com/data/v2/news/?lang=ES&sortOrder=latest',
-    'https://min-api.cryptocompare.com/data/v2/news/?lang=EN&sortOrder=latest&categories=Trading,Technical%20Analysis,Market,Regulation'
+    'https://min-api.cryptocompare.com/data/v2/news/?lang=ES&sortOrder=latest'
   ];
-  // Respaldo por RSS (por si CryptoCompare estuviera bloqueado en tu red).
+  // Respaldo por RSS SOLO si CryptoCompare no responde (pocos feeds, para no tardar).
   var RSS = [
     'https://es.cointelegraph.com/rss',
-    'https://cointelegraph.com/rss/tag/tech-analysis',
-    'https://es.investing.com/rss/news_301.rss',
-    'https://www.dailyforex.com/forex-rss'
+    'https://cointelegraph.com/rss/tag/tech-analysis'
   ];
 
   var _cache = null, _cacheAt = 0;
@@ -39,7 +36,7 @@
   function traer(url) {
     return conTimeout(fetch(url, { cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('http ' + r.status); return r.json();
-    }), 10000).then(function (j) {
+    }), 7000).then(function (j) {
       var arr = (j && j.Data) || [];
       return arr.map(function (n) {
         return {
@@ -59,7 +56,7 @@
     var vias = [
       function () {
         return conTimeout(fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(url), { cache: 'no-store' })
-          .then(function (r) { if (!r.ok) throw 0; return r.json(); }), 9000)
+          .then(function (r) { if (!r.ok) throw 0; return r.json(); }), 7000)
           .then(function (j) {
             if (!j || j.status !== 'ok' || !j.items || !j.items.length) throw 0;
             var fuente = (j.feed && j.feed.title) || 'RSS';
@@ -70,7 +67,7 @@
       },
       function () {
         return conTimeout(fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), { cache: 'no-store' })
-          .then(function (r) { if (!r.ok) throw 0; return r.json(); }), 9000)
+          .then(function (r) { if (!r.ok) throw 0; return r.json(); }), 7000)
           .then(function (j) { var it = parsearXML(j.contents || '', url); if (!it.length) throw 0; return it; });
       }
     ];
@@ -117,7 +114,7 @@
     var limite = Date.now() - 7 * 864e5;
     var frescas = out.filter(function (n) { return n.ts && n.ts >= limite; });
     var lista = frescas.length >= 12 ? frescas : out;
-    _cache = lista.slice(0, 60); _cacheAt = Date.now();
+    _cache = lista.slice(0, 30); _cacheAt = Date.now();
     return _cache;
   }
 
@@ -147,7 +144,7 @@
     '#news-box .nw-item{display:flex;flex-direction:column;text-decoration:none;border-radius:14px;overflow:hidden;background:#141a23;border:1px solid rgba(255,255,255,.07);transition:border-color .15s,transform .08s,box-shadow .15s}' +
     '#news-box .nw-item:hover{border-color:rgba(232,184,75,.55);box-shadow:0 10px 26px rgba(0,0,0,.4);transform:translateY(-2px)}' +
     '#news-box .nw-item:active{transform:translateY(0)}' +
-    '#news-box .nw-ph{position:relative;width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#1c2530,#0e131a);overflow:hidden}' +
+    '#news-box .nw-ph{position:relative;width:100%;aspect-ratio:16/9;min-height:150px;background:linear-gradient(135deg,#1c2530,#0e131a);overflow:hidden}' +
     '#news-box .nw-ph img{width:100%;height:100%;object-fit:cover;display:block}' +
     '#news-box .nw-ph.noimg::after{content:"CRIPTOCUBA";position:absolute;inset:0;display:grid;place-items:center;font-family:ui-monospace,monospace;font-weight:800;font-size:15px;letter-spacing:2px;color:rgba(232,184,75,.35)}' +
     '#news-box .nw-ph .nw-src{position:absolute;left:8px;top:8px;padding:3px 7px;border-radius:7px;background:rgba(8,11,16,.82);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);font-size:9.5px;font-weight:800;color:#E8B84B;font-family:ui-monospace,monospace;text-transform:uppercase;letter-spacing:.5px;max-width:75%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
