@@ -77,7 +77,7 @@ const DIC = {
     'Dónde está el dinero atrapado': 'Where the money is trapped',
     'El mapa de liquidaciones: los precios donde hay posiciones esperando a ser barridas. El precio va a buscarlas.':
       'The liquidation map: prices where positions wait to be swept. Price goes looking for them.',
-    'Radar Institucional': 'Institutional Radar',
+    'Lógica Estructural Avanzada': 'Advanced Structural Logic',
     'Vea lo que hacen los grandes': 'See what the big players do',
     'Próximamente': 'Coming soon',
     'En desarrollo': 'In development',

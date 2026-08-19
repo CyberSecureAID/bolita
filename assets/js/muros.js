@@ -1,4 +1,4 @@
-// muros.js — Detector de Radar Institucional
+// muros.js — Lógica Estructural Avanzada
 //
 // EL PROBLEMA QUE RESUELVE
 //
@@ -937,9 +937,6 @@ export async function abrirMuros() {
           <button class="mu-ico" id="mu-cal" title="Calendario económico">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4M7.5 13h2M11 13h2M14.5 13h2M7.5 16.5h2M11 16.5h2"/></svg>
           </button>
-          <button class="mu-ico" id="mu-validar" title="Verificar volumen">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 5-3.5 7.5-8.5 9C7.5 19.5 4 17 4 12V6l8-3 8 3z"/></svg>
-          </button>
           <button class="mu-ico" id="mu-tema" title="Tema claro/oscuro">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
           </button>
@@ -970,26 +967,6 @@ export async function abrirMuros() {
           </div>
           <img class="mu-marca" src="assets/img/cco-marca.webp" alt="">
         </div>
-
-        <aside class="mu-panel" id="mu-panel">
-          <div class="mu-panel-t"><em>Institutional Radar</em> · Zonas de acumulación</div>
-          <div class="mu-cockpit" id="mu-cockpit"></div>
-          <div class="mu-chips">
-            <button class="mu-fbtn verde" data-filtro="compra">
-              <b>Demanda</b><i class="mu-cuenta" id="mu-n-compra">0</i>
-            </button>
-            <button class="mu-fbtn rojo" data-filtro="venta">
-              <b>Oferta</b><i class="mu-cuenta" id="mu-n-venta">0</i>
-            </button>
-            <button class="mu-fbtn oro" data-filtro="fuertes">
-              <b>★ Fuertes</b><i class="mu-cuenta" id="mu-n-fuertes">0</i>
-            </button>
-            <button class="mu-fbtn gris" data-filtro="falsos">
-              <b>⟳ Retesteo</b><i class="mu-cuenta" id="mu-n-falsos">0</i>
-            </button>
-          </div>
-          <div class="mu-lista" id="mu-lista"></div>
-        </aside>
       </div>
       <div class="mu-alerta" id="mu-alerta"></div>
     </div>`;
@@ -1011,7 +988,6 @@ export async function abrirMuros() {
   $('mu-sel').onclick = (e) => { e.stopPropagation(); menuPares(); };
 
   $('mu-foto').onclick = () => guardarImagen();
-  $('mu-validar').onclick = () => validarVolumen();
   { const bc = $('mu-cal'); if (bc) bc.onclick = () => abrirNoticiasSeguro('calendario'); }
   $('mu-analista').onclick = () => abrirAnalista();
   $('mu-tema').onclick = () => {
@@ -1649,37 +1625,10 @@ function dibujar() {
      En vez de decenas de franjas de volumen (ruido), se dibujan las CAJAS
      donde el precio oscila: sus bordes son respetados por el precio. El
      rango más reciente (el actual) se resalta; ahí es donde se opera. */
-  /* ── ZONAS SWING (order blocks) ──
-     Demanda (soporte, debajo del precio) en verde; oferta (resistencia, encima)
-     en rojo. Se proyectan hacia la DERECHA (niveles vigentes hasta que el precio
-     los alcance). Nada de recuadros al azar: solo acumulación antes de un impulso. */
-  const zsw = (M.estructuras || []).filter((b) => b.hi >= pMin && b.lo <= pMax);
-  zsw.forEach((b) => {
-    const dem = b.dir === 'demanda';
-    const xL = Math.max(0, Math.min(x1, mXt(b.t0)));
-    const xR = x1;                                   // proyectada hacia la derecha
-    if (xR - xL < 2) return;
-    const yT = Y(Math.min(pMax, b.hi)), yB = Y(Math.max(pMin, b.lo));
-    const alto = Math.max(3, yB - yT);
-    const rgb = dem ? '46,232,106' : '246,70,93';
-    // relleno con degradado suave que se desvanece hacia la derecha (elegante)
-    const gr = g.createLinearGradient(xL, 0, xR, 0);
-    gr.addColorStop(0, `rgba(${rgb},0.14)`);
-    gr.addColorStop(1, `rgba(${rgb},0.04)`);
-    g.fillStyle = gr;
-    g.fillRect(xL, yT, xR - xL, alto);
-    // bordes techo/piso finos
-    g.strokeStyle = `rgba(${rgb},0.85)`; g.lineWidth = 1.4;
-    g.beginPath(); g.moveTo(xL, yT + 0.5); g.lineTo(xR, yT + 0.5); g.stroke();
-    g.beginPath(); g.moveTo(xL, yB - 0.5); g.lineTo(xR, yB - 0.5); g.stroke();
-    // borde izquierdo (inicio de la zona)
-    g.strokeStyle = `rgba(${rgb},0.55)`; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(xL + 0.5, yT); g.lineTo(xL + 0.5, yB); g.stroke();
-    // etiqueta discreta en el borde izquierdo
-    g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left';
-    g.fillStyle = `rgba(${rgb},0.95)`;
-    g.fillText(dem ? 'DEMANDA' : 'OFERTA', xL + 4, yT + (dem ? alto - 5 : 11));
-  });
+  /* ── (Lienzo limpio) ──
+     Se retiró el dibujo anterior de zonas. Sobre esta gráfica limpia se
+     construirá la estrategia "Lógica Estructural Avanzada" por fases:
+     tendencia (jerárquica + corto plazo) → evento → zona swing → entradas. */
   let bandaSolo = null;   // (compatibilidad con el resto del dibujo)
 
 
@@ -1724,9 +1673,7 @@ function dibujar() {
       g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
       g.restore(); g.setLineDash([]);
     };
-    refLinea(mk.vah, 'rgba(216,184,94,.72)', [6, 5], 1.3, false, null);
-    refLinea(mk.val, 'rgba(216,184,94,.72)', [6, 5], 1.3, false, null);
-    refLinea(mk.vwap, 'rgba(127,186,255,1)', [], 1.8, true, 'rgba(127,186,255,.12)');
+  /* ── (VWAP / VAH / VAL retirados de la gráfica a petición: lienzo limpio) ── */
   }
 
   /* ── La escala, con los niveles marcados ── */
@@ -1741,21 +1688,10 @@ function dibujar() {
     const p = pMin + (pMax - pMin) * (i / 6);
     const y = Y(p);
     if (Math.abs(y - yP) < 15) continue;
-    if (M.zonas.some((z) => Math.abs(Y(z.p) - y) < 15)) continue;
     g.fillStyle = P.ejeTxt;
     g.fillText(fmt(p), x1 + 7, y + 3.5);
   }
-  M.zonas.forEach((z) => {
-    if (z.p < pMin || z.p > pMax) return;
-    if (M._pos && bandaSolo && z !== bandaSolo.z) return;   // con herramienta activa, solo la zona de la operación
-    const y = Y(z.p);
-    const col = z.lado === 'demanda' ? '#2ee86a' : '#f6465d';
-    g.fillStyle = col;
-    redondeado(g, x1 + 2, y - 9, mDer - 5, 18, 4); g.fill();
-    g.fillStyle = z.lado === 'demanda' ? '#04210f' : '#2a0509';
-    g.font = 'bold 10px ui-monospace,monospace';
-    g.fillText(fmt(z.p), x1 + 7, y + 3.5);
-  });
+  /* (Tachuelas de precio de las zonas retiradas: la gráfica quedó limpia.) */
   g.fillStyle = '#E8B84B';
   redondeado(g, x1 + 2, yP - 11, mDer - 5, 22, 5); g.fill();
   g.fillStyle = '#2a1c00';
@@ -1787,9 +1723,7 @@ function dibujar() {
       g.fillText(fmt(p), W - 5, y + 3.2);
       g.textAlign = 'left';
     };
-    refTag(mk.vah, 'VAH', 'rgba(216,184,94,.92)', '#2a1c00');
-    refTag(mk.val, 'VAL', 'rgba(216,184,94,.92)', '#2a1c00');
-    refTag(mk.vwap, 'VWAP', 'rgba(127,186,255,.95)', '#06101f');
+    void refTag;   // VAH / VAL / VWAP retirados de la gráfica (lienzo limpio).
   }
 
   /* ── Las horas ── */
@@ -2252,6 +2186,7 @@ function pintarCockpit() {
 }
 
 function pintarPanel() {
+  if (!document.getElementById('mu-panel')) return;   // panel retirado: nada que pintar
   const lista = $('mu-lista'); if (!lista) return;
   const estado = $('mu-estado');
   pintarCockpit();
@@ -2602,74 +2537,54 @@ async function ponerLogos() {
    ══════════════════════════════════════════════════════════════ */
 const PASOS_MU = [
   {
-    t: 'Qué es el Institutional Radar',
-    d: 'Detecta las <b>zonas donde el capital institucional ha operado de verdad</b>: los rangos de precio que concentran el volumen real. Ahí es donde el mercado tiene soporte y resistencia auténticos.',
-    x: 'Deja de adivinar niveles: aquí ve dónde está el dinero que mueve el precio.'
+    t: 'Qué es la Lógica Estructural Avanzada',
+    d: 'Es una estrategia para <b>entrar al mercado con la mayor probabilidad posible de acertar</b>. No adivina: sigue tres pasos claros para saber <b>hacia dónde va el precio</b> y <b>en qué punto exacto entrar</b>. Aquí abajo te la explicamos paso a paso, aunque nunca hayas operado antes.',
+    x: 'La idea es sencilla: entender la tendencia, esperar el momento correcto y entrar donde el riesgo es pequeño y el beneficio grande.'
   },
   {
-    t: 'Demanda y oferta',
-    d: 'Las <b>zonas swing</b> marcan una acumulación (oscilación en rango) que precede a un impulso que rompe estructura. La <b>demanda</b> (verde, soporte) queda por debajo del precio y sirve para largos; la <b>oferta</b> (roja, resistencia) por encima y sirve para cortos. Se proyectan hacia la derecha mientras el precio no las alcance. La entrada va en el borde de la zona, con el stop al otro lado y objetivo 1:1.',
-    x: 'Compras cerca de demanda fuerte, vendes cerca de oferta fuerte. El sesgo lo da el contexto.'
+    t: 'Paso 1 · Determina DOS tendencias',
+    d: 'Todo empieza sabiendo hacia dónde va el precio, pero en <b>dos escalas a la vez</b>: la de <b>largo plazo</b> (el rumbo grande) y la de <b>corto plazo</b> (el movimiento pequeño de ahora). La de largo plazo manda; la de corto plazo es la que se mueve buscando encontrarse con ella.',
+    x: 'Piensa en una corriente de mar (largo plazo) y una ola pequeña encima (corto plazo). La ola sube y baja, pero al final la corriente decide.'
   },
   {
-    t: 'La línea de entrada (POC)',
-    d: 'La línea punteada en el centro de cada banda es el <b>punto de control</b>: el precio exacto donde más volumen se negoció. Es tu referencia de entrada y de retesteo.',
-    x: 'Todo se rige por esa línea. La banda solo marca el rango; el POC es el nivel que importa.'
+    t: 'Paso 1 · Qué temporalidad mirar',
+    d: 'La tendencia de <b>largo plazo</b> se mira en una temporalidad más grande que la que vas a operar: si operas en <b>1 hora</b>, míralo en <b>diario</b>. Si operas en <b>15 minutos</b>, míralo en <b>4 horas</b>. Si operas en <b>5 minutos</b>, en <b>4 horas o 1 hora</b>. Si operas en <b>2 o 4 horas</b>, míralo en <b>diario o semanal</b>.',
+    x: 'Regla simple: la tendencia grande siempre se lee en una temporalidad bastante mayor que la que usas para entrar.'
   },
   {
-    t: 'El importe de la zona',
-    d: 'La cifra en dólares de cada zona es el <b>capital acumulado</b> que ha pasado por ese rango. Cuanto mayor es, más difícil de romper y más probable la reacción.',
-    x: 'Una zona de decenas de millones pesa mucho más que una de unos pocos cientos de miles.'
+    t: 'Paso 1 · El triángulo de confluencia',
+    d: 'Al trazar las dos tendencias se forma una especie de <b>triángulo</b>: la de corto plazo se va acercando a la de largo plazo hasta que <b>se tocan</b>. Ese punto donde se encuentran es el más importante de todo, porque ahí el precio tiene que <b>decidir</b>.',
+    x: 'No entramos en cualquier sitio: esperamos a ese punto de encuentro, donde ocurren las mejores oportunidades.'
   },
   {
-    t: 'La barra de confianza',
-    d: 'Cada zona lleva una puntuación de <b>0 a 100</b> que combina volumen, reacciones previas, alineación del flujo y confluencia. Cuanto más alta, más fiable el nivel.',
-    x: 'Prioriza las zonas de confianza alta para tus decisiones.'
+    t: 'Paso 2 · Qué pasa en el punto de encuentro',
+    d: 'Cuando las dos tendencias se tocan, solo pueden pasar <b>dos cosas</b>. <b>Una:</b> se rompe la tendencia de largo plazo y nace un movimiento nuevo en la otra dirección (por ejemplo, venía bajando y arranca a subir). <b>Dos:</b> se rompe la tendencia de corto plazo y el precio <b>retoma</b> el rumbo grande de siempre (venía bajando de fondo y sigue bajando).',
+    x: 'Sea cual sea de las dos, esa ruptura es la señal de que algo grande empieza. Ahí es donde nos preparamos.'
   },
   {
-    t: '★ Zona fuerte',
-    d: 'Las marcadas en <b>dorado</b> son las de mayor convicción: mucho volumen, reacciones confirmadas y confluencia. Son los niveles que las mesas vigilan.',
-    x: 'Los mejores sitios para buscar entradas y para colocar tus stops.'
+    t: 'Paso 2 · La zona de acumulación (zona swing)',
+    d: 'Justo <b>antes</b> de esa ruptura, el precio suele quedarse un rato <b>oscilando en un rango</b> (subiendo y bajando en el mismo sitio): eso es una <b>acumulación</b>. Si después de esa acumulación sale un <b>impulso fuerte</b> que rompe la tendencia, ese rango se convierte en nuestra <b>zona swing</b>: la marcamos como un rectángulo que se proyecta hacia la derecha.',
+    x: 'La acumulación es la "plataforma de lanzamiento". El impulso confirma que era buena. El rectángulo queda ahí esperando a que el precio vuelva.'
   },
   {
-    t: 'AQUÍ y Retesteo',
-    d: 'El radar te avisa cuando el precio está <b>dentro de una zona ahora</b> (AQUÍ) o a punto de <b>volver a probarla</b> (retesteo). Ese es el momento de máxima atención.',
-    x: 'El retesteo de una zona fuerte suele ser la entrada más limpia.'
+    t: 'Paso 2 · También sirven los retrocesos',
+    d: 'No siempre hay que esperar una ruptura. Cuando el precio ya va claro en una dirección (sube, descansa, sube, descansa…), cada <b>descanso</b> o <b>retroceso</b> que forma una pequeña acumulación es también una oportunidad para <b>subirte a la ola</b> a favor de la tendencia.',
+    x: 'Aprovechamos el retroceso para entrar barato y acompañar al precio en su dirección predominante.'
   },
   {
-    t: 'VWAP, VAH y VAL',
-    d: 'Son las <b>referencias institucionales</b>: VWAP es el precio justo ponderado por volumen; VAH y VAL son los bordes del área de valor. Cuando una zona coincide con ellas, se refuerza.',
-    x: 'Precio por encima del VWAP favorece a los compradores; por debajo, a los vendedores.'
+    t: 'Paso 3 · Dónde entrar exactamente',
+    d: 'Cuando el precio <b>regresa</b> a la zona swing, entramos en su borde. Si el movimiento es bajista, la primera entrada va en la <b>línea de abajo</b> del rectángulo. Puedes poner una <b>segunda entrada</b> en la línea de arriba (opcional), donde justo va el <b>stop loss</b> de la primera. Así repartes el riesgo.',
+    x: 'Una entrada o dos, tú decides. El stop siempre va al otro lado del rectángulo.'
   },
   {
-    t: 'El cockpit',
-    d: 'La franja superior te da el mercado de un vistazo: <b>sesgo, acierto histórico, flujo agresor, zona cercana, próximo nivel fuerte y contexto de BTC y ETH</b>.',
-    x: 'Tu lectura de dos segundos antes de operar. Si BTC acompaña, la señal pesa más.'
+    t: 'Paso 3 · Cuánto arriesgar (riesgo/beneficio)',
+    d: 'Buscamos siempre una relación <b>riesgo/beneficio de 1:2</b>: arriesgar 1 para ganar 2. La excepción son las zonas <b>demasiado anchas</b>: cuando el rango de acumulación es tan grande como la mitad del impulso (o más), no se le puede pedir tanto al mercado. En ese caso operamos <b>1:1</b> o, si es muy incierto, <b>no operamos</b>.',
+    x: 'Ganar de forma constante es más importante que ganar mucho de golpe. Si la zona no da un buen 1:2, mejor esperar la siguiente.'
   },
   {
-    t: 'El perfil de volumen',
-    d: 'La silueta de la izquierda muestra <b>dónde se concentra el volumen por precio</b>. Los picos más brillantes son los imanes: el precio gravita hacia ellos.',
-    x: 'Un pico muy marcado lejos del precio suele ser un objetivo natural del movimiento.'
-  },
-  {
-    t: 'Alertas en vivo',
-    d: 'El radar te avisa con un aviso y un sonido cuando el precio <b>entra en una zona fuerte</b> o cuando una zona <b>se rompe</b>. No tienes que estar mirando la pantalla.',
-    x: 'Una zona que se rompe deja de ser soporte y pasa a ser resistencia (o al revés).'
-  },
-  {
-    t: 'Las tarjetas del panel',
-    d: 'A la derecha, cada zona tiene su tarjeta con el <b>lado</b> (demanda u oferta), el <b>importe</b>, la <b>distancia al precio</b> y la <b>barra de confianza</b>. Los filtros de arriba (Demanda, Oferta, ★ Fuertes, Retesteo) te dejan quedarte solo con lo que buscas.',
-    x: 'Empieza siempre por ★ Fuertes: son las que de verdad mueven la balanza.'
-  },
-  {
-    t: 'Abre la tarjeta para el detalle',
-    d: 'Al tocar una tarjeta se despliega todo: la <b>línea de vida</b> (formada, testeada, confirmada, vigente) y las métricas: <b>POC</b> (precio de entrada), <b>flujo firmado</b> (si domina comprador o vendedor), <b>reacciones</b>, <b>toques</b>, <b>confluencia</b> y <b>fuerza</b>.',
-    x: 'POC alto en confluencia y flujo comprador es el escenario ideal para una entrada en demanda.'
-  },
-  {
-    t: 'Cómo operar con esto',
-    d: 'Opera <b>a favor del lado despejado</b>: si hay varias zonas fuertes debajo y ninguna arriba, el camino de menor resistencia es al alza. Entra en el retesteo de una zona fuerte, coloca el stop al otro lado de su rango y confirma con el VWAP y el sesgo del cockpit.',
-    x: 'Esto es información para decidir con criterio, no una señal a ciegas. La decisión final es tuya.'
+    t: 'La regla de oro',
+    d: 'La mayor probabilidad de éxito aparece cuando <b>todo se alinea</b>: entras a favor de la tendencia de largo plazo, en una zona swing real, con su impulso confirmado, y con un riesgo/beneficio sano. Cuando esas piezas encajan, la probabilidad de acertar sube muchísimo.',
+    x: 'Esto es un servicio de pago porque es una estrategia real y probada. Tómate tu tiempo en entenderla: es la base de todo.'
   }
 ];
 
@@ -2682,7 +2597,7 @@ function ayuda() {
   d.innerHTML = `<div class="mu-bg"></div>
     <div class="mua-c">
       <button class="mua-x" id="mua-x" aria-label="Cerrar">✕</button>
-      <div class="mua-eyebrow">Radar Institucional</div>
+      <div class="mua-eyebrow">Lógica Estructural Avanzada</div>
       <div id="mua-cuerpo"></div>
     </div>`;
   document.body.appendChild(d);
@@ -3748,7 +3663,7 @@ function exportarAnalisis(a) {
     // pie
     g.fillStyle = '#6b7681'; g.font = '600 11px ui-monospace,monospace';
     g.textAlign = 'center';
-    g.fillText('CriptoCuba Oficial · Institutional Radar', Wd / 2, alto - 26);
+    g.fillText('CriptoCuba Oficial · Lógica Estructural Avanzada', Wd / 2, alto - 26);
     // descargar
     cv.toBlob((b) => {
       const url = URL.createObjectURL(b); const enl = document.createElement('a');
@@ -4040,7 +3955,7 @@ function validarVolumen() {
     const niveles = (M.zonas || []).slice(0, 6).map((z) => `${icono(z)} ${tipo(z)} ${fmt(z.pLow)}\u2013${fmt(z.pHigh)}  ${dinero(z.v)}${aqui(z)}`).join('\n');
     const sesgo = mk ? (mk.sesgo === 'comprador' ? 'Comprador' : mk.sesgo === 'vendedor' ? 'Vendedor' : 'Neutral') : 'Neutral';
     const alerta =
-`\u{1F537} ${neg('INSTITUTIONAL RADAR')}
+`\u{1F537} ${neg('LÓGICA ESTRUCTURAL AVANZADA')}
 
 ${esc(base)} \u00b7 ${esc(M.tf)} \u00b7 ${hora}
 
@@ -4090,7 +4005,7 @@ function guardarImagen() {
       g.textAlign = 'left';
       g.fillStyle = '#E8B84B';
       g.font = `800 ${19 * e2}px system-ui,sans-serif`;
-      g.fillText('Radar Institucional · Flujo de Órdenes', x, yB + 34 * e2);
+      g.fillText('Lógica Estructural Avanzada', x, yB + 34 * e2);
       g.font = `700 ${14 * e2}px ui-monospace,monospace`;
       g.fillStyle = '#C9A84B';
       g.fillText('CriptoCubaOficial.com', x, yB + 56 * e2);

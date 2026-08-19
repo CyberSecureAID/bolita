@@ -574,7 +574,7 @@ const SERVICIOS = [
   },
   {
     id: 'libro',
-    nombre: 'Radar Institucional',
+    nombre: 'Lógica Estructural Avanzada',
     lema: 'Vea lo que hacen los grandes',
     desc: 'El libro de órdenes miente: la mayoría de las órdenes grandes son falsas. Vigilamos cada una y le decimos cuáles tienen dinero real detrás.',
     img: 'assets/img/serv-libro.webp',
