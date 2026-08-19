@@ -529,18 +529,28 @@ const tiempo = (s) => {
    son las verdaderas zonas de reacción: el precio respeta sus bordes. Se
    dibujan como rectángulos y la herramienta de posición se ancla a ellos.
    ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   ZONAS SWING (ORDER BLOCKS) — lógica estructural
+   Una zona válida es una ACUMULACIÓN / OSCILACIÓN en rango que precede a un
+   IMPULSO que rompe la estructura previa. El impulso debe ser claramente mayor
+   que el rango (2–3×). Según la dirección del impulso:
+     · impulso ALCISTA  → zona de DEMANDA (soporte). Sirve para LARGOS.
+     · impulso BAJISTA  → zona de OFERTA  (resistencia). Sirve para CORTOS.
+   Solo se conservan las zonas RELEVANTES al precio actual (demanda por debajo,
+   oferta por encima) y NO MITIGADAS (el precio no las ha perforado todavía).
+   Se proyectan hacia la derecha (niveles vigentes).
+   ══════════════════════════════════════════════════════════════ */
 function detectarEstructuras(velas) {
   const n = velas ? velas.length : 0;
-  if (n < 24) return [];
+  if (n < 30) return [];
   const precio = velas[n - 1].c || velas[n - 1].o || 1;
-  const MINLEN = 8, MAXLEN = 64;
-  const cajas = [];
+  const MINLEN = 6, MAXLEN = 64;
+  const brutas = [];
   let i = 0;
   while (i < n - MINLEN) {
     let hi = velas[i].h, lo = velas[i].l;
     let j = i + 1;
-    // Absorber velas formando el canal, hasta que su altura supere ~3% del precio
-    // (un rango de acumulación/distribución es ESTRECHO) o se alcance el máximo.
+    // Formar el canal de oscilación (estrecho: menos del 3% del precio).
     while (j < n && (j - i) < MAXLEN) {
       const nHi = Math.max(hi, velas[j].h), nLo = Math.min(lo, velas[j].l);
       if ((nHi - nLo) > precio * 0.03) break;
@@ -548,39 +558,42 @@ function detectarEstructuras(velas) {
     }
     const len = j - i, alt = hi - lo;
     if (len >= MINLEN && alt > precio * 0.0015) {
-      // OSCILACIÓN: contar cuántas veces el cierre cruza la línea media. Un rango
-      // cruza varias veces (sube y baja); un impulso es monótono (casi no cruza).
+      // OSCILACIÓN: el cierre cruza la media varias veces (arriba/abajo/arriba).
       const mid = (hi + lo) / 2;
       let cruces = 0, lado = null;
-      for (let k = i; k < j; k++) {
-        const l2 = velas[k].c >= mid ? 1 : 0;
-        if (lado !== null && l2 !== lado) cruces++;
-        lado = l2;
-      }
-      // TOQUES a ambos extremos (que de verdad llegue al techo y al piso).
+      for (let k = i; k < j; k++) { const l2 = velas[k].c >= mid ? 1 : 0; if (lado !== null && l2 !== lado) cruces++; lado = l2; }
       const zA = hi - alt * 0.30, zB = lo + alt * 0.30;
       let tA = 0, tB = 0;
       for (let k = i; k < j; k++) { if (velas[k].h >= zA) tA++; if (velas[k].l <= zB) tB++; }
       if (cruces >= 3 && tA >= 2 && tB >= 2) {
-        // ¿LE SIGUIÓ UN IMPULSO? Confirma acumulación (rompe arriba) o
-        // distribución (rompe abajo). Si no, solo se guarda la caja ACTUAL.
+        // IMPULSO posterior: ¿el precio salió con fuerza (≥ 1.8× la altura)?
+        let maxUp = 0, maxDn = 0;
+        const hasta = Math.min(n, j + 24);
+        for (let k = j; k < hasta; k++) { maxUp = Math.max(maxUp, velas[k].h - hi); maxDn = Math.max(maxDn, lo - velas[k].l); }
         let dir = null;
-        const hasta = Math.min(n, j + 12);
-        for (let k = j; k < hasta; k++) {
-          if (velas[k].c > hi + alt * 0.8) { dir = 'acum'; break; }
-          if (velas[k].c < lo - alt * 0.8) { dir = 'dist'; break; }
-        }
-        const actual = j >= n - 14;
-        if (dir || actual) {
-          cajas.push({ i0: i, i1: j - 1, hi, lo, t0: velas[i].t, t1: velas[j - 1].t, len, dir, actual: actual && !dir });
-          i = j; continue;
-        }
+        if (maxUp >= alt * 1.8 && maxUp >= maxDn) dir = 'demanda';   // rompió ARRIBA → acumulación (soporte)
+        else if (maxDn >= alt * 1.8 && maxDn > maxUp) dir = 'oferta'; // rompió ABAJO → distribución (resistencia)
+        if (dir) { brutas.push({ i0: i, i1: j - 1, hi, lo, t0: velas[i].t, t1: velas[j - 1].t, dir }); i = j; continue; }
       }
     }
     i++;
   }
-  // Las más recientes (las relevantes para operar ahora).
-  return cajas.slice(-3);
+  // RELEVANCIA + NO MITIGADA respecto al precio actual.
+  const holgura = precio * 0.0006;
+  const validas = brutas.filter((z) => {
+    if (z.dir === 'demanda') {
+      if (z.lo >= precio) return false;                            // el precio ya está por debajo → quedó detrás
+      for (let k = z.i1 + 1; k < n; k++) if (velas[k].c < z.lo - holgura) return false;  // perforada
+      return true;
+    }
+    if (z.hi <= precio) return false;                              // el precio ya está por encima → detrás
+    for (let k = z.i1 + 1; k < n; k++) if (velas[k].c > z.hi + holgura) return false;    // perforada
+    return true;
+  });
+  // La demanda más cercana por debajo y la oferta más cercana por encima (hasta 2 de cada).
+  const dem = validas.filter((z) => z.dir === 'demanda').sort((a, b) => b.hi - a.hi).slice(0, 2);
+  const ofe = validas.filter((z) => z.dir === 'oferta').sort((a, b) => a.lo - b.lo).slice(0, 2);
+  return dem.concat(ofe);
 }
 
 function detectarZonas(velas, precio, opts) {
@@ -1640,30 +1653,38 @@ function dibujar() {
      En vez de decenas de franjas de volumen (ruido), se dibujan las CAJAS
      donde el precio oscila: sus bordes son respetados por el precio. El
      rango más reciente (el actual) se resalta; ahí es donde se opera. */
-  const cajas = (M.estructuras || []).filter((b) => b.hi >= pMin && b.lo <= pMax);
-  cajas.forEach((b, idx) => {
-    const esActual = b.actual || idx === cajas.length - 1;
-    let xL = Math.max(0, Math.min(x1, mXt(b.t0)));
-    let xR = esActual ? xVelas : Math.max(0, Math.min(x1, mXt(b.t1)));
+  /* ── ZONAS SWING (order blocks) ──
+     Demanda (soporte, debajo del precio) en verde; oferta (resistencia, encima)
+     en rojo. Se proyectan hacia la DERECHA (niveles vigentes hasta que el precio
+     los alcance). Nada de recuadros al azar: solo acumulación antes de un impulso. */
+  const zsw = (M.estructuras || []).filter((b) => b.hi >= pMin && b.lo <= pMax);
+  zsw.forEach((b) => {
+    const dem = b.dir === 'demanda';
+    const xL = Math.max(0, Math.min(x1, mXt(b.t0)));
+    const xR = x1;                                   // proyectada hacia la derecha
     if (xR - xL < 2) return;
     const yT = Y(Math.min(pMax, b.hi)), yB = Y(Math.max(pMin, b.lo));
     const alto = Math.max(3, yB - yT);
-    // Color por tipo: rango ACTUAL celeste; acumulación verde; distribución roja.
-    const rgb = esActual ? '34,211,238' : (b.dir === 'acum' ? '46,232,106' : b.dir === 'dist' ? '246,70,93' : '110,130,140');
-    g.fillStyle = `rgba(${rgb},${esActual ? 0.08 : 0.05})`;
+    const rgb = dem ? '46,232,106' : '246,70,93';
+    // relleno con degradado suave que se desvanece hacia la derecha (elegante)
+    const gr = g.createLinearGradient(xL, 0, xR, 0);
+    gr.addColorStop(0, `rgba(${rgb},0.14)`);
+    gr.addColorStop(1, `rgba(${rgb},0.04)`);
+    g.fillStyle = gr;
     g.fillRect(xL, yT, xR - xL, alto);
-    g.strokeStyle = `rgba(${rgb},${esActual ? 0.9 : 0.5})`;
-    g.lineWidth = esActual ? 1.7 : 1.1;
-    g.strokeRect(xL + 0.5, yT + 0.5, xR - xL - 1, alto - 1);
-    if (esActual) {
-      // Techo y piso del rango actual a todo el ancho: ahí se ubican las entradas.
-      g.strokeStyle = `rgba(${rgb},0.45)`; g.lineWidth = 1; g.setLineDash([5, 4]);
-      g.beginPath(); g.moveTo(0, yT); g.lineTo(x1, yT); g.stroke();
-      g.beginPath(); g.moveTo(0, yB); g.lineTo(x1, yB); g.stroke();
-      g.setLineDash([]);
-    }
+    // bordes techo/piso finos
+    g.strokeStyle = `rgba(${rgb},0.85)`; g.lineWidth = 1.4;
+    g.beginPath(); g.moveTo(xL, yT + 0.5); g.lineTo(xR, yT + 0.5); g.stroke();
+    g.beginPath(); g.moveTo(xL, yB - 0.5); g.lineTo(xR, yB - 0.5); g.stroke();
+    // borde izquierdo (inicio de la zona)
+    g.strokeStyle = `rgba(${rgb},0.55)`; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(xL + 0.5, yT); g.lineTo(xL + 0.5, yB); g.stroke();
+    // etiqueta discreta en el borde izquierdo
+    g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left';
+    g.fillStyle = `rgba(${rgb},0.95)`;
+    g.fillText(dem ? 'DEMANDA' : 'OFERTA', xL + 4, yT + (dem ? alto - 5 : 11));
   });
-  let bandaSolo = null;   // (compatibilidad con el resto del dibujo; ya no hay bandas)
+  let bandaSolo = null;   // (compatibilidad con el resto del dibujo)
 
 
   /* ── LAS VELAS ── */
@@ -2591,7 +2612,7 @@ const PASOS_MU = [
   },
   {
     t: 'Demanda y oferta',
-    d: 'Los <b>rectángulos</b> son zonas de <b>acumulación/distribución</b>: el precio oscila dentro de un rango y respeta sus bordes. El <b>rango actual</b> se resalta en celeste. La entrada se ubica en el borde del rango (techo para un largo, piso para un corto), con el stop del tamaño del rango y objetivo 1:1.',
+    d: 'Las <b>zonas swing</b> marcan una acumulación (oscilación en rango) que precede a un impulso que rompe estructura. La <b>demanda</b> (verde, soporte) queda por debajo del precio y sirve para largos; la <b>oferta</b> (roja, resistencia) por encima y sirve para cortos. Se proyectan hacia la derecha mientras el precio no las alcance. La entrada va en el borde de la zona, con el stop al otro lado y objetivo 1:1.',
     x: 'Compras cerca de demanda fuerte, vendes cerca de oferta fuerte. El sesgo lo da el contexto.'
   },
   {
@@ -3609,27 +3630,29 @@ function quitarGuiaSVG() { document.getElementById('mu-guia')?.remove(); }
 /* Lista TODAS las operaciones de alta probabilidad de un lado, ordenadas de
    mejor a peor (confianza, y a igualdad, cercanía). Sirve para el contador y el
    paginador del analista. */
-/* Las operaciones ahora salen de las CAJAS de rango (acumulación/distribución):
-   · Largo  → entrada en el TECHO de la caja (ruptura alcista).
-   · Corto  → entrada en el PISO de la caja (ruptura bajista).
-   El stop equivale a la ALTURA de la caja (el diámetro de la oscilación) y el
-   objetivo la proyecta al otro lado: R:R 1:1. La caja más reciente (el rango
-   actual) va primera; el paginador recorre las anteriores. */
+/* Las operaciones salen de las ZONAS SWING, respetando la estructura:
+   · LARGO  → solo en zonas de DEMANDA (soporte, por debajo del precio).
+   · CORTO  → solo en zonas de OFERTA  (resistencia, por encima del precio).
+   Entrada en el borde de la zona que da la cara al precio, stop al otro lado de
+   la zona (su altura) y objetivo 1:1. Nunca se ofrece un largo en resistencia ni
+   un corto en soporte. */
 function zonasOp(tipo) {
-  const cajas = M.estructuras || [];
-  if (!cajas.length) return [];
-  return cajas.slice().reverse();   // la más reciente (rango actual) primero
+  const zs = M.estructuras || [];
+  if (tipo === 'long') return zs.filter((z) => z.dir === 'demanda');
+  return zs.filter((z) => z.dir === 'oferta');
 }
-function opDeZona(tipo, caja) {
-  if (!caja) return null;
-  const alt = Math.max(1e-9, caja.hi - caja.lo);
-  const centro = (caja.hi + caja.lo) / 2;
+function opDeZona(tipo, z) {
+  if (!z) return null;
+  const alt = Math.max(1e-9, z.hi - z.lo);
+  const centro = (z.hi + z.lo) / 2;
   if (tipo === 'long') {
-    const entrada = caja.hi;
-    return { tipo, entrada, sl: entrada - alt, tp: entrada + alt, zonaPoc: centro, caja };
+    // Demanda: se compra en el TECHO de la zona (primer toque), stop bajo el piso.
+    const entrada = z.hi;
+    return { tipo, entrada, sl: z.lo, tp: entrada + alt, zonaPoc: centro, caja: z };
   }
-  const entrada = caja.lo;
-  return { tipo, entrada, sl: entrada + alt, tp: entrada - alt, zonaPoc: centro, caja };
+  // Oferta: se vende en el PISO de la zona (primer toque), stop sobre el techo.
+  const entrada = z.lo;
+  return { tipo, entrada, sl: z.hi, tp: entrada - alt, zonaPoc: centro, caja: z };
 }
 function construirOp(tipo) { const zs = zonasOp(tipo); return zs.length ? opDeZona(tipo, zs[0]) : null; }
 function hayOp(tipo) { return zonasOp(tipo).length > 0; }

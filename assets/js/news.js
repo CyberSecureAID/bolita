@@ -34,6 +34,12 @@
     '.nwx-box .nwx-load{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#8b95a1;font-size:13px;pointer-events:none}' +
     '.nwx-box .nwx-spin{width:26px;height:26px;border:3px solid rgba(232,184,75,.25);border-top-color:#E8B84B;border-radius:50%;animation:nwxSpin .8s linear infinite}' +
     '.nwx-box .nwx-foot{flex:0 0 auto;padding:7px 12px;text-align:center;font-size:10px;color:#5c6672;font-family:ui-monospace,monospace;border-top:1px solid rgba(255,255,255,.05)}' +
+    // Acentos con los colores de la marca sobre el widget embebido (best-effort).
+    '.nwx-box .nwx-body a{color:#E8B84B!important}' +
+    '.nwx-box .nwx-body ::selection{background:rgba(232,184,75,.35)}' +
+    '.nwx-box .nwx-body::-webkit-scrollbar{width:10px}' +
+    '.nwx-box .nwx-body::-webkit-scrollbar-thumb{background:rgba(232,184,75,.35);border-radius:8px}' +
+    '.nwx-box .nwx-body::-webkit-scrollbar-track{background:transparent}' +
     '@keyframes nwxSpin{to{transform:rotate(360deg)}}' +
     '@keyframes nwxPulse{0%{box-shadow:0 0 0 0 rgba(246,70,93,.55)}70%{box-shadow:0 0 0 7px rgba(246,70,93,0)}100%{box-shadow:0 0 0 0 rgba(246,70,93,0)}}' +
     '@media(max-width:760px){.nwx-box{padding:0}.nwx-box .nwx-c{max-width:100%;height:100%;border-radius:0;border:none}}';
@@ -67,7 +73,7 @@
         '<div class="nwx-h"><span class="nwx-dot"></span><b>Calendario econ\u00f3mico</b><span>Eventos \u00b7 hoy</span>' +
           '<button class="nwx-x" aria-label="Cerrar">\u2715</button></div>' +
         '<div class="nwx-body"><div class="nwx-load"><div class="nwx-spin"></div>Cargando\u2026</div></div>' +
-        '<div class="nwx-foot">Datos en vivo \u00b7 CashbackForex</div>' +
+        '<div class="nwx-foot">Datos en vivo</div>' +
       '</div>';
     document.body.appendChild(box);
     var cerrar = function () { box.remove(); };
