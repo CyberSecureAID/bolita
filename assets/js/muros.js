@@ -4326,14 +4326,22 @@ ${WEB_DOMINIO} \u00b7 Heat Pools`;
 
   const cargar = (src, cors) => new Promise((res) => { if (!src) return res(null); const im = new Image(); if (cors) im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
 
-  // Asegura que el mapa de logos (CoinGecko, misma fuente que los bots) esté
-  // cargado ANTES de leer la URL. Si ya está, sigue directo.
-  const listoLogos = (_logos && _logos[par.cg]) ? Promise.resolve() : (typeof ponerLogos === 'function' ? Promise.resolve(ponerLogos()).catch(() => {}) : Promise.resolve());
+  // Logo de la moneda: igual que los bots, se carga desde githubusercontent
+  // (permite CORS -> se puede dibujar en canvas). Primario: repo de iconos por
+  // símbolo; respaldo: CoinGecko (_logos). Si todo falla, círculo con el ticker.
+  const prep = (async () => {
+    const sym = par.id.toLowerCase();
+    const iconoRepo = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${sym}.png`;
+    let coin = await cargar(iconoRepo, true);
+    if (!coin) {
+      if (!(_logos && _logos[par.cg]) && typeof ponerLogos === 'function') { try { await ponerLogos(); } catch (_) {} }
+      if (_logos && _logos[par.cg]) coin = await cargar(_logos[par.cg], true);
+    }
+    const marca = await cargar('assets/img/cco-marca.png', false);
+    return [coin, marca];
+  })();
 
-  listoLogos.then(() => Promise.all([
-    cargar((_logos && _logos[par.cg]) || null, true),
-    cargar('assets/img/cco-marca.png', false)
-  ])).then(([coin, marca]) => {
+  prep.then(([coin, marca]) => {
     g.fillStyle = BG; g.fillRect(0, 0, W, H);                  // fondo continuo (una pieza)
     if (chart && chart.width) g.drawImage(chart, 0, 0, W, chartH);
     const y0 = chartH;
