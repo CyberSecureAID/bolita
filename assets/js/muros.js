@@ -4325,12 +4325,15 @@ ${WEB_DOMINIO} \u00b7 Heat Pools`;
   cv.width = W; cv.height = H;
 
   const cargar = (src, cors) => new Promise((res) => { if (!src) return res(null); const im = new Image(); if (cors) im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
-  const logoMonedaURL = (_logos && _logos[par.cg]) || null;   // misma fuente que usan los bots
 
-  Promise.all([
-    cargar(logoMonedaURL, true),
+  // Asegura que el mapa de logos (CoinGecko, misma fuente que los bots) esté
+  // cargado ANTES de leer la URL. Si ya está, sigue directo.
+  const listoLogos = (_logos && _logos[par.cg]) ? Promise.resolve() : (typeof ponerLogos === 'function' ? Promise.resolve(ponerLogos()).catch(() => {}) : Promise.resolve());
+
+  listoLogos.then(() => Promise.all([
+    cargar((_logos && _logos[par.cg]) || null, true),
     cargar('assets/img/cco-marca.png', false)
-  ]).then(([coin, marca]) => {
+  ])).then(([coin, marca]) => {
     g.fillStyle = BG; g.fillRect(0, 0, W, H);                  // fondo continuo (una pieza)
     if (chart && chart.width) g.drawImage(chart, 0, 0, W, chartH);
     const y0 = chartH;
@@ -4339,10 +4342,11 @@ ${WEB_DOMINIO} \u00b7 Heat Pools`;
     // Cabecera: logo de la moneda + título grande + subtítulo
     const ls = 72, lx = padX, ly = y0 + 30;
     g.save(); g.beginPath(); g.arc(lx + ls / 2, ly + ls / 2, ls / 2, 0, 6.2832); g.closePath();
-    g.fillStyle = '#141b25'; g.fill();
+    g.fillStyle = coin ? '#ffffff' : '#141b25'; g.fill();
     if (coin) { g.clip(); g.drawImage(coin, lx, ly, ls, ls); }
     else { g.fillStyle = '#E8B84B'; g.font = '800 24px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(par.id.slice(0, 4), lx + ls / 2, ly + ls / 2 + 1); }
     g.restore();
+    if (coin) { g.strokeStyle = 'rgba(232,184,75,.55)'; g.lineWidth = 2; g.beginPath(); g.arc(lx + ls / 2, ly + ls / 2, ls / 2, 0, 6.2832); g.stroke(); }
 
     g.textAlign = 'left'; g.textBaseline = 'alphabetic';
     const tx = lx + ls + 24;
