@@ -540,6 +540,76 @@ const tiempo = (s) => {
    oferta por encima) y NO MITIGADAS (el precio no las ha perforado todavía).
    Se proyectan hacia la derecha (niveles vigentes).
    ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   TENDENCIA (Fase 1) — portado de Smart Levels (motor.js), que la detecta
+   muy bien por ESTRUCTURA (máximos/mínimos crecientes o decrecientes).
+   · pivotesLEA: giros locales (swing highs/lows) con respaldo por tramos.
+   · tendenciaLEA: alcista si máximos y mínimos suben; bajista si bajan.
+   ══════════════════════════════════════════════════════════════ */
+function pivotesLEA(velas, lado = 3) {
+  const altos = [], bajos = [];
+  for (let i = lado; i < velas.length - lado; i++) {
+    const v = velas[i];
+    let esAlto = true, esBajo = true;
+    for (let j = i - lado; j <= i + lado; j++) {
+      if (j === i) continue;
+      if (velas[j].h > v.h) esAlto = false;
+      if (velas[j].l < v.l) esBajo = false;
+    }
+    if (esAlto && velas[i - 1].h < v.h && velas[i + 1].h < v.h) altos.push({ i, p: v.h, t: v.t });
+    if (esBajo && velas[i - 1].l > v.l && velas[i + 1].l > v.l) bajos.push({ i, p: v.l, t: v.t });
+  }
+  // Respaldo para tendencias sostenidas (sin pivotes locales): extremos por tramos.
+  if (altos.length < 2 || bajos.length < 2) {
+    const bloques = 8, paso = Math.max(6, Math.floor(velas.length / bloques));
+    for (let ini = 0; ini + paso <= velas.length; ini += paso) {
+      const tramo = velas.slice(ini, ini + paso);
+      let iA = 0, iB = 0;
+      tramo.forEach((v, k) => { if (v.h > tramo[iA].h) iA = k; if (v.l < tramo[iB].l) iB = k; });
+      const gA = ini + iA, gB = ini + iB;
+      if (!altos.some((x) => Math.abs(x.i - gA) < 3)) altos.push({ i: gA, p: velas[gA].h, t: velas[gA].t });
+      if (!bajos.some((x) => Math.abs(x.i - gB) < 3)) bajos.push({ i: gB, p: velas[gB].l, t: velas[gB].t });
+    }
+    altos.sort((a, b) => a.i - b.i); bajos.sort((a, b) => a.i - b.i);
+  }
+  return { altos, bajos };
+}
+function tendenciaLEA(velas, piv) {
+  const ua = piv.altos.slice(-3), ub = piv.bajos.slice(-3);
+  if (ua.length < 2 || ub.length < 2) {
+    const n0 = Math.min(50, velas.length), tr = velas.slice(-n0);
+    const mv = ((tr[tr.length - 1].c - tr[0].c) / tr[0].c) * 100;
+    if (mv > 1.5) return { dir: 'alcista', fuerza: Math.min(100, mv * 10) };
+    if (mv < -1.5) return { dir: 'bajista', fuerza: Math.min(100, -mv * 10) };
+    return { dir: 'lateral', fuerza: 0 };
+  }
+  const altosSuben = ua[ua.length - 1].p > ua[ua.length - 2].p;
+  const bajosSuben = ub[ub.length - 1].p > ub[ub.length - 2].p;
+  const altosBajan = ua[ua.length - 1].p < ua[ua.length - 2].p;
+  const bajosBajan = ub[ub.length - 1].p < ub[ub.length - 2].p;
+  const n = Math.min(60, velas.length), tramo = velas.slice(-n);
+  const mov = ((tramo[tramo.length - 1].c - tramo[0].c) / tramo[0].c) * 100;
+  if (altosSuben && bajosSuben) return { dir: 'alcista', fuerza: Math.min(100, Math.abs(mov) * 12) };
+  if (altosBajan && bajosBajan) return { dir: 'bajista', fuerza: Math.min(100, Math.abs(mov) * 12) };
+  return { dir: 'lateral', fuerza: 0 };
+}
+/* Tendencia de CORTO PLAZO: la más vigente, cercana al precio. Devuelve la
+   dirección y la línea tendencial (2 anclas) para dibujarla y proyectarla. */
+function calcTendenciaCorto() {
+  const velas = M.velas;
+  if (!velas || velas.length < 20) return null;
+  const n = Math.min(velas.length, Math.max(90, (M.ancho || 100) + 20));
+  const rec = velas.slice(-n);
+  const off = velas.length - rec.length;
+  const piv = pivotesLEA(rec, 3);
+  const t = tendenciaLEA(rec, piv);
+  let a0 = null, a1 = null;
+  if (t.dir === 'alcista' && piv.bajos.length >= 2) { a0 = piv.bajos[piv.bajos.length - 2]; a1 = piv.bajos[piv.bajos.length - 1]; }
+  else if (t.dir === 'bajista' && piv.altos.length >= 2) { a0 = piv.altos[piv.altos.length - 2]; a1 = piv.altos[piv.altos.length - 1]; }
+  if (!a0 || !a1 || a1.i === a0.i) return { dir: t.dir, fuerza: t.fuerza, linea: null };
+  return { dir: t.dir, fuerza: t.fuerza, linea: { t0: a0.t, p0: a0.p, t1: a1.t, p1: a1.p } };
+}
+
 function detectarEstructuras(velas) {
   const n = velas ? velas.length : 0;
   if (n < 30) return [];
@@ -1113,7 +1183,7 @@ async function cargarVelas() {
     if (!$('mu-cv')) { clearInterval(_relojVelas); return; }
     try {
       const par = PARES.find((p) => p.id === _par) || PARES[0];
-      M.velas = await traerVelas(par.s, M.tf, 400);
+      M.velas = await traerVelas(par.s, M.tf, 800);
       const px = (M.precio > 0) ? M.precio : (M.velas.length ? M.velas[M.velas.length - 1].c : 0);
       /* CONFLUENCIA MULTI-TEMPORALIDAD: se traen las zonas de la temporalidad
          superior (15m→1h, etc.) cada ~60 s y se usan para validar. */
@@ -1127,7 +1197,7 @@ async function cargarVelas() {
       }
       /* Las zonas salen de las VELAS: se llenan en ~1 s, sin depender del libro. */
       const r = detectarZonas(M.velas, px, { htf: M.zonasHTF, libro: murosDelLibro(), ancla: _par + "|" + M.tf });
-      M.zonas = r.zonas; M.perfil = r.perfil; M.estructuras = detectarEstructuras(M.velas);
+      M.zonas = r.zonas; M.perfil = r.perfil; M._tendCorto = calcTendenciaCorto();
       /* NIVELES INSTITUCIONALES + BACKTEST, y boost de confianza cuando una
          zona coincide con VWAP / borde del área de valor / POC. */
       M.mercado = analizarMercado(M.velas, px, M.perfil);
@@ -1369,7 +1439,7 @@ function arrancar() {
 
     if (M.velas.length && M.precio > 0) {
       const r = detectarZonas(M.velas, M.precio, { htf: M.zonasHTF, libro: murosDelLibro(), ancla: _par + "|" + M.tf });
-      M.zonas = r.zonas; M.perfil = r.perfil; M.estructuras = detectarEstructuras(M.velas);   // zonas + estructuras
+      M.zonas = r.zonas; M.perfil = r.perfil; M._tendCorto = calcTendenciaCorto();
       M.mercado = analizarMercado(M.velas, M.precio, M.perfil);
       aplicarReferencias(M.zonas, M.mercado, M.precio);
       seguirVida(M.zonas);
@@ -1545,26 +1615,11 @@ function dibujar() {
     if (M.precio < u.l) u.l = M.precio;
   }
 
-  /* El rango abarca velas Y muros: si un muro queda fuera de pantalla,
-     el usuario no puede usarlo. */
+  /* La escala encuadra las VELAS y el precio (las zonas y niveles se retiraron
+     de la gráfica, así que ya no estiran la escala). */
   let pAlto = Math.max(...vis.map((v) => v.h));
   let pBajo = Math.min(...vis.map((v) => v.l));
   if (M.precio > 0) { pAlto = Math.max(pAlto, M.precio); pBajo = Math.min(pBajo, M.precio); }
-  /* Las zonas amplían la escala SOLO si están cerca del rango de las velas.
-     Una zona lejana no debe aplastar las velas: se recorta al borde del
-     gráfico (el dibujo ya usa Math.min/max con pMin/pMax). */
-  const margenR = (pAlto - pBajo) * 0.35 || 1;
-  M.zonas.forEach((z) => {
-    if (z.pHigh <= pAlto + margenR && z.pHigh > pAlto) pAlto = z.pHigh;
-    if (z.pLow >= pBajo - margenR && z.pLow < pBajo) pBajo = z.pLow;
-  });
-  if (M.mercado) {
-    [M.mercado.vwap, M.mercado.vah, M.mercado.val].forEach((p) => {
-      if (!(p > 0)) return;
-      if (p <= pAlto + margenR && p > pAlto) pAlto = p;
-      if (p >= pBajo - margenR && p < pBajo) pBajo = p;
-    });
-  }
   /* El zoom vertical estira o comprime la escala de precios, como al
      arrastrar el borde derecho en TradingView. */
   /* El arrastre vertical desplaza el rango de precios. */
@@ -1625,10 +1680,36 @@ function dibujar() {
      En vez de decenas de franjas de volumen (ruido), se dibujan las CAJAS
      donde el precio oscila: sus bordes son respetados por el precio. El
      rango más reciente (el actual) se resalta; ahí es donde se opera. */
-  /* ── (Lienzo limpio) ──
-     Se retiró el dibujo anterior de zonas. Sobre esta gráfica limpia se
-     construirá la estrategia "Lógica Estructural Avanzada" por fases:
-     tendencia (jerárquica + corto plazo) → evento → zona swing → entradas. */
+  /* ── FASE 1 · TENDENCIA DE CORTO PLAZO ──
+     Línea tendencial vigente (la más cercana al precio), detectada por estructura
+     igual que en Smart Levels. Alcista = por los mínimos crecientes (verde);
+     bajista = por los máximos decrecientes (rojo). Se proyecta a la derecha. */
+  const TC = M._tendCorto;
+  if (TC && TC.linea) {
+    const L = TC.linea;
+    const x0 = mXt(L.t0), xa = mXt(L.t1);
+    if (xa !== x0) {
+      const m = (L.p1 - L.p0) / (xa - x0);            // pendiente en precio/px
+      const pEnX = (x) => L.p0 + m * (x - x0);
+      const alc = TC.dir === 'alcista';
+      const col = alc ? '46,232,106' : TC.dir === 'bajista' ? '246,70,93' : '160,170,180';
+      // línea desde el primer ancla proyectada hasta el borde derecho
+      const xIni = Math.max(0, x0), xFin = x1;
+      g.save();
+      g.strokeStyle = `rgba(${col},0.95)`; g.lineWidth = 2; g.setLineDash([]);
+      g.beginPath(); g.moveTo(xIni, Y(pEnX(xIni))); g.lineTo(xFin, Y(pEnX(xFin))); g.stroke();
+      // marcar las 2 anclas
+      [[x0, L.p0], [xa, L.p1]].forEach(([xx, pp]) => {
+        g.fillStyle = `rgba(${col},1)`; g.beginPath(); g.arc(xx, Y(pp), 3.2, 0, 7); g.fill();
+      });
+      // etiqueta de dirección
+      const yFin = Y(pEnX(xFin - 4));
+      g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'right';
+      g.fillStyle = `rgba(${col},1)`;
+      g.fillText(alc ? 'TENDENCIA ALCISTA' : TC.dir === 'bajista' ? 'TENDENCIA BAJISTA' : 'RANGO', xFin - 6, yFin - 6);
+      g.textAlign = 'left'; g.restore();
+    }
+  }
   let bandaSolo = null;   // (compatibilidad con el resto del dibujo)
 
 
@@ -1824,8 +1905,8 @@ function arrastrarTend(e) {
 
 function engancharGestos(cv) {
   const zoom = (f) => {
-    const maxA = Math.max(60, (M.velas.length || 400) - 4);   // alejar hasta ver casi todas las velas cargadas
-    M.ancho = Math.max(20, Math.min(maxA, Math.round((M.ancho || 70) * f)));
+    const maxA = Math.max(60, (M.velas.length || 800) - 2);   // alejar hasta ver casi TODA la historia cargada
+    M.ancho = Math.max(12, Math.min(maxA, Math.round((M.ancho || 70) * f)));   // acercar hasta 12 velas
     dibujar();
   };
 
@@ -1882,17 +1963,17 @@ function engancharGestos(cv) {
     if (modoG === 'y') {
       const dy = e.clientY - ay;
       if (Math.abs(dy) > 2) {
-        M.zoomY = Math.max(0.25, Math.min(4, (M.zoomY || 1) * (1 + dy * 0.004)));
+        M.zoomY = Math.max(0.2, Math.min(6, (M.zoomY || 1) * (1 + dy * 0.004)));
         ay = e.clientY; dibujar();
       }
       return;
     }
     let cambio = false;
-    const paso = (cv.clientWidth * 0.7) / (M.ancho || 70);
+    const paso = (cv.clientWidth - 84) / (M.ancho || 70);   // paneo 1:1 a lo ancho (como Smart Levels)
     const mov = Math.round((e.clientX - ax) / Math.max(1, paso));
     if (mov !== 0) {
       const tope = Math.max(0, M.velas.length - (M.ancho || 70));
-      const suelo = -Math.floor((M.ancho || 70) * 0.45);   // respiro a la derecha
+      const suelo = -Math.floor((M.ancho || 70) * 0.5);   // respiro a la derecha
       M.desplaz = Math.max(suelo, Math.min(tope, (M.desplaz || 0) + mov));
       ax = e.clientX; cambio = true;
     }
@@ -1963,7 +2044,7 @@ function engancharGestos(cv) {
        comprime en vertical. En el resto, zoom de tiempo. Igual que
        en TradingView. */
     if (e.clientX - r.left > r.width - 95) {
-      M.zoomY = Math.max(0.25, Math.min(4, (M.zoomY || 1) * (e.deltaY > 0 ? 1.12 : 0.9)));
+      M.zoomY = Math.max(0.2, Math.min(6, (M.zoomY || 1) * (e.deltaY > 0 ? 1.12 : 0.9)));
       dibujar();
     } else {
       zoom(e.deltaY > 0 ? 1.14 : 0.88);
@@ -2029,11 +2110,11 @@ function engancharGestos(cv) {
     }
     if (e.touches.length === 1 && arr) {
       e.preventDefault();
-      const paso = (cv.clientWidth * 0.7) / (M.ancho || 70);
+      const paso = (cv.clientWidth - 84) / (M.ancho || 70);
       const mov = Math.round((e.touches[0].clientX - tx) / Math.max(1, paso));
       if (mov !== 0) {
         const tope = Math.max(0, M.velas.length - (M.ancho || 70));
-        const sueloT = -Math.floor((M.ancho || 70) * 0.45);
+        const sueloT = -Math.floor((M.ancho || 70) * 0.5);
         M.desplaz = Math.max(sueloT, Math.min(tope, (M.desplaz || 0) + mov));
         tx = e.touches[0].clientX;
         dibujar();
