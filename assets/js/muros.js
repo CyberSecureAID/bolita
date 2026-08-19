@@ -792,7 +792,7 @@ function analizarMercado(velas, precio, perfil) {
 function abrirNoticiasSeguro() {
   if (typeof window.abrirNoticias === 'function') { try { window.abrirNoticias(); } catch (_) {} return; }
   if (document.getElementById('news-js-lazy')) { setTimeout(abrirNoticiasSeguro, 300); return; }
-  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=3';
+  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=4';
   s.onload = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} };
   document.head.appendChild(s);
 }
@@ -2029,29 +2029,46 @@ function engancharGestos(cv) {
 
   /* CROSSHAIR estilo TradingView: al mover el cursor por el gráfico se dibuja
      una cruz y el precio exacto aparece en el eje derecho. */
+  // Cursor de la herramienta sobre el radar. Se decide aquí y se RE-APLICA a
+  // nivel window (más abajo) porque orden.js engancha su propio mousemove al
+  // canvas y repone 'crosshair', pisando la manito. Igual que en Smart Levels.
+  const cursorHerramienta = (lx, ly) => {
+    const dRp = (rc, p) => rc && lx >= rc.x - p && lx <= rc.x + rc.w + p && ly >= rc.y - p && ly <= rc.y + rc.h + p;
+    if (M._pos) {
+      const P = M._pos;
+      if ((!P.oculto && (dRp(P._hideBtn, 8) || dRp(P._arrL, 8) || dRp(P._arrR, 8))) || (P.oculto && dRp(P._miniBtn, 8))) return 'pointer';  // manita en botones
+      const G = P._pos;
+      if (G && lx >= G.x - 8 && lx <= G.x + G.w + 8 && ly >= Math.min(G.yt, G.ye, G.ys) - 8 && ly <= Math.max(G.yt, G.ye, G.ys) + 8) {
+        if (Math.abs(lx - G.x) < 9 || Math.abs(lx - (G.x + G.w)) < 9) return 'ew-resize';   // bordes → estirar
+        if (Math.abs(ly - G.yt) < 9 || Math.abs(ly - G.ye) < 9 || Math.abs(ly - G.ys) < 9) return 'ns-resize';  // líneas → subir/bajar
+        return 'grab';                                                                       // cuerpo → mover
+      }
+    }
+    if (M._tend && cercaTend(lx, ly)) return 'grab';
+    return '';
+  };
+
   cv.addEventListener('mousemove', (e) => {
     if (arr) return;                    // durante el arrastre no se dibuja la cruz
     const r = cv.getBoundingClientRect();
     const lx = e.clientX - r.left, ly = e.clientY - r.top;
     M._cursor = { x: lx, y: ly };
-    // Cursor según lo que hay debajo (misma dinámica que Smart Levels).
-    let cur = '';
-    const dR = (rc) => rc && lx >= rc.x && lx <= rc.x + rc.w && ly >= rc.y && ly <= rc.y + rc.h;
-    const dRp = (rc, p) => rc && lx >= rc.x - p && lx <= rc.x + rc.w + p && ly >= rc.y - p && ly <= rc.y + rc.h + p;
-    if (M._pos) {
-      const P = M._pos;
-      if ((!P.oculto && (dRp(P._hideBtn, 7) || dRp(P._arrL, 7) || dRp(P._arrR, 7))) || (P.oculto && dRp(P._miniBtn, 7))) cur = 'pointer';  // manita en botones (margen generoso)
-      else { const G = P._pos;
-        if (G && lx >= G.x - 8 && lx <= G.x + G.w + 8 && ly >= Math.min(G.yt, G.ye, G.ys) - 8 && ly <= Math.max(G.yt, G.ye, G.ys) + 8) {
-          if (Math.abs(lx - G.x) < 8 || Math.abs(lx - (G.x + G.w)) < 8) cur = 'ew-resize';        // bordes → estirar
-          else if (Math.abs(ly - G.yt) < 8 || Math.abs(ly - G.ye) < 8 || Math.abs(ly - G.ys) < 8) cur = 'ns-resize';  // líneas → subir/bajar
-          else cur = 'grab';                                                                        // cuerpo → mover
-        }
-      }
-    }
-    if (!cur && M._tend && cercaTend(lx, ly)) cur = 'grab';
+    const cur = cursorHerramienta(lx, ly);
     cv.style.cursor = cur || (enEscalaM(lx) ? 'ns-resize' : 'crosshair');
     dibujar();
+  });
+  /* orden.js registra DESPUÉS su propio mousemove sobre el canvas y repone
+     'crosshair', comiéndose la manito. Este handler a nivel window corre en la
+     fase de burbujeo (después del canvas) y re-impone el cursor correcto cuando
+     estamos sobre la herramienta. Copiado tal cual de Smart Levels. */
+  window.addEventListener('mousemove', (e) => {
+    if (arr) return;
+    const cvv = $('mu-cv'); if (!cvv) return;
+    const r = cvv.getBoundingClientRect();
+    const lx = e.clientX - r.left, ly = e.clientY - r.top;
+    if (lx < 0 || ly < 0 || lx > r.width || ly > r.height) return;
+    const cur = cursorHerramienta(lx, ly);
+    if (cur) cvv.style.cursor = cur;
   });
   cv.addEventListener('mouseleave', () => { if (M._cursor) { M._cursor = null; cv.style.cursor = 'default'; dibujar(); } });
 

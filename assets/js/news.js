@@ -12,10 +12,12 @@
   if (window.abrirNoticias) return;
 
   // Endpoints de CryptoCompare (CORS abierto, sin API key).
+  // sortOrder=latest es CLAVE: por defecto ordena por popularidad y devuelve
+  // artículos viejos; con 'latest' trae lo de AHORA MISMO.
   var FUENTES = [
-    'https://min-api.cryptocompare.com/data/v2/news/?lang=EN',
-    'https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=Trading,Technical%20Analysis,Market',
-    'https://min-api.cryptocompare.com/data/v2/news/?lang=ES'
+    'https://min-api.cryptocompare.com/data/v2/news/?lang=EN&sortOrder=latest',
+    'https://min-api.cryptocompare.com/data/v2/news/?lang=ES&sortOrder=latest',
+    'https://min-api.cryptocompare.com/data/v2/news/?lang=EN&sortOrder=latest&categories=Trading,Technical%20Analysis,Market,Regulation'
   ];
   // Respaldo por RSS (por si CryptoCompare estuviera bloqueado en tu red).
   var RSS = [
@@ -110,7 +112,12 @@
     var visto = {}, out = [];
     todo.forEach(function (n) { var k = (n.link || n.titulo).slice(0, 80); if (k && !visto[k]) { visto[k] = 1; out.push(n); } });
     out.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
-    _cache = out.slice(0, 60); _cacheAt = Date.now();
+    // Priorizar lo RECIENTE: si hay suficientes de los últimos 7 días, mostramos
+    // solo esos (nada de artículos viejos colándose). Si no, mostramos todo.
+    var limite = Date.now() - 7 * 864e5;
+    var frescas = out.filter(function (n) { return n.ts && n.ts >= limite; });
+    var lista = frescas.length >= 12 ? frescas : out;
+    _cache = lista.slice(0, 60); _cacheAt = Date.now();
     return _cache;
   }
 
@@ -136,23 +143,24 @@
     '#news-box .nw-h span{font-size:11.5px;color:#8b95a1;font-family:ui-monospace,monospace}' +
     '#news-box .nw-x{margin-left:auto;width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#c8cfd8;font-size:18px;cursor:pointer;display:grid;place-items:center}' +
     '#news-box .nw-x:active{transform:translateY(1px)}' +
-    '#news-box .nw-list{flex:1;overflow-y:auto;padding:10px 12px 16px;display:flex;flex-direction:column;gap:8px}' +
-    '#news-box .nw-item{display:flex;gap:12px;text-decoration:none;padding:12px 13px;border-radius:12px;background:#161c25;border:1px solid rgba(255,255,255,.06);transition:border-color .15s,transform .05s}' +
-    '#news-box .nw-item:hover{border-color:rgba(232,184,75,.45)}' +
-    '#news-box .nw-item:active{transform:translateY(1px)}' +
-    '#news-box .nw-thumb{flex:0 0 auto;width:78px;height:78px;border-radius:9px;object-fit:cover;background:#0e131a;border:1px solid rgba(255,255,255,.06)}' +
-    '#news-box .nw-body{min-width:0;flex:1}' +
-    '#news-box .nw-meta{display:flex;align-items:center;gap:8px;margin-bottom:5px}' +
-    '#news-box .nw-src{font-size:10.5px;font-weight:800;color:#E8B84B;font-family:ui-monospace,monospace;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}' +
-    '#news-box .nw-time{font-size:10.5px;color:#6b7681;font-family:ui-monospace,monospace;white-space:nowrap}' +
-    '#news-box .nw-t{font-size:14px;font-weight:700;color:#eaf0f6;line-height:1.35;margin:0 0 4px}' +
-    '#news-box .nw-d{font-size:12px;color:#9aa3ad;line-height:1.45;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
-    '#news-box .nw-state{padding:44px 22px;text-align:center;color:#8b95a1;font-size:13.5px;line-height:1.6}' +
-    '#news-box .nw-spin{width:26px;height:26px;border:3px solid rgba(232,184,75,.25);border-top-color:#E8B84B;border-radius:50%;margin:0 auto 14px;animation:nwSpin .8s linear infinite}' +
+    '#news-box .nw-list{flex:1;overflow-y:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;align-content:start}' +
+    '#news-box .nw-item{display:flex;flex-direction:column;text-decoration:none;border-radius:14px;overflow:hidden;background:#141a23;border:1px solid rgba(255,255,255,.07);transition:border-color .15s,transform .08s,box-shadow .15s}' +
+    '#news-box .nw-item:hover{border-color:rgba(232,184,75,.55);box-shadow:0 10px 26px rgba(0,0,0,.4);transform:translateY(-2px)}' +
+    '#news-box .nw-item:active{transform:translateY(0)}' +
+    '#news-box .nw-ph{position:relative;width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#1c2530,#0e131a);overflow:hidden}' +
+    '#news-box .nw-ph img{width:100%;height:100%;object-fit:cover;display:block}' +
+    '#news-box .nw-ph.noimg::after{content:"CRIPTOCUBA";position:absolute;inset:0;display:grid;place-items:center;font-family:ui-monospace,monospace;font-weight:800;font-size:15px;letter-spacing:2px;color:rgba(232,184,75,.35)}' +
+    '#news-box .nw-ph .nw-src{position:absolute;left:8px;top:8px;padding:3px 7px;border-radius:7px;background:rgba(8,11,16,.82);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);font-size:9.5px;font-weight:800;color:#E8B84B;font-family:ui-monospace,monospace;text-transform:uppercase;letter-spacing:.5px;max-width:75%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '#news-box .nw-ph .nw-time{position:absolute;right:8px;top:8px;padding:3px 7px;border-radius:7px;background:rgba(8,11,16,.82);font-size:9.5px;color:#cfd6de;font-family:ui-monospace,monospace}' +
+    '#news-box .nw-body{padding:11px 13px 13px;display:flex;flex-direction:column;gap:6px}' +
+    '#news-box .nw-t{font-size:14.5px;font-weight:800;color:#eef2f7;line-height:1.32;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}' +
+    '#news-box .nw-d{font-size:12px;color:#939daa;line-height:1.5;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}' +
+    '#news-box .nw-state{grid-column:1/-1;padding:56px 22px;text-align:center;color:#8b95a1;font-size:13.5px;line-height:1.6}' +
+    '#news-box .nw-spin{width:28px;height:28px;border:3px solid rgba(232,184,75,.25);border-top-color:#E8B84B;border-radius:50%;margin:0 auto 14px;animation:nwSpin .8s linear infinite}' +
     '#news-box .nw-retry{margin-top:14px;padding:9px 16px;border-radius:9px;border:1px solid rgba(232,184,75,.5);background:rgba(232,184,75,.12);color:#E8B84B;font-weight:700;font-size:12.5px;cursor:pointer}' +
     '@keyframes nwSpin{to{transform:rotate(360deg)}}' +
     '@keyframes nwPulse{0%{box-shadow:0 0 0 0 rgba(246,70,93,.55)}70%{box-shadow:0 0 0 7px rgba(246,70,93,0)}100%{box-shadow:0 0 0 0 rgba(246,70,93,0)}}' +
-    '@media(max-width:760px){#news-box{padding:0}#news-box .nw-c{max-width:100%;height:100%;border-radius:0;border:none}#news-box .nw-thumb{width:62px;height:62px}}';
+    '@media(max-width:760px){#news-box{padding:0}#news-box .nw-c{max-width:100%;height:100%;border-radius:0;border:none}#news-box .nw-list{grid-template-columns:1fr;gap:12px;padding:12px}}';
     document.head.appendChild(s);
   }
 
@@ -171,10 +179,12 @@
       var a = document.createElement('a');
       a.className = 'nw-item'; a.href = n.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
       a.innerHTML =
-        (n.img ? '<img class="nw-thumb" loading="lazy" src="' + esc(n.img) + '" onerror="this.style.display=\'none\'">' : '') +
+        '<div class="nw-ph' + (n.img ? '' : ' noimg') + '">' +
+          (n.img ? '<img loading="lazy" src="' + esc(n.img) + '" onerror="this.parentNode.classList.add(\'noimg\');this.remove()">' : '') +
+          '<span class="nw-src">' + esc(n.fuente) + '</span>' +
+          (n.ts ? '<span class="nw-time">' + hace(n.ts) + '</span>' : '') +
+        '</div>' +
         '<div class="nw-body">' +
-          '<div class="nw-meta"><span class="nw-src">' + esc(n.fuente) + '</span>' +
-            (n.ts ? '<span class="nw-time">\u00b7 ' + hace(n.ts) + '</span>' : '') + '</div>' +
           '<p class="nw-t">' + esc(n.titulo) + '</p>' +
           (n.desc ? '<p class="nw-d">' + esc(n.desc) + '</p>' : '') +
         '</div>';
