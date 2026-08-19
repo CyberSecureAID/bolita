@@ -614,41 +614,43 @@ function _regresion(seg) {
   }
   return { m, b, n, arriba, abajo, sd: Math.sqrt(ss / n) };
 }
-function calcTendenciaCorto() {
-  const velas = M.velas;
+function calcTendenciaCorto() { return _canalTendencia(M.velas, Math.max(70, (M.ancho || 100))); }
+/* Tendencia JERÁRQUICA: mismo canal por regresión, pero sobre las velas de la
+   temporalidad grande y vistas "de lejos" (ventana amplia) para filtrar ruido. */
+function calcTendenciaJerar() {
+  const v = M._velasJerar;
+  if (!v || v.length < 30) return null;
+  return _canalTendencia(v, Math.min(v.length, 180));
+}
+/* Canal por regresión genérico: se ancla al swing vigente y ajusta una recta
+   (tendencia limpia) con rieles ±desviación (el canal que filtra el ruido). */
+function _canalTendencia(velas, N) {
   if (!velas || velas.length < 24) return null;
-  const N = Math.min(velas.length, Math.max(70, (M.ancho || 100)));
+  N = Math.min(velas.length, Math.max(40, N));
   const win = velas.slice(-N);
-  const off = velas.length - win.length;
-  // Swing significativo: extremos del tramo.
   let iLo = 0, iHi = 0;
   for (let k = 1; k < win.length; k++) { if (win[k].l < win[iLo].l) iLo = k; if (win[k].h > win[iHi].h) iHi = k; }
-  // Ancla del tramo VIGENTE:
-  //  · Si el extremo más reciente está en MEDIO del tramo → hubo una reversión:
-  //    la tendencia vigente arranca ahí (p. ej. subimos desde el último mínimo).
-  //  · Si el extremo más reciente está al FINAL → es una tendencia continua:
-  //    se ancla en el extremo antiguo para medir todo el recorrido.
   const reciente = Math.max(iLo, iHi), antiguo = Math.min(iLo, iHi);
-  let ini = (reciente <= win.length - 8) ? reciente : antiguo;
+  // Solo es una reversión (tramo nuevo vigente) si ese tramo es SUSTANCIAL
+  // (al menos el 25% de la ventana). Un extremo global metido en un valle de
+  // ruido cerca del final NO cuenta: ahí se mide todo el recorrido (filtra ruido).
+  const legLen = win.length - reciente;
+  const esReversion = (reciente <= win.length - 8) && (legLen >= win.length * 0.25);
+  let ini = esReversion ? reciente : antiguo;
   ini = Math.max(0, Math.min(ini, win.length - 8));
   const seg = win.slice(ini);
   if (seg.length < 5) return { dir: 'lateral', canal: null };
   const R = _regresion(seg);
   if (!R) return { dir: 'lateral', canal: null };
-  // Dirección por la pendiente, con umbral para no marcar ruido como tendencia.
   const precio = velas[velas.length - 1].c || 1;
-  const subeTramo = R.m * R.n;                    // recorrido total de la recta
+  const subeTramo = R.m * R.n;
   const umbral = precio * 0.004;
   let dir = 'lateral';
   if (subeTramo > umbral) dir = 'alcista';
   else if (subeTramo < -umbral) dir = 'bajista';
-  // Anclas de tiempo (para dibujar pegado al gráfico).
   const t0 = win[ini].t, t1 = win[win.length - 1].t;
-  return {
-    dir,
-    canal: { m: R.m, b: R.b, n: R.n, arriba: R.arriba, abajo: R.abajo,
-             t0, t1, p0: R.b, p1: R.m * (R.n - 1) + R.b }
-  };
+  return { dir, canal: { m: R.m, b: R.b, n: R.n, arriba: R.arriba, abajo: R.abajo,
+                         t0, t1, p0: R.b, p1: R.m * (R.n - 1) + R.b } };
 }
 
 function detectarEstructuras(velas) {
@@ -912,6 +914,9 @@ function pal() {
 
 /* De 15m sube a 1h, de 5m a 30m, etc. — para la confluencia multi-temporalidad. */
 const TF_SUPERIOR = { '1m': '15m', '5m': '30m', '15m': '1h', '30m': '2h', '1h': '4h', '4h': '1d', '1d': '1w' };
+/* Temporalidad JERÁRQUICA (largo plazo), con el salto grande que usa la
+   estrategia: operar 15m→4h, 1h→diario, 5m→1h, 4h→diario, 1d→semanal. */
+const TF_JERARQUICO = { '1m': '1h', '5m': '1h', '15m': '4h', '30m': '4h', '1h': '1d', '2h': '1d', '4h': '1d', '1d': '1w' };
 
 /* ══════════════════════════════════════════════════════════════
    ANÁLISIS DE MERCADO — niveles institucionales + backtest
@@ -1190,6 +1195,7 @@ export async function abrirMuros() {
    ══════════════════════════════════════════════════════════════ */
 let _reloj = null, _relojVelas = null, _relojPulso = null;
 let _htfTs = 0;                        // última vez que se pidió la temporalidad superior
+let _jerTs = 0;                        // última vez que se pidió la temporalidad jerárquica
 let _delTs = 0;                        // última vez que se pidió el order-flow (aggTrades)
 let _ultLibro = null;                  // último libro bueno (REST o WS) para confirmar zonas
 let _fallos = 0;
@@ -1236,9 +1242,17 @@ async function cargarVelas() {
           _htfTs = Date.now();
         } catch (_) {}
       }
+      /* TENDENCIA JERÁRQUICA (largo plazo): velas de la temporalidad grande,
+         vistas "de lejos", para el canal paralelo que filtra el ruido. */
+      const jer = TF_JERARQUICO[M.tf];
+      if (jer && Date.now() - _jerTs > 60000) {
+        try { M._velasJerar = await traerVelas(par.s, jer, 300); M._jerTf = jer; _jerTs = Date.now(); } catch (_) {}
+      }
       /* Las zonas salen de las VELAS: se llenan en ~1 s, sin depender del libro. */
       const r = detectarZonas(M.velas, px, { htf: M.zonasHTF, libro: murosDelLibro(), ancla: _par + "|" + M.tf });
-      M.zonas = r.zonas; M.perfil = r.perfil; M._tendCorto = calcTendenciaCorto();
+      M.zonas = r.zonas; M.perfil = r.perfil;
+      M._tendCorto = calcTendenciaCorto();
+      M._tendJerar = calcTendenciaJerar();
       /* NIVELES INSTITUCIONALES + BACKTEST, y boost de confianza cuando una
          zona coincide con VWAP / borde del área de valor / POC. */
       M.mercado = analizarMercado(M.velas, px, M.perfil);
@@ -1480,7 +1494,7 @@ function arrancar() {
 
     if (M.velas.length && M.precio > 0) {
       const r = detectarZonas(M.velas, M.precio, { htf: M.zonasHTF, libro: murosDelLibro(), ancla: _par + "|" + M.tf });
-      M.zonas = r.zonas; M.perfil = r.perfil; M._tendCorto = calcTendenciaCorto();
+      M.zonas = r.zonas; M.perfil = r.perfil; M._tendCorto = calcTendenciaCorto(); M._tendJerar = calcTendenciaJerar();
       M.mercado = analizarMercado(M.velas, M.precio, M.perfil);
       aplicarReferencias(M.zonas, M.mercado, M.precio);
       seguirVida(M.zonas);
@@ -1721,6 +1735,43 @@ function dibujar() {
      En vez de decenas de franjas de volumen (ruido), se dibujan las CAJAS
      donde el precio oscila: sus bordes son respetados por el precio. El
      rango más reciente (el actual) se resalta; ahí es donde se opera. */
+  /* ── FASE 2 · TENDENCIA JERÁRQUICA (canal paralelo, temporalidad grande) ──
+     Se lee "de lejos" en la temporalidad superior y se dibuja como CANAL
+     paralelo dorado (centro punteado + dos rieles) que filtra el ruido, igual
+     que lo trazas a mano. Marca el ciclo mayor con el que hay que fluir. */
+  const TJ = M._tendJerar;
+  if (TJ && TJ.canal && TJ.dir !== 'lateral') {
+    const C = TJ.canal;
+    const x0 = mXt(C.t0), x1r = mXt(C.t1);
+    if (x1r !== x0) {
+      const mPx = (C.p1 - C.p0) / (x1r - x0);
+      const centro = (x) => C.p0 + mPx * (x - x0);
+      const sup = (x) => centro(x) + C.arriba, inf = (x) => centro(x) - C.abajo;
+      const xIni = 0, xFin = x1;
+      const oro = '232,184,75';
+      g.save();
+      // relleno muy tenue
+      g.beginPath();
+      g.moveTo(xIni, Y(sup(xIni))); g.lineTo(xFin, Y(sup(xFin)));
+      g.lineTo(xFin, Y(inf(xFin))); g.lineTo(xIni, Y(inf(xIni))); g.closePath();
+      g.fillStyle = `rgba(${oro},0.045)`; g.fill();
+      // rieles del canal (dorados, sólidos y finos)
+      g.strokeStyle = `rgba(${oro},0.9)`; g.lineWidth = 1.6; g.setLineDash([]);
+      g.beginPath(); g.moveTo(xIni, Y(sup(xIni))); g.lineTo(xFin, Y(sup(xFin))); g.stroke();
+      g.beginPath(); g.moveTo(xIni, Y(inf(xIni))); g.lineTo(xFin, Y(inf(xFin))); g.stroke();
+      // centro punteado
+      g.strokeStyle = `rgba(${oro},0.55)`; g.lineWidth = 1; g.setLineDash([6, 5]);
+      g.beginPath(); g.moveTo(xIni, Y(centro(xIni))); g.lineTo(xFin, Y(centro(xFin))); g.stroke();
+      g.setLineDash([]);
+      // etiqueta
+      g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'left';
+      g.fillStyle = `rgba(${oro},1)`;
+      const tf = M._jerTf ? M._jerTf.toUpperCase() : '';
+      g.fillText(`JERÁRQUICA ${TJ.dir === 'alcista' ? 'ALCISTA' : 'BAJISTA'}${tf ? ' · ' + tf : ''}`, 8, Y(sup(8)) - 6);
+      g.restore();
+    }
+  }
+
   /* ── FASE 1 · TENDENCIA DE CORTO PLAZO (canal por regresión) ──
      La recta central es la tendencia LIMPIA (filtrada de ruido, igual que el
      canal paralelo que traza el trader). El riel que da la cara al precio
