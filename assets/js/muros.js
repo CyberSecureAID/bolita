@@ -1309,6 +1309,10 @@ export async function abrirMuros() {
             <img src="assets/img/jesus-avatar.webp" alt="">
             <span class="mu-an-txt">Analyst</span>
           </button>
+          <div class="mu-pos-split" id="mu-pos-split" title="Positions">
+            <button class="mu-pos-half" id="mu-pos-single">Single</button>
+            <button class="mu-pos-half" id="mu-pos-double">Double</button>
+          </div>
           <button class="mu-ico" id="mu-cal" title="Calendario económico">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4M7.5 13h2M11 13h2M14.5 13h2M7.5 16.5h2M11 16.5h2"/></svg>
           </button>
@@ -1365,6 +1369,17 @@ export async function abrirMuros() {
   $('mu-foto').onclick = () => guardarImagen();
   { const bc = $('mu-cal'); if (bc) bc.onclick = () => abrirNoticiasSeguro('calendario'); }
   $('mu-analista').onclick = () => abrirAnalista();
+  {
+    const bS = $('mu-pos-single'), bD = $('mu-pos-double');
+    const set = (modo) => {
+      M._modoPos = (M._modoPos === modo) ? null : modo;   // volver a tocar lo apaga
+      bS.classList.toggle('on', M._modoPos === 'single');
+      bD.classList.toggle('on', M._modoPos === 'double');
+      dibujar();
+    };
+    if (bS) bS.onclick = () => set('single');
+    if (bD) bD.onclick = () => set('double');
+  }
   $('mu-tema').onclick = () => {
     M.tema = M.tema === 'claro' ? 'oscuro' : 'claro';
     try { localStorage.setItem('mu_tema', M.tema); } catch (_) {}
@@ -2085,21 +2100,43 @@ function dibujar() {
      una banda roja de "interés". Las líneas de entrada explícitas no se
      muestran. Las velas se dibujan después, así la acumulación queda visible. */
   const _zs = M.estructuras || [];
+  M._zonaBtns = [];
   _zs.forEach((Z) => {
     if (Z.hi < pMin || Z.lo > pMax) return;
+    const baj = Z.dir === 'oferta';
+    const col = baj ? '246,70,93' : '46,232,106';
     const xCal = Math.max(0, Math.min(x1, mXt(Z.t1) + paso / 2));   // el color NACE en el borde derecho de la última vela (el impulso)
     const xR = x1;
     const yT = Y(Math.min(pMax, Z.hi)), yB = Y(Math.max(pMin, Z.lo));
     g.save();
-    // Solo COLOR saliendo de las velas hacia la derecha. Sin recuadro vacío a la
-    // izquierda y SIN botón: la zona es únicamente el mapa de calor.
     dibujarCalorZona(g, Z, xCal, xR, yT, yB, mXt, paso);
     g.restore();
+    // ── Pastilla "Liq" clicable al extremo derecho (muestra la liquidez real) ──
+    const bw = 34, bh = 16, bx = x1 - bw - 6, by = (yT + yB) / 2 - bh / 2;
+    if (by > 2 && by + bh < y1 - 2) {
+      g.save();
+      g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 5; g.shadowOffsetY = 1.5;
+      const gb = g.createLinearGradient(bx, by, bx, by + bh);
+      gb.addColorStop(0, `rgba(${col},0.98)`); gb.addColorStop(1, `rgba(${col},0.62)`);
+      g.fillStyle = gb; redondeado(g, bx, by, bw, bh, 5); g.fill();
+      g.shadowColor = 'transparent';
+      g.fillStyle = '#0b0e12'; g.font = '800 10px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('Liq ⌄', bx + bw / 2, by + bh / 2 + .5);
+      g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.restore();
+      M._zonaBtns.push({ x: bx, y: by, w: bw, h: bh, zona: Z });
+    }
   });
 
   /* (El tooltip de liquidez se dibuja al FINAL de dibujar(), para que quede por
      encima de las velas y no lo tapen.) */
 
+
+  /* Marca de la herramienta */
+  g.save();
+  g.font = '800 12px system-ui,sans-serif'; g.textAlign = 'left';
+  g.fillStyle = 'rgba(232,184,75,.55)';
+  g.fillText('Heat Pools', 10, 17);
+  g.restore();
 
   /* ── LAS VELAS ── */
   const cuerpo = Math.max(1.6, paso * 0.6);
@@ -2214,6 +2251,8 @@ function dibujar() {
   M._guiaDst = null;
   if (M._tend) dibujarTendencia(g);
   if (M._pos) dibujarPosicion(g);
+  // Posiciones automáticas por zona (botón "Positions"): single o double.
+  if (M._modoPos) { posicionesDeZonas().forEach((P) => dibujarPosicion(g, P)); }
   pintarGuiaSVG();
 
   /* ── CROSSHAIR: cruz + precio del cursor en el eje ── */
@@ -2245,6 +2284,41 @@ function dibujar() {
       g.fillText(ht, Math.max(2 + hw / 2, Math.min(x1 - hw / 2, cx)), y1 + 13.5);
       g.textAlign = 'left';
     }
+  }
+
+  /* ── Tooltip de LIQUIDEZ REAL del periodo (encima de todo, al pulsar "Liq") ── */
+  if (M._zonaTip && M._zonaTip.zona) {
+    const Z = M._zonaTip.zona;
+    const baj = Z.dir === 'oferta';
+    const col = baj ? '246,70,93' : '46,232,106';
+    const liq = Z.liq || 0, liqC = Z.liqC || 0, liqV = Math.max(0, liq - liqC);
+    const pComp = liq > 0 ? Math.round((liqC / liq) * 100) : 50;
+    const lineas = [
+      ['Liquidez del rango', dinero(liq)],
+      ['Compradora', dinero(liqC) + '  (' + pComp + '%)'],
+      ['Vendedora', dinero(liqV) + '  (' + (100 - pComp) + '%)'],
+      ['Velas en rango', String((Z.velas || []).length)]
+    ];
+    g.save();
+    g.font = '10px ui-monospace,monospace';
+    let wTip = 0; lineas.forEach((l) => { wTip = Math.max(wTip, g.measureText(l[0] + '     ' + l[1]).width); });
+    wTip = Math.min(x1 - 12, wTip + 22); const hTip = 14 * lineas.length + 26;
+    let tx = M._zonaTip.x - wTip - 8, ty = Math.max(4, Math.min(y1 - hTip - 4, M._zonaTip.y - 6));
+    if (tx < 4) tx = Math.min(x1 - wTip - 4, M._zonaTip.x + 40);
+    g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 14; g.shadowOffsetY = 4;
+    g.fillStyle = 'rgba(14,18,24,.98)'; redondeado(g, tx, ty, wTip, hTip, 8); g.fill();
+    g.shadowColor = 'transparent';
+    g.strokeStyle = `rgba(${col},.55)`; g.lineWidth = 1; redondeado(g, tx + .5, ty + .5, wTip - 1, hTip - 1, 8); g.stroke();
+    g.textAlign = 'left'; g.font = 'bold 10px ui-monospace,monospace'; g.fillStyle = `rgba(${col},1)`;
+    g.fillText(baj ? 'ZONA DE OFERTA' : 'ZONA DE DEMANDA', tx + 11, ty + 16);
+    lineas.forEach((l, i) => {
+      const yy = ty + 34 + i * 14;
+      g.font = '10px ui-monospace,monospace'; g.fillStyle = '#93a0ad'; g.textAlign = 'left';
+      g.fillText(l[0], tx + 11, yy);
+      g.fillStyle = '#e8ecf2'; g.textAlign = 'right';
+      g.fillText(l[1], tx + wTip - 11, yy);
+    });
+    g.textAlign = 'left'; g.restore();
   }
 }
 
@@ -2311,6 +2385,15 @@ function engancharGestos(cv) {
     // Al primer toque en el gráfico, la línea guía de sugerencia se retira.
     if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
     if (M._tend && M._tend.guia) { M._tend.guia = false; dibujar(); }
+
+    // ── Pastilla "Liq" de una zona: muestra/oculta la liquidez real del periodo ──
+    for (const b of (M._zonaBtns || [])) {
+      if (lx >= b.x - 3 && lx <= b.x + b.w + 3 && ly >= b.y - 3 && ly <= b.y + b.h + 3) {
+        M._zonaTip = (M._zonaTip && M._zonaTip.zona === b.zona) ? null : { zona: b.zona, x: b.x, y: b.y };
+        dibujar(); return;
+      }
+    }
+    if (M._zonaTip) { M._zonaTip = null; dibujar(); }
 
     // ── Herramienta de posición (misma dinámica que Smart Levels) ──
     if (M._pos) {
@@ -2393,6 +2476,9 @@ function engancharGestos(cv) {
       }
     }
     if (M._tend && cercaTend(lx, ly)) return 'grab';
+    for (const b of (M._zonaBtns || [])) {
+      if (lx >= b.x - 3 && lx <= b.x + b.w + 3 && ly >= b.y - 3 && ly <= b.y + b.h + 3) return 'pointer';  // manita en la pastilla Liq
+    }
     return '';
   };
 
@@ -3573,6 +3659,13 @@ function estilos() {
     font-family:var(--display,sans-serif);font-weight:700;font-size:12px;white-space:nowrap;
     transition:transform .1s ease,filter .15s ease}
   #mu-overlay .mu-analista:hover{filter:brightness(1.12)}
+  #mu-overlay .mu-pos-split{display:inline-flex;flex:0 0 auto;height:36px;border-radius:9px;overflow:hidden;
+    border:1px solid rgba(232,184,75,.55);background:rgba(232,184,75,.06)}
+  #mu-overlay .mu-pos-half{background:transparent;border:0;color:#d8b24a;font:700 12px system-ui,sans-serif;
+    padding:0 12px;cursor:pointer;letter-spacing:.2px;transition:background .15s,color .15s}
+  #mu-overlay .mu-pos-half+.mu-pos-half{border-left:1px solid rgba(232,184,75,.35)}
+  #mu-overlay .mu-pos-half:hover{background:rgba(232,184,75,.14)}
+  #mu-overlay .mu-pos-half.on{background:linear-gradient(180deg,#f7db8d,#E8B84B 55%,#c79426);color:#3a2800}
   #mu-overlay .mu-analista:active{transform:translateY(1px)}
   #mu-overlay .mu-analista img{width:28px;height:28px;border-radius:50%;object-fit:cover;flex:0 0 auto;
     border:1px solid rgba(232,184,75,.55)}
@@ -4163,8 +4256,45 @@ function _anclaTarjetaMu(pos, x, w, yt, ye, ys, cw, ch, x1, y1) {
 }
 
 /* Dibujo FIEL de la herramienta de posición de Smart Levels. */
-function dibujarPosicion(g) {
-  const P = M._pos, geo = M._geo; if (!P || !geo) return;
+/* Posiciones automáticas a partir de las zonas swing (botón "Positions").
+   Single: una posición por zona relevante (1:2). Double: dos por zona (la 2ª
+   entra en el stop de la 1ª, mismo diámetro, 1:2). Se escalonan en el tiempo
+   para NO pisarse. Tarjeta minimizada por defecto. */
+function posicionesDeZonas() {
+  const geo = M._geo; if (!geo || !M.estructuras) return [];
+  const vis = geo.vis; if (!vis || !vis.length) return [];
+  const tfMs = geo.tfMs || 60000;
+  const tBase = vis[vis.length - 1].t;
+  const out = [];
+  let idx = 0;
+  M.estructuras.forEach((z) => {
+    if (!(z.rr > 0)) return;                        // zona ancha → no operar
+    const corto = z.dir === 'oferta';
+    const rango = Math.abs(z.hi - z.lo) || 1;
+    const tipo = corto ? 'poscorta' : 'poslarga';
+    // escalonado horizontal para que no se superpongan
+    const t0 = tBase + (3 + idx * 7) * tfMs, t1 = t0 + 6 * tfMs; idx++;
+    const mk = (pe, sl) => {
+      const tp = corto ? pe - 2 * Math.abs(sl - pe) : pe + 2 * Math.abs(sl - pe);
+      return { tipo, pe, pStop: sl, pTarget: tp, t0, t1, zonaPoc: pe,
+        cTarget: '#2ee86a', cEntry: '#eaecef', cStop: '#ff3b52', grosor: 2, intensidad: 1,
+        cardPos: 'der', oculto: true, guia: false };
+    };
+    // Posición 1: entrada en la línea que da la cara, stop en la opuesta.
+    out.push(mk(z.e1, z.sl));
+    if (M._modoPos === 'double') {
+      // Posición 2: entra en el stop de la 1ª (leve diferencia), mismo diámetro.
+      const pe2 = z.slE2 != null ? z.slE2 : (corto ? z.sl + rango * 0.15 : z.sl - rango * 0.15);
+      const sl2 = corto ? pe2 + rango : pe2 - rango;
+      const p2 = mk(pe2, sl2); p2.t0 = t0 + 3 * tfMs; p2.t1 = p2.t0 + 6 * tfMs;  // un pelín a la derecha
+      out.push(p2);
+    }
+  });
+  return out;
+}
+
+function dibujarPosicion(g, P0) {
+  const P = P0 || M._pos, geo = M._geo; if (!P || !geo) return;
   const largo = P.tipo === 'poslarga';
   const x1 = geo.xVelas, y1 = geo.y1;
   const Ax = mXt(P.t0), Bx = mXt(P.t1);
