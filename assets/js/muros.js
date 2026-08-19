@@ -544,53 +544,49 @@ function detectarEstructuras(velas) {
   const n = velas ? velas.length : 0;
   if (n < 30) return [];
   const precio = velas[n - 1].c || velas[n - 1].o || 1;
-  const MINLEN = 6, MAXLEN = 64;
+  const K = 6;                          // ventana del impulso
+  const MINIMP = precio * 0.012;        // impulso mínimo ~1.2%
   const brutas = [];
-  let i = 0;
-  while (i < n - MINLEN) {
-    let hi = velas[i].h, lo = velas[i].l;
-    let j = i + 1;
-    // Formar el canal de oscilación (estrecho: menos del 3% del precio).
-    while (j < n && (j - i) < MAXLEN) {
-      const nHi = Math.max(hi, velas[j].h), nLo = Math.min(lo, velas[j].l);
-      if ((nHi - nLo) > precio * 0.03) break;
-      hi = nHi; lo = nLo; j++;
+  let i = 8;
+  // 1) DETECTAR IMPULSOS y, para cada uno, la CONSOLIDACIÓN que lo precede.
+  //    (Buscar el impulso primero es lo fiable: la acumulación es lo que hay
+  //    justo antes de que el precio se dispare.)
+  while (i < n - 3) {
+    const desde = velas[i - 1].c;
+    let hasta = desde;
+    for (let k = i; k < Math.min(n, i + K); k++) hasta = velas[k].c;
+    const mov = hasta - desde;
+    if (Math.abs(mov) < MINIMP) { i++; continue; }
+    // Consolidación previa: extender hacia atrás mientras el rango sea ESTRECHO
+    // (menor que el propio impulso). Ese rango es la zona swing.
+    let a = i - 1;
+    let hi = velas[a].h, lo = velas[a].l;
+    while (a > 0) {
+      const nHi = Math.max(hi, velas[a - 1].h), nLo = Math.min(lo, velas[a - 1].l);
+      if ((nHi - nLo) > Math.abs(mov) * 0.75) break;
+      hi = nHi; lo = nLo; a--;
     }
-    const len = j - i, alt = hi - lo;
-    if (len >= MINLEN && alt > precio * 0.0015) {
-      // OSCILACIÓN: el cierre cruza la media varias veces (arriba/abajo/arriba).
-      const mid = (hi + lo) / 2;
-      let cruces = 0, lado = null;
-      for (let k = i; k < j; k++) { const l2 = velas[k].c >= mid ? 1 : 0; if (lado !== null && l2 !== lado) cruces++; lado = l2; }
-      const zA = hi - alt * 0.30, zB = lo + alt * 0.30;
-      let tA = 0, tB = 0;
-      for (let k = i; k < j; k++) { if (velas[k].h >= zA) tA++; if (velas[k].l <= zB) tB++; }
-      if (cruces >= 3 && tA >= 2 && tB >= 2) {
-        // IMPULSO posterior: ¿el precio salió con fuerza (≥ 1.8× la altura)?
-        let maxUp = 0, maxDn = 0;
-        const hasta = Math.min(n, j + 24);
-        for (let k = j; k < hasta; k++) { maxUp = Math.max(maxUp, velas[k].h - hi); maxDn = Math.max(maxDn, lo - velas[k].l); }
-        let dir = null;
-        if (maxUp >= alt * 1.8 && maxUp >= maxDn) dir = 'demanda';   // rompió ARRIBA → acumulación (soporte)
-        else if (maxDn >= alt * 1.8 && maxDn > maxUp) dir = 'oferta'; // rompió ABAJO → distribución (resistencia)
-        if (dir) { brutas.push({ i0: i, i1: j - 1, hi, lo, t0: velas[i].t, t1: velas[j - 1].t, dir }); i = j; continue; }
-      }
+    const len = i - a, alt = hi - lo;
+    if (len >= 4 && alt >= precio * 0.0015 && alt <= precio * 0.03) {
+      const dir = mov > 0 ? 'demanda' : 'oferta';   // impulso alcista → demanda; bajista → oferta
+      brutas.push({ i0: a, i1: i - 1, hi, lo, t0: velas[a].t, t1: velas[i - 1].t, dir });
+      i += K; continue;
     }
     i++;
   }
-  // RELEVANCIA + NO MITIGADA respecto al precio actual.
+  // 2) RELEVANCIA + NO MITIGADA respecto al precio actual.
   const holgura = precio * 0.0006;
   const validas = brutas.filter((z) => {
     if (z.dir === 'demanda') {
-      if (z.lo >= precio) return false;                            // el precio ya está por debajo → quedó detrás
+      if (z.lo >= precio) return false;                            // quedó detrás
       for (let k = z.i1 + 1; k < n; k++) if (velas[k].c < z.lo - holgura) return false;  // perforada
       return true;
     }
-    if (z.hi <= precio) return false;                              // el precio ya está por encima → detrás
+    if (z.hi <= precio) return false;                              // quedó detrás
     for (let k = z.i1 + 1; k < n; k++) if (velas[k].c > z.hi + holgura) return false;    // perforada
     return true;
   });
-  // La demanda más cercana por debajo y la oferta más cercana por encima (hasta 2 de cada).
+  // 3) La demanda más cercana por debajo y la oferta más cercana por encima (2 de cada).
   const dem = validas.filter((z) => z.dir === 'demanda').sort((a, b) => b.hi - a.hi).slice(0, 2);
   const ofe = validas.filter((z) => z.dir === 'oferta').sort((a, b) => a.lo - b.lo).slice(0, 2);
   return dem.concat(ofe);
@@ -890,7 +886,7 @@ function abrirNoticiasSeguro(cual) {
   const fn = () => { try { window.abrirCalendario && window.abrirCalendario(); } catch (_) {} };
   if (typeof window.abrirCalendario === 'function') { fn(); return; }
   if (document.getElementById('news-js-lazy')) { setTimeout(() => abrirNoticiasSeguro(cual), 300); return; }
-  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=9';
+  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=10';
   s.onload = fn;
   document.head.appendChild(s);
 }

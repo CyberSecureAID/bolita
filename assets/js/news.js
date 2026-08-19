@@ -15,6 +15,14 @@
   'use strict';
   if (window.abrirCalendario) return;
   var _seq = 0;
+  // Nombre del sitio, DINÁMICO: sale de <meta og:site_name> (o del título / dominio).
+  // Si en el futuro cambia el nombre o el dominio, esto se actualiza solo.
+  function nombreSitio() {
+    var m = document.querySelector('meta[property="og:site_name"], meta[name="application-name"], meta[name="apple-mobile-web-app-title"]');
+    if (m && m.content) return m.content.trim();
+    if (document.title) return document.title.trim();
+    try { return location.hostname.replace(/^www\./, ''); } catch (_) { return ''; }
+  }
 
   function css() {
     if (document.getElementById('nwx-css')) return;
@@ -34,8 +42,18 @@
     '.nwx-box .nwx-load{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#8b95a1;font-size:13px;pointer-events:none}' +
     '.nwx-box .nwx-spin{width:26px;height:26px;border:3px solid rgba(232,184,75,.25);border-top-color:#E8B84B;border-radius:50%;animation:nwxSpin .8s linear infinite}' +
     '.nwx-box .nwx-foot{flex:0 0 auto;padding:7px 12px;text-align:center;font-size:10px;color:#5c6672;font-family:ui-monospace,monospace;border-top:1px solid rgba(255,255,255,.05)}' +
-    // Acentos con los colores de la marca sobre el widget embebido (best-effort).
-    '.nwx-box .nwx-body a{color:#E8B84B!important}' +
+    // ── Tematizado del widget de calendario a los colores de la marca (dorado/oscuro).
+    // El widget inyecta HTML en nuestro contenedor, así que lo re-estilamos aquí.
+    '.nwx-box .nwx-body [id^="economic-calendar"]{background:transparent!important;color:#c8cfd8!important;font-family:system-ui,-apple-system,sans-serif!important}' +
+    '.nwx-box .nwx-body [id^="economic-calendar"] *{border-color:rgba(232,184,75,.14)!important;box-shadow:none!important}' +
+    '.nwx-box .nwx-body [id^="economic-calendar"] table,.nwx-box .nwx-body [id^="economic-calendar"] tbody,.nwx-box .nwx-body [id^="economic-calendar"] tr{background:transparent!important}' +
+    '.nwx-box .nwx-body [id^="economic-calendar"] thead th,.nwx-box .nwx-body [id^="economic-calendar"] th{background:#12171f!important;color:#E8B84B!important;font-weight:800!important;letter-spacing:.3px}' +
+    '.nwx-box .nwx-body [id^="economic-calendar"] td{background:transparent!important;color:#c8cfd8!important}' +
+    '.nwx-box .nwx-body [id^="economic-calendar"] tr:hover td{background:rgba(232,184,75,.06)!important}' +
+    '.nwx-box .nwx-body [id^="economic-calendar"] a{color:#E8B84B!important;text-decoration:none!important}' +
+    '.nwx-box .nwx-body [id^="economic-calendar"] button,.nwx-box .nwx-body [id^="economic-calendar"] .btn{background:rgba(232,184,75,.12)!important;color:#E8B84B!important;border:1px solid rgba(232,184,75,.4)!important;border-radius:8px!important}' +
+    // encabezados de fecha / secciones
+    '.nwx-box .nwx-body [id^="economic-calendar"] [class*="date"],.nwx-box .nwx-body [id^="economic-calendar"] [class*="Date"],.nwx-box .nwx-body [id^="economic-calendar"] [class*="header"]{color:#E8B84B!important;background:rgba(232,184,75,.06)!important}' +
     '.nwx-box .nwx-body ::selection{background:rgba(232,184,75,.35)}' +
     '.nwx-box .nwx-body::-webkit-scrollbar{width:10px}' +
     '.nwx-box .nwx-body::-webkit-scrollbar-thumb{background:rgba(232,184,75,.35);border-radius:8px}' +
@@ -73,7 +91,7 @@
         '<div class="nwx-h"><span class="nwx-dot"></span><b>Calendario econ\u00f3mico</b><span>Eventos \u00b7 hoy</span>' +
           '<button class="nwx-x" aria-label="Cerrar">\u2715</button></div>' +
         '<div class="nwx-body"><div class="nwx-load"><div class="nwx-spin"></div>Cargando\u2026</div></div>' +
-        '<div class="nwx-foot">Datos en vivo</div>' +
+        '<div class="nwx-foot">Datos en vivo\u2003\u00b7\u2003' + (nombreSitio() || '') + '</div>' +
       '</div>';
     document.body.appendChild(box);
     var cerrar = function () { box.remove(); };
