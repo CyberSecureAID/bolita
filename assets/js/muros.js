@@ -823,37 +823,41 @@ function _calor(v) {
 function dibujarCalorZona(g, Z, xL, xR, yTop, yBot) {
   const W = xR - xL, H = yBot - yTop;
   if (W < 4 || H < 4) return;
-  const nCols = Math.max(8, Math.floor(W / 7));
-  const nRows = Math.max(8, Math.min(22, Math.floor(H / 5)));
-  // Semilla estable por zona (posición y textura no cambian entre frames).
+  const nRows = Math.max(10, Math.min(46, Math.floor(H / 3)));
   const seed = ((Math.abs(Math.floor(Z.t0 / 1000)) % 997) / 997);
-  const sa = seed * 6.2832, sb = seed * 12.9;
-  // Banda caliente cerca del borde operativo (demanda arriba, oferta abajo), con
-  // desplazamiento por zona para que no sea siempre la misma.
-  const baseFrac = Z.dir === 'demanda' ? 0.74 : 0.26;
-  const hotFrac = Math.max(0.15, Math.min(0.85, baseFrac + (seed - 0.5) * 0.34));
-  const spread = 0.14 + seed * 0.10;
-  const cw = Math.max(1, W / nCols - 0.6), rh = Math.max(1, H / nRows - 0.4);
-  // Pico rojo garantizado (área de interés): columna y fila sembradas por zona.
-  const peakCol = Math.floor((0.18 + seed * 0.62) * nCols);
-  const hotRow = Math.round((1 - hotFrac) * nRows - 0.5);
-  for (let c = 0; c < nCols; c++) {
-    const cx = xL + (c / nCols) * W;
-    // Envolvente temporal: unas columnas más calientes que otras (ondas suaves).
-    const env = 0.5 + 0.5 * Math.sin(c * 0.55 + sa) * Math.cos(c * 0.19 + sb);
-    for (let r = 0; r < nRows; r++) {
-      const frac = 1 - (r + 0.5) / nRows;          // 1 arriba, 0 abajo
-      const d = (frac - hotFrac) / spread;
-      let v = Math.exp(-d * d) * (0.5 + 0.55 * env);
-      v *= 0.86 + 0.14 * Math.sin(c * 1.3 + r * 0.9 + sb);   // textura fina
-      if (Math.abs(c - peakCol) <= 1 && Math.abs(r - hotRow) <= 1) v = Math.max(v, 0.98);  // rojo garantizado
-      v = Math.max(0, Math.min(1, v));
-      if (v < 0.12) continue;
-      const rgb = _calor(v);
-      if (!rgb) continue;
-      g.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.5)`;
-      g.fillRect(cx, yTop + (r / nRows) * H, cw, rh);
+  const cl = (x, a, b) => Math.max(a, Math.min(b, x));
+  // NODOS calientes (área de interés): varios niveles de precio "encienden", con
+  // posición y fuerza sembradas por zona, para que no sea siempre igual.
+  const baseFrac = Z.dir === 'demanda' ? 0.72 : 0.28;
+  const cen = cl(baseFrac + (seed - 0.5) * 0.30, 0.14, 0.86);
+  const nodos = [
+    { f: cen, s: 1.0 },                                   // nodo principal → rojo
+    { f: cl(cen + 0.11 + seed * 0.05, 0.1, 0.9), s: 0.72 },
+    { f: cl(cen - 0.13 - seed * 0.04, 0.1, 0.9), s: 0.6 },
+    { f: cl(cen + 0.24, 0.1, 0.9), s: 0.42 }
+  ];
+  const spread = 0.045 + seed * 0.03;
+  const rowHot = Math.round((1 - cen) * nRows - 0.5);   // fila del nodo principal
+  for (let r = 0; r < nRows; r++) {
+    const frac = 1 - (r + 0.5) / nRows;                  // 1 arriba, 0 abajo
+    let base = 0;
+    for (const nd of nodos) { const d = (frac - nd.f) / spread; base = Math.max(base, nd.s * Math.exp(-d * d)); }
+    if (r === rowHot) base = Math.max(base, 1.0);        // rojo garantizado (área de interés)
+    base = base * 0.92 + 0.09;                           // fondo tenue: sin huecos negros
+    if (base < 0.11) continue;
+    const y = yTop + (r / nRows) * H, hh = Math.max(1, H / nRows + 0.6);
+    // Gradiente HORIZONTAL: caliente a la izquierda (la acumulación), enfriando
+    // hacia la derecha (la proyección). Colores por la paleta de Liquidity.
+    const grad = g.createLinearGradient(xL, 0, xR, 0);
+    const stops = 6;
+    for (let s2 = 0; s2 <= stops; s2++) {
+      const t = s2 / stops;
+      const v = base * Math.pow(1 - t, 1.5);             // se enfría rápido hacia la derecha
+      const rgb = _calor(Math.max(0.06, v));
+      if (rgb) grad.addColorStop(t, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${0.55 * (1 - 0.3 * t)})`);
     }
+    g.fillStyle = grad;
+    g.fillRect(xL, y, W, hh);
   }
 }
 
@@ -861,8 +865,14 @@ function detectarEstructuras(velas) {
   const n = velas ? velas.length : 0;
   if (n < 30) return [];
   const precio = velas[n - 1].c || velas[n - 1].o || 1;
+  // Volatilidad reciente (ATR simple): todo se mide relativo a ella, así el
+  // detector funciona igual en 5m que en diario o semanal (donde los rangos y
+  // los impulsos son mucho más grandes).
+  let sumR = 0, cR = 0;
+  for (let k = Math.max(1, n - 60); k < n; k++) { sumR += Math.abs(velas[k].h - velas[k].l); cR++; }
+  const atr = cR ? sumR / cR : precio * 0.005;
   const K = 6;                          // ventana del impulso
-  const MINIMP = precio * 0.012;        // impulso mínimo ~1.2%
+  const MINIMP = Math.max(precio * 0.003, atr * 2.2);   // impulso mínimo relativo a la volatilidad
   const brutas = [];
   let i = 8;
   // 1) IMPULSO + la OSCILACIÓN (acumulación) que lo precede.
@@ -882,12 +892,12 @@ function detectarEstructuras(velas) {
       hi = nHi; lo = nLo; a--;
     }
     const len = i - a, alt = hi - lo;
-    // OSCILACIÓN real: el cierre tiene que cruzar la media del rango varias veces
-    // (subir y bajar, como el zigzag de una acumulación), no ser un simple tramo.
+    // OSCILACIÓN real: el cierre cruza la media del rango varias veces (zigzag).
     let cruces = 0, lado = null; const mid = (hi + lo) / 2;
     for (let k = a; k <= i - 1; k++) { const l2 = velas[k].c >= mid ? 1 : 0; if (lado !== null && l2 !== lado) cruces++; lado = l2; }
-    // Zona ESTRECHA (las acumulaciones reales son finas): entre 0.15% y 1.3%.
-    if (len >= 4 && cruces >= 2 && alt >= precio * 0.0015 && alt <= precio * 0.013) {
+    // La zona tiene que ser un rango real (al menos ~0.4 ATR de alto). El máximo
+    // ya lo limita el impulso, así que se adapta solo a cada temporalidad.
+    if (len >= 4 && cruces >= 2 && alt >= atr * 0.4) {
       const dir = mov > 0 ? 'demanda' : 'oferta';   // impulso alcista → demanda; bajista → oferta
       brutas.push({ i0: a, i1: i - 1, hi, lo, t0: velas[a].t, t1: velas[i - 1].t, dir, imp });
       i += K; continue;
@@ -896,7 +906,7 @@ function detectarEstructuras(velas) {
   }
   // 2) RELEVANCIA + NO MITIGADA + CERCANÍA respecto al precio actual.
   const holgura = precio * 0.0006;
-  const maxDist = precio * 0.08;   // no más lejos del ~8% del precio (si no, no es operable)
+  const maxDist = Math.max(precio * 0.06, atr * 14);   // adaptativo: en TF grandes las zonas pueden estar más lejos
   const validas = brutas.filter((z) => {
     if (z.dir === 'demanda') {
       if (z.lo >= precio) return false;                            // quedó detrás
@@ -2299,13 +2309,15 @@ function engancharGestos(cv) {
   });
   window.addEventListener('mousemove', (e) => {
     if (!arr) return;
+    const rC = cv.getBoundingClientRect();
+    M._cursor = { x: e.clientX - rC.left, y: e.clientY - rC.top };   // la cruz sigue al cursor durante el arrastre
     if (modoG === 'y') {
       const dy = e.clientY - ay;
       if (Math.abs(dy) > 2) {
         M.zoomY = Math.max(0.2, Math.min(6, (M.zoomY || 1) * (1 + dy * 0.004)));
-        ay = e.clientY; dibujar();
+        ay = e.clientY;
       }
-      return;
+      dibujar(); return;
     }
     let cambio = false;
     const paso = (cv.clientWidth - 84) / (M.ancho || 70);   // paneo 1:1 a lo ancho (como Smart Levels)
@@ -2321,7 +2333,7 @@ function engancharGestos(cv) {
       M.offsetY = (M.offsetY || 0) + dy;
       ay = e.clientY; cambio = true;
     }
-    if (cambio) dibujar();
+    dibujar();   // siempre redibuja durante el arrastre (para que la cruz siga al cursor)
   });
   window.addEventListener('mouseup', () => { arr = false; cv.style.cursor = 'crosshair'; });
 
