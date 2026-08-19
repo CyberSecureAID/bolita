@@ -820,22 +820,26 @@ function detectarEstructuras(velas) {
     // (subir y bajar, como el zigzag de una acumulación), no ser un simple tramo.
     let cruces = 0, lado = null; const mid = (hi + lo) / 2;
     for (let k = a; k <= i - 1; k++) { const l2 = velas[k].c >= mid ? 1 : 0; if (lado !== null && l2 !== lado) cruces++; lado = l2; }
-    if (len >= 4 && cruces >= 2 && alt >= precio * 0.0015 && alt <= precio * 0.03) {
+    // Zona ESTRECHA (las acumulaciones reales son finas): entre 0.15% y 1.3%.
+    if (len >= 4 && cruces >= 2 && alt >= precio * 0.0015 && alt <= precio * 0.013) {
       const dir = mov > 0 ? 'demanda' : 'oferta';   // impulso alcista → demanda; bajista → oferta
       brutas.push({ i0: a, i1: i - 1, hi, lo, t0: velas[a].t, t1: velas[i - 1].t, dir, imp });
       i += K; continue;
     }
     i++;
   }
-  // 2) RELEVANCIA + NO MITIGADA respecto al precio actual.
+  // 2) RELEVANCIA + NO MITIGADA + CERCANÍA respecto al precio actual.
   const holgura = precio * 0.0006;
+  const maxDist = precio * 0.08;   // no más lejos del ~8% del precio (si no, no es operable)
   const validas = brutas.filter((z) => {
     if (z.dir === 'demanda') {
       if (z.lo >= precio) return false;                            // quedó detrás
+      if (precio - z.hi > maxDist) return false;                   // demasiado lejos
       for (let k = z.i1 + 1; k < n; k++) if (velas[k].c < z.lo - holgura) return false;  // perforada
       return true;
     }
     if (z.hi <= precio) return false;                              // quedó detrás
+    if (z.lo - precio > maxDist) return false;                     // demasiado lejos
     for (let k = z.i1 + 1; k < n; k++) if (velas[k].c > z.hi + holgura) return false;    // perforada
     return true;
   });
@@ -850,9 +854,9 @@ function detectarEstructuras(velas) {
       else { z.e1 = z.hi; z.e2 = z.lo; z.sl = z.lo; z.slE2 = z.lo - margen; z.tp = z.hi + rr * ancho; }
     }
   });
-  // La demanda más cercana por debajo y la oferta más cercana por encima.
-  const dem = validas.filter((z) => z.dir === 'demanda').sort((a, b) => b.hi - a.hi).slice(0, 1);
-  const ofe = validas.filter((z) => z.dir === 'oferta').sort((a, b) => a.lo - b.lo).slice(0, 1);
+  // Varias zonas a cada lado, de la más cercana al precio a la más lejana.
+  const dem = validas.filter((z) => z.dir === 'demanda').sort((a, b) => b.hi - a.hi).slice(0, 3);
+  const ofe = validas.filter((z) => z.dir === 'oferta').sort((a, b) => a.lo - b.lo).slice(0, 3);
   return dem.concat(ofe);
 }
 
@@ -1961,9 +1965,12 @@ function dibujar() {
   /* ── ZONAS SWING + ENTRADAS ──
      Cada zona es un rango de OSCILACIÓN (acumulación) que precedió a un IMPULSO.
      Demanda (verde, debajo del precio) → largos; oferta (roja, encima) → cortos.
-     Rectángulo proyectado a la derecha + entradas 1/2, stop y objetivo con la
-     regla de la zona ancha (1:2 / 1:1 / no operar). */
-  (M.estructuras || []).forEach((Z) => {
+     Se dibujan varias, proyectadas a la derecha. Las líneas de entrada/stop/
+     objetivo solo en la MÁS CERCANA al precio (la más operable), para no saturar. */
+  const _zs = M.estructuras || [];
+  let _zNear = null, _zNearD = Infinity;
+  _zs.forEach((z) => { const d = z.dir === 'demanda' ? (M.precio - z.hi) : (z.lo - M.precio); if (d >= 0 && d < _zNearD) { _zNearD = d; _zNear = z; } });
+  _zs.forEach((Z) => {
     if (Z.hi < pMin || Z.lo > pMax) return;
     const baj = Z.dir === 'oferta';
     const col = baj ? '246,70,93' : '46,232,106';
@@ -1971,15 +1978,17 @@ function dibujar() {
     const yT = Y(Math.min(pMax, Z.hi)), yB = Y(Math.max(pMin, Z.lo)), alto = Math.max(3, yB - yT);
     g.save();
     const gr = g.createLinearGradient(xL, 0, xR, 0);
-    gr.addColorStop(0, `rgba(${col},0.16)`); gr.addColorStop(1, `rgba(${col},0.05)`);
+    gr.addColorStop(0, `rgba(${col},0.14)`); gr.addColorStop(1, `rgba(${col},0.04)`);
     g.fillStyle = gr; g.fillRect(xL, yT, xR - xL, alto);
-    g.strokeStyle = `rgba(${col},0.85)`; g.lineWidth = 1.3;
+    g.strokeStyle = `rgba(${col},0.8)`; g.lineWidth = 1.2;
     g.beginPath(); g.moveTo(xL, yT + .5); g.lineTo(xR, yT + .5); g.stroke();
     g.beginPath(); g.moveTo(xL, yB - .5); g.lineTo(xR, yB - .5); g.stroke();
     g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left'; g.fillStyle = `rgba(${col},0.95)`;
-    g.fillText(baj ? 'ZONA SWING · OFERTA' : 'ZONA SWING · DEMANDA', xL + 4, yT + (baj ? 11 : alto - 5));
+    const tag = Z.rr > 0 ? ` · 1:${Z.rr}` : ' · ancha';
+    g.fillText((baj ? 'OFERTA' : 'DEMANDA') + tag, xL + 4, yT + (baj ? 11 : alto - 5));
 
-    if (Z.rr > 0) {
+    // Solo la zona más cercana muestra las líneas operativas completas.
+    if (Z === _zNear && Z.rr > 0) {
       const linea = (p, cl, txt, dash) => {
         if (p < pMin || p > pMax) return;
         const y = Y(p); g.strokeStyle = cl; g.lineWidth = 1.4; g.setLineDash(dash || []);
@@ -1991,9 +2000,6 @@ function dibujar() {
       linea(Z.e2, `rgba(${col},.7)`, 'ENTRADA 2 (opcional)', [4, 4]);
       linea(Z.sl, 'rgba(246,70,93,.95)', 'STOP', [3, 3]);
       linea(Z.tp, 'rgba(46,232,106,.95)', `OBJETIVO 1:${Z.rr}`, []);
-    } else {
-      g.fillStyle = 'rgba(255,196,84,.95)'; g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left';
-      g.fillText('ZONA ANCHA · NO OPERAR', xL + 4, (yT + yB) / 2 + 3);
     }
     g.restore();
   });
