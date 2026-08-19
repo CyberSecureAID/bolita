@@ -770,6 +770,10 @@ async function abrirPools() {
           <button class="lq-ayuda" id="lq-foto" title="Guardar imagen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-2h4l2 2h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.5"/></svg>
           </button>
+          <button class="lq-ayuda lq-news" id="lq-news" title="News">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13v14H5a1 1 0 0 1-1-1z"/><path d="M17 8h2.5a1.5 1.5 0 0 1 1.5 1.5V18a1 1 0 0 1-1 1"/><path d="M7 9h7M7 12h7M7 15h4"/></svg>
+            <span class="lq-news-dot"></span>
+          </button>
           <button class="lq-ayuda apagado" id="lq-perfil" title="Perfil de volumen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M21 6H9M21 11H5M21 16H12M21 21H8"/></svg>
           </button>
@@ -897,6 +901,7 @@ async function abrirPools() {
   };
 
   $('lq-foto').onclick = () => guardarImagen();
+  { const bn = $('lq-news'); if (bn) bn.onclick = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} }; }
 
   pintar();
   // Al girar el móvil o cambiar de tamaño, se vuelve a dibujar.
@@ -2552,6 +2557,9 @@ function estilos() {
     padding:0;cursor:pointer;background:rgba(255,255,255,.05);border:1px solid #2b3139;color:#8b96a3;
     font-family:var(--mono,monospace);font-size:14px;font-weight:700}
   #lq-overlay .lq-ayuda:hover,#lq-overlay .lq-x:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
+  #lq-overlay .lq-news{position:relative}
+  #lq-overlay .lq-news .lq-news-dot{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:#f6465d;box-shadow:0 0 0 0 rgba(246,70,93,.6);animation:lqNewsPulse 2.2s infinite}
+  @keyframes lqNewsPulse{0%{box-shadow:0 0 0 0 rgba(246,70,93,.55)}70%{box-shadow:0 0 0 6px rgba(246,70,93,0)}100%{box-shadow:0 0 0 0 rgba(246,70,93,0)}}
 
   /* El gráfico se lo come todo. */
   #lq-overlay .lq-caja{flex:1;min-height:0;position:relative;background:#07090c;

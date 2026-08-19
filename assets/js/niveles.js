@@ -114,9 +114,10 @@ export async function abrirNiveles() {
 
 
         <div class="nv-der">
-          <button class="nv-ico nv-registrar" id="nv-registrar" title="Register indicator">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16l4.5-5 3 3L16 7"/><circle cx="19" cy="6" r="3"/><path d="M19 4.7v2.6M17.7 6h2.6"/></svg>
-            <span class="nv-rg-tx">Register indicator</span>
+          <button class="nv-ico nv-news" id="nv-news" title="News">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h13v14H5a1 1 0 0 1-1-1z"/><path d="M17 8h2.5a1.5 1.5 0 0 1 1.5 1.5V18a1 1 0 0 1-1 1"/><path d="M7 9h7M7 12h7M7 15h4"/></svg>
+            <span class="nv-rg-tx">News</span>
+            <span class="nv-news-dot"></span>
           </button>
           <button class="nv-ico" id="nv-widget" title="Superponer (ventana flotante encima de todo)">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="15" rx="2"/><rect x="12" y="11" width="7" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
@@ -187,7 +188,7 @@ export async function abrirNiveles() {
   d.querySelector('.nv-bg').onclick = cerrar;
   $('nv-x').onclick = cerrar;
   $('nv-ayuda').onclick = () => ayuda();
-  { const rb = $('nv-registrar'); if (rb) rb.onclick = () => registrarIndicador(); }
+  { const rb = $('nv-news'); if (rb) rb.onclick = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} }; }
   $('nv-herr').onclick = (e) => { e.stopPropagation(); menuHerramientas($('nv-herr')); };
   { const hm = $('nv-herr-m'); if (hm) hm.onclick = (e) => { e.stopPropagation(); menuHerramientas(hm); }; }
   $('nv-foto').onclick = () => guardarImagen(N.par, N.tf);
