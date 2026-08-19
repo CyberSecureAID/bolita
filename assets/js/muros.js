@@ -614,7 +614,7 @@ function _regresion(seg) {
   }
   return { m, b, n, arriba, abajo, sd: Math.sqrt(ss / n) };
 }
-function calcTendenciaCorto() { return _canalTendencia(M.velas, Math.max(70, (M.ancho || 100))); }
+function calcTendenciaCorto() { return _canalTendencia(M.velas, 90); }   // ventana FIJA: no cambia con el zoom
 /* Tendencia JERÁRQUICA: mismo canal por regresión, pero sobre las velas de la
    temporalidad grande y vistas "de lejos" (ventana amplia) para filtrar ruido. */
 function calcTendenciaJerar() {
@@ -631,9 +631,6 @@ function _canalTendencia(velas, N) {
   let iLo = 0, iHi = 0;
   for (let k = 1; k < win.length; k++) { if (win[k].l < win[iLo].l) iLo = k; if (win[k].h > win[iHi].h) iHi = k; }
   const reciente = Math.max(iLo, iHi), antiguo = Math.min(iLo, iHi);
-  // Solo es una reversión (tramo nuevo vigente) si ese tramo es SUSTANCIAL
-  // (al menos el 25% de la ventana). Un extremo global metido en un valle de
-  // ruido cerca del final NO cuenta: ahí se mide todo el recorrido (filtra ruido).
   const legLen = win.length - reciente;
   const esReversion = (reciente <= win.length - 8) && (legLen >= win.length * 0.25);
   let ini = esReversion ? reciente : antiguo;
@@ -649,7 +646,7 @@ function _canalTendencia(velas, N) {
   if (subeTramo > umbral) dir = 'alcista';
   else if (subeTramo < -umbral) dir = 'bajista';
   const t0 = win[ini].t, t1 = win[win.length - 1].t;
-  return { dir, canal: { m: R.m, b: R.b, n: R.n, arriba: R.arriba, abajo: R.abajo,
+  return { dir, canal: { m: R.m, b: R.b, n: R.n, arriba: R.arriba, abajo: R.abajo, sd: R.sd,
                          t0, t1, p0: R.b, p1: R.m * (R.n - 1) + R.b } };
 }
 
@@ -1125,6 +1122,7 @@ export async function abrirMuros() {
   d.querySelectorAll('[data-tf]').forEach((b) => b.onclick = () => {
     M.tf = b.dataset.tf;
     M._pos = null; M._tend = null; M._posList = null; quitarPager(); cerrarPosCfg(); cerrarTendCfg();
+    _htfTs = 0; _jerTs = 0; M._velasJerar = null; M._tendJerar = null;   // fuerza recálculo de la jerárquica en la nueva TF
     reiniciarAlertas();
     d.querySelectorAll('[data-tf]').forEach((x) => x.classList.toggle('on', x.dataset.tf === M.tf));
     const ch = $('mu-tfchip-t'); if (ch) ch.textContent = b.textContent;   // refleja en el chip móvil
@@ -1746,28 +1744,27 @@ function dibujar() {
     if (x1r !== x0) {
       const mPx = (C.p1 - C.p0) / (x1r - x0);
       const centro = (x) => C.p0 + mPx * (x - x0);
-      const sup = (x) => centro(x) + C.arriba, inf = (x) => centro(x) - C.abajo;
+      // Colchón DELGADO pegado a la línea central: solo pule el ruido de los
+      // picos (±1.2·desviación), no engulle el precio. La línea central es la
+      // que manda para la confluencia.
+      const w = (C.sd || 0) * 1.2;
+      const sup = (x) => centro(x) + w, inf = (x) => centro(x) - w;
       const xIni = 0, xFin = x1;
       const oro = '232,184,75';
       g.save();
-      // relleno muy tenue
-      g.beginPath();
-      g.moveTo(xIni, Y(sup(xIni))); g.lineTo(xFin, Y(sup(xFin)));
-      g.lineTo(xFin, Y(inf(xFin))); g.lineTo(xIni, Y(inf(xIni))); g.closePath();
-      g.fillStyle = `rgba(${oro},0.045)`; g.fill();
-      // rieles del canal (dorados, sólidos y finos)
-      g.strokeStyle = `rgba(${oro},0.9)`; g.lineWidth = 1.6; g.setLineDash([]);
+      // rieles finos y tenues (el colchón)
+      g.strokeStyle = `rgba(${oro},0.32)`; g.lineWidth = 1; g.setLineDash([5, 4]);
       g.beginPath(); g.moveTo(xIni, Y(sup(xIni))); g.lineTo(xFin, Y(sup(xFin))); g.stroke();
       g.beginPath(); g.moveTo(xIni, Y(inf(xIni))); g.lineTo(xFin, Y(inf(xFin))); g.stroke();
-      // centro punteado
-      g.strokeStyle = `rgba(${oro},0.55)`; g.lineWidth = 1; g.setLineDash([6, 5]);
-      g.beginPath(); g.moveTo(xIni, Y(centro(xIni))); g.lineTo(xFin, Y(centro(xFin))); g.stroke();
       g.setLineDash([]);
+      // LÍNEA CENTRAL prominente = la tendencia jerárquica (la que confluye)
+      g.strokeStyle = `rgba(${oro},1)`; g.lineWidth = 2.4;
+      g.beginPath(); g.moveTo(xIni, Y(centro(xIni))); g.lineTo(xFin, Y(centro(xFin))); g.stroke();
       // etiqueta
       g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'left';
       g.fillStyle = `rgba(${oro},1)`;
       const tf = M._jerTf ? M._jerTf.toUpperCase() : '';
-      g.fillText(`JERÁRQUICA ${TJ.dir === 'alcista' ? 'ALCISTA' : 'BAJISTA'}${tf ? ' · ' + tf : ''}`, 8, Y(sup(8)) - 6);
+      g.fillText(`JERÁRQUICA ${TJ.dir === 'alcista' ? 'ALCISTA' : 'BAJISTA'}${tf ? ' · ' + tf : ''}`, 8, Y(centro(8)) - 8);
       g.restore();
     }
   }
@@ -2674,6 +2671,7 @@ function menuPares() {
     m.remove();
     // Cambiar de moneda es empezar de cero: el historial no vale
     M.fotos = []; M.niveles = new Map(); M.muros = [];
+    _htfTs = 0; _jerTs = 0; M._velasJerar = null; M._tendJerar = null;   // recalcular jerárquica del nuevo par
     M.cargando = true; M.seleccionado = null; M.paso = 0;
     ponerLogos();
     pintarPanel();
