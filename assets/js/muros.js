@@ -826,35 +826,35 @@ function dibujarCalorZona(g, Z, xL, xR, yTop, yBot) {
   const nRows = Math.max(10, Math.min(46, Math.floor(H / 3)));
   const seed = ((Math.abs(Math.floor(Z.t0 / 1000)) % 997) / 997);
   const cl = (x, a, b) => Math.max(a, Math.min(b, x));
-  // NODOS calientes (área de interés): varios niveles de precio "encienden", con
-  // posición y fuerza sembradas por zona, para que no sea siempre igual.
-  const baseFrac = Z.dir === 'demanda' ? 0.72 : 0.28;
-  const cen = cl(baseFrac + (seed - 0.5) * 0.30, 0.14, 0.86);
+  // NODOS calientes (área de interés): más presencia de ROJO y AMARILLO. La banda
+  // caliente es más ancha y fuerte; verde y azul quedan de fondo.
+  const baseFrac = Z.dir === 'demanda' ? 0.70 : 0.30;
+  const cen = cl(baseFrac + (seed - 0.5) * 0.28, 0.16, 0.84);
   const nodos = [
-    { f: cen, s: 1.0 },                                   // nodo principal → rojo
-    { f: cl(cen + 0.11 + seed * 0.05, 0.1, 0.9), s: 0.72 },
-    { f: cl(cen - 0.13 - seed * 0.04, 0.1, 0.9), s: 0.6 },
-    { f: cl(cen + 0.24, 0.1, 0.9), s: 0.42 }
+    { f: cen, s: 1.25 },                                  // nodo principal → rojo intenso
+    { f: cl(cen + 0.13 + seed * 0.05, 0.1, 0.9), s: 0.95 },
+    { f: cl(cen - 0.15 - seed * 0.04, 0.1, 0.9), s: 0.9 },
+    { f: cl(cen + 0.27, 0.1, 0.9), s: 0.62 },
+    { f: cl(cen - 0.28, 0.1, 0.9), s: 0.55 }
   ];
-  const spread = 0.045 + seed * 0.03;
-  const rowHot = Math.round((1 - cen) * nRows - 0.5);   // fila del nodo principal
+  const spread = 0.075 + seed * 0.03;                    // banda más ancha (más amarillo alrededor)
+  const rowHot = Math.round((1 - cen) * nRows - 0.5);    // fila del nodo principal
   for (let r = 0; r < nRows; r++) {
     const frac = 1 - (r + 0.5) / nRows;                  // 1 arriba, 0 abajo
     let base = 0;
     for (const nd of nodos) { const d = (frac - nd.f) / spread; base = Math.max(base, nd.s * Math.exp(-d * d)); }
-    if (r === rowHot) base = Math.max(base, 1.0);        // rojo garantizado (área de interés)
-    base = base * 0.92 + 0.09;                           // fondo tenue: sin huecos negros
+    if (r === rowHot) base = Math.max(base, 1.05);       // rojo garantizado (área de interés)
+    base = base * 0.95 + 0.08;                           // fondo tenue: sin huecos negros
     if (base < 0.11) continue;
     const y = yTop + (r / nRows) * H, hh = Math.max(1, H / nRows + 0.6);
-    // Gradiente HORIZONTAL: caliente a la izquierda (la acumulación), enfriando
-    // hacia la derecha (la proyección). Colores por la paleta de Liquidity.
+    // Gradiente HORIZONTAL: caliente a la izquierda, enfriando a la derecha.
     const grad = g.createLinearGradient(xL, 0, xR, 0);
     const stops = 6;
     for (let s2 = 0; s2 <= stops; s2++) {
       const t = s2 / stops;
-      const v = base * Math.pow(1 - t, 1.5);             // se enfría rápido hacia la derecha
+      const v = base * Math.pow(1 - t, 1.35);            // enfría hacia la derecha (difuminado)
       const rgb = _calor(Math.max(0.06, v));
-      if (rgb) grad.addColorStop(t, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${0.55 * (1 - 0.3 * t)})`);
+      if (rgb) grad.addColorStop(t, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${0.6 * (1 - 0.28 * t)})`);
     }
     g.fillStyle = grad;
     g.fillRect(xL, y, W, hh);
@@ -883,13 +883,22 @@ function detectarEstructuras(velas) {
     const mov = hasta - desde;
     if (Math.abs(mov) < MINIMP) { i++; continue; }
     const imp = Math.abs(mov);
-    // Rango previo: se extiende hacia atrás mientras siga estrecho (< 75% del impulso).
+    // Rango de acumulación CEÑIDO: se extiende hacia atrás solo mientras el precio
+    // siga oscilando en la misma banda. Se corta cuando un cierre se sale de la
+    // banda (holgura fija) o aparece deriva monótona (el tramo tendencial que
+    // entró a la acumulación). Así la zona no se infla hacia atrás.
     let a = i - 1;
-    let hi = velas[a].h, lo = velas[a].l;
-    while (a > 0) {
+    let hi = velas[a].h, lo = velas[a].l, cHi = velas[a].c, cLo = velas[a].c;
+    const tol = imp * 0.18, tope2 = Math.max(0, a - 18);
+    let prevC = velas[a].c, mono = 0;
+    while (a > tope2) {
+      const cP = velas[a - 1].c;
+      if (cP > cHi + tol || cP < cLo - tol) break;
+      if (cP < prevC - tol * 0.5) mono++; else if (cP > prevC + tol * 0.5) mono++; else mono = 0;
+      if (mono >= 3) break;
       const nHi = Math.max(hi, velas[a - 1].h), nLo = Math.min(lo, velas[a - 1].l);
-      if ((nHi - nLo) > imp * 0.75) break;
-      hi = nHi; lo = nLo; a--;
+      if ((nHi - nLo) > imp * 0.55) break;
+      hi = nHi; lo = nLo; cHi = Math.max(cHi, cP); cLo = Math.min(cLo, cP); prevC = cP; a--;
     }
     const len = i - a, alt = hi - lo;
     // OSCILACIÓN real: el cierre cruza la media del rango varias veces (zigzag).
@@ -2048,12 +2057,15 @@ function dibujar() {
     if (Z.hi < pMin || Z.lo > pMax) return;
     const baj = Z.dir === 'oferta';
     const col = baj ? '246,70,93' : '46,232,106';
-    const xL = Math.max(0, Math.min(x1, mXt(Z.t0))), xR = x1;
+    const xL = Math.max(0, Math.min(x1, mXt(Z.t0)));      // borde izquierdo del rectángulo (donde nace)
+    const xCal = Math.max(xL, Math.min(x1, mXt(Z.t1)));   // el CALOR arranca a la DERECHA de las velas de la acumulación
+    const xR = x1;
     const yT = Y(Math.min(pMax, Z.hi)), yB = Y(Math.max(pMin, Z.lo)), alto = Math.max(3, yB - yT);
     g.save();
-    // mapa de calor de izquierda a derecha dentro de la zona
-    dibujarCalorZona(g, Z, xL, xR, yT, yB);
-    // marco discreto de la zona
+    // mapa de calor solo en la PROYECCIÓN (desde la derecha de las velas), para
+    // que la acumulación quede visible.
+    dibujarCalorZona(g, Z, xCal, xR, yT, yB);
+    // marco discreto de la zona (todo el rectángulo, incluida la acumulación)
     g.strokeStyle = `rgba(${col},0.7)`; g.lineWidth = 1.1;
     g.beginPath(); g.moveTo(xL, yT + .5); g.lineTo(xR, yT + .5); g.stroke();
     g.beginPath(); g.moveTo(xL, yB - .5); g.lineTo(xR, yB - .5); g.stroke();
