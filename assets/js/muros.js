@@ -815,7 +815,7 @@ function analizarMercado(velas, precio, perfil) {
 function abrirNoticiasSeguro() {
   if (typeof window.abrirNoticias === 'function') { try { window.abrirNoticias(); } catch (_) {} return; }
   if (document.getElementById('news-js-lazy')) { setTimeout(abrirNoticiasSeguro, 300); return; }
-  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=6';
+  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=7';
   s.onload = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} };
   document.head.appendChild(s);
 }
@@ -1577,7 +1577,16 @@ function dibujar() {
      estrechan, y todo se sigue rigiendo por la línea punteada central. */
   const bandas = M.zonas
     .filter((z) => z.pHigh >= pMin && z.pLow <= pMax)
-    .map((z) => ({ z, yC: Y(z.p), yT: Y(Math.min(pMax, z.pHigh)), yB: Y(Math.max(pMin, z.pLow)) }))
+    .map((z) => {
+      // ALTURA ACOTADA: la zona puede abarcar mucho por dentro, pero visualmente
+      // una franja de soporte/resistencia debe ser FINA (un nivel, no un bloque).
+      // Se recorta a ±~0.13% del precio alrededor del POC. Antes las bandas
+      // salían inmensas (media gráfica roja) e inoperables.
+      const half = (M.precio || z.pPoc) * 0.0013;
+      const zTop = Math.min(z.pHigh, z.pPoc + half);
+      const zBot = Math.max(z.pLow, z.pPoc - half);
+      return { z, yC: Y(z.pPoc), yT: Y(Math.min(pMax, zTop)), yB: Y(Math.max(pMin, zBot)) };
+    })
     .sort((a, b) => a.yC - b.yC);
   const HUECO = 5;
   bandas.forEach((it, i) => {
@@ -3563,7 +3572,7 @@ function abrirAnalista() {
         <img class="an-ava" src="assets/img/jesus-avatar.webp" alt="">
         <div class="an-top-t">
           <div class="an-nombre">Analyst</div>
-          <div class="an-estado" id="an-estado">${alInstante ? 'en línea' : 'escribiendo\u2026'}</div>
+          <div class="an-estado" id="an-estado">en línea</div>
         </div>
         <button class="mv-x" aria-label="Cerrar">\u2715</button>
       </div>
@@ -3594,29 +3603,12 @@ function abrirAnalista() {
     acc.querySelector('#an-exportar').onclick = () => exportarAnalisis(a);
   };
 
-  if (alInstante) {
-    // Ya se lo dijo antes: mostrar todo cargado, sin reescribir.
-    guion.forEach(burbuja);
-    acciones();
-    return;
-  }
-  // Primera vez: efecto de escritura, burbuja a burbuja.
-  let i = 0;
-  const escribirParrafo = (txt, cb) => {
-    const b = document.createElement('div'); b.className = 'an-burb'; chat.appendChild(b);
-    let n = 0;
-    const paso = () => {
-      n += 2; b.innerHTML = parseB(txt.slice(0, n)); chat.scrollTop = chat.scrollHeight;
-      if (n < txt.length) { _anaT = setTimeout(paso, 12); } else { b.innerHTML = parseB(txt); cb && cb(); }
-    };
-    paso();
-  };
-  const siguiente = () => {
-    if (i >= guion.length) { acciones(); return; }
-    estado.textContent = 'escribiendo\u2026';
-    escribirParrafo(guion[i], () => { i++; _anaT = setTimeout(siguiente, 300); });
-  };
-  _anaT = setTimeout(siguiente, 450);
+  // Siempre INSTANTÁNEO: al tocar el analista, el análisis ya está escrito
+  // (actualizado a la moneda/temporalidad/estructura actual). Sin máquina de escribir.
+  estado.textContent = 'en línea';
+  guion.forEach(burbuja);
+  acciones();
+  return;
 }
 let _anaT = null, _analisis = null, _planFuera = null, _anaCache = null;
 

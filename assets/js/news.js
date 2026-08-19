@@ -56,7 +56,8 @@
   function traerRSS(url) {
     var vias = [
       function () {
-        return conTimeout(fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(url), { cache: 'no-store' })
+        var u = url + (url.indexOf('?') < 0 ? '?' : '&') + '_cb=' + Date.now();
+        return conTimeout(fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(u), { cache: 'no-store' })
           .then(function (r) { if (!r.ok) throw 0; return r.json(); }), 7000)
           .then(function (j) {
             if (!j || j.status !== 'ok' || !j.items || !j.items.length) throw 0;
@@ -67,7 +68,8 @@
           });
       },
       function () {
-        return conTimeout(fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), { cache: 'no-store' })
+        var u2 = url + (url.indexOf('?') < 0 ? '?' : '&') + '_cb=' + Date.now();
+        return conTimeout(fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(u2), { cache: 'no-store' })
           .then(function (r) { if (!r.ok) throw 0; return r.json(); }), 7000)
           .then(function (j) { var it = parsearXML(j.contents || '', url); if (!it.length) throw 0; return it; });
       }
@@ -110,13 +112,12 @@
     var visto = {}, out = [];
     todo.forEach(function (n) { var k = (n.link || n.titulo).slice(0, 80); if (k && !visto[k]) { visto[k] = 1; out.push(n); } });
     out.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
-    // FRESCURA: si hay CUALQUIER noticia de los últimos 3 días, mostramos SOLO
-    // esas (nada de artículos de hace 2 meses colándose). Si de plano no hay
-    // ninguna reciente, mostramos lo más nuevo que haya para no dejar vacío.
+    // FRESCURA DURA: NUNCA mostramos noticias de más de 3 días. Para un trader,
+    // una noticia vieja es ruido peor que nada. Si no hay nada fresco, se devuelve
+    // vacío y la ventana lo dice claro (no se muestran artículos de hace 2 meses).
     var limite = Date.now() - 3 * 864e5;
     var frescas = out.filter(function (n) { return n.ts && n.ts >= limite; });
-    var lista = frescas.length ? frescas : out;
-    _cache = lista.slice(0, 30); _cacheAt = Date.now();
+    _cache = frescas.slice(0, 30); _cacheAt = Date.now();
     return _cache;
   }
 
@@ -167,7 +168,8 @@
 
   function render(lista, items) {
     if (!items.length) {
-      lista.innerHTML = '<div class="nw-state">No se pudieron cargar las noticias ahora mismo.' +
+      lista.innerHTML = '<div class="nw-state">No hay noticias de las \u00faltimas horas ahora mismo.<br>' +
+        'Solo mostramos noticias recientes (\u00faltimos 3 d\u00edas).' +
         '<br><button class="nw-retry" id="nw-retry">Reintentar</button></div>';
       var rb = lista.querySelector('#nw-retry');
       if (rb) rb.onclick = function () { pintar(lista, true); };
