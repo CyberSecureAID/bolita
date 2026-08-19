@@ -823,48 +823,48 @@ function _calor(v) {
 function dibujarCalorZona(g, Z, xAcumIni, xR, yTop, yBot, mXt, paso) {
   const H = yBot - yTop;
   if (xR - xAcumIni < 4 || H < 4) return;
-  const nRows = Math.max(12, Math.min(54, Math.floor(H / 3)));
+  const nRows = Math.max(14, Math.min(60, Math.floor(H / 2.5)));
   const seed = ((Math.abs(Math.floor(Z.t0 / 1000)) % 997) / 997);
   const cl = (x, a, b) => Math.max(a, Math.min(b, x));
   const rango = Z.hi - Z.lo || 1;
-  // NODOS calientes (área de interés): ROJO con mucho cuerpo, amarillo alrededor.
-  const baseFrac = Z.dir === 'demanda' ? 0.68 : 0.32;
-  const cen = cl(baseFrac + (seed - 0.5) * 0.26, 0.18, 0.82);
+  // NODOS calientes: ROJO con MUCHO cuerpo, amarillo ancho alrededor.
+  const baseFrac = Z.dir === 'demanda' ? 0.66 : 0.34;
+  const cen = cl(baseFrac + (seed - 0.5) * 0.24, 0.2, 0.8);
   const nodos = [
-    { f: cen, s: 1.5 }, { f: cl(cen + 0.10 + seed * 0.04, 0.1, 0.9), s: 1.15 },
-    { f: cl(cen - 0.12 - seed * 0.03, 0.1, 0.9), s: 1.1 },
-    { f: cl(cen + 0.22, 0.1, 0.9), s: 0.8 }, { f: cl(cen - 0.24, 0.1, 0.9), s: 0.72 }
+    { f: cen, s: 1.8 }, { f: cl(cen + 0.09 + seed * 0.04, 0.1, 0.9), s: 1.5 },
+    { f: cl(cen - 0.10 - seed * 0.03, 0.1, 0.9), s: 1.45 },
+    { f: cl(cen + 0.20, 0.1, 0.9), s: 1.05 }, { f: cl(cen - 0.22, 0.1, 0.9), s: 1.0 }
   ];
-  const spread = 0.085 + seed * 0.03;
+  const spread = 0.11 + seed * 0.03;
   const rowHot = Math.round((1 - cen) * nRows - 0.5);
   const velas = Z.velas || [];
   const medio = paso ? paso / 2 : 3;
+  let lastXIni = xAcumIni;                              // continuidad: evita saltos bruscos
   for (let r = 0; r < nRows; r++) {
     const frac = 1 - (r + 0.5) / nRows;                 // 1 arriba, 0 abajo
-    const pRow = Z.lo + frac * rango;                    // precio de esta fila
+    const pRow = Z.lo + frac * rango;
     let base = 0;
     for (const nd of nodos) { const d = (frac - nd.f) / spread; base = Math.max(base, nd.s * Math.exp(-d * d)); }
-    if (r === rowHot) base = Math.max(base, 1.15);       // rojo garantizado, con cuerpo
-    base = base * 0.96 + 0.07;
-    if (base < 0.10) continue;
-    // ESCALONADO: la fila nace en el borde DERECHO de la última vela de la
-    // acumulación que cubre este precio (la toca, sin quedar encima). Si una
-    // vela de impulso cubre todo, todas nacen de su borde → sale recta.
-    let xIni = xAcumIni;
+    if (r === rowHot) base = Math.max(base, 1.3);       // rojo garantizado, con cuerpo
+    base = Math.max(0.16, base * 0.97 + 0.06);          // SIEMPRE se pinta (rellena todo el rectángulo)
+    // ESCALONADO: la fila nace en el borde derecho de la vela más a la derecha que
+    // toca este precio. Si ninguna lo toca, sigue la anterior (sin saltos).
+    let xIni = null;
     for (let k = velas.length - 1; k >= 0; k--) {
       const v = velas[k];
       if (pRow <= v.h && pRow >= v.l) { xIni = mXt(v.t) + medio; break; }
     }
-    xIni = Math.max(0, Math.min(xR - 2, xIni));
-    const y = yTop + (r / nRows) * H, hh = Math.max(1, H / nRows + 0.6);
-    // Gradiente HORIZONTAL tipo SOPLETE: rojo→amarillo→verde→azul al final.
+    if (xIni === null) xIni = lastXIni; else lastXIni = xIni;
+    xIni = cl(xIni, 0, xR - 2);
+    const y = yTop + (r / nRows) * H, hh = Math.max(1, H / nRows + 0.7);
+    // Gradiente SOPLETE: rojo con cuerpo → amarillo → verde → azul al final.
     const grad = g.createLinearGradient(xIni, 0, xR, 0);
-    const stops = 7;
+    const stops = 8;
     for (let s2 = 0; s2 <= stops; s2++) {
       const t = s2 / stops;
-      const v = base * Math.pow(1 - t, 1.25);            // se enfría hacia la derecha (candela)
+      const v = base * Math.pow(1 - t, 1.05);           // el rojo aguanta más antes de enfriar
       const rgb = _calor(Math.max(0.05, v));
-      if (rgb) grad.addColorStop(t, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${0.62 * (1 - 0.25 * t)})`);
+      if (rgb) grad.addColorStop(t, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${0.66 * (1 - 0.22 * t)})`);
     }
     g.fillStyle = grad;
     g.fillRect(xIni, y, xR - xIni, hh);
@@ -2096,9 +2096,18 @@ function dibujar() {
       g.fillStyle = gb; redondeado(g, bx, by, bs, bs, 4); g.fill();
       g.shadowColor = 'transparent';
       g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1; redondeado(g, bx + .5, by + .5, bs - 1, bs - 1, 4); g.stroke();
-      g.fillStyle = '#0b0e12'; g.font = 'bold 11px ui-monospace,monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText('≋', bx + bs / 2, by + bs / 2 + .5);
-      g.textBaseline = 'alphabetic'; g.restore();
+      // icono de ondas (liquidez) dibujado a mano, para que se vea en cualquier fuente
+      g.strokeStyle = '#0b0e12'; g.lineWidth = 1.4; g.lineCap = 'round';
+      for (let iy = 0; iy < 3; iy++) {
+        const yy = by + 5 + iy * 3.1;
+        g.beginPath();
+        g.moveTo(bx + 3, yy);
+        g.quadraticCurveTo(bx + 5.2, yy - 2, bx + 7.5, yy);
+        g.quadraticCurveTo(bx + 9.8, yy + 2, bx + 12, yy);
+        g.stroke();
+      }
+      g.lineCap = 'butt';
+      g.restore();
       M._zonaBtns.push({ x: bx, y: by, w: bs, h: bs, zona: Z });
     }
   });
