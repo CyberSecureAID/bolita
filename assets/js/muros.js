@@ -110,6 +110,9 @@ const PARES = [
 ];
 
 let _par = 'BNB';
+/* Nombre/dominio de la web en UN solo sitio: si cambia, se cambia aquí y se
+   actualiza en todas las imágenes y textos que lo usan. */
+const WEB_DOMINIO = 'CriptoCubaOficial.com';
 let _od = null;              // módulo de órdenes
 let _zonasOd = [];           // dónde pulsar para cancelar
 
@@ -4245,7 +4248,7 @@ function exportarAnalisis(a) {
     // pie
     g.fillStyle = '#6b7681'; g.font = '600 11px ui-monospace,monospace';
     g.textAlign = 'center';
-    g.fillText('CriptoCubaOficial.com \u00b7 Heat Pools', Wd / 2, alto - 26);
+    g.fillText(WEB_DOMINIO + ' \u00b7 Heat Pools', Wd / 2, alto - 26);
     // descargar
     cv.toBlob((b) => {
       const url = URL.createObjectURL(b); const enl = document.createElement('a');
@@ -4309,87 +4312,85 @@ ${lista(tps)}
 
 RISK : REWARD \u2014 1:2
 
-CriptoCubaOficial.com \u00b7 Heat Pools`;
+${WEB_DOMINIO} \u00b7 Heat Pools`;
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => flash('Copied \u2713')).catch(() => {});
 
   // ── Imagen ──
   const chart = $('mu-cv');
   const W = 1180, BG = '#0a0d12';
   const chartH = chart && chart.width ? Math.round(W * (chart.height / chart.width)) : 0;
-  const padX = 40, headH = 118, rowH = 46, rrH = 74, footH = 66;
-  const bodyH = headH + n * rowH + rrH;
-  const H = chartH + bodyH + footH;
+  const padX = 54, headH = 156, rowH = 56, rrH = 92, footH = 84;
+  const H = chartH + headH + n * rowH + rrH + footH;
   const cv = document.createElement('canvas'), g = cv.getContext('2d');
   cv.width = W; cv.height = H;
 
-  const cargar = (src, cors) => new Promise((res) => { const im = new Image(); if (cors) im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+  const cargar = (src, cors) => new Promise((res) => { if (!src) return res(null); const im = new Image(); if (cors) im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+  const logoMonedaURL = (_logos && _logos[par.cg]) || null;   // misma fuente que usan los bots
 
   Promise.all([
-    cargar(`https://assets.coincap.io/assets/icons/${par.id.toLowerCase()}@2x.png`, true),
+    cargar(logoMonedaURL, true),
     cargar('assets/img/cco-marca.png', false)
   ]).then(([coin, marca]) => {
-    // Fondo continuo (una sola pieza)
-    g.fillStyle = BG; g.fillRect(0, 0, W, H);
-    // Gráfico arriba
+    g.fillStyle = BG; g.fillRect(0, 0, W, H);                  // fondo continuo (una pieza)
     if (chart && chart.width) g.drawImage(chart, 0, 0, W, chartH);
     const y0 = chartH;
-    // separación sutil (mismo fondo, solo una línea tenue)
-    g.strokeStyle = 'rgba(255,255,255,.06)'; g.lineWidth = 1; g.beginPath(); g.moveTo(padX, y0 + 0.5); g.lineTo(W - padX, y0 + 0.5); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.06)'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, y0 + 0.5); g.lineTo(W, y0 + 0.5); g.stroke();
 
-    // Logo de la moneda (círculo)
-    const lx = padX, ly = y0 + 30, ls = 52;
+    // Cabecera: logo de la moneda + título grande + subtítulo
+    const ls = 72, lx = padX, ly = y0 + 30;
     g.save(); g.beginPath(); g.arc(lx + ls / 2, ly + ls / 2, ls / 2, 0, 6.2832); g.closePath();
     g.fillStyle = '#141b25'; g.fill();
     if (coin) { g.clip(); g.drawImage(coin, lx, ly, ls, ls); }
-    else { g.fillStyle = '#E8B84B'; g.font = '800 18px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(par.id.slice(0, 4), lx + ls / 2, ly + ls / 2 + 1); }
+    else { g.fillStyle = '#E8B84B'; g.font = '800 24px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(par.id.slice(0, 4), lx + ls / 2, ly + ls / 2 + 1); }
     g.restore();
 
-    // Título + subtítulo
     g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-    g.fillStyle = '#2ee86a'; g.font = '800 30px system-ui,sans-serif';
-    g.fillText('Heat Pools', lx + ls + 18, y0 + 48);
-    g.fillStyle = '#e8ecf2'; g.font = '800 30px system-ui,sans-serif';
-    g.fillText('  Signal', lx + ls + 18 + g.measureText('Heat Pools').width, y0 + 48);
-    g.fillStyle = '#8b95a1'; g.font = '600 15px ui-monospace,monospace';
-    g.fillText(`${par.id}   \u00b7   ${M.tf}   \u00b7   ${hora} UTC   \u00b7   Price ${precio}`, lx + ls + 18, y0 + 74);
+    const tx = lx + ls + 24;
+    g.fillStyle = '#2ee86a'; g.font = '800 40px system-ui,sans-serif';
+    g.fillText('Heat Pools', tx, y0 + 56);
+    const hw = g.measureText('Heat Pools').width;
+    g.fillStyle = '#e8ecf2'; g.font = '800 40px system-ui,sans-serif';
+    g.fillText(' Signal', tx + hw, y0 + 56);
+    g.fillStyle = '#8b95a1'; g.font = '600 18px ui-monospace,monospace';
+    g.fillText(`${par.id}    \u00b7    ${M.tf}    \u00b7    ${hora} UTC    \u00b7    Price ${precio}`, tx, y0 + 88);
 
-    // Tres columnas
-    const colY = y0 + headH + 10;
-    const colW = (W - padX * 2) / 3;
+    // Tres columnas repartidas a lo ANCHO (izquierda, centro, derecha)
+    const colBlock = 250;
+    const xs = [padX, Math.round(W / 2 - colBlock / 2), W - padX - colBlock];
     const cols = [['ENTRY', ents, '#e8ecf2'], ['STOP LOSS', sls, '#ff5b6e'], ['TARGET', tps, '#2ee86a']];
+    const colY = y0 + headH;
     cols.forEach((c, ci) => {
-      const cx = padX + ci * colW;
-      g.fillStyle = c[2]; g.font = '800 15px system-ui,sans-serif'; g.textAlign = 'left';
-      g.fillText(c[0], cx, colY);
-      g.strokeStyle = `${c[2]}`; g.globalAlpha = .25; g.lineWidth = 1; g.beginPath(); g.moveTo(cx, colY + 10); g.lineTo(cx + colW - 40, colY + 10); g.stroke(); g.globalAlpha = 1;
+      const cx = xs[ci];
+      g.textAlign = 'left';
+      g.fillStyle = c[2]; g.font = '800 20px system-ui,sans-serif'; g.fillText(c[0], cx, colY);
+      g.strokeStyle = c[2]; g.globalAlpha = .3; g.lineWidth = 1.4; g.beginPath(); g.moveTo(cx, colY + 13); g.lineTo(cx + colBlock, colY + 13); g.stroke(); g.globalAlpha = 1;
       c[1].forEach((v, i) => {
-        const ry = colY + 34 + i * rowH;
-        g.fillStyle = '#5a6570'; g.font = '700 15px ui-monospace,monospace'; g.fillText(`${i + 1}`, cx, ry);
-        g.fillStyle = '#eef2f6'; g.font = '700 20px ui-monospace,monospace'; g.fillText(v, cx + 26, ry + 1);
+        const ry = colY + 46 + i * rowH;
+        g.fillStyle = '#5a6570'; g.font = '700 17px ui-monospace,monospace'; g.fillText(String(i + 1), cx, ry);
+        g.fillStyle = '#eef2f6'; g.font = '800 27px ui-monospace,monospace'; g.fillText(v, cx + 32, ry + 2);
       });
     });
 
-    // Risk : Reward
-    const rry = colY + 34 + n * rowH + 22;
-    g.fillStyle = '#E8B84B'; g.font = '800 20px system-ui,sans-serif'; g.textAlign = 'left';
-    g.fillText('Risk : Reward', padX, rry);
-    g.fillText('1 : 2', padX + 190, rry);
+    // Risk : Reward centrado
+    const rry = colY + 46 + n * rowH + 40;
+    g.textAlign = 'center';
+    g.fillStyle = '#8b95a1'; g.font = '700 18px system-ui,sans-serif'; g.fillText('RISK : REWARD', W / 2 - 60, rry);
+    g.fillStyle = '#E8B84B'; g.font = '800 26px system-ui,sans-serif'; g.fillText('1 : 2', W / 2 + 90, rry + 1);
 
-    // Pie (cinta) con marca de la web + Heat Pools
+    // Pie: logo de la web GRANDE + dominio, y Heat Pools a la derecha
     const fy = H - footH;
     g.fillStyle = 'rgba(255,255,255,.03)'; g.fillRect(0, fy, W, footH);
-    g.strokeStyle = 'rgba(232,184,75,.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(padX, fy + 0.5); g.lineTo(W - padX, fy + 0.5); g.stroke();
-    const mh = 30;
-    if (marca) { const mw = marca.width * (mh / marca.height); g.drawImage(marca, padX, fy + (footH - mh) / 2, mw, mh); }
-    g.fillStyle = '#c7ced6'; g.font = '700 15px system-ui,sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
-    g.fillText('CriptoCubaOficial.com', padX + (marca ? 118 : 0), fy + footH / 2);
-    g.fillStyle = '#E8B84B'; g.font = '800 15px system-ui,sans-serif'; g.textAlign = 'right';
-    g.fillText('Heat Pools', W - padX, fy + footH / 2);
+    g.strokeStyle = 'rgba(232,184,75,.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, fy + 0.5); g.lineTo(W, fy + 0.5); g.stroke();
+    g.textAlign = 'left'; g.textBaseline = 'middle';
+    let dx = padX;
+    if (marca) { const mh = 46, mw = marca.width * (mh / marca.height); g.drawImage(marca, padX, fy + (footH - mh) / 2, mw, mh); dx = padX + mw + 18; }
+    g.fillStyle = '#dfe5ec'; g.font = '700 19px system-ui,sans-serif'; g.fillText(WEB_DOMINIO, dx, fy + footH / 2 + 1);
+    g.fillStyle = '#E8B84B'; g.font = '800 19px system-ui,sans-serif'; g.textAlign = 'right'; g.fillText('Heat Pools', W - padX, fy + footH / 2 + 1);
     g.textAlign = 'left'; g.textBaseline = 'alphabetic';
 
     try {
       cv.toBlob((b) => { if (!b) return; const url = URL.createObjectURL(b), a = document.createElement('a'); a.href = url; a.download = `heatpools-${par.id}-${M.tf}-${Date.now()}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 4000); }, 'image/png');
-    } catch (e) { flash('Copied \u2713 (image blocked)'); }
+    } catch (e) { flash('Copied \u2713'); }
   });
 }
 
@@ -4755,7 +4756,7 @@ function guardarImagen() {
       g.fillText('Lógica Estructural Avanzada', x, yB + 34 * e2);
       g.font = `700 ${14 * e2}px ui-monospace,monospace`;
       g.fillStyle = '#C9A84B';
-      g.fillText('CriptoCubaOficial.com', x, yB + 56 * e2);
+      g.fillText(WEB_DOMINIO, x, yB + 56 * e2);
       g.textAlign = 'right';
       g.fillStyle = '#8b96a3';
       g.font = `700 ${14 * e2}px ui-monospace,monospace`;
