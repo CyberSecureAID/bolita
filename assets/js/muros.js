@@ -799,28 +799,30 @@ function detectarEstructuras(velas) {
   const MINIMP = precio * 0.012;        // impulso mínimo ~1.2%
   const brutas = [];
   let i = 8;
-  // 1) DETECTAR IMPULSOS y, para cada uno, la CONSOLIDACIÓN que lo precede.
-  //    (Buscar el impulso primero es lo fiable: la acumulación es lo que hay
-  //    justo antes de que el precio se dispare.)
+  // 1) IMPULSO + la OSCILACIÓN (acumulación) que lo precede.
   while (i < n - 3) {
     const desde = velas[i - 1].c;
     let hasta = desde;
     for (let k = i; k < Math.min(n, i + K); k++) hasta = velas[k].c;
     const mov = hasta - desde;
     if (Math.abs(mov) < MINIMP) { i++; continue; }
-    // Consolidación previa: extender hacia atrás mientras el rango sea ESTRECHO
-    // (menor que el propio impulso). Ese rango es la zona swing.
+    const imp = Math.abs(mov);
+    // Rango previo: se extiende hacia atrás mientras siga estrecho (< 75% del impulso).
     let a = i - 1;
     let hi = velas[a].h, lo = velas[a].l;
     while (a > 0) {
       const nHi = Math.max(hi, velas[a - 1].h), nLo = Math.min(lo, velas[a - 1].l);
-      if ((nHi - nLo) > Math.abs(mov) * 0.75) break;
+      if ((nHi - nLo) > imp * 0.75) break;
       hi = nHi; lo = nLo; a--;
     }
     const len = i - a, alt = hi - lo;
-    if (len >= 4 && alt >= precio * 0.0015 && alt <= precio * 0.03) {
+    // OSCILACIÓN real: el cierre tiene que cruzar la media del rango varias veces
+    // (subir y bajar, como el zigzag de una acumulación), no ser un simple tramo.
+    let cruces = 0, lado = null; const mid = (hi + lo) / 2;
+    for (let k = a; k <= i - 1; k++) { const l2 = velas[k].c >= mid ? 1 : 0; if (lado !== null && l2 !== lado) cruces++; lado = l2; }
+    if (len >= 4 && cruces >= 2 && alt >= precio * 0.0015 && alt <= precio * 0.03) {
       const dir = mov > 0 ? 'demanda' : 'oferta';   // impulso alcista → demanda; bajista → oferta
-      brutas.push({ i0: a, i1: i - 1, hi, lo, t0: velas[a].t, t1: velas[i - 1].t, dir });
+      brutas.push({ i0: a, i1: i - 1, hi, lo, t0: velas[a].t, t1: velas[i - 1].t, dir, imp });
       i += K; continue;
     }
     i++;
@@ -837,9 +839,20 @@ function detectarEstructuras(velas) {
     for (let k = z.i1 + 1; k < n; k++) if (velas[k].c > z.hi + holgura) return false;    // perforada
     return true;
   });
-  // 3) La demanda más cercana por debajo y la oferta más cercana por encima (2 de cada).
-  const dem = validas.filter((z) => z.dir === 'demanda').sort((a, b) => b.hi - a.hi).slice(0, 2);
-  const ofe = validas.filter((z) => z.dir === 'oferta').sort((a, b) => a.lo - b.lo).slice(0, 2);
+  // 3) Plan de cada zona (entradas + R:R con la regla de la zona ancha).
+  validas.forEach((z) => {
+    const ancho = z.hi - z.lo, ratio = z.imp > 0 ? ancho / z.imp : 1;
+    let rr = 2; if (ratio > 0.7) rr = 0; else if (ratio >= 0.5) rr = 1;
+    z.ratio = ratio; z.rr = rr;
+    if (rr > 0) {
+      const margen = ancho * 0.15;
+      if (z.dir === 'oferta') { z.e1 = z.lo; z.e2 = z.hi; z.sl = z.hi; z.slE2 = z.hi + margen; z.tp = z.lo - rr * ancho; }
+      else { z.e1 = z.hi; z.e2 = z.lo; z.sl = z.lo; z.slE2 = z.lo - margen; z.tp = z.hi + rr * ancho; }
+    }
+  });
+  // La demanda más cercana por debajo y la oferta más cercana por encima.
+  const dem = validas.filter((z) => z.dir === 'demanda').sort((a, b) => b.hi - a.hi).slice(0, 1);
+  const ofe = validas.filter((z) => z.dir === 'oferta').sort((a, b) => a.lo - b.lo).slice(0, 1);
   return dem.concat(ofe);
 }
 
@@ -1392,7 +1405,7 @@ async function cargarVelas() {
       M.zonas = r.zonas; M.perfil = r.perfil;
       M._tendCorto = calcTendenciaCorto();
       M._tendJerar = calcTendenciaJerar();
-      M._evento = calcEvento();
+      M.estructuras = detectarEstructuras(M.velas);
       /* NIVELES INSTITUCIONALES + BACKTEST, y boost de confianza cuando una
          zona coincide con VWAP / borde del área de valor / POC. */
       M.mercado = analizarMercado(M.velas, px, M.perfil);
@@ -1634,7 +1647,7 @@ function arrancar() {
 
     if (M.velas.length && M.precio > 0) {
       const r = detectarZonas(M.velas, M.precio, { htf: M.zonasHTF, libro: murosDelLibro(), ancla: _par + "|" + M.tf });
-      M.zonas = r.zonas; M.perfil = r.perfil; M._tendCorto = calcTendenciaCorto(); M._tendJerar = calcTendenciaJerar(); M._evento = calcEvento();
+      M.zonas = r.zonas; M.perfil = r.perfil; M._tendCorto = calcTendenciaCorto(); M._tendJerar = calcTendenciaJerar(); M.estructuras = detectarEstructuras(M.velas);
       M.mercado = analizarMercado(M.velas, M.precio, M.perfil);
       aplicarReferencias(M.zonas, M.mercado, M.precio);
       seguirVida(M.zonas);
@@ -1886,21 +1899,12 @@ function dibujar() {
     if (x1r !== x0) {
       const mPx = (C.p1 - C.p0) / (x1r - x0);
       const centro = (x) => C.p0 + mPx * (x - x0);
-      // Colchón DELGADO pegado a la línea central: solo pule el ruido de los
-      // picos (±1.2·desviación), no engulle el precio. La línea central es la
-      // que manda para la confluencia.
-      const w = (C.sd || 0) * 1.2;
-      const sup = (x) => centro(x) + w, inf = (x) => centro(x) - w;
       const xIni = 0, xFin = x1;
       const oro = '232,184,75';
       g.save();
-      // rieles finos y tenues (el colchón)
-      g.strokeStyle = `rgba(${oro},0.32)`; g.lineWidth = 1; g.setLineDash([5, 4]);
-      g.beginPath(); g.moveTo(xIni, Y(sup(xIni))); g.lineTo(xFin, Y(sup(xFin))); g.stroke();
-      g.beginPath(); g.moveTo(xIni, Y(inf(xIni))); g.lineTo(xFin, Y(inf(xFin))); g.stroke();
-      g.setLineDash([]);
-      // LÍNEA CENTRAL prominente = la tendencia jerárquica (la que confluye)
-      g.strokeStyle = `rgba(${oro},1)`; g.lineWidth = 2.4;
+      // LÍNEA CENTRAL = la tendencia jerárquica (la que confluye). Sin canal que
+      // envuelva el precio: solo la línea, para no saturar ni "meter el precio dentro".
+      g.strokeStyle = `rgba(${oro},1)`; g.lineWidth = 2.4; g.setLineDash([]);
       g.beginPath(); g.moveTo(xIni, Y(centro(xIni))); g.lineTo(xFin, Y(centro(xFin))); g.stroke();
       // etiqueta
       g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'left';
@@ -1954,96 +1958,45 @@ function dibujar() {
   }
   let bandaSolo = null;   // (compatibilidad con el resto del dibujo)
 
-  /* ── FASE 3 · CONFLUENCIA, RUPTURA E IMPULSO, RETESTEO ── */
-  const EV = M._evento;
-  if (EV) {
-    // Confluencia: vértice donde el corto y la jerárquica se cruzan.
-    if (EV.confluencia) {
-      const cx = mXt(EV.confluencia.t), cy = Y(EV.confluencia.precio);
-      if (cx >= 0 && cx <= x1 + 2 && cy > 0 && cy < y1) {
-        g.save();
-        g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1; g.setLineDash([3, 4]);
-        g.beginPath(); g.moveTo(cx, 0); g.lineTo(cx, y1); g.stroke(); g.setLineDash([]);
-        g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.arc(cx, cy, 4, 0, 7); g.fill();
-        g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'center';
-        g.fillStyle = 'rgba(255,255,255,.9)'; g.fillText('CONFLUENCIA', cx, Math.max(12, cy - 10));
-        g.textAlign = 'left'; g.restore();
-      }
-    }
-    // Ruptura con impulso.
-    if (EV.ruptura && M._geo) {
-      const rx = mXt(EV.ruptura.t), ry = Y(EV.ruptura.precio);
-      if (rx >= 0 && rx <= x1) {
-        const col = EV.ruptura.dir === 'bajista' ? '246,70,93' : '46,232,106';
-        g.save();
-        g.fillStyle = `rgba(${col},1)`;
-        // triangulito en la dirección de la ruptura
-        g.beginPath();
-        if (EV.ruptura.dir === 'bajista') { g.moveTo(rx, ry + 10); g.lineTo(rx - 5, ry); g.lineTo(rx + 5, ry); }
-        else { g.moveTo(rx, ry - 10); g.lineTo(rx - 5, ry); g.lineTo(rx + 5, ry); }
-        g.closePath(); g.fill();
-        g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'center';
-        g.fillText('RUPTURA + IMPULSO', rx, EV.ruptura.dir === 'bajista' ? ry + 22 : ry - 14);
-        g.textAlign = 'left'; g.restore();
-      }
-    }
-    // Señal de entrada por retesteo.
-    if (EV.senal) {
-      const long = EV.senal.tipo === 'long';
-      const col = long ? '46,232,106' : '246,70,93';
-      const yE = Y(EV.senal.precioEntrada);
-      g.save();
-      if (EV.senal.estado === 'retesteo') {
-        g.strokeStyle = `rgba(${col},1)`; g.lineWidth = 2; g.setLineDash([]);
-        g.beginPath(); g.moveTo(0, yE); g.lineTo(x1, yE); g.stroke();
-        g.fillStyle = `rgba(${col},1)`; g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'left';
-        g.fillText(`ENTRADA ${long ? 'LARGO' : 'CORTO'} · RETESTEO`, 8, yE + (long ? 14 : -6));
-      } else {
-        g.strokeStyle = `rgba(${col},.55)`; g.lineWidth = 1.2; g.setLineDash([5, 4]);
-        g.beginPath(); g.moveTo(0, yE); g.lineTo(x1, yE); g.stroke(); g.setLineDash([]);
-        g.fillStyle = `rgba(${col},.85)`; g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left';
-        g.fillText(`ROTO · esperar retesteo (${long ? 'largo' : 'corto'})`, 8, yE + (long ? 13 : -6));
-      }
-      g.restore();
-    }
+  /* ── ZONAS SWING + ENTRADAS ──
+     Cada zona es un rango de OSCILACIÓN (acumulación) que precedió a un IMPULSO.
+     Demanda (verde, debajo del precio) → largos; oferta (roja, encima) → cortos.
+     Rectángulo proyectado a la derecha + entradas 1/2, stop y objetivo con la
+     regla de la zona ancha (1:2 / 1:1 / no operar). */
+  (M.estructuras || []).forEach((Z) => {
+    if (Z.hi < pMin || Z.lo > pMax) return;
+    const baj = Z.dir === 'oferta';
+    const col = baj ? '246,70,93' : '46,232,106';
+    const xL = Math.max(0, Math.min(x1, mXt(Z.t0))), xR = x1;
+    const yT = Y(Math.min(pMax, Z.hi)), yB = Y(Math.max(pMin, Z.lo)), alto = Math.max(3, yB - yT);
+    g.save();
+    const gr = g.createLinearGradient(xL, 0, xR, 0);
+    gr.addColorStop(0, `rgba(${col},0.16)`); gr.addColorStop(1, `rgba(${col},0.05)`);
+    g.fillStyle = gr; g.fillRect(xL, yT, xR - xL, alto);
+    g.strokeStyle = `rgba(${col},0.85)`; g.lineWidth = 1.3;
+    g.beginPath(); g.moveTo(xL, yT + .5); g.lineTo(xR, yT + .5); g.stroke();
+    g.beginPath(); g.moveTo(xL, yB - .5); g.lineTo(xR, yB - .5); g.stroke();
+    g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left'; g.fillStyle = `rgba(${col},0.95)`;
+    g.fillText(baj ? 'ZONA SWING · OFERTA' : 'ZONA SWING · DEMANDA', xL + 4, yT + (baj ? 11 : alto - 5));
 
-    // ── FASE 4 · ZONA SWING + ENTRADAS ──
-    if (EV.zona) {
-      const Z = EV.zona, baj = EV.ruptura && EV.ruptura.dir === 'bajista';
-      const col = baj ? '246,70,93' : '46,232,106';
-      const xL = Math.max(0, Math.min(x1, mXt(Z.t0))), xR = x1;   // rectángulo proyectado a la derecha
-      const yT = Y(Z.hi), yB = Y(Z.lo), alto = Math.max(3, yB - yT);
-      g.save();
-      // rectángulo de la zona
-      const gr = g.createLinearGradient(xL, 0, xR, 0);
-      gr.addColorStop(0, `rgba(${col},0.16)`); gr.addColorStop(1, `rgba(${col},0.05)`);
-      g.fillStyle = gr; g.fillRect(xL, yT, xR - xL, alto);
-      g.strokeStyle = `rgba(${col},0.85)`; g.lineWidth = 1.3;
-      g.beginPath(); g.moveTo(xL, yT + .5); g.lineTo(xR, yT + .5); g.stroke();
-      g.beginPath(); g.moveTo(xL, yB - .5); g.lineTo(xR, yB - .5); g.stroke();
-      g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left'; g.fillStyle = `rgba(${col},0.95)`;
-      g.fillText('ZONA SWING', xL + 4, yT + (baj ? 11 : alto - 5));
-
-      if (Z.plan) {
-        const P = Z.plan;
-        const linea = (p, cl, txt, dash) => {
-          const y = Y(p); g.strokeStyle = cl; g.lineWidth = 1.4; g.setLineDash(dash || []);
-          g.beginPath(); g.moveTo(xL, y); g.lineTo(x1, y); g.stroke(); g.setLineDash([]);
-          g.fillStyle = cl; g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'right';
-          g.fillText(txt, x1 - 4, y - 3); g.textAlign = 'left';
-        };
-        linea(P.e1, `rgba(${col},1)`, 'ENTRADA 1');
-        linea(P.e2, `rgba(${col},.7)`, 'ENTRADA 2 (opcional)', [4, 4]);
-        linea(P.sl, 'rgba(246,70,93,.95)', 'STOP', [3, 3]);
-        linea(P.tp, 'rgba(46,232,106,.95)', `OBJETIVO 1:${P.rr}`, []);
-      } else {
-        // zona demasiado ancha respecto al impulso → no operar
-        g.fillStyle = 'rgba(255,196,84,.95)'; g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left';
-        g.fillText('ZONA ANCHA · NO OPERAR', xL + 4, (yT + yB) / 2 + 3);
-      }
-      g.restore();
+    if (Z.rr > 0) {
+      const linea = (p, cl, txt, dash) => {
+        if (p < pMin || p > pMax) return;
+        const y = Y(p); g.strokeStyle = cl; g.lineWidth = 1.4; g.setLineDash(dash || []);
+        g.beginPath(); g.moveTo(xL, y); g.lineTo(x1, y); g.stroke(); g.setLineDash([]);
+        g.fillStyle = cl; g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'right';
+        g.fillText(txt, x1 - 4, y - 3); g.textAlign = 'left';
+      };
+      linea(Z.e1, `rgba(${col},1)`, 'ENTRADA 1');
+      linea(Z.e2, `rgba(${col},.7)`, 'ENTRADA 2 (opcional)', [4, 4]);
+      linea(Z.sl, 'rgba(246,70,93,.95)', 'STOP', [3, 3]);
+      linea(Z.tp, 'rgba(46,232,106,.95)', `OBJETIVO 1:${Z.rr}`, []);
+    } else {
+      g.fillStyle = 'rgba(255,196,84,.95)'; g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left';
+      g.fillText('ZONA ANCHA · NO OPERAR', xL + 4, (yT + yB) / 2 + 3);
     }
-  }
+    g.restore();
+  });
 
 
   /* ── LAS VELAS ── */
