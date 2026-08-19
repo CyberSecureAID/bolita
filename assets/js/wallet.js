@@ -16,6 +16,7 @@
  */
 
 import { RED, LISTA_MONEDAS, desdeBase } from './tokens.js';
+import * as ethers from './vendor/ethers-6.13.4.min.js?v=126';
 
 const CLAVE_SALIDA = 'bolita.desconectado';
 
@@ -323,7 +324,7 @@ function adivinarInfo(prov) {
    global en el sitio); si no estuviera, devuelve la dirección tal cual sin romper. */
 export function checksum(dir) {
   try {
-    if (dir && typeof window !== 'undefined' && window.ethers && window.ethers.getAddress) return window.ethers.getAddress(dir);
+    if (dir && ethers && ethers.getAddress) return ethers.getAddress(dir);
   } catch (_) { /* dirección no estándar: se deja como viene */ }
   return dir;
 }

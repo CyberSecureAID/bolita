@@ -114,11 +114,6 @@ export async function abrirNiveles() {
 
 
         <div class="nv-der">
-          <button class="nv-ico nv-news" id="nv-news" title="News">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h13v14H5a1 1 0 0 1-1-1z"/><path d="M17 8h2.5a1.5 1.5 0 0 1 1.5 1.5V18a1 1 0 0 1-1 1"/><path d="M7 9h7M7 12h7M7 15h4"/></svg>
-            <span class="nv-rg-tx">News</span>
-            <span class="nv-news-dot"></span>
-          </button>
           <button class="nv-ico" id="nv-cal" title="Calendario económico">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4M7.5 13h2M11 13h2M14.5 13h2"/></svg>
           </button>
@@ -191,7 +186,6 @@ export async function abrirNiveles() {
   d.querySelector('.nv-bg').onclick = cerrar;
   $('nv-x').onclick = cerrar;
   $('nv-ayuda').onclick = () => ayuda();
-  { const rb = $('nv-news'); if (rb) rb.onclick = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} }; }
   { const cb = $('nv-cal'); if (cb) cb.onclick = () => { try { window.abrirCalendario && window.abrirCalendario(); } catch (_) {} }; }
   $('nv-herr').onclick = (e) => { e.stopPropagation(); menuHerramientas($('nv-herr')); };
   { const hm = $('nv-herr-m'); if (hm) hm.onclick = (e) => { e.stopPropagation(); menuHerramientas(hm); }; }
