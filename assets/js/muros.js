@@ -837,8 +837,9 @@ function dibujarCalorZona(g, Z, xAcumIni, xR, yTop, yBot, mXt, paso) {
   ];
   const spread = 0.11 + seed * 0.03;
   const rowHot = Math.round((1 - cen) * nRows - 0.5);
-  const velas = Z.velas || [];
+  const velas = Z.velasAnc || Z.velas || [];
   const medio = paso ? paso / 2 : 3;
+  const xIzq = Z.t0 != null ? mXt(Z.t0) + medio : xAcumIni;   // límite izquierdo: inicio de la zona (no se pasa de ahí)
   for (let r = 0; r < nRows; r++) {
     const frac = 1 - (r + 0.5) / nRows;                 // 1 arriba, 0 abajo
     const pRow = Z.lo + frac * rango;
@@ -846,10 +847,16 @@ function dibujarCalorZona(g, Z, xAcumIni, xR, yTop, yBot, mXt, paso) {
     for (const nd of nodos) { const d = (frac - nd.f) / spread; base = Math.max(base, nd.s * Math.exp(-d * d)); }
     if (r === rowHot) base = Math.max(base, 1.3);       // rojo garantizado, con cuerpo
     base = Math.max(0.16, base * 0.97 + 0.06);          // SIEMPRE se pinta (rellena todo el rectángulo)
-    // El color NACE en el borde derecho de la acumulación (la última vela / el
-    // impulso) y proyecta a la derecha. NUNCA se va hacia la izquierda: así el
-    // máximo/mínimo no lo supera el color y sale orgánico desde las velas.
-    const xIni = xAcumIni;
+    // ESCALONADO: cada fila nace en el borde DERECHO de la vela MÁS RECIENTE que
+    // tocó ese nivel de precio (adaptado a la estructura). Acotado entre el
+    // inicio de la zona y el borde derecho, así no sale con corte recto ni se va
+    // más allá de la estructura.
+    let xIni = xAcumIni;
+    for (let k = velas.length - 1; k >= 0; k--) {
+      const v = velas[k];
+      if (pRow <= v.h && pRow >= v.l) { xIni = mXt(v.t) + medio; break; }
+    }
+    xIni = cl(xIni, xIzq, xR - 2);
     const y = yTop + (r / nRows) * H, hh = Math.max(1, H / nRows + 0.7);
     // Gradiente SOPLETE: rojo con cuerpo → amarillo → verde → azul al final.
     const grad = g.createLinearGradient(xIni, 0, xR, 0);
@@ -876,7 +883,7 @@ function detectarEstructuras(velas) {
   for (let k = Math.max(1, n - 60); k < n; k++) { sumR += Math.abs(velas[k].h - velas[k].l); cR++; }
   const atr = cR ? sumR / cR : precio * 0.005;
   const K = 6;                          // ventana del impulso
-  const MINIMP = Math.max(precio * 0.003, atr * 2.2);   // impulso mínimo relativo a la volatilidad
+  const MINIMP = Math.max(precio * 0.003, atr * 1.9);   // impulso mínimo relativo a la volatilidad
   const brutas = [];
   let i = 8;
   // 1) IMPULSO + la OSCILACIÓN (acumulación) que lo precede.
@@ -915,14 +922,18 @@ function detectarEstructuras(velas) {
       const _vz = velas.slice(a, i);
       const liq = _vz.reduce((s, v) => s + (v.vol || 0), 0);
       const liqC = _vz.reduce((s, v) => s + (v.volC || 0), 0);
-      brutas.push({ i0: a, i1: i - 1, hi, lo, t0: velas[a].t, t1: velas[i - 1].t, dir, imp, velas: _vz, liq, liqC });
+      // Se guardan también las velas del IMPULSO (hasta i+K): son las que cubren
+      // los niveles más recientes y permiten que el color nazca escalonado del
+      // borde derecho de la vela correcta, sin cortes rectos.
+      const velasAnc = velas.slice(a, Math.min(n, i + K));
+      brutas.push({ i0: a, i1: i - 1, hi, lo, t0: velas[a].t, t1: velas[i - 1].t, dir, imp, velas: _vz, velasAnc, liq, liqC });
       i += K; continue;
     }
     i++;
   }
   // 2) RELEVANCIA + NO MITIGADA + CERCANÍA respecto al precio actual.
   const holgura = precio * 0.0006;
-  const maxDist = Math.max(precio * 0.06, atr * 14);   // adaptativo: en TF grandes las zonas pueden estar más lejos
+  const maxDist = Math.max(precio * 0.05, atr * 9);   // más cerca: zonas realmente operables (nada de 30-48%)
   const validas = brutas.filter((z) => {
     const margen = (z.hi - z.lo) * 0.35;   // el precio puede asomar sin invalidar la zona (solo un cierre decidido la rompe)
     if (z.dir === 'demanda') {
@@ -948,8 +959,8 @@ function detectarEstructuras(velas) {
     }
   });
   // Varias zonas a cada lado, de la más cercana al precio a la más lejana.
-  const dem = validas.filter((z) => z.dir === 'demanda').sort((a, b) => b.hi - a.hi).slice(0, 3);
-  const ofe = validas.filter((z) => z.dir === 'oferta').sort((a, b) => a.lo - b.lo).slice(0, 3);
+  const dem = validas.filter((z) => z.dir === 'demanda').sort((a, b) => b.hi - a.hi).slice(0, 4);
+  const ofe = validas.filter((z) => z.dir === 'oferta').sort((a, b) => a.lo - b.lo).slice(0, 4);
   return dem.concat(ofe);
 }
 
@@ -2077,7 +2088,7 @@ function dibujar() {
     dibujarCalorZona(g, Z, xCal, xR, yT, yB, mXt, paso);
     g.restore();
     // ── BOTÓN 3D al extremo derecho del rectángulo ──
-    const bs = 15, bx = x1 - bs - 5, by = (yT + yB) / 2 - bs / 2;
+    const bs = 13, bx = x1 - bs - 5, by = (yT + yB) / 2 - bs / 2;
     if (by > 2 && by + bs < y1 - 2) {
       g.save();
       g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
