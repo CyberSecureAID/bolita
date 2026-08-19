@@ -1309,6 +1309,7 @@ export async function abrirMuros() {
             <button class="mu-pos-half" id="mu-pos-single">Single</button>
             <button class="mu-pos-half" id="mu-pos-double">Double</button>
           </div>
+          <button class="mu-share" id="mu-share" title="Share signal" disabled>Share signal</button>
           <button class="mu-ico" id="mu-cal" title="Calendario económico">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4M7.5 13h2M11 13h2M14.5 13h2M7.5 16.5h2M11 16.5h2"/></svg>
           </button>
@@ -1371,10 +1372,12 @@ export async function abrirMuros() {
       M._modoPos = (M._modoPos === modo) ? null : modo;   // volver a tocar lo apaga
       bS.classList.toggle('on', M._modoPos === 'single');
       bD.classList.toggle('on', M._modoPos === 'double');
+      const sh = $('mu-share'); if (sh) sh.disabled = !M._modoPos;   // Share solo con Single/Double
       dibujar();
     };
     if (bS) bS.onclick = () => set('single');
     if (bD) bD.onclick = () => set('double');
+    { const sh = $('mu-share'); if (sh) sh.onclick = () => compartirSenal(); }
   }
   $('mu-tema').onclick = () => {
     M.tema = M.tema === 'claro' ? 'oscuro' : 'claro';
@@ -3676,6 +3679,10 @@ function estilos() {
   #mu-overlay .mu-pos-half+.mu-pos-half{border-left:1px solid rgba(232,184,75,.35)}
   #mu-overlay .mu-pos-half:hover{background:rgba(232,184,75,.14)}
   #mu-overlay .mu-pos-half.on{background:linear-gradient(180deg,#f7db8d,#E8B84B 55%,#c79426);color:#3a2800}
+  #mu-overlay .mu-share{height:36px;border-radius:9px;border:1px solid rgba(46,232,106,.55);
+    background:rgba(46,232,106,.08);color:#39e07a;font:700 12px system-ui,sans-serif;padding:0 14px;cursor:pointer;transition:filter .15s,opacity .15s}
+  #mu-overlay .mu-share:hover{filter:brightness(1.15)}
+  #mu-overlay .mu-share:disabled{opacity:.4;cursor:not-allowed;filter:none}
   #mu-overlay .mu-analista:active{transform:translateY(1px)}
   #mu-overlay .mu-analista img{width:28px;height:28px;border-radius:50%;object-fit:cover;flex:0 0 auto;
     border:1px solid rgba(232,184,75,.55)}
@@ -4271,12 +4278,83 @@ function _anclaTarjetaMu(pos, x, w, yt, ye, ys, cw, ch, x1, y1) {
    Single: una posición por zona relevante (1:2). Double: dos por zona (la 2ª
    entra en el stop de la 1ª, mismo diámetro, 1:2). Se escalonan en el tiempo
    para NO pisarse. Tarjeta minimizada por defecto. */
+/* Comparte la señal: copia un texto organizado al portapapeles y genera una
+   imagen PNG con entradas/SL/TP numerados, para pegar en grupos y canales. */
+function compartirSenal() {
+  const pos = M._posAuto || posicionesDeZonas();
+  const sh = $('mu-share');
+  if (!pos.length) { if (sh) { const t = sh.textContent; sh.textContent = 'No signals'; setTimeout(() => { sh.textContent = t; }, 1400); } return; }
+  const par = PARES.find((p) => p.id === _par) || { id: _par };
+  const dec = (v) => { const a = Math.abs(v); return a >= 1000 ? v.toFixed(1) : a >= 1 ? v.toFixed(3) : v.toFixed(5); };
+  const hora = new Date().toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+  const precio = M.precio ? dec(M.precio) : '—';
+  const ents = pos.map((p) => dec(p.pe)), sls = pos.map((p) => dec(p.pStop)), tps = pos.map((p) => dec(p.pTarget));
+  const lista = (arr) => arr.map((v, i) => `${i + 1}: ${v}`).join('\n');
+  const txt =
+`🔥 HEAT POOLS — SIGNAL
+
+🪙 ${par.id}   ⏱ ${M.tf}
+💵 Price: ${precio}
+🕒 ${hora} UTC
+
+📍 Entries:
+${lista(ents)}
+
+🛑 Stop Loss:
+${lista(sls)}
+
+🎯 Take Profit:
+${lista(tps)}
+
+⚖️ Risk : Reward — 1:2
+
+— CriptoCuba Oficial · Heat Pools`;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(() => { if (sh) { const t = sh.textContent; sh.textContent = 'Copied ✓'; setTimeout(() => { sh.textContent = t; }, 1400); } }).catch(() => {});
+  }
+  // ── Imagen PNG ──
+  const cv = document.createElement('canvas'), g = cv.getContext('2d');
+  const Wd = 620, pad = 28;
+  const filas = Math.max(ents.length, 1);
+  const alto = 250 + filas * 22;
+  cv.width = Wd; cv.height = alto;
+  const grad = g.createLinearGradient(0, 0, 0, alto);
+  grad.addColorStop(0, '#12171f'); grad.addColorStop(1, '#0a0d12');
+  g.fillStyle = grad; g.fillRect(0, 0, Wd, alto);
+  g.strokeStyle = 'rgba(46,232,106,.5)'; g.lineWidth = 2; g.strokeRect(1, 1, Wd - 2, alto - 2);
+  g.textAlign = 'left';
+  g.fillStyle = '#39e07a'; g.font = '800 22px system-ui,sans-serif';
+  g.fillText('🔥 Heat Pools — Signal', pad, 46);
+  g.fillStyle = '#8b95a1'; g.font = '600 13px ui-monospace,monospace';
+  g.fillText(`${par.id}  ·  ${M.tf}  ·  ${hora} UTC   ·   Price ${precio}`, pad, 72);
+  g.strokeStyle = 'rgba(255,255,255,.08)'; g.beginPath(); g.moveTo(pad, 92); g.lineTo(Wd - pad, 92); g.stroke();
+  const colW = (Wd - pad * 2) / 3;
+  const cols = [['📍 Entry', ents, '#eaecef'], ['🛑 Stop', sls, '#ff5b6e'], ['🎯 Target', tps, '#2ee86a']];
+  cols.forEach((c, ci) => {
+    const cx = pad + ci * colW;
+    g.fillStyle = c[2]; g.font = '800 14px system-ui,sans-serif'; g.fillText(c[0], cx, 122);
+    g.font = '600 14px ui-monospace,monospace';
+    c[1].forEach((v, i) => { g.fillStyle = '#dfe5ec'; g.fillText(`${i + 1}:  ${v}`, cx, 150 + i * 22); });
+  });
+  const yRR = 150 + filas * 22 + 24;
+  g.fillStyle = '#E8B84B'; g.font = '800 18px system-ui,sans-serif'; g.textAlign = 'left';
+  g.fillText('⚖️  Risk : Reward — 1:2', pad, yRR);
+  g.fillStyle = '#6b7681'; g.font = '600 11px ui-monospace,monospace'; g.textAlign = 'center';
+  g.fillText('CriptoCuba Oficial · Heat Pools', Wd / 2, alto - 16);
+  cv.toBlob((b) => {
+    if (!b) return;
+    const url = URL.createObjectURL(b), a = document.createElement('a');
+    a.href = url; a.download = `heatpools-${par.id}-${M.tf}-${Date.now()}.png`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }, 'image/png');
+}
+
 function posicionesDeZonas() {
   const geo = M._geo; if (!geo || !M.estructuras) return [];
   const vis = geo.vis; if (!vis || !vis.length) return [];
   const tfMs = geo.tfMs || 60000;
   const tBase = vis[vis.length - 1].t;
-  const W = 9 * tfMs, GAP = 4 * tfMs;     // un poco más anchas; hueco para no pisarse
+  const W = 12 * tfMs, GAP = 5 * tfMs;    // un poco más anchas; hueco para no pisarse
   const out = [];
   let slot = 0;
   const nuevaRanura = () => { const t0 = tBase + 3 * tfMs + slot * (W + GAP); slot++; return t0; };
@@ -4341,16 +4419,19 @@ function dibujarPosicion(g, P0) {
   const rr = Math.abs(rPct) > 0 ? Math.abs(gPct / rPct) : 0;
 
   if (P.oculto) {
-    const bw = 30, bh = 20;
-    const mp = _anclaTarjetaMu(P.cardPos, x, w, yt, ye, ys, bw, bh, x1, y1);
+    const bw = 26, bh = 16;
+    // DENTRO de la posición: centrado en horizontal, en la zona del Take Profit
+    // un poco por debajo del centro, acercándose a la entrada SIN tocarla.
+    const bcx = x + w / 2, bcy = ye + (yt - ye) * 0.35;
+    const mp = { cx: bcx - bw / 2, cy: bcy - bh / 2 };
     const hover = M._cursor && M._cursor.x >= mp.cx - 3 && M._cursor.x <= mp.cx + bw + 3 && M._cursor.y >= mp.cy - 3 && M._cursor.y <= mp.cy + bh + 3;
-    g.save(); g.globalAlpha = hover ? 1 : 0.22;     // casi invisible; se revela al pasar el cursor
+    g.save(); g.globalAlpha = hover ? 1 : 0;         // totalmente invisible; solo aparece al pasar el cursor
     if (hover) { g.shadowColor = `rgba(${accRGB},.55)`; g.shadowBlur = 9; }
-    g.fillStyle = acc; redondeado(g, mp.cx, mp.cy, bw, bh, 6); g.fill();
+    g.fillStyle = acc; redondeado(g, mp.cx, mp.cy, bw, bh, 5); g.fill();
     g.shadowColor = 'transparent';
-    g.fillStyle = '#0b0f16'; g.font = '800 12px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(largo ? 'L' : 'S', mp.cx + 11, mp.cy + bh / 2 + .5);
-    g.font = '800 9px system-ui,sans-serif'; g.fillText('⌄', mp.cx + 22, mp.cy + bh / 2 - .5);
+    g.fillStyle = '#0b0f16'; g.font = '800 10px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(largo ? 'L' : 'S', mp.cx + 9, mp.cy + bh / 2 + .5);
+    g.font = '800 8px system-ui,sans-serif'; g.fillText('⌄', mp.cx + 19, mp.cy + bh / 2 - .5);
     g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.restore();
     P._miniBtn = { x: mp.cx, y: mp.cy, w: bw, h: bh }; P._hideBtn = P._arrL = P._arrR = null;
     return;
