@@ -1305,10 +1305,6 @@ export async function abrirMuros() {
         <span id="mu-estado" class="mu-estado-err"></span>
 
         <div class="mu-der">
-          <button class="mu-analista" id="mu-analista" title="Analyst">
-            <img src="assets/img/jesus-avatar.webp" alt="">
-            <span class="mu-an-txt">Analyst</span>
-          </button>
           <div class="mu-pos-split" id="mu-pos-split" title="Positions">
             <button class="mu-pos-half" id="mu-pos-single">Single</button>
             <button class="mu-pos-half" id="mu-pos-double">Double</button>
@@ -1368,7 +1364,7 @@ export async function abrirMuros() {
 
   $('mu-foto').onclick = () => guardarImagen();
   { const bc = $('mu-cal'); if (bc) bc.onclick = () => abrirNoticiasSeguro('calendario'); }
-  $('mu-analista').onclick = () => abrirAnalista();
+  { const _an = $('mu-analista'); if (_an) _an.onclick = () => abrirAnalista(); }
   {
     const bS = $('mu-pos-single'), bD = $('mu-pos-double');
     const set = (modo) => {
@@ -2131,13 +2127,6 @@ function dibujar() {
      encima de las velas y no lo tapen.) */
 
 
-  /* Marca de la herramienta */
-  g.save();
-  g.font = '800 12px system-ui,sans-serif'; g.textAlign = 'left';
-  g.fillStyle = 'rgba(232,184,75,.55)';
-  g.fillText('Heat Pools', 10, 17);
-  g.restore();
-
   /* ── LAS VELAS ── */
   const cuerpo = Math.max(1.6, paso * 0.6);
   vis.forEach((v, i) => {
@@ -2252,7 +2241,13 @@ function dibujar() {
   if (M._tend) dibujarTendencia(g);
   if (M._pos) dibujarPosicion(g);
   // Posiciones automáticas por zona (botón "Positions"): single o double.
-  if (M._modoPos) { posicionesDeZonas().forEach((P) => dibujarPosicion(g, P)); }
+  // Se persisten (M._posAuto) y solo se regeneran si cambia el modo o las zonas,
+  // así el clic/manito funcionan y el estado expandido no se pierde cada frame.
+  if (M._modoPos) {
+    const sig = M._modoPos + '|' + (M.estructuras || []).map((z) => (z.t0 | 0) + z.dir).join(',');
+    if (!M._posAuto || M._posSig !== sig) { M._posAuto = posicionesDeZonas(); M._posSig = sig; }
+    M._posAuto.forEach((P) => dibujarPosicion(g, P));
+  } else { M._posAuto = null; M._posSig = null; }
   pintarGuiaSVG();
 
   /* ── CROSSHAIR: cruz + precio del cursor en el eje ── */
@@ -2386,6 +2381,12 @@ function engancharGestos(cv) {
     if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
     if (M._tend && M._tend.guia) { M._tend.guia = false; dibujar(); }
 
+    // ── Posiciones automáticas (botón Positions): expandir/minimizar su tarjeta ──
+    for (const P of (M._posAuto || [])) {
+      if (P.oculto && P._miniBtn && dentroR(P._miniBtn)) { P.oculto = false; dibujar(); return; }
+      if (!P.oculto && P._hideBtn && dentroR(P._hideBtn)) { P.oculto = true; dibujar(); return; }
+    }
+
     // ── Pastilla "Liq" de una zona: muestra/oculta la liquidez real del periodo ──
     for (const b of (M._zonaBtns || [])) {
       if (lx >= b.x - 3 && lx <= b.x + b.w + 3 && ly >= b.y - 3 && ly <= b.y + b.h + 3) {
@@ -2476,6 +2477,10 @@ function engancharGestos(cv) {
       }
     }
     if (M._tend && cercaTend(lx, ly)) return 'grab';
+    for (const P of (M._posAuto || [])) {
+      if (P.oculto && dRp(P._miniBtn, 6)) return 'pointer';       // manita en el botón L/S
+      if (!P.oculto && dRp(P._hideBtn, 6)) return 'pointer';
+    }
     for (const b of (M._zonaBtns || [])) {
       if (lx >= b.x - 3 && lx <= b.x + b.w + 3 && ly >= b.y - 3 && ly <= b.y + b.h + 3) return 'pointer';  // manita en la pastilla Liq
     }
@@ -4175,7 +4180,8 @@ function pintarPager() {
   if (!L || L.zonas.length < 2) return;
   const p = document.createElement('div'); p.id = 'mu-pager';
   p.innerHTML = `<span>${L.idx + 1}/${L.zonas.length}</span><button title="Siguiente">\u203a</button>`;
-  const pill = document.getElementById('mu-analista');
+  const pill = document.getElementById('mu-analista') || document.getElementById('mu-pos-split');
+  if (!pill) return;
   pill.insertAdjacentElement('afterend', p);
   p.querySelector('button').onclick = () => { L.idx++; proyectarDeLista(); };
 }
@@ -4265,29 +4271,26 @@ function posicionesDeZonas() {
   const vis = geo.vis; if (!vis || !vis.length) return [];
   const tfMs = geo.tfMs || 60000;
   const tBase = vis[vis.length - 1].t;
+  const W = 9 * tfMs, GAP = 4 * tfMs;     // un poco más anchas; hueco para no pisarse
   const out = [];
-  let idx = 0;
+  let slot = 0;
+  const nuevaRanura = () => { const t0 = tBase + 3 * tfMs + slot * (W + GAP); slot++; return t0; };
   M.estructuras.forEach((z) => {
     if (!(z.rr > 0)) return;                        // zona ancha → no operar
     const corto = z.dir === 'oferta';
     const rango = Math.abs(z.hi - z.lo) || 1;
     const tipo = corto ? 'poscorta' : 'poslarga';
-    // escalonado horizontal para que no se superpongan
-    const t0 = tBase + (3 + idx * 7) * tfMs, t1 = t0 + 6 * tfMs; idx++;
-    const mk = (pe, sl) => {
+    const mk = (pe, sl, t0) => {
       const tp = corto ? pe - 2 * Math.abs(sl - pe) : pe + 2 * Math.abs(sl - pe);
-      return { tipo, pe, pStop: sl, pTarget: tp, t0, t1, zonaPoc: pe,
+      return { tipo, pe, pStop: sl, pTarget: tp, t0, t1: t0 + W, zonaPoc: pe,
         cTarget: '#2ee86a', cEntry: '#eaecef', cStop: '#ff3b52', grosor: 2, intensidad: 1,
         cardPos: 'der', oculto: true, guia: false };
     };
-    // Posición 1: entrada en la línea que da la cara, stop en la opuesta.
-    out.push(mk(z.e1, z.sl));
+    out.push(mk(z.e1, z.sl, nuevaRanura()));         // Posición 1
     if (M._modoPos === 'double') {
-      // Posición 2: entra en el stop de la 1ª (leve diferencia), mismo diámetro.
       const pe2 = z.slE2 != null ? z.slE2 : (corto ? z.sl + rango * 0.15 : z.sl - rango * 0.15);
       const sl2 = corto ? pe2 + rango : pe2 - rango;
-      const p2 = mk(pe2, sl2); p2.t0 = t0 + 3 * tfMs; p2.t1 = p2.t0 + 6 * tfMs;  // un pelín a la derecha
-      out.push(p2);
+      out.push(mk(pe2, sl2, nuevaRanura()));         // Posición 2 (entra en el stop de la 1ª, mismo diámetro)
     }
   });
   return out;
@@ -4333,12 +4336,16 @@ function dibujarPosicion(g, P0) {
   const rr = Math.abs(rPct) > 0 ? Math.abs(gPct / rPct) : 0;
 
   if (P.oculto) {
-    const mp = _anclaTarjetaMu(P.cardPos, x, w, yt, ye, ys, 20, 20, x1, y1);
+    const bw = 30, bh = 20;
+    const mp = _anclaTarjetaMu(P.cardPos, x, w, yt, ye, ys, bw, bh, x1, y1);
     g.save(); g.shadowColor = `rgba(${accRGB},.55)`; g.shadowBlur = 9;
-    g.fillStyle = acc; redondeado(g, mp.cx, mp.cy, 20, 20, 6); g.fill(); g.restore();
+    g.fillStyle = acc; redondeado(g, mp.cx, mp.cy, bw, bh, 6); g.fill(); g.restore();
     g.fillStyle = '#0b0f16'; g.font = '800 12px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(largo ? 'L' : 'S', mp.cx + 10, mp.cy + 10.5); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-    P._miniBtn = { x: mp.cx, y: mp.cy, w: 20, h: 20 }; P._hideBtn = P._arrL = P._arrR = null;
+    g.fillText(largo ? 'L' : 'S', mp.cx + 11, mp.cy + bh / 2 + .5);
+    // flechita ⌄ que indica "despliega estadísticas al tocar"
+    g.font = '800 9px system-ui,sans-serif'; g.fillText('⌄', mp.cx + 22, mp.cy + bh / 2 - .5);
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    P._miniBtn = { x: mp.cx, y: mp.cy, w: bw, h: bh }; P._hideBtn = P._arrL = P._arrR = null;
     return;
   }
   P._miniBtn = null;
