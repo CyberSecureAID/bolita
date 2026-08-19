@@ -316,8 +316,21 @@ function adivinarInfo(prov) {
   return { name: 'Wallet', clave: 'generica' };
 }
 
+/* Checksum EIP-55: devuelve la dirección con las mayúsculas/minúsculas correctas
+   (idéntica a la que muestra Trust Wallet u otras wallets). Es la MISMA dirección
+   que en minúsculas —las direcciones EVM no distinguen mayúsculas—, pero mostrarla
+   con checksum le da confianza al usuario y protege contra erratas. Usa ethers (ya
+   global en el sitio); si no estuviera, devuelve la dirección tal cual sin romper. */
+export function checksum(dir) {
+  try {
+    if (dir && typeof window !== 'undefined' && window.ethers && window.ethers.getAddress) return window.ethers.getAddress(dir);
+  } catch (_) { /* dirección no estándar: se deja como viene */ }
+  return dir;
+}
+
 export function abreviar(dir) {
-  return dir ? dir.slice(0, 6) + '…' + dir.slice(-4) : '';
+  const d = checksum(dir);
+  return d ? d.slice(0, 6) + '…' + d.slice(-4) : '';
 }
 
 export function alCambiar(cb) {

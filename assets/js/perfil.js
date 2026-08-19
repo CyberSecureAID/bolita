@@ -384,7 +384,7 @@ export async function abrirPerfil() {
   pintarNombre(cuenta);
   const addr = $('pf-addr');
   if (addr) addr.onclick = async () => {
-    try { await navigator.clipboard.writeText(cuenta); const t = addr.innerHTML; addr.innerHTML = '¡Copiada!'; setTimeout(() => { addr.innerHTML = t; }, 1100); } catch (_) {}
+    try { await navigator.clipboard.writeText(wallet.checksum ? wallet.checksum(cuenta) : cuenta); const t = addr.innerHTML; addr.innerHTML = '¡Copiada!'; setTimeout(() => { addr.innerHTML = t; }, 1100); } catch (_) {}
   };
   if ($('pf-reload')) $('pf-reload').onclick = () => abrirPerfil();
   cargarPermisos(cuenta);
