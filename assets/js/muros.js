@@ -787,6 +787,16 @@ function analizarMercado(velas, precio, perfil) {
 
 
 
+/* Lazy-loader del módulo de noticias: si news.js no está cargado (por ejemplo,
+   si no se subió el index.html actualizado), lo carga al vuelo y luego abre. */
+function abrirNoticiasSeguro() {
+  if (typeof window.abrirNoticias === 'function') { try { window.abrirNoticias(); } catch (_) {} return; }
+  if (document.getElementById('news-js-lazy')) { setTimeout(abrirNoticiasSeguro, 300); return; }
+  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=2';
+  s.onload = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} };
+  document.head.appendChild(s);
+}
+
 /* ══════════════════════════════════════════════════════════════
    ABRIR
    ══════════════════════════════════════════════════════════════ */
@@ -909,7 +919,7 @@ export async function abrirMuros() {
 
   $('mu-foto').onclick = () => guardarImagen();
   $('mu-validar').onclick = () => validarVolumen();
-  { const bn = $('mu-news'); if (bn) bn.onclick = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} }; }
+  { const bn = $('mu-news'); if (bn) bn.onclick = () => abrirNoticiasSeguro(); }
   $('mu-analista').onclick = () => abrirAnalista();
   $('mu-tema').onclick = () => {
     M.tema = M.tema === 'claro' ? 'oscuro' : 'claro';

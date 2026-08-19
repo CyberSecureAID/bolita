@@ -830,7 +830,7 @@ function render() {
             <div class="cr-top">Resumen del DCA</div>
             <div class="cr-rows">
               <div class="cr-row"><span>Compras</span><b id="fd-p-cada">—</b></div>
-              <div class="cr-row"><span>Primera compra</span><b id="fd-p-primera">ahora mismo</b></div>
+              <div class="cr-row"><span>Primera compra</span><b id="fd-p-primera">al encender</b></div>
               <div class="cr-row"><span>Total a invertir</span><b id="fd-p-total">—</b></div>
               <div class="cr-row"><span>Precio ahora</span><b id="fd-p-precio">—</b></div>
             </div>
