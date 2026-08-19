@@ -79,18 +79,20 @@ export function estilos() {
      .nv-ico usa grid con una sola celda, que los apilaba (el texto caía
      debajo del ícono). Con flex quedan uno al lado del otro y centrados. */
   #nv-overlay .nv-registrar,
+  #nv-overlay .nv-news,
   #nv-overlay .nv-herr-btn{display:inline-flex;flex-direction:row;align-items:center;justify-content:center}
-  #nv-overlay .nv-registrar{width:auto;height:36px;padding:0 15px;gap:8px;
+  #nv-overlay .nv-registrar,
+  #nv-overlay .nv-news{width:auto;height:36px;padding:0 15px;gap:8px;position:relative;
     border:1px solid #c79426;color:#3a2800;
     background:linear-gradient(180deg,#f7db8d,var(--gold,#E8B84B) 48%,#c79426);
     box-shadow:0 2px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.4)}
-  #nv-overlay .nv-registrar:hover{color:#3a2800;filter:brightness(1.04);
+  #nv-overlay .nv-registrar:hover,#nv-overlay .nv-news:hover{color:#3a2800;filter:brightness(1.04);
     box-shadow:0 2px 0 #9c7016,0 2px 8px rgba(232,184,75,.22),inset 0 1px 0 rgba(255,255,255,.45)}
-  #nv-overlay .nv-registrar:active{transform:translateY(1px);
-    box-shadow:0 1px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.3)}
-  #nv-overlay .nv-registrar:active{transform:translateY(1px);
+  #nv-overlay .nv-registrar:active,#nv-overlay .nv-news:active{transform:translateY(1px);
     box-shadow:0 1px 0 #9c7016,inset 0 1px 0 rgba(255,255,255,.3)}
   #nv-overlay .nv-rg-tx{font-family:"Chakra Petch", system-ui, sans-serif;font-weight:800;font-size:12.5px;white-space:nowrap;letter-spacing:.2px;color:#3a2800}
+  #nv-overlay .nv-news .nv-news-dot{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:#f6465d;box-shadow:0 0 0 0 rgba(246,70,93,.6);animation:nvNewsPulse 2.2s infinite}
+  @keyframes nvNewsPulse{0%{box-shadow:0 0 0 0 rgba(246,70,93,.55)}70%{box-shadow:0 0 0 6px rgba(246,70,93,0)}100%{box-shadow:0 0 0 0 rgba(246,70,93,0)}}
 
   /* ══ Modal Registrar mi indicador ══ */
   #nv-reg-modal{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px}
