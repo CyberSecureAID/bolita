@@ -593,21 +593,62 @@ function tendenciaLEA(velas, piv) {
   if (altosBajan && bajosBajan) return { dir: 'bajista', fuerza: Math.min(100, Math.abs(mov) * 12) };
   return { dir: 'lateral', fuerza: 0 };
 }
-/* Tendencia de CORTO PLAZO: la más vigente, cercana al precio. Devuelve la
-   dirección y la línea tendencial (2 anclas) para dibujarla y proyectarla. */
+/* Tendencia de CORTO PLAZO por CANAL DE REGRESIÓN (filtra el ruido, como el
+   canal paralelo que traza el trader). Se ancla al último SWING significativo:
+   si el mínimo mayor es más antiguo que el máximo mayor, el tramo es alcista
+   (desde ese mínimo); si es al revés, bajista. Sobre ese tramo se ajusta una
+   recta de regresión (la tendencia limpia) y un canal ±desviación. */
+function _regresion(seg) {
+  const n = seg.length; if (n < 3) return null;
+  let sx = 0, sy = 0, sxy = 0, sxx = 0;
+  for (let i = 0; i < n; i++) { const y = seg[i].c; sx += i; sy += y; sxy += i * y; sxx += i * i; }
+  const den = n * sxx - sx * sx; if (Math.abs(den) < 1e-9) return null;
+  const m = (n * sxy - sx * sy) / den;         // pendiente (precio por vela)
+  const b = (sy - m * sx) / n;                  // intercepto
+  let arriba = 0, abajo = 0, ss = 0;
+  for (let i = 0; i < n; i++) {
+    const yLin = m * i + b;
+    arriba = Math.max(arriba, seg[i].h - yLin);  // cuánto sobresale por encima
+    abajo = Math.max(abajo, yLin - seg[i].l);    // cuánto por debajo
+    const d = seg[i].c - yLin; ss += d * d;
+  }
+  return { m, b, n, arriba, abajo, sd: Math.sqrt(ss / n) };
+}
 function calcTendenciaCorto() {
   const velas = M.velas;
-  if (!velas || velas.length < 20) return null;
-  const n = Math.min(velas.length, Math.max(90, (M.ancho || 100) + 20));
-  const rec = velas.slice(-n);
-  const off = velas.length - rec.length;
-  const piv = pivotesLEA(rec, 3);
-  const t = tendenciaLEA(rec, piv);
-  let a0 = null, a1 = null;
-  if (t.dir === 'alcista' && piv.bajos.length >= 2) { a0 = piv.bajos[piv.bajos.length - 2]; a1 = piv.bajos[piv.bajos.length - 1]; }
-  else if (t.dir === 'bajista' && piv.altos.length >= 2) { a0 = piv.altos[piv.altos.length - 2]; a1 = piv.altos[piv.altos.length - 1]; }
-  if (!a0 || !a1 || a1.i === a0.i) return { dir: t.dir, fuerza: t.fuerza, linea: null };
-  return { dir: t.dir, fuerza: t.fuerza, linea: { t0: a0.t, p0: a0.p, t1: a1.t, p1: a1.p } };
+  if (!velas || velas.length < 24) return null;
+  const N = Math.min(velas.length, Math.max(70, (M.ancho || 100)));
+  const win = velas.slice(-N);
+  const off = velas.length - win.length;
+  // Swing significativo: extremos del tramo.
+  let iLo = 0, iHi = 0;
+  for (let k = 1; k < win.length; k++) { if (win[k].l < win[iLo].l) iLo = k; if (win[k].h > win[iHi].h) iHi = k; }
+  // Ancla del tramo VIGENTE:
+  //  · Si el extremo más reciente está en MEDIO del tramo → hubo una reversión:
+  //    la tendencia vigente arranca ahí (p. ej. subimos desde el último mínimo).
+  //  · Si el extremo más reciente está al FINAL → es una tendencia continua:
+  //    se ancla en el extremo antiguo para medir todo el recorrido.
+  const reciente = Math.max(iLo, iHi), antiguo = Math.min(iLo, iHi);
+  let ini = (reciente <= win.length - 8) ? reciente : antiguo;
+  ini = Math.max(0, Math.min(ini, win.length - 8));
+  const seg = win.slice(ini);
+  if (seg.length < 5) return { dir: 'lateral', canal: null };
+  const R = _regresion(seg);
+  if (!R) return { dir: 'lateral', canal: null };
+  // Dirección por la pendiente, con umbral para no marcar ruido como tendencia.
+  const precio = velas[velas.length - 1].c || 1;
+  const subeTramo = R.m * R.n;                    // recorrido total de la recta
+  const umbral = precio * 0.004;
+  let dir = 'lateral';
+  if (subeTramo > umbral) dir = 'alcista';
+  else if (subeTramo < -umbral) dir = 'bajista';
+  // Anclas de tiempo (para dibujar pegado al gráfico).
+  const t0 = win[ini].t, t1 = win[win.length - 1].t;
+  return {
+    dir,
+    canal: { m: R.m, b: R.b, n: R.n, arriba: R.arriba, abajo: R.abajo,
+             t0, t1, p0: R.b, p1: R.m * (R.n - 1) + R.b }
+  };
 }
 
 function detectarEstructuras(velas) {
@@ -1680,33 +1721,44 @@ function dibujar() {
      En vez de decenas de franjas de volumen (ruido), se dibujan las CAJAS
      donde el precio oscila: sus bordes son respetados por el precio. El
      rango más reciente (el actual) se resalta; ahí es donde se opera. */
-  /* ── FASE 1 · TENDENCIA DE CORTO PLAZO ──
-     Línea tendencial vigente (la más cercana al precio), detectada por estructura
-     igual que en Smart Levels. Alcista = por los mínimos crecientes (verde);
-     bajista = por los máximos decrecientes (rojo). Se proyecta a la derecha. */
+  /* ── FASE 1 · TENDENCIA DE CORTO PLAZO (canal por regresión) ──
+     La recta central es la tendencia LIMPIA (filtrada de ruido, igual que el
+     canal paralelo que traza el trader). El riel que da la cara al precio
+     (abajo si sube, arriba si baja) es la línea tendencial operativa. Todo se
+     proyecta hacia la derecha. */
   const TC = M._tendCorto;
-  if (TC && TC.linea) {
-    const L = TC.linea;
-    const x0 = mXt(L.t0), xa = mXt(L.t1);
-    if (xa !== x0) {
-      const m = (L.p1 - L.p0) / (xa - x0);            // pendiente en precio/px
-      const pEnX = (x) => L.p0 + m * (x - x0);
+  if (TC && TC.canal && TC.dir !== 'lateral') {
+    const C = TC.canal;
+    const x0 = mXt(C.t0), x1r = mXt(C.t1);
+    if (x1r !== x0) {
+      // precio de la recta central en función de x (píxeles), vía interpolación de anclas
+      const mPx = (C.p1 - C.p0) / (x1r - x0);
+      const centro = (x) => C.p0 + mPx * (x - x0);
       const alc = TC.dir === 'alcista';
-      const col = alc ? '46,232,106' : TC.dir === 'bajista' ? '246,70,93' : '160,170,180';
-      // línea desde el primer ancla proyectada hasta el borde derecho
+      const col = alc ? '46,232,106' : '246,70,93';
       const xIni = Math.max(0, x0), xFin = x1;
+      // canal: rieles a ±(sobresalto) de la recta central
+      const rielSup = (x) => centro(x) + C.arriba;
+      const rielInf = (x) => centro(x) - C.abajo;
       g.save();
-      g.strokeStyle = `rgba(${col},0.95)`; g.lineWidth = 2; g.setLineDash([]);
-      g.beginPath(); g.moveTo(xIni, Y(pEnX(xIni))); g.lineTo(xFin, Y(pEnX(xFin))); g.stroke();
-      // marcar las 2 anclas
-      [[x0, L.p0], [xa, L.p1]].forEach(([xx, pp]) => {
-        g.fillStyle = `rgba(${col},1)`; g.beginPath(); g.arc(xx, Y(pp), 3.2, 0, 7); g.fill();
-      });
-      // etiqueta de dirección
-      const yFin = Y(pEnX(xFin - 4));
+      // relleno tenue del canal
+      g.beginPath();
+      g.moveTo(xIni, Y(rielSup(xIni))); g.lineTo(xFin, Y(rielSup(xFin)));
+      g.lineTo(xFin, Y(rielInf(xFin))); g.lineTo(xIni, Y(rielInf(xIni))); g.closePath();
+      g.fillStyle = `rgba(${col},0.05)`; g.fill();
+      // rieles del canal (finos, tenues)
+      g.strokeStyle = `rgba(${col},0.35)`; g.lineWidth = 1; g.setLineDash([4, 4]);
+      g.beginPath(); g.moveTo(xIni, Y(rielSup(xIni))); g.lineTo(xFin, Y(rielSup(xFin))); g.stroke();
+      g.beginPath(); g.moveTo(xIni, Y(rielInf(xIni))); g.lineTo(xFin, Y(rielInf(xFin))); g.stroke();
+      g.setLineDash([]);
+      // línea tendencial OPERATIVA: el riel que da la cara al precio
+      const riel = alc ? rielInf : rielSup;
+      g.strokeStyle = `rgba(${col},1)`; g.lineWidth = 2.2;
+      g.beginPath(); g.moveTo(xIni, Y(riel(xIni))); g.lineTo(xFin, Y(riel(xFin))); g.stroke();
+      // etiqueta
       g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'right';
       g.fillStyle = `rgba(${col},1)`;
-      g.fillText(alc ? 'TENDENCIA ALCISTA' : TC.dir === 'bajista' ? 'TENDENCIA BAJISTA' : 'RANGO', xFin - 6, yFin - 6);
+      g.fillText(alc ? 'TENDENCIA ALCISTA' : 'TENDENCIA BAJISTA', xFin - 6, Y(riel(xFin)) + (alc ? 16 : -8));
       g.textAlign = 'left'; g.restore();
     }
   }
