@@ -2381,10 +2381,15 @@ function engancharGestos(cv) {
     if (M._pos && M._pos.guia) { M._pos.guia = false; dibujar(); }
     if (M._tend && M._tend.guia) { M._tend.guia = false; dibujar(); }
 
-    // ── Posiciones automáticas (botón Positions): expandir/minimizar su tarjeta ──
+    // ── Posiciones automáticas (botón Positions): expandir/minimizar/mover su tarjeta ──
     for (const P of (M._posAuto || [])) {
       if (P.oculto && P._miniBtn && dentroR(P._miniBtn)) { P.oculto = false; dibujar(); return; }
-      if (!P.oculto && P._hideBtn && dentroR(P._hideBtn)) { P.oculto = true; dibujar(); return; }
+      if (!P.oculto) {
+        if (P._hideBtn && dentroR(P._hideBtn)) { P.oculto = true; dibujar(); return; }
+        const ORD = ['der', 'abajo', 'izq', 'arriba'];
+        if (P._arrL && dentroR(P._arrL)) { P.cardPos = ORD[(ORD.indexOf(P.cardPos || 'der') + 3) % 4]; dibujar(); return; }
+        if (P._arrR && dentroR(P._arrR)) { P.cardPos = ORD[(ORD.indexOf(P.cardPos || 'der') + 1) % 4]; dibujar(); return; }
+      }
     }
 
     // ── Pastilla "Liq" de una zona: muestra/oculta la liquidez real del periodo ──
@@ -2478,8 +2483,8 @@ function engancharGestos(cv) {
     }
     if (M._tend && cercaTend(lx, ly)) return 'grab';
     for (const P of (M._posAuto || [])) {
-      if (P.oculto && dRp(P._miniBtn, 6)) return 'pointer';       // manita en el botón L/S
-      if (!P.oculto && dRp(P._hideBtn, 6)) return 'pointer';
+      if (P.oculto) { if (dRp(P._miniBtn, 6)) return 'pointer'; }
+      else if (dRp(P._hideBtn, 6) || dRp(P._arrL, 6) || dRp(P._arrR, 6)) return 'pointer';   // −, ‹ y ›
     }
     for (const b of (M._zonaBtns || [])) {
       if (lx >= b.x - 3 && lx <= b.x + b.w + 3 && ly >= b.y - 3 && ly <= b.y + b.h + 3) return 'pointer';  // manita en la pastilla Liq
@@ -4338,56 +4343,60 @@ function dibujarPosicion(g, P0) {
   if (P.oculto) {
     const bw = 30, bh = 20;
     const mp = _anclaTarjetaMu(P.cardPos, x, w, yt, ye, ys, bw, bh, x1, y1);
-    g.save(); g.shadowColor = `rgba(${accRGB},.55)`; g.shadowBlur = 9;
-    g.fillStyle = acc; redondeado(g, mp.cx, mp.cy, bw, bh, 6); g.fill(); g.restore();
+    const hover = M._cursor && M._cursor.x >= mp.cx - 3 && M._cursor.x <= mp.cx + bw + 3 && M._cursor.y >= mp.cy - 3 && M._cursor.y <= mp.cy + bh + 3;
+    g.save(); g.globalAlpha = hover ? 1 : 0.22;     // casi invisible; se revela al pasar el cursor
+    if (hover) { g.shadowColor = `rgba(${accRGB},.55)`; g.shadowBlur = 9; }
+    g.fillStyle = acc; redondeado(g, mp.cx, mp.cy, bw, bh, 6); g.fill();
+    g.shadowColor = 'transparent';
     g.fillStyle = '#0b0f16'; g.font = '800 12px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(largo ? 'L' : 'S', mp.cx + 11, mp.cy + bh / 2 + .5);
-    // flechita ⌄ que indica "despliega estadísticas al tocar"
     g.font = '800 9px system-ui,sans-serif'; g.fillText('⌄', mp.cx + 22, mp.cy + bh / 2 - .5);
-    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.restore();
     P._miniBtn = { x: mp.cx, y: mp.cy, w: bw, h: bh }; P._hideBtn = P._arrL = P._arrR = null;
     return;
   }
   P._miniBtn = null;
 
-  // ── Tarjeta de presentación (idéntica a Smart Levels) ──
+  // ── Tarjeta de presentación (a escala, OPACA) ──
+  const Sc = 0.7;                       // escala: más pequeña, todo proporcional
   const cw = 226, ch = 140;
-  const ap = _anclaTarjetaMu(P.cardPos, x, w, yt, ye, ys, cw, ch, x1, y1);
+  const ap = _anclaTarjetaMu(P.cardPos, x, w, yt, ye, ys, cw * Sc, ch * Sc, x1, y1);
   const cx = ap.cx, cy = ap.cy;
-  g.save(); g.shadowColor = 'rgba(0,0,0,.62)'; g.shadowBlur = 22;
-  g.fillStyle = 'rgba(12,16,23,.97)'; redondeado(g, cx, cy, cw, ch, 16); g.fill(); g.restore();
-  g.strokeStyle = `rgba(${accRGB},.45)`; g.lineWidth = 1.2; redondeado(g, cx, cy, cw, ch, 16); g.stroke();
-  g.fillStyle = acc; redondeado(g, cx, cy + 14, 4, ch - 28, 2); g.fill();
+  const hbL = { x: cw - 34, y: 9, w: 24, h: 19 };
+  const rxL = cw - 42, divXL = cw - 78, ay2L = ch - 18;
+  const alL = { x: rxL - 27, y: ay2L - 11, w: 22, h: 22 }, arL = { x: rxL + 5, y: ay2L - 11, w: 22, h: 22 };
+  const rrTxt = Math.abs(rr - Math.round(rr)) < 0.06 ? String(Math.round(rr)) : rr.toFixed(1);
+  g.save();
+  g.translate(cx, cy); g.scale(Sc, Sc);              // todo lo de dentro va en coords locales 0..cw / 0..ch
+  g.shadowColor = 'rgba(0,0,0,.62)'; g.shadowBlur = 22;
+  g.fillStyle = 'rgba(12,16,23,1)'; redondeado(g, 0, 0, cw, ch, 16); g.fill();   // OPACA (no se ve lo de atrás)
+  g.shadowColor = 'transparent';
+  g.strokeStyle = `rgba(${accRGB},.55)`; g.lineWidth = 1.2; redondeado(g, 0, 0, cw, ch, 16); g.stroke();
+  g.fillStyle = acc; redondeado(g, 0, 14, 4, ch - 28, 2); g.fill();
   g.textAlign = 'left';
   g.fillStyle = acc; g.font = '800 11px system-ui,sans-serif';
-  g.fillText(largo ? 'POSICI\u00d3N LARGA' : 'POSICI\u00d3N CORTA', cx + 16, cy + 23);
-  const hb = { x: cx + cw - 34, y: cy + 9, w: 24, h: 19 };
-  g.fillStyle = 'rgba(255,255,255,.1)'; redondeado(g, hb.x, hb.y, hb.w, hb.h, 6); g.fill();
-  g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1; redondeado(g, hb.x, hb.y, hb.w, hb.h, 6); g.stroke();
+  g.fillText(largo ? 'POSICI\u00d3N LARGA' : 'POSICI\u00d3N CORTA', 16, 23);
+  g.fillStyle = 'rgba(255,255,255,.1)'; redondeado(g, hbL.x, hbL.y, hbL.w, hbL.h, 6); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1; redondeado(g, hbL.x, hbL.y, hbL.w, hbL.h, 6); g.stroke();
   g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1.6;
-  g.beginPath(); g.moveTo(hb.x + 6, hb.y + 9.5); g.lineTo(hb.x + 18, hb.y + 9.5); g.stroke();
-  P._hideBtn = hb;
-  const colX = cx + 16;
-  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('TAKE PROFIT', colX, cy + 46);
+  g.beginPath(); g.moveTo(hbL.x + 6, hbL.y + 9.5); g.lineTo(hbL.x + 18, hbL.y + 9.5); g.stroke();
+  const colX = 16;
+  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('TAKE PROFIT', colX, 46);
   g.save(); g.shadowColor = 'rgba(46,232,106,.65)'; g.shadowBlur = 14;
   g.fillStyle = cT; g.font = '800 29px system-ui,sans-serif';
-  g.fillText(`+${Math.abs(gPct).toFixed(2)}%`, colX, cy + 75); g.restore();
-  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('STOP LOSS', colX, cy + 99);
+  g.fillText(`+${Math.abs(gPct).toFixed(2)}%`, colX, 75); g.restore();
+  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('STOP LOSS', colX, 99);
   g.save(); g.shadowColor = `rgba(${rgbS},.65)`; g.shadowBlur = 14;
   g.fillStyle = cS; g.font = '800 25px system-ui,sans-serif';
-  g.fillText(`\u2212${Math.abs(rPct).toFixed(2)}%`, colX, cy + 125); g.restore();
-  const rx = cx + cw - 42, divX = cx + cw - 78;
+  g.fillText(`\u2212${Math.abs(rPct).toFixed(2)}%`, colX, 125); g.restore();
   g.strokeStyle = 'rgba(255,255,255,.09)'; g.lineWidth = 1;
-  g.beginPath(); g.moveTo(divX, cy + 40); g.lineTo(divX, cy + ch - 34); g.stroke();
+  g.beginPath(); g.moveTo(divXL, 40); g.lineTo(divXL, ch - 34); g.stroke();
   g.textAlign = 'center';
-  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('R : R', rx, cy + 56);
+  g.fillStyle = '#79838f'; g.font = 'bold 9px system-ui,sans-serif'; g.fillText('R : R', rxL, 56);
   g.save(); g.shadowColor = 'rgba(232,184,75,.55)'; g.shadowBlur = 12;
   g.fillStyle = '#E8B84B'; g.font = '800 24px system-ui,sans-serif';
-  const rrTxt = Math.abs(rr - Math.round(rr)) < 0.06 ? String(Math.round(rr)) : rr.toFixed(1);
-  g.fillText(`1:${rrTxt}`, rx, cy + 84); g.restore();
-  const ay2 = cy + ch - 18;
-  const alF = { x: rx - 27, y: ay2 - 11, w: 22, h: 22 }, arF = { x: rx + 5, y: ay2 - 11, w: 22, h: 22 };
-  [[alF, -1], [arF, 1]].forEach((f) => {
+  g.fillText(`1:${rrTxt}`, rxL, 84); g.restore();
+  [[alL, -1], [arL, 1]].forEach((f) => {
     g.fillStyle = 'rgba(255,255,255,.09)'; redondeado(g, f[0].x, f[0].y, 22, 22, 6); g.fill();
     g.strokeStyle = 'rgba(255,255,255,.2)'; g.lineWidth = 1; redondeado(g, f[0].x, f[0].y, 22, 22, 6); g.stroke();
     g.strokeStyle = '#c3cad2'; g.lineWidth = 1.8; g.beginPath();
@@ -4396,7 +4405,12 @@ function dibujarPosicion(g, P0) {
     else { g.moveTo(mx - 3, my - 4); g.lineTo(mx + 3, my); g.lineTo(mx - 3, my + 4); }
     g.stroke();
   });
-  P._arrL = alF; P._arrR = arF; g.textAlign = 'left';
+  g.restore();                                       // fin de la escala
+  // Hitboxes en coordenadas de pantalla (translate + scale)
+  P._hideBtn = { x: cx + hbL.x * Sc, y: cy + hbL.y * Sc, w: hbL.w * Sc, h: hbL.h * Sc };
+  P._arrL = { x: cx + alL.x * Sc, y: cy + alL.y * Sc, w: 22 * Sc, h: 22 * Sc };
+  P._arrR = { x: cx + arL.x * Sc, y: cy + arL.y * Sc, w: 22 * Sc, h: 22 * Sc };
+  g.textAlign = 'left';
 }
 
 /* ══ TENDENCIA (Faro) anclada a timestamps: se PEGA al gráfico ══
