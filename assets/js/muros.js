@@ -200,7 +200,6 @@ const M = {
   velas: [],          // las velas del gráfico
   zonas: [],          // zonas de acumulación (demanda/oferta) desde las velas
   perfil: null,       // perfil de volumen (para el histograma lateral)
-  verPerfil: true,    // mostrar/ocultar el perfil de volumen (toggle en la barra)
   zonasHTF: [],       // zonas de la temporalidad superior (confluencia)
   mercado: null,      // VWAP, VAH/VAL, sesión, sesgo, backtest
   delta: null,        // order-flow real (aggTrades): agresor comprador vs vendedor
@@ -676,6 +675,29 @@ function detectarZonas(velas, precio, opts) {
   const zonasF = fusionar(zonas);
   zonas.length = 0; Array.prototype.push.apply(zonas, zonasF);
 
+  /* SOLO ZONAS OPERABLES. El mayor volumen se acumula en el CENTRO de la
+     oscilación (donde el precio pasó más tiempo), pero eso NO es soporte ni
+     resistencia: es trayectoria, no ubicación. Las zonas de reacción reales
+     están en los EXTREMOS del rango (máximos = resistencia, mínimos = soporte)
+     o donde el precio RECHAZÓ (mechas). Se descartan los nodos del medio sin
+     rechazos: son ruido y confunden al trader. */
+  {
+    const rec = vis.slice(-90);
+    const recHi = rec.length ? Math.max.apply(null, rec.map((v) => v.h)) : hi;
+    const recLo = rec.length ? Math.min.apply(null, rec.map((v) => v.l)) : lo;
+    const recRango = Math.max(1e-9, recHi - recLo);
+    const posRel = (z) => (z.pPoc - recLo) / recRango;            // 0 = mínimo, 1 = máximo
+    const operable = (z) => {
+      if (z.dentro) return true;                                  // el precio está aquí ahora
+      const pr = posRel(z);
+      if (pr >= 0.66 || pr <= 0.34) return true;                  // tercio superior (R) o inferior (S)
+      if (z.reacciones >= 3) return true;                         // rechazos fuertes en cualquier nivel
+      return false;                                               // nodo del centro sin rechazos → ruido
+    };
+    const filtradas = zonas.filter(operable);
+    if (filtradas.length >= 2) { zonas.length = 0; Array.prototype.push.apply(zonas, filtradas); }
+  }
+
   /* ANCLAJE: si es la moneda/temporalidad activa, se pegan las zonas a su sitio
      estable (no saltan ni cambian de ancho de golpe). */
   if (opts.ancla) anclarZonas(zonas, precio, opts.ancla);
@@ -793,7 +815,7 @@ function analizarMercado(velas, precio, perfil) {
 function abrirNoticiasSeguro() {
   if (typeof window.abrirNoticias === 'function') { try { window.abrirNoticias(); } catch (_) {} return; }
   if (document.getElementById('news-js-lazy')) { setTimeout(abrirNoticiasSeguro, 300); return; }
-  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=5';
+  const s = document.createElement('script'); s.id = 'news-js-lazy'; s.src = 'assets/js/news.js?v=6';
   s.onload = () => { try { window.abrirNoticias && window.abrirNoticias(); } catch (_) {} };
   document.head.appendChild(s);
 }
@@ -844,9 +866,6 @@ export async function abrirMuros() {
           <button class="mu-ico mu-news" id="mu-news" title="News">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13v14H5a1 1 0 0 1-1-1z"/><path d="M17 8h2.5a1.5 1.5 0 0 1 1.5 1.5V18a1 1 0 0 1-1 1"/><path d="M7 9h7M7 12h7M7 15h4"/></svg>
             <span class="mu-news-dot"></span>
-          </button>
-          <button class="mu-ico" id="mu-perfil" title="Perfil de volumen">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 5h11M4 10h16M4 15h7M4 20h13"/></svg>
           </button>
           <button class="mu-ico" id="mu-validar" title="Verificar volumen">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 5-3.5 7.5-8.5 9C7.5 19.5 4 17 4 12V6l8-3 8 3z"/></svg>
@@ -924,7 +943,6 @@ export async function abrirMuros() {
   $('mu-foto').onclick = () => guardarImagen();
   $('mu-validar').onclick = () => validarVolumen();
   { const bn = $('mu-news'); if (bn) bn.onclick = () => abrirNoticiasSeguro(); }
-  { const bp = $('mu-perfil'); if (bp) { bp.classList.toggle('apagado', !M.verPerfil); bp.onclick = () => { M.verPerfil = !M.verPerfil; bp.classList.toggle('apagado', !M.verPerfil); dibujar(); }; } }
   $('mu-analista').onclick = () => abrirAnalista();
   $('mu-tema').onclick = () => {
     M.tema = M.tema === 'claro' ? 'oscuro' : 'claro';
@@ -1533,25 +1551,9 @@ function dibujar() {
     g.beginPath(); g.moveTo(0, y); g.lineTo(x1, y); g.stroke();
   }
 
-  /* (El perfil de volumen se dibuja MÁS ABAJO, encima de las velas, para que
-     no quede tapado por ellas.) */
-
-  /* ── MAPA DE CALOR de volumen (fondo) ──
-     Sombreado tenue a TODO el ancho según la densidad de volumen a cada
-     precio: las zonas emergen del calor de forma orgánica. */
-  if (M.verPerfil && M.perfil && M.perfil.vol) {
-    const pf = M.perfil;
-    for (let b = 0; b < pf.N; b++) {
-      const pB = pf.lo + (b + 0.5) * (pf.hi - pf.lo) / pf.N;
-      if (pB < pMin || pB > pMax) continue;
-      const rel = pf.vol[b] / pf.max;
-      if (rel < 0.16) continue;
-      const yb = Y(pB);
-      const binH = y1 / pf.N;
-      g.fillStyle = `rgba(232,184,75,${(rel * 0.06).toFixed(3)})`;
-      g.fillRect(0, yb - binH / 2, xVelas, Math.max(1.5, binH));
-    }
-  }
+  /* (El perfil de volumen se ha eliminado por completo: no se dibuja ni el
+     mapa de calor de fondo ni la silueta lateral. Solo se conserva el cálculo
+     interno de VAH/VAL/POC para el análisis, que no se pinta.) */
 
   /* (Los niveles institucionales VWAP/VAH/VAL se dibujan MÁS ABAJO, después
      del eje, con la línea a todo el ancho y la denominación en el eje derecho.) */
@@ -1630,52 +1632,7 @@ function dibujar() {
     g.fillRect(x - cuerpo / 2, yA, cuerpo, Math.max(1.4, yB - yA));
   });
 
-  /* ── PERFIL DE VOLUMEN (ENCIMA de las velas) ──
-     Silueta que sale del borde izquierdo y se DESVANECE a la derecha (sin corte
-     duro). Los nodos más relevantes (POC y franjas de zonas) brillan más. */
-  if (M.verPerfil && M.perfil && M.perfil.vol) {
-    const pf = M.perfil;
-    const wMax = Math.min(150, x1 * 0.26);
-    const binH = y1 / pf.N;
-    let pocB = 0;
-    for (let b = 1; b < pf.N; b++) if (pf.vol[b] > pf.vol[pocB]) pocB = b;
-    for (let b = 0; b < pf.N; b++) {
-      const pB = pf.lo + (b + 0.5) * (pf.hi - pf.lo) / pf.N;
-      if (pB < pMin || pB > pMax) continue;
-      const w = (pf.vol[b] / pf.max) * wMax;
-      if (w < 1) continue;
-      const yb = Y(pB);
-      const enZona = M.zonas.some((z) => pB >= z.pLow && pB <= z.pHigh && !z.rota);
-      const base = pB < M.precio ? '46,232,106' : '246,70,93';
-      // intensidad: POC y zonas brillan; el resto tenue
-      const a = b === pocB ? 0.9 : enZona ? 0.62 : 0.30;
-      const h = Math.max(2, binH - 0.5);
-      // degradado horizontal: sólido a la izquierda, se desvanece al final
-      const gr = g.createLinearGradient(0, 0, w, 0);
-      gr.addColorStop(0, `rgba(${base},${a})`);
-      gr.addColorStop(0.75, `rgba(${base},${a * 0.55})`);
-      gr.addColorStop(1, `rgba(${base},0)`);
-      g.fillStyle = gr;
-      g.fillRect(0, yb - h / 2, w, h);
-      // brillo del pico en el arranque (borde izquierdo) para los relevantes
-      if (b === pocB || enZona) {
-        g.save(); g.shadowColor = `rgba(${base},.8)`; g.shadowBlur = 6;
-        g.fillStyle = `rgba(${base},${Math.min(1, a + 0.15)})`;
-        g.fillRect(0, yb - h / 2, 3, h);
-        g.restore();
-      }
-    }
-    // POC global: brillo dorado que también se desvanece
-    const pPoc = pf.lo + (pocB + 0.5) * (pf.hi - pf.lo) / pf.N;
-    if (pPoc >= pMin && pPoc <= pMax) {
-      const yp = Y(pPoc);
-      const wp = wMax * (pf.vol[pocB] / pf.max);
-      const gp = g.createLinearGradient(0, 0, wp, 0);
-      gp.addColorStop(0, 'rgba(232,184,75,.9)');
-      gp.addColorStop(1, 'rgba(232,184,75,0)');
-      g.fillStyle = gp; g.fillRect(0, yp - 1, wp, 2);
-    }
-  }
+  /* (PERFIL DE VOLUMEN eliminado: la silueta lateral ya no se dibuja.) */
 
   /* ── PASE 2 (ENCIMA de las velas): línea de entrada (POC), etiqueta y chip ──
      Cuando varias zonas caen juntas, sus etiquetas se APILARÍAN y todo se
@@ -2878,7 +2835,6 @@ function estilos() {
   #mu-overlay .mu-ico:hover{border-color:var(--gold-soft,#C9A84B);color:var(--gold,#E8B84B)}
   #mu-overlay .mu-ico:active{transform:translateY(1px);box-shadow:0 1px 3px rgba(0,0,0,.4)}
   #mu-overlay .mu-news{position:relative}
-  #mu-overlay .mu-ico.apagado{opacity:.4}
   #mu-overlay .mu-news .mu-news-dot{position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:#f6465d;box-shadow:0 0 0 0 rgba(246,70,93,.6);animation:muNewsPulse 2.2s infinite}
   @keyframes muNewsPulse{0%{box-shadow:0 0 0 0 rgba(246,70,93,.55)}70%{box-shadow:0 0 0 6px rgba(246,70,93,0)}100%{box-shadow:0 0 0 0 rgba(246,70,93,0)}}
   /* "Cómo funciona" con texto en escritorio, solo el signo en móvil. */

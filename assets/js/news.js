@@ -34,7 +34,8 @@
   }
 
   function traer(url) {
-    return conTimeout(fetch(url, { cache: 'no-store' }).then(function (r) {
+    var full = url + '&extraParams=CriptoCubaOficial&_t=' + Date.now();
+    return conTimeout(fetch(full, { cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error('http ' + r.status); return r.json();
     }), 7000).then(function (j) {
       var arr = (j && j.Data) || [];
@@ -109,11 +110,12 @@
     var visto = {}, out = [];
     todo.forEach(function (n) { var k = (n.link || n.titulo).slice(0, 80); if (k && !visto[k]) { visto[k] = 1; out.push(n); } });
     out.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
-    // Priorizar lo RECIENTE: si hay suficientes de los últimos 7 días, mostramos
-    // solo esos (nada de artículos viejos colándose). Si no, mostramos todo.
-    var limite = Date.now() - 7 * 864e5;
+    // FRESCURA: si hay CUALQUIER noticia de los últimos 3 días, mostramos SOLO
+    // esas (nada de artículos de hace 2 meses colándose). Si de plano no hay
+    // ninguna reciente, mostramos lo más nuevo que haya para no dejar vacío.
+    var limite = Date.now() - 3 * 864e5;
     var frescas = out.filter(function (n) { return n.ts && n.ts >= limite; });
-    var lista = frescas.length >= 12 ? frescas : out;
+    var lista = frescas.length ? frescas : out;
     _cache = lista.slice(0, 30); _cacheAt = Date.now();
     return _cache;
   }
