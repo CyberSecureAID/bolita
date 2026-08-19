@@ -19,6 +19,13 @@ import { abrirAlerta } from './alerta.js?v=1';
 const $ = (id) => document.getElementById(id);
 const _movil = () => window.matchMedia('(max-width: 760px)').matches;
 
+/* Devuelve la dirección con checksum EIP-55 (igual que Trust Wallet). Delega en
+   wallet.checksum (fuente única); si no estuviera, deja la dirección tal cual. */
+function dirChecksum(addr) {
+  try { if (wallet.checksum) return wallet.checksum(addr); } catch (_) {}
+  return addr;
+}
+
 let _deps = { conectarWallet: null };
 let _tab = 'home';
 let _tabPrevBots = 'home';
@@ -250,8 +257,9 @@ function inyectarFixTools() {
 
 /* Recibir: dirección + QR de la wallet conectada. */
 function abrirRecibir() {
-  const cuenta = wallet.cuentaActual && wallet.cuentaActual();
-  if (!cuenta) { avisoSimple('Recibir', 'Conecta tu wallet para ver tu dirección de recepción.'); return; }
+  const cuentaRaw = wallet.cuentaActual && wallet.cuentaActual();
+  if (!cuentaRaw) { avisoSimple('Recibir', 'Conecta tu wallet para ver tu dirección de recepción.'); return; }
+  const cuenta = dirChecksum(cuentaRaw);   // checksum EIP-55: idéntico a Trust Wallet
   let sh = $('mv-sheet'); if (sh) sh.remove();
   sh = document.createElement('div'); sh.id = 'mv-sheet';
   sh.innerHTML = `<div class="mv-sheet-bg"></div><div class="mv-sheet-card">
