@@ -2060,6 +2060,8 @@ function dibujar() {
   }
   let bandaSolo = null;   // (compatibilidad con el resto del dibujo)
 
+  const paso = xVelas / (ancho || vis.length);   // separación entre velas (se usa aquí y en el dibujo de velas)
+
   /* ── ZONAS SWING (con mapa de calor dentro) ──
      La estrategia real va disfrazada: dentro de cada zona, de izquierda a
      derecha, se pinta un mapa de calor (misma paleta que Liquidity Pools) con
@@ -2138,7 +2140,6 @@ function dibujar() {
 
 
   /* ── LAS VELAS ── */
-  const paso = xVelas / (ancho || vis.length);   // ancho fijo: al ir al futuro NO se estiran
   const cuerpo = Math.max(1.6, paso * 0.6);
   vis.forEach((v, i) => {
     const x = i * paso + paso / 2;
