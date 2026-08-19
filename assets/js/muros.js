@@ -694,6 +694,64 @@ function calcEvento() {
     ev.senal = { tipo: ev.dir, estado: retesteo ? 'retesteo' : 'esperando_retesteo',
                  precioEntrada: lineaOp(tNow) };
   }
+  // 4) ZONA SWING (Fase 4): la ACUMULACIÓN que hubo justo antes de la ruptura.
+  //    Se proyecta como rectángulo y de ella salen las entradas.
+  if (ev.ruptura) {
+    const kR = ev.ruptura.i, baj = ev.ruptura.dir === 'bajista';
+    // Impulso: cuánto recorrió el precio tras la ruptura (para el R:R y el ancho).
+    let ext = baj ? velas[kR].l : velas[kR].h;
+    for (let k = kR; k < Math.min(n, kR + 8); k++) ext = baj ? Math.min(ext, velas[k].l) : Math.max(ext, velas[k].h);
+    const impulso = Math.abs(ext - ev.ruptura.precio);
+    // Rango de acumulación: se extiende hacia atrás desde la vela previa a la
+    // ruptura mientras el rango se mantenga estrecho respecto al impulso.
+    let a = kR - 1;
+    if (a > 4 && impulso > 0) {
+      // Semilla: las últimas ~4 velas antes de la ruptura definen la banda inicial.
+      let seed = Math.max(0, a - 3);
+      let hi = velas[seed].h, lo = velas[seed].l, cHi = velas[seed].c, cLo = velas[seed].c;
+      for (let k = seed; k <= a; k++) { hi = Math.max(hi, velas[k].h); lo = Math.min(lo, velas[k].l); cHi = Math.max(cHi, velas[k].c); cLo = Math.min(cLo, velas[k].c); }
+      a = seed;
+      const tope = Math.max(2, a - 20);
+      // Se extiende hacia atrás mientras siga siendo OSCILACIÓN. Se corta cuando:
+      //  · un cierre se sale de la banda (holgura fija ligada al impulso), o
+      //  · aparecen 3 cierres seguidos en deriva monótona (el tramo tendencial
+      //    que entró a la acumulación).
+      const tol = impulso * 0.15;
+      let mono = 0, prevC = velas[a].c;
+      while (a > tope) {
+        const cPrev = velas[a - 1].c;
+        if (cPrev > cHi + tol || cPrev < cLo - tol) break;
+        // deriva monótona hacia el mismo lado (yendo hacia atrás = subiendo hacia la acumulación)
+        if (cPrev < prevC - tol * 0.4) mono++; else if (cPrev > prevC + tol * 0.4) mono++; else mono = 0;
+        if (mono >= 3) break;
+        const nHi = Math.max(hi, velas[a - 1].h), nLo = Math.min(lo, velas[a - 1].l);
+        if ((nHi - nLo) > impulso * 1.1) break;
+        hi = nHi; lo = nLo; cHi = Math.max(cHi, cPrev); cLo = Math.min(cLo, cPrev); prevC = cPrev; a--;
+      }
+      const ancho = hi - lo;
+      if (ancho > 0 && (kR - a) >= 3) {
+        const ratio = ancho / impulso;
+        // Regla de la zona ancha: <50% → 1:2 ; 50-70% → 1:1 ; >70% → no operar.
+        let rr = 2;
+        if (ratio > 0.7) rr = 0;
+        else if (ratio >= 0.5) rr = 1;
+        let plan = null;
+        if (rr > 0) {
+          const margen = ancho * 0.15, riesgo = ancho;
+          if (baj) {
+            // corto: entrada 1 en la línea INFERIOR, entrada 2 en la SUPERIOR (donde va el SL de la 1)
+            const e1 = lo, e2 = hi, sl = hi, tp = e1 - rr * riesgo;
+            plan = { rr, short: true, e1, e2, sl, slE2: hi + margen, tp };
+          } else {
+            // largo: entrada 1 en la línea SUPERIOR, entrada 2 en la INFERIOR (donde va el SL de la 1)
+            const e1 = hi, e2 = lo, sl = lo, tp = e1 + rr * riesgo;
+            plan = { rr, short: false, e1, e2, sl, slE2: lo - margen, tp };
+          }
+        }
+        ev.zona = { hi, lo, t0: velas[a].t, ancho, impulso, ratio, plan };
+      }
+    }
+  }
   return ev;
 }
 
@@ -1936,17 +1994,52 @@ function dibujar() {
       const yE = Y(EV.senal.precioEntrada);
       g.save();
       if (EV.senal.estado === 'retesteo') {
-        // línea de entrada marcada + etiqueta destacada
         g.strokeStyle = `rgba(${col},1)`; g.lineWidth = 2; g.setLineDash([]);
         g.beginPath(); g.moveTo(0, yE); g.lineTo(x1, yE); g.stroke();
         g.fillStyle = `rgba(${col},1)`; g.font = 'bold 10px ui-monospace,monospace'; g.textAlign = 'left';
         g.fillText(`ENTRADA ${long ? 'LARGO' : 'CORTO'} · RETESTEO`, 8, yE + (long ? 14 : -6));
       } else {
-        // roto, esperando el retesteo
         g.strokeStyle = `rgba(${col},.55)`; g.lineWidth = 1.2; g.setLineDash([5, 4]);
         g.beginPath(); g.moveTo(0, yE); g.lineTo(x1, yE); g.stroke(); g.setLineDash([]);
         g.fillStyle = `rgba(${col},.85)`; g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left';
         g.fillText(`ROTO · esperar retesteo (${long ? 'largo' : 'corto'})`, 8, yE + (long ? 13 : -6));
+      }
+      g.restore();
+    }
+
+    // ── FASE 4 · ZONA SWING + ENTRADAS ──
+    if (EV.zona) {
+      const Z = EV.zona, baj = EV.ruptura && EV.ruptura.dir === 'bajista';
+      const col = baj ? '246,70,93' : '46,232,106';
+      const xL = Math.max(0, Math.min(x1, mXt(Z.t0))), xR = x1;   // rectángulo proyectado a la derecha
+      const yT = Y(Z.hi), yB = Y(Z.lo), alto = Math.max(3, yB - yT);
+      g.save();
+      // rectángulo de la zona
+      const gr = g.createLinearGradient(xL, 0, xR, 0);
+      gr.addColorStop(0, `rgba(${col},0.16)`); gr.addColorStop(1, `rgba(${col},0.05)`);
+      g.fillStyle = gr; g.fillRect(xL, yT, xR - xL, alto);
+      g.strokeStyle = `rgba(${col},0.85)`; g.lineWidth = 1.3;
+      g.beginPath(); g.moveTo(xL, yT + .5); g.lineTo(xR, yT + .5); g.stroke();
+      g.beginPath(); g.moveTo(xL, yB - .5); g.lineTo(xR, yB - .5); g.stroke();
+      g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left'; g.fillStyle = `rgba(${col},0.95)`;
+      g.fillText('ZONA SWING', xL + 4, yT + (baj ? 11 : alto - 5));
+
+      if (Z.plan) {
+        const P = Z.plan;
+        const linea = (p, cl, txt, dash) => {
+          const y = Y(p); g.strokeStyle = cl; g.lineWidth = 1.4; g.setLineDash(dash || []);
+          g.beginPath(); g.moveTo(xL, y); g.lineTo(x1, y); g.stroke(); g.setLineDash([]);
+          g.fillStyle = cl; g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'right';
+          g.fillText(txt, x1 - 4, y - 3); g.textAlign = 'left';
+        };
+        linea(P.e1, `rgba(${col},1)`, 'ENTRADA 1');
+        linea(P.e2, `rgba(${col},.7)`, 'ENTRADA 2 (opcional)', [4, 4]);
+        linea(P.sl, 'rgba(246,70,93,.95)', 'STOP', [3, 3]);
+        linea(P.tp, 'rgba(46,232,106,.95)', `OBJETIVO 1:${P.rr}`, []);
+      } else {
+        // zona demasiado ancha respecto al impulso → no operar
+        g.fillStyle = 'rgba(255,196,84,.95)'; g.font = 'bold 9px ui-monospace,monospace'; g.textAlign = 'left';
+        g.fillText('ZONA ANCHA · NO OPERAR', xL + 4, (yT + yB) / 2 + 3);
       }
       g.restore();
     }
