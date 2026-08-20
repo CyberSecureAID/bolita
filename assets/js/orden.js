@@ -701,22 +701,16 @@ async function ponerOrdenReal({ cfg, precio, cant, vender, sl, alPaso }) {
   } else {
     /* ── COMPRAR: una compra programada de una sola vez ── */
     paso(T('Preparando la orden con el precio real…'));
-    const conf = await gb.construirConfigDCA({
+    const conf = await gb.construirConfigCompraLimit({
       ...p,
       montoQuote: cant,
-      intervalo: 60,
-      comprasMax: 1
+      targetPrice: precio
     });
     conf.botId = Date.now();
     _ultimoBotId = conf.botId;
     _ultimoPar = { base: dirBase, quote: quote.address };
-    /* El precio objetivo va en el mínimo de salida: así solo entra
-       si el precio es el que pidió el usuario o mejor. */
-    conf.niveles = [{
-      minOutCompra: unidades(gb, (cant / precio) * 0.995, decBase),
-      minOutVenta: 0n,
-      estado: 0
-    }];
+    /* El nivel de compra ya lleva el precio objetivo dentro (minOutCompra):
+       el keeper solo entra cuando el precio BAJA a lo que pediste, no a mercado. */
 
     const necesita = unidades(gb, cant * 3, decQuote);
     const permiso = await gb.allowance(quote.address, cuenta);

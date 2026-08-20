@@ -536,6 +536,49 @@ export async function suscribir() {
   return esperar(tx);
 }
 
+/* ─────────────────────────────────────────────────────────────────
+   COMPRA LÍMITE (basada en PRECIO, no en tiempo).
+   Espejo de construirConfigCashOut, pero para comprar: un solo nivel
+   de compra (estado 1) al precio objetivo. El keeper lo dispara SOLO
+   cuando el precio llega a ese nivel (nada de comprar a mercado).
+   ───────────────────────────────────────────────────────────────── */
+export async function construirConfigCompraLimit(p) {
+  const rutas = p.rutas || await resolverRutas(p.base, p.quote, p.decBase, p.decQuote);
+  const { precio: Pnow } = await precioPar(p.base, p.quote, p.decBase, p.decQuote, rutas);
+  if (!(Pnow > 0)) throw new Error('No se pudo leer el precio del par');
+
+  const montoQuote = Number(p.montoQuote);          // cuánto gastar (quote)
+  if (!(montoQuote > 0)) throw new Error('Indica cuánto quieres comprar');
+  const targetPrice = Number(p.targetPrice);        // precio objetivo (humano)
+  if (!(targetPrice > 0)) throw new Error('Indica el precio de compra');
+
+  const feeTier = await mejorFeeTier(p.quote, p.base, aBI(montoQuote, p.decQuote));
+  if (!feeTier) throw new Error('Esta moneda no tiene pool en PancakeSwap V3. Prueba con otra.');
+
+  // Base que recibiría al gastar montoQuote al precio objetivo EXACTO.
+  // El nivel solo se cumple cuando el precio baja a tu objetivo (ni antes ni a
+  // mercado). La tolerancia del swap la da slippageBps, no el disparo.
+  const baseObjetivo = montoQuote / targetPrice;
+  const niveles = [{ minOutCompra: aBI(baseObjetivo, p.decBase), minOutVenta: 0n, estado: 1 }];
+
+  let ordenQuote = aBI(montoQuote, p.decQuote); if (ordenQuote <= 0n) ordenQuote = 1n;
+
+  return {
+    base: p.base, quote: p.quote,
+    pathCompra: rutas.compra, pathVenta: rutas.venta,
+    ordenQuote, ordenBase: 0n,
+    niveles,
+    slippageBps: p.slippageBps || 50, cooldownSeg: 0,   // 0.5% de holgura para el swap
+    tpUnitOut: 0n, slUnitOut: 0n,
+    feeTier,
+    modo: 0,                                          // grid: un solo nivel de compra por precio
+    objetivoBps: 0, factorBps: 0,
+    compraInicialQuote: 0n,
+    margenBps: 0,
+    _Pnow: Pnow, _montoQuote: montoQuote, _targetPrice: targetPrice
+  };
+}
+
 /** Config del BOT CASH OUT (modo 2): vende una cantidad que YA tienes, al objetivo. */
 export async function construirConfigDCA(p) {
   const rutas = p.rutas || await resolverRutas(p.base, p.quote, p.decBase, p.decQuote);
