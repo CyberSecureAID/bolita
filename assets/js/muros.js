@@ -1884,11 +1884,11 @@ function dibujar() {
         },
         par: () => _par,
         simbolo: () => (PARES.find((p) => p.id === _par) || {}).s || '',
-        repintar: () => pintar()
+        repintar: () => dibujar()
       });
       _od = od;
-      od.clicCancelar(cv, () => _zonasOd, () => pintar());
-      pintar();
+      od.clicCancelar(cv, () => _zonasOd, () => dibujar());
+      dibujar();
     }).catch(() => {});
   }
   const dpr = Math.min(2, window.devicePixelRatio || 1);

@@ -1143,13 +1143,8 @@ function dibujar() {
   /* Se guarda para que el módulo de órdenes traduzca altura a precio. */
   V._geo = { pMin: yMin, pMax: yMax, y1 };
 
-  /* Tus órdenes y alertas, con el estilo común de las tres. */
-  if (_od) {
-    _zonasOd = _od.pintar(g, {
-      x1, Y, pMin: yMin, pMax: yMax,
-      simbolo: (PARES.find((p) => p.id === _par) || {}).s || ''
-    });
-  }
+  /* Tus órdenes y alertas se dibujan AL FINAL de dibujar() (así no las tapa el
+     fondo ni las velas). Aquí solo se deja el hueco. */
 
   g.fillStyle = '#0a0d12';
   g.fillRect(0, 0, W, H);
@@ -1839,6 +1834,14 @@ function dibujar() {
       g.fillText(et, Math.min(x1 - w / 2, Math.max(w / 2, V.cruzX)), y1 + 13);
       g.textAlign = 'left';
     }
+  }
+
+  /* ── Tus órdenes y alertas (clic derecho): AL FINAL, encima de todo ── */
+  if (_od) {
+    _zonasOd = _od.pintar(g, {
+      x1, Y, pMin: yMin, pMax: yMax,
+      simbolo: (PARES.find((p) => p.id === _par) || {}).s || ''
+    });
   }
 
 }
