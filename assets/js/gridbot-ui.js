@@ -2261,6 +2261,7 @@ async function refrescarRejillas() {
     const _visibles = claves.filter((c) => !_limit.has(String(c).toLowerCase()));
     const LOTE = 4;
     const _cards = [];
+    const _ordenes = [];   // órdenes limit puestas desde el gráfico (sección aparte)
     let _sinLeer = 0;
 
     for (let i = 0; i < _visibles.length; i += LOTE) {
@@ -2321,14 +2322,15 @@ async function refrescarRejillas() {
           par = { tipo: _t, reconstruido: true };
         }
         par.__cuenta = cuenta;
-        try { return { html: await tarjeta(cuenta, clave, par, R) }; }
-        catch (e) { return { html: tarjetaMinima(clave, par, e, R) }; }
+        const _esG = !!par.desdeGrafico;
+        try { return { html: await tarjeta(cuenta, clave, par, R), esGrafico: _esG }; }
+        catch (e) { return { html: tarjetaMinima(clave, par, e, R), esGrafico: _esG }; }
       }));
 
       for (const x of res) {
         if (!x) continue;
         if (x.sinLeer) { _sinLeer++; continue; }
-        if (x.html) _cards.push(x.html);
+        if (x.html) { x.esGrafico ? _ordenes.push(x.html) : _cards.push(x.html); }
       }
     }
 
@@ -2343,7 +2345,10 @@ async function refrescarRejillas() {
     if (_sinLeer > 0 && cards.length > 0) {
       cards.push(`<div class="sinleer">No pudimos leer ${_sinLeer} bot${_sinLeer > 1 ? 's' : ''} ahora mismo. La red va lenta; se mostrarán al refrescar.</div>`);
     }
-    cont.innerHTML = cards.length ? cards.join('')
+    const _cabSec = (t, n) => `<div style="display:flex;align-items:center;gap:8px;margin:18px 4px 10px;font:800 13px var(--display,system-ui);color:var(--gold,#E8B84B);letter-spacing:.4px;text-transform:uppercase">${t}<span style="font-weight:700;color:var(--ink-3,#8b95a1);background:rgba(255,255,255,.06);border-radius:20px;padding:1px 9px;font-size:11px">${n}</span></div>`;
+    const _secOrd = _ordenes.length ? _cabSec('Tus órdenes', _ordenes.length) + _ordenes.join('') : '';
+    const _secBot = cards.length ? _cabSec('Tus bots', cards.length - (_sinLeer > 0 ? 1 : 0)) + cards.join('') : '';
+    cont.innerHTML = (_ordenes.length || cards.length) ? (_secOrd + _secBot)
       : `<div class="vacio-ok">
           <div class="vacio-ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
           <div class="vacio-t">Todavía no tienes bots</div>
