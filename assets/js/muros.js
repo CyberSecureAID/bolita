@@ -1941,7 +1941,7 @@ function dibujar() {
      Ahora la última vela se estira con el precio real del libro: son
      el mismo dato, así que van juntas siempre.
      ══════════════════════════════════════════════════════════ */
-  if (desp === 0 && M.precio > 0) {
+  if (desp <= 0 && M.precio > 0) {
     const u = vis[vis.length - 1];
     u.c = M.precio;
     if (M.precio > u.h) u.h = M.precio;
