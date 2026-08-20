@@ -83,6 +83,25 @@ function estilos() {
 
   /* Secciones */
   #perfil-overlay .pf-sec{margin-bottom:16px}
+  #perfil-overlay .pf-histtog{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(180deg,#171c23,#0e1218);border:1px solid #2b3139;border-radius:14px;padding:14px 16px;cursor:pointer;font-family:var(--display,system-ui);font-weight:800;font-size:15px;color:#eef2f6;transition:border-color .15s,background .15s}
+  #perfil-overlay .pf-histtog:hover{border-color:rgba(232,184,75,.5)}
+  #perfil-overlay .pf-hist-ar{color:var(--gold,#E8B84B);transition:transform .2s}
+  #perfil-overlay .pf-histtog[aria-expanded="true"] .pf-hist-ar{transform:rotate(180deg)}
+  #perfil-overlay .pf-hist{margin-top:12px}
+  #perfil-overlay .pf-hcarga{padding:26px;text-align:center;color:#7d8794;font-size:13px}
+  #perfil-overlay .pf-hsect{font-family:var(--mono,monospace);font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.9px;margin:16px 2px 8px;display:flex;align-items:center;gap:8px}
+  #perfil-overlay .pf-hsect i{flex:1;height:1px;background:rgba(255,255,255,.08)}
+  #perfil-overlay .pf-hrow{display:flex;align-items:center;gap:11px;padding:11px 12px;margin:6px 0;border-radius:12px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05)}
+  #perfil-overlay .pf-htag{flex:0 0 auto;font-family:var(--display,system-ui);font-weight:800;font-size:10px;letter-spacing:.4px;padding:4px 8px;border-radius:7px}
+  #perfil-overlay .pf-htag.c{background:rgba(46,232,106,.13);color:#39e07a;border:1px solid rgba(46,232,106,.35)}
+  #perfil-overlay .pf-htag.v{background:rgba(246,70,93,.13);color:#ff6b7d;border:1px solid rgba(246,70,93,.35)}
+  #perfil-overlay .pf-hinfo{flex:1;min-width:0}
+  #perfil-overlay .pf-hpar{font-family:var(--display,system-ui);font-weight:700;font-size:13.5px;color:#eef2f6}
+  #perfil-overlay .pf-hmeta{font-family:ui-monospace,monospace;font-size:11px;color:#7d8794;margin-top:2px}
+  #perfil-overlay .pf-hmeta b{color:#dfe5ec;font-weight:700}
+  #perfil-overlay .pf-hfecha{flex:0 0 auto;font-family:ui-monospace,monospace;font-size:10.5px;color:#5a6570;text-align:right}
+  #perfil-overlay .pf-hvacio{padding:20px;text-align:center;color:#7d8794;font-size:12.5px}
+  #perfil-overlay .pf-hmas{display:block;text-align:center;margin-top:12px;font-size:11.5px;color:var(--gold,#E8B84B);text-decoration:none}
   #perfil-overlay .pf-perm-t{font-family:var(--sans,sans-serif);font-size:12px;color:#8b96a3;line-height:1.55;margin-bottom:11px}
   #perfil-overlay .pf-perm-t b{color:#eaecef}
   #perfil-overlay .pf-perm{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.06)}
@@ -286,6 +305,13 @@ export async function abrirPerfil() {
     </div>
   </div>
 
+  <div class="pf-sec">
+    <button class="pf-histtog" id="pf-hist-tog" type="button" aria-expanded="false">
+      <span>Historial de operaciones</span><span class="pf-hist-ar">▾</span>
+    </button>
+    <div class="pf-hist" id="pf-hist" hidden></div>
+  </div>
+
   <div class="pf-acts">
     <a class="pf-act" href="https://bscscan.com/address/${cuenta}" target="_blank" rel="noopener"><span class="tx-l">Ver en BscScan ↗</span><span class="tx-s">BscScan ↗</span></a>
     <button class="pf-act" id="pf-reload">Actualizar datos</button>
@@ -387,6 +413,7 @@ export async function abrirPerfil() {
     try { await navigator.clipboard.writeText(wallet.checksum ? wallet.checksum(cuenta) : cuenta); const t = addr.innerHTML; addr.innerHTML = '¡Copiada!'; setTimeout(() => { addr.innerHTML = t; }, 1100); } catch (_) {}
   };
   if ($('pf-reload')) $('pf-reload').onclick = () => abrirPerfil();
+  if ($('pf-hist-tog')) $('pf-hist-tog').onclick = () => alternarHistorial(cuenta);
   cargarPermisos(cuenta);
   // Los datos se cargan LO PRIMERO: si algo del interruptor fallara, antes
   // se quedaba todo en blanco porque nunca se llegaba a pedirlos.
@@ -461,6 +488,71 @@ async function cargarPermisos(cuenta) {
       console.warn('[Aurex] revocar:', e);
     }
   });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HISTORIAL DE OPERACIONES — desplegable, leído de la cadena.
+   Dos sectores: órdenes limit manuales (desde el gráfico) y bots.
+   Sin scroll infinito: lista acotada; el detalle completo, en BscScan.
+   ═══════════════════════════════════════════════════════════════════ */
+let _histCargado = false;
+async function alternarHistorial(cuenta) {
+  const cont = $('pf-hist'), tog = $('pf-hist-tog');
+  if (!cont || !tog) return;
+  const abierto = tog.getAttribute('aria-expanded') === 'true';
+  if (abierto) { cont.hidden = true; tog.setAttribute('aria-expanded', 'false'); return; }
+  cont.hidden = false; tog.setAttribute('aria-expanded', 'true');
+  if (_histCargado) return;
+  cont.innerHTML = `<div class="pf-hcarga">Leyendo tus operaciones en la blockchain…</div>`;
+
+  let res;
+  try { res = await gb.historialDe(cuenta); } catch (_) { res = { error: 'sin-historial', ops: [] }; }
+  if (res.error === 'sin-historial') {
+    cont.innerHTML = `<div class="pf-hvacio">Ahora mismo no se pudo leer el historial (la red pública va lenta). Inténtalo de nuevo en un momento.</div>`;
+    return;
+  }
+  _histCargado = true;
+  const ops = res.ops || [];
+  if (!ops.length) {
+    cont.innerHTML = `<div class="pf-hvacio">Todavía no tienes operaciones registradas. Cuando un bot o una orden se ejecute, aparecerá aquí.</div>`;
+    return;
+  }
+
+  let marcas = {};
+  try { marcas = JSON.parse(localStorage.getItem('bot-pares') || '{}'); } catch (_) {}
+  const esOrden = (clave) => !!(marcas[clave] && marcas[clave].desdeGrafico);
+  const simbolos = {};
+  const simboloDe = async (addr) => {
+    const k = String(addr).toLowerCase();
+    if (simbolos[k]) return simbolos[k];
+    try { simbolos[k] = (await gb.infoToken(addr)).simbolo; } catch (_) { simbolos[k] = '—'; }
+    return simbolos[k];
+  };
+
+  const manuales = ops.filter((o) => esOrden(o.clave));
+  const deBots = ops.filter((o) => !esOrden(o.clave));
+
+  const fila = async (o) => {
+    const sb = await simboloDe(o.base), sq = await simboloDe(o.quoteAddr);
+    return `<div class="pf-hrow">
+      <span class="pf-htag ${o.compra ? 'c' : 'v'}">${o.compra ? 'COMPRA' : 'VENTA'}</span>
+      <div class="pf-hinfo">
+        <div class="pf-hpar">${sb}/${sq}</div>
+        <div class="pf-hmeta">Precio <b>${num(o.precio, o.precio < 1 ? 6 : 2)}</b> · <b>${num(o.cantidad, 6)}</b> ${sb}</div>
+      </div>
+      <div class="pf-hfecha">${desde(o.tiempo)}</div>
+    </div>`;
+  };
+  const sector = async (titulo, lista) => {
+    const filas = (await Promise.all(lista.slice(0, 25).map(fila))).join('');
+    return `<div class="pf-hsect">${titulo} <i></i></div>` +
+      (lista.length ? filas : `<div class="pf-hvacio">Ninguna por ahora.</div>`);
+  };
+
+  cont.innerHTML =
+    (await sector('Tus órdenes limit', manuales)) +
+    (await sector('Operaciones de bots', deBots)) +
+    `<a class="pf-hmas" href="https://bscscan.com/address/${cuenta}" target="_blank" rel="noopener">Ver el historial completo en BscScan ↗</a>`;
 }
 
 async function cargarDatos(cuenta) {

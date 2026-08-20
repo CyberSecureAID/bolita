@@ -638,6 +638,59 @@ export async function cerrarAhora(base, quote) {
   const bot = await cEscribe(); const tx = await bot.cerrarAhora(base, quote, { gasLimit: 900000n }); return esperar(tx);
 }
 export async function resumenK(clave) { return leeGB('resumen(bytes32)', [clave]); }
+
+/* Historial COMPLETO del usuario, leído de la cadena (eventos Ejecutado).
+   Devuelve las operaciones de TODOS sus bots y órdenes en una sola consulta,
+   ya con par, precio, cantidad y fecha, ordenadas de la más reciente a la más
+   antigua y limitadas (sin scroll infinito: el dato completo vive en la cadena).
+   Cada op trae `clave` para que la web sepa si fue una orden manual o un bot. */
+export async function historialDe(usuario, desdeBloques = 60000, maxOps = 60) {
+  let latest = 0; try { latest = await lector().getBlockNumber(); } catch {}
+  // 1) Todos los eventos Ejecutado del usuario (sin filtrar por clave).
+  let logs = [], ok = false;
+  const rangos = [desdeBloques, 20000, 6000];
+  for (let i = 0; i < RPCS.length && !ok; i++) {
+    const cc = new ethers.Contract(GRIDBOT, ABI, provRPC(i));
+    for (const r of rangos) {
+      const desde = latest > r ? latest - r : 0;
+      try { logs = await cc.queryFilter(cc.filters.Ejecutado(usuario), desde, latest || 'latest'); ok = true; break; } catch (_) {}
+    }
+  }
+  if (!ok) return { error: 'sin-historial', ops: [] };
+  if (!logs.length) return { error: null, ops: [] };
+
+  // 2) Mapa clave -> {base, quote} leyendo el resumen de cada clave distinta.
+  const claves = [...new Set(logs.map((l) => String(l.args.clave)))];
+  const porClave = {};
+  await Promise.all(claves.map(async (k) => {
+    try { const R = await resumenK(k); if (R) porClave[k] = { base: R.base, quote: R.quote }; } catch (_) {}
+  }));
+
+  // 3) Decimales de cada token que aparece.
+  const tokens = [...new Set(Object.values(porClave).flatMap((p) => [String(p.base).toLowerCase(), String(p.quote).toLowerCase()]))];
+  const dec = {};
+  await Promise.all(tokens.map(async (t) => { try { dec[t] = (await infoToken(t)).decimals; } catch (_) { dec[t] = 18; } }));
+
+  // 4) Fechas de los bloques.
+  let fechas = {};
+  try { fechas = await tiempoDeBloque([...new Set(logs.map((l) => l.blockNumber))]); } catch (_) {}
+
+  // 5) Construir las operaciones legibles.
+  const ops = logs.map((l) => {
+    const a = l.args, clave = String(a.clave), compra = a.compra;
+    const par = porClave[clave]; if (!par) return null;
+    const dB = dec[String(par.base).toLowerCase()] ?? 18, dQ = dec[String(par.quote).toLowerCase()] ?? 18;
+    const inH = Number(ethers.formatUnits(a.entrada, compra ? dQ : dB));
+    const outH = Number(ethers.formatUnits(a.salida, compra ? dB : dQ));
+    const precio = compra ? (outH > 0 ? inH / outH : NaN) : (inH > 0 ? outH / inH : NaN);
+    const cantidad = compra ? outH : inH;          // cantidad del activo base movida
+    const recibido = compra ? outH : outH;         // lo que recibe (base en compra, quote en venta)
+    return { clave, compra, precio, cantidad, quote: compra ? inH : outH, base: par.base, quoteAddr: par.quote, bloque: l.blockNumber, tiempo: fechas[l.blockNumber] || 0 };
+  }).filter((x) => x && isFinite(x.precio) && x.precio > 0);
+
+  ops.sort((x, y) => (y.tiempo || y.bloque) - (x.tiempo || x.bloque));
+  return { error: null, ops: ops.slice(0, maxOps), total: ops.length };
+}
 export async function cerrarAhoraK(clave) {
   const bot = await cEscribe(); const tx = await bot['cerrarAhora(bytes32)'](clave, { gasLimit: 900000n }); return esperar(tx);
 }
