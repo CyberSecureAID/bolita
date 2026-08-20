@@ -631,7 +631,6 @@ async function portada() {
             </div>
             <div class="lqp-nom">${esc(sv.nombre)}</div>
             <div class="lqp-lema">${esc(sv.lema)}</div>
-            <div class="lqp-desc">${esc(sv.desc)}</div>
             ${sv.listo ? '<span class="lqp-abrir">Abrir</span>' : '<span class="lqp-pronto">Próximamente</span>'}
           </button>`).join('')}
       </div>

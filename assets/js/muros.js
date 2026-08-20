@@ -3110,54 +3110,54 @@ async function ponerLogos() {
    ══════════════════════════════════════════════════════════════ */
 const PASOS_MU = [
   {
-    t: 'Qué es la Lógica Estructural Avanzada',
-    d: 'Es una estrategia para <b>entrar al mercado con la mayor probabilidad posible de acertar</b>. No adivina: sigue tres pasos claros para saber <b>hacia dónde va el precio</b> y <b>en qué punto exacto entrar</b>. Aquí abajo te la explicamos paso a paso, aunque nunca hayas operado antes.',
-    x: 'La idea es sencilla: entender la tendencia, esperar el momento correcto y entrar donde el riesgo es pequeño y el beneficio grande.'
+    t: 'Qué es Heat Pools',
+    d: 'Heat Pools es una herramienta de <b>alto rendimiento</b> que revela <b>dónde se concentra el volumen de negociación</b> en los niveles más exactos del mercado. Analiza los datos en <b>tiempo real</b> —precio, niveles de negociación y liquidez— y los pinta como un <b>mapa de calor</b> sobre las zonas donde el dinero de verdad se ha estado acumulando.',
+    x: 'Es la primera herramienta de su tipo en la plataforma: te muestra de un vistazo dónde está el interés real del mercado.'
   },
   {
-    t: 'Paso 1 · Determina DOS tendencias',
-    d: 'Todo empieza sabiendo hacia dónde va el precio, pero en <b>dos escalas a la vez</b>: la de <b>largo plazo</b> (el rumbo grande) y la de <b>corto plazo</b> (el movimiento pequeño de ahora). La de largo plazo manda; la de corto plazo es la que se mueve buscando encontrarse con ella.',
-    x: 'Piensa en una corriente de mar (largo plazo) y una ola pequeña encima (corto plazo). La ola sube y baja, pero al final la corriente decide.'
+    t: 'Para qué te sirve',
+    d: 'Sobre cada zona de interés, Heat Pools proyecta el mapa de calor y te ofrece <b>entradas listas para operar</b>, con su <b>stop</b> y su <b>objetivo</b> ya calculados. No tienes que ser un experto en análisis técnico: el sistema hace el trabajo y te señala los niveles.',
+    x: 'La idea es que veas con claridad dónde comprar y dónde vender, sin romperte la cabeza.'
   },
   {
-    t: 'Paso 1 · Qué temporalidad mirar',
-    d: 'La tendencia de <b>largo plazo</b> se mira en una temporalidad más grande que la que vas a operar: si operas en <b>1 hora</b>, míralo en <b>diario</b>. Si operas en <b>15 minutos</b>, míralo en <b>4 horas</b>. Si operas en <b>5 minutos</b>, en <b>4 horas o 1 hora</b>. Si operas en <b>2 o 4 horas</b>, míralo en <b>diario o semanal</b>.',
-    x: 'Regla simple: la tendencia grande siempre se lee en una temporalidad bastante mayor que la que usas para entrar.'
+    t: 'Paso 1 · Entra a Heat Pools y elige moneda',
+    d: 'Abre la sección <b>Heat Pools</b> y arriba selecciona la <b>criptomoneda</b> que quieras analizar. Tienes una amplia gama de monedas disponibles para hacer análisis técnico.',
+    x: 'Puedes cambiar de moneda cuando quieras para buscar oportunidades en varias a la vez.'
   },
   {
-    t: 'Paso 1 · El triángulo de confluencia',
-    d: 'Al trazar las dos tendencias se forma una especie de <b>triángulo</b>: la de corto plazo se va acercando a la de largo plazo hasta que <b>se tocan</b>. Ese punto donde se encuentran es el más importante de todo, porque ahí el precio tiene que <b>decidir</b>.',
-    x: 'No entramos en cualquier sitio: esperamos a ese punto de encuentro, donde ocurren las mejores oportunidades.'
+    t: 'Paso 2 · Elige la temporalidad',
+    d: 'Selecciona la <b>temporalidad</b> en la que deseas operar. Se recomienda <b>de 5 minutos en adelante</b>: las temporalidades más pequeñas también funcionan, pero cuanto <b>más grande</b> es la temporalidad, <b>mejor</b> suele ser la lectura. No quedan invalidadas las demás; simplemente las mayores dan señales más sólidas.',
+    x: 'Regla práctica: si dudas, sube de temporalidad. Más grande, más fiable.'
   },
   {
-    t: 'Paso 2 · Qué pasa en el punto de encuentro',
-    d: 'Cuando las dos tendencias se tocan, solo pueden pasar <b>dos cosas</b>. <b>Una:</b> se rompe la tendencia de largo plazo y nace un movimiento nuevo en la otra dirección (por ejemplo, venía bajando y arranca a subir). <b>Dos:</b> se rompe la tendencia de corto plazo y el precio <b>retoma</b> el rumbo grande de siempre (venía bajando de fondo y sigue bajando).',
-    x: 'Sea cual sea de las dos, esa ruptura es la señal de que algo grande empieza. Ahí es donde nos preparamos.'
+    t: 'Paso 3 · Activa las entradas (Single o Double)',
+    d: 'Cuando tengas clara tu dinámica, toca <b>Single</b> o <b>Double</b> para habilitar las entradas disponibles. <b>Single</b> pone una posición por zona; <b>Double</b> pone dos: la segunda entra donde iría el stop de la primera, de modo que una operación doble puede <b>salvar el stop</b> de una simple y darte mayor probabilidad de éxito.',
+    x: 'Se recomienda Double cuando quieras repartir el riesgo y proteger mejor la operación.'
   },
   {
-    t: 'Paso 2 · La zona de acumulación (zona swing)',
-    d: 'Justo <b>antes</b> de esa ruptura, el precio suele quedarse un rato <b>oscilando en un rango</b> (subiendo y bajando en el mismo sitio): eso es una <b>acumulación</b>. Si después de esa acumulación sale un <b>impulso fuerte</b> que rompe la tendencia, ese rango se convierte en nuestra <b>zona swing</b>: la marcamos como un rectángulo que se proyecta hacia la derecha.',
-    x: 'La acumulación es la "plataforma de lanzamiento". El impulso confirma que era buena. El rectángulo queda ahí esperando a que el precio vuelva.'
+    t: 'Opera SIEMPRE a favor de la tendencia',
+    d: 'Aunque el sistema marque buenas zonas, opera <b>a favor de la tendencia predominante</b>. No tiene sentido entrar en contra del rumbo grande del mercado: aunque la zona sea válida, la probabilidad de éxito baja y el resultado puede no ser el esperado.',
+    x: 'Primero mira hacia dónde va el mercado en general; después usa las zonas para entrar en esa dirección.'
   },
   {
-    t: 'Paso 2 · También sirven los retrocesos',
-    d: 'No siempre hay que esperar una ruptura. Cuando el precio ya va claro en una dirección (sube, descansa, sube, descansa…), cada <b>descanso</b> o <b>retroceso</b> que forma una pequeña acumulación es también una oportunidad para <b>subirte a la ola</b> a favor de la tendencia.',
-    x: 'Aprovechamos el retroceso para entrar barato y acompañar al precio en su dirección predominante.'
+    t: 'Gestiona el riesgo con cabeza',
+    d: 'Las entradas vienen con una relación <b>riesgo/beneficio de 1:2</b>. Cuando lleves ganado el equivalente a lo que arriesgaste, un buen hábito es: en <b>futuros</b>, mover el stop al <b>precio de entrada</b> (así ya no puedes perder); en <b>spot</b>, no necesitas stop, porque <b>no hay precio de liquidación</b>: compras y vendes de forma orgánica con paciencia.',
+    x: 'En spot no hay liquidación, así que operando con calma y capital adecuado puedes gestionar sin agobios.'
   },
   {
-    t: 'Paso 3 · Dónde entrar exactamente',
-    d: 'Cuando el precio <b>regresa</b> a la zona swing, entramos en su borde. Si el movimiento es bajista, la primera entrada va en la <b>línea de abajo</b> del rectángulo. Puedes poner una <b>segunda entrada</b> en la línea de arriba (opcional), donde justo va el <b>stop loss</b> de la primera. Así repartes el riesgo.',
-    x: 'Una entrada o dos, tú decides. El stop siempre va al otro lado del rectángulo.'
+    t: 'Comparte tus señales y análisis',
+    d: 'Con <b>Share signal</b> generas una imagen y un texto con las entradas, stops y objetivos, ideal si quieres crear tu propio <b>grupo de señales</b> y cobrar por ese servicio: la plataforma te lo permite. Con <b>compartir imagen</b> envías el escenario actual del mercado a amigos o clientes.',
+    x: 'Muchos usuarios convierten esto en un ingreso: montan grupos de señales o de análisis usando la plataforma.'
   },
   {
-    t: 'Paso 3 · Cuánto arriesgar (riesgo/beneficio)',
-    d: 'Buscamos siempre una relación <b>riesgo/beneficio de 1:2</b>: arriesgar 1 para ganar 2. La excepción son las zonas <b>demasiado anchas</b>: cuando el rango de acumulación es tan grande como la mitad del impulso (o más), no se le puede pedir tanto al mercado. En ese caso operamos <b>1:1</b> o, si es muy incierto, <b>no operamos</b>.',
-    x: 'Ganar de forma constante es más importante que ganar mucho de golpe. Si la zona no da un buen 1:2, mejor esperar la siguiente.'
+    t: 'Herramientas extra',
+    d: 'Puedes cambiar entre <b>tema claro y oscuro</b>, consultar el <b>calendario económico</b> actualizado de hoy en tiempo real, y analizar una <b>amplia variedad de criptomonedas</b> en múltiples temporalidades para encontrar más oportunidades.',
+    x: 'Todo está en la misma pantalla, a un toque, para que no pierdas de vista ninguna oportunidad.'
   },
   {
-    t: 'La regla de oro',
-    d: 'La mayor probabilidad de éxito aparece cuando <b>todo se alinea</b>: entras a favor de la tendencia de largo plazo, en una zona swing real, con su impulso confirmado, y con un riesgo/beneficio sano. Cuando esas piezas encajan, la probabilidad de acertar sube muchísimo.',
-    x: 'Esto es un servicio de pago porque es una estrategia real y probada. Tómate tu tiempo en entenderla: es la base de todo.'
+    t: 'Una recomendación honesta',
+    d: 'Esto es <b>trading en los mercados financieros</b>. Aunque operes en spot, <b>arriesga solo lo que estés dispuesto a perder</b>: nunca inviertas tus ahorros personales ni dinero que necesites. Con paciencia, disciplina y el capital adecuado, Heat Pools es una herramienta poderosa para operar de forma más inteligente.',
+    x: 'La constancia vale más que la prisa. Opera con responsabilidad y deja que la herramienta trabaje para ti.'
   }
 ];
 
@@ -3170,7 +3170,7 @@ function ayuda() {
   d.innerHTML = `<div class="mu-bg"></div>
     <div class="mua-c">
       <button class="mua-x" id="mua-x" aria-label="Cerrar">✕</button>
-      <div class="mua-eyebrow">Lógica Estructural Avanzada</div>
+      <div class="mua-eyebrow">Heat Pools</div>
       <div id="mua-cuerpo"></div>
     </div>`;
   document.body.appendChild(d);
