@@ -2614,7 +2614,13 @@ async function tarjeta(cuenta, clave, par, R) {
     <div class="ob-side ob-buys">${obBuys.map((o) => obRow(o, 'compra')).join('') || '<div class="ob-empty">sin compras armadas</div>'}</div>`;
 
   const tipo = par.tipo || 'grid';
-  const nombreBot = tipo === 'cash' ? 'Bot Cash Out' : tipo === 'acum' ? 'Bot Accumulator' : tipo === 'dca' ? 'Bot DCA' : 'Bot Smart Grid';
+  /* Las órdenes puestas desde el gráfico (clic derecho) NO son bots: son
+     órdenes limit manuales. Se nombran como tales para no confundirlas con un
+     Cash Out o un DCA configurados a mano. */
+  const _esGrafico = !!par.desdeGrafico;
+  const nombreBot = _esGrafico
+    ? (tipo === 'cash' ? 'Orden de venta' : 'Orden de compra')
+    : (tipo === 'cash' ? 'Bot Cash Out' : tipo === 'acum' ? 'Bot Accumulator' : tipo === 'dca' ? 'Bot DCA' : 'Bot Smart Grid');
   const invLabel = tipo === 'cash' ? simB : simQ;
   const invValue = tipo === 'cash' ? num((par.cantBase != null ? Number(par.cantBase) : posBase), 6) : num(invertido, 2);
   const _entValida = entrada != null && entrada > 0 && precioFmt(entrada) !== '—';
@@ -2688,7 +2694,8 @@ async function tarjeta(cuenta, clave, par, R) {
   const _boxCompras = `<div class="pio-box"><div class="k">Compras hechas</div><div class="v">${Number(R.comprasHechas)}${_cmax > 0 ? ' / ' + _cmax : ''}</div><div class="v2" style="color:var(--ink-3)">${_cmax > 0 ? 'de tu plan' : 'sin límite'}</div></div>`;
   const _boxPosicion = `<div class="pio-box"><div class="k">Posición (${simB})</div><div class="v" style="font-size:15px">${num(posBase, 6)}</div><div class="v2" style="color:var(--ink-3)">acumulado</div></div>`;
   let _boxes;
-  if (tipo === 'cash') _boxes = _boxEntrada + _boxObjetivo;
+  if (_esGrafico) _boxes = _boxEntrada + _boxObjetivo + _boxGas;   // orden limit: precio, objetivo y gas
+  else if (tipo === 'cash') _boxes = _boxEntrada + _boxObjetivo;
   else if (tipo === 'dca') _boxes = _boxProxima + _boxCompras + _boxMedio + _boxPosicion + _boxFlotante + _boxGas;
   else if (tipo === 'acum') _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxMedio + _boxVueltas + _boxGas;
   else _boxes = _boxGrid + _boxFlotante + _boxEntrada + _boxRango + _boxVueltas + _boxGas;
@@ -2732,9 +2739,9 @@ async function tarjeta(cuenta, clave, par, R) {
         <div class="pio-pair">${simB}/${simQ}</div>
         <div class="pio-sub"><span class="pio-time" data-since="${creadoSeg}">${tiempoActivo(creadoSeg)}</span><span class="pio-op"> · ${R.activa ? '<span class="dot"></span>operando' : 'detenido'}</span></div>
       </div>
-      <div class="pio-tags"><span class="pio-tag share" data-share>↗<span class="lbl"> Compartir</span></span><span class="pio-tag">LONG</span><span class="pio-tag grey">Spot</span></div>
+      <div class="pio-tags"><span class="pio-tag share" data-share>↗<span class="lbl"> Compartir</span></span><span class="pio-tag">${_esGrafico ? 'LIMIT' : 'LONG'}</span><span class="pio-tag grey">Spot</span></div>
     </div>
-    <div class="pio-nombre">${nombreBot}</div>
+    <div class="pio-nombre">${nombreBot}${_esGrafico ? ' <span style="font-size:11px;font-weight:600;color:var(--ink-3,#8b95a1)">· orden limit desde el gráfico</span>' : ''}</div>
 
     <div class="pio-band">
       <div class="l"><div class="k">Inversión <span class="cur">(${invLabel})</span></div><div class="v">${invValue}</div></div>
