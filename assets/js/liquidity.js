@@ -2808,10 +2808,12 @@ function estilos() {
     #lq-overlay .solo-movil{display:grid}
     #lq-overlay .lq-barra > .lq-grupo,
     #lq-overlay .lq-slider,
+    #lq-overlay #lq-cal,
     #lq-overlay #lq-perfil,
     #lq-overlay #lq-ver,
     #lq-overlay #lq-fit{display:none}
-    #lq-overlay .lq-barra{padding:7px 8px;gap:6px;padding-right:132px}
+    #lq-overlay .lq-barra{padding:7px 8px;gap:6px;padding-right:150px}
+    #lq-overlay .lq-sel{min-height:34px;font-size:12.5px}
     #lq-overlay .lq-b{padding:0 10px;font-size:11px;min-height:34px}
     #lq-overlay .lq-marca{font-size:11px;bottom:24px}
     #lq-overlay .lq-escala{padding:6px 10px;gap:7px}

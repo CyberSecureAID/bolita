@@ -3865,12 +3865,14 @@ function estilos() {
     /* La barra ya NO desborda ni se amontona. En móvil, la fila de acciones
        (analista, news, iconos, cerrar) fluye en su PROPIA línea, alineada a la
        derecha y con salto si hiciera falta, en vez de superponerse. */
-    #mu-overlay .mu-barra{flex-wrap:wrap;gap:8px;padding:8px 10px;align-items:center}
-    #mu-overlay .mu-der{position:static;transform:none;order:5;width:100%;justify-content:flex-end;
+    #mu-overlay .mu-barra{flex-wrap:wrap;gap:8px;padding:8px 52px 8px 10px;align-items:center}
+    /* La X SIEMPRE arriba a la derecha, fuera del flujo (antes caía abajo). */
+    #mu-overlay .mu-x{position:absolute;top:8px;right:8px;z-index:3;margin:0}
+    #mu-overlay .mu-der{position:static;transform:none;order:5;width:100%;justify-content:flex-start;
       flex-wrap:wrap;gap:6px;padding-left:0;margin-top:2px}
     #mu-overlay .mu-sel{order:1}
     #mu-overlay .mu-tfchip{order:2}
-    #mu-overlay #mu-estado{order:3}
+    #mu-overlay #mu-estado{order:3;flex:0 0 auto}
     #mu-overlay .mu-px{display:none}
     #mu-overlay .mu-vivo{flex:0 0 auto}
     #mu-overlay .mu-vivo span{display:none}
