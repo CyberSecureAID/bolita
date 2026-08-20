@@ -82,6 +82,7 @@ export async function pintarOperar(host, api) {
       <button class="op-tab on" data-pt="pos">Posición</button>
       <button class="op-tab" data-pt="ord">Mis órdenes</button>
       <button class="op-tab" data-pt="bots">Bots</button>
+      <button class="op-histbtn" id="op-hist" title="Historial de operaciones" aria-label="Historial de operaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5A1.5 1.5 0 0 1 6 4h7.5L18 8.5V11"/><path d="M7 9h7M7 12.5h4.5"/><circle cx="16.5" cy="16.5" r="4.4"/><path d="M16.5 14.4v2.1l1.5 1"/></svg></button>
     </div>
     <div class="op-panel" id="op-panel"></div>
   `;
@@ -92,6 +93,7 @@ export async function pintarOperar(host, api) {
   $('op-bots').onclick = () => api.abrir('bots');
   $('op-tools').onclick = () => api.abrir('tools');
   $('op-alert').onclick = () => abrirAlerta(_par);
+  if ($('op-hist')) $('op-hist').onclick = () => abrirHistorialMovil();
   ponerLogo();
 
   // Slider % y stop-loss
@@ -443,3 +445,108 @@ function ponerLogo() {
 function fmtP(p) { p = +p; if (!isFinite(p)) return '—'; if (p >= 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 1 }); if (p >= 1) return p.toLocaleString('en-US', { maximumFractionDigits: 3 }); return p.toLocaleString('en-US', { maximumFractionDigits: 6 }); }
 function fmtQ(q) { q = +q; if (!isFinite(q)) return ''; if (q >= 1000) return (q / 1000).toFixed(1) + 'K'; if (q >= 1) return q.toFixed(2); return q.toFixed(4); }
 function chev(sz) { const s = sz || 12; return `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="2.4" style="vertical-align:middle"><path d="M6 9l6 6 6-6"/></svg>`; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   HISTORIAL DE OPERACIONES (móvil) — hoja inferior estilo exchange.
+   Icono a la derecha de las pestañas. Lee la cadena, dos sectores,
+   lista acotada (sin scroll infinito). No toca las pestañas.
+   ═══════════════════════════════════════════════════════════════════ */
+function fechaRel(ts) {
+  if (!ts) return '';
+  const s = Math.max(1, Math.floor(Date.now() / 1000) - Number(ts));
+  if (s < 60) return 'hace ' + s + 's';
+  if (s < 3600) return 'hace ' + Math.floor(s / 60) + ' min';
+  if (s < 86400) return 'hace ' + Math.floor(s / 3600) + ' h';
+  if (s < 2592000) return 'hace ' + Math.floor(s / 86400) + ' d';
+  return new Date(Number(ts) * 1000).toLocaleDateString('es');
+}
+
+async function abrirHistorialMovil() {
+  document.getElementById('mh-sheet')?.remove();
+  if (!document.getElementById('mh-css')) {
+    const st = document.createElement('style'); st.id = 'mh-css';
+    st.textContent = `
+    #mh-sheet{position:fixed;inset:0;z-index:9980;display:flex;flex-direction:column;justify-content:flex-end}
+    #mh-sheet .mh-bg{position:absolute;inset:0;background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+    #mh-sheet .mh-c{position:relative;background:linear-gradient(180deg,#12161c,#0b0e12);border-top-left-radius:20px;border-top-right-radius:20px;border-top:1px solid #2b3139;max-height:82vh;display:flex;flex-direction:column;animation:mhUp .22s ease both}
+    @keyframes mhUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    #mh-sheet .mh-grip{width:38px;height:4px;border-radius:3px;background:#39424c;margin:10px auto 4px}
+    #mh-sheet .mh-head{display:flex;align-items:center;justify-content:space-between;padding:6px 18px 10px}
+    #mh-sheet .mh-tit{font-family:var(--mv-display,system-ui);font-weight:800;font-size:17px;color:var(--mv-gold,#E8B84B)}
+    #mh-sheet .mh-x{background:rgba(255,255,255,.06);border:0;color:#c7ced6;width:30px;height:30px;border-radius:9px;font-size:14px}
+    #mh-sheet .mh-body{overflow-y:auto;padding:2px 14px 24px}
+    #mh-sheet .mh-carga,#mh-sheet .mh-vacio{padding:30px;text-align:center;color:#7d8794;font-size:13px}
+    #mh-sheet .mh-sect{font-family:ui-monospace,monospace;font-size:10px;color:#7d8794;text-transform:uppercase;letter-spacing:.9px;margin:16px 2px 8px;display:flex;align-items:center;gap:8px}
+    #mh-sheet .mh-sect i{flex:1;height:1px;background:rgba(255,255,255,.08)}
+    #mh-sheet .mh-row{display:flex;align-items:center;gap:11px;padding:11px 12px;margin:6px 0;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05)}
+    #mh-sheet .mh-tag{flex:0 0 auto;font-family:var(--mv-display,system-ui);font-weight:800;font-size:10px;letter-spacing:.4px;padding:4px 8px;border-radius:7px}
+    #mh-sheet .mh-tag.c{background:rgba(46,232,106,.13);color:#39e07a;border:1px solid rgba(46,232,106,.35)}
+    #mh-sheet .mh-tag.v{background:rgba(246,70,93,.13);color:#ff6b7d;border:1px solid rgba(246,70,93,.35)}
+    #mh-sheet .mh-info{flex:1;min-width:0}
+    #mh-sheet .mh-par{font-family:var(--mv-display,system-ui);font-weight:700;font-size:14px;color:#eef2f6}
+    #mh-sheet .mh-meta{font-family:ui-monospace,monospace;font-size:11px;color:#7d8794;margin-top:2px}
+    #mh-sheet .mh-meta b{color:#dfe5ec;font-weight:700}
+    #mh-sheet .mh-fecha{flex:0 0 auto;font-family:ui-monospace,monospace;font-size:10.5px;color:#5a6570}
+    #mh-sheet .mh-mas{display:block;text-align:center;margin-top:14px;font-size:11.5px;color:var(--mv-gold,#E8B84B);text-decoration:none}`;
+    document.head.appendChild(st);
+  }
+  const d = document.createElement('div'); d.id = 'mh-sheet';
+  d.innerHTML = `<div class="mh-bg"></div>
+    <div class="mh-c">
+      <div class="mh-grip"></div>
+      <div class="mh-head"><div class="mh-tit">Historial de operaciones</div><button class="mh-x" id="mh-x" aria-label="Cerrar">✕</button></div>
+      <div class="mh-body" id="mh-body"><div class="mh-carga">Leyendo tus operaciones en la blockchain…</div></div>
+    </div>`;
+  document.body.appendChild(d);
+  const cerrar = () => d.remove();
+  d.querySelector('.mh-bg').onclick = cerrar;
+  d.querySelector('#mh-x').onclick = cerrar;
+
+  const body = d.querySelector('#mh-body');
+  let gb, cuenta;
+  try {
+    gb = await import('../gridbot.js?v=125');
+    const w = await import('../wallet.js?v=125');
+    cuenta = w.cuentaActual && w.cuentaActual();
+  } catch (_) {}
+  if (!cuenta) { body.innerHTML = `<div class="mh-vacio">Conecta tu wallet para ver tu historial.</div>`; return; }
+
+  let res;
+  try { res = await gb.historialDe(cuenta); } catch (_) { res = { error: 'sin-historial', ops: [] }; }
+  if (res.error === 'sin-historial') { body.innerHTML = `<div class="mh-vacio">Ahora mismo no se pudo leer el historial (la red va lenta). Inténtalo de nuevo en un momento.</div>`; return; }
+  const ops = res.ops || [];
+  if (!ops.length) { body.innerHTML = `<div class="mh-vacio">Todavía no tienes operaciones. Cuando un bot o una orden se ejecute, aparecerá aquí.</div>`; return; }
+
+  let marcas = {};
+  try { marcas = JSON.parse(localStorage.getItem('bot-pares') || '{}'); } catch (_) {}
+  const esOrden = (k) => !!(marcas[k] && marcas[k].desdeGrafico);
+  const simb = {};
+  const simboloDe = async (addr) => {
+    const k = String(addr).toLowerCase();
+    if (simb[k]) return simb[k];
+    try { simb[k] = (await gb.infoToken(addr)).simbolo; } catch (_) { simb[k] = '—'; }
+    return simb[k];
+  };
+  const manuales = ops.filter((o) => esOrden(o.clave));
+  const deBots = ops.filter((o) => !esOrden(o.clave));
+
+  const fila = async (o) => {
+    const sb = await simboloDe(o.base), sq = await simboloDe(o.quoteAddr);
+    const dp = o.precio < 1 ? 6 : (o.precio >= 1000 ? 1 : 3);
+    return `<div class="mh-row">
+      <span class="mh-tag ${o.compra ? 'c' : 'v'}">${o.compra ? 'COMPRA' : 'VENTA'}</span>
+      <div class="mh-info">
+        <div class="mh-par">${esc(sb)}/${esc(sq)}</div>
+        <div class="mh-meta">Precio <b>${(+o.precio).toLocaleString('en-US', { maximumFractionDigits: dp })}</b> · <b>${(+o.cantidad).toLocaleString('en-US', { maximumFractionDigits: 6 })}</b> ${esc(sb)}</div>
+      </div>
+      <div class="mh-fecha">${fechaRel(o.tiempo)}</div>
+    </div>`;
+  };
+  const sector = async (titulo, lista) => `<div class="mh-sect">${titulo} <i></i></div>` +
+    (lista.length ? (await Promise.all(lista.slice(0, 25).map(fila))).join('') : `<div class="mh-vacio" style="padding:14px">Ninguna por ahora.</div>`);
+
+  body.innerHTML =
+    (await sector('Tus órdenes limit', manuales)) +
+    (await sector('Operaciones de bots', deBots)) +
+    `<a class="mh-mas" href="https://bscscan.com/address/${cuenta}" target="_blank" rel="noopener">Ver el historial completo en BscScan ↗</a>`;
+}
