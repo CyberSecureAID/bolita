@@ -78,7 +78,7 @@ export function dibujar() {
   if (N.cargando || !N.velas.length) { if (esp) esp.style.display = ''; return; }
   if (esp) esp.style.display = 'none';
 
-  const mDer = 84, mAba = 26;
+  const mDer = 64, mAba = 26;
   const x1 = W - mDer, y1 = H - mAba;
 
   /* [CORREGIDO] Las velas llegaban pegadas al borde derecho y no se

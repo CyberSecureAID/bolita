@@ -530,7 +530,7 @@ export function gestos(cv, dibujar, burbujas, guardarDib) {
     }
     let cambio = false;
     // Horizontal: recorrer el tiempo
-    const paso = (cv.clientWidth - 84) / N.vista.ancho;
+    const paso = (cv.clientWidth - 64) / N.vista.ancho;
     const d = Math.round((e.clientX - ax) / Math.max(1, paso));
     if (d !== 0) {
       const tope = Math.max(0, N.velas.length - N.vista.ancho);
@@ -568,7 +568,7 @@ export function gestos(cv, dibujar, burbujas, guardarDib) {
     if ((arrDib >= 0 || arrLin || arrBorde || arrPunto) && e.touches.length === 1) { e.preventDefault(); const p = loc(e, e.touches[0]); moverArrastre(p.x, p.y); return; }
     if (e.touches.length === 1 && arr) {
       e.preventDefault();
-      const paso = (cv.clientWidth - 84) / N.vista.ancho;
+      const paso = (cv.clientWidth - 64) / N.vista.ancho;
       const d = Math.round((e.touches[0].clientX - tx) / Math.max(1, paso));
       if (d !== 0) {
         const tope = Math.max(0, N.velas.length - N.vista.ancho);
