@@ -184,6 +184,8 @@ export function conectar(cfg) {
   cv.addEventListener('touchcancel', () => clearTimeout(temp), { passive: true });
 
   arrancarVigilante();
+  if (cfg.repintar) _repintarOrd = cfg.repintar;   // para refrescar el gráfico al completarse una orden
+  arrancarVigilanteOrdenes();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -817,6 +819,94 @@ export async function simbolosOperables() {
 }
 
 let _vigila = null;
+/* ══════════════════════════════════════════════════════════════
+   ÓRDENES COMPLETADAS — aviso con sonido y ficha que queda
+   Revisa on-chain si una orden ya se ejecutó (el contrato la marca
+   inactiva). Cuando ocurre: suena, sale una ficha con lo ocurrido
+   (queda hasta que el usuario la cierra) y se repinta el gráfico.
+   ══════════════════════════════════════════════════════════════ */
+export async function sincronizarOrdenes(cuenta) {
+  const ords = leerOrdenesGuardadas();
+  if (!cuenta || !ords.length) return [];
+  let gb; try { gb = await import('./gridbot.js?v=125'); } catch (_) { return []; }
+  const hechas = [];
+  for (const o of ords) {
+    if (!(o && o.base && o.quote && o.botId != null)) continue;
+    try {
+      const clave = gb.claveBot(cuenta, o.base, o.quote, o.botId);
+      const R = await gb.resumenK(clave);
+      if (R && R.activa === false) {
+        quitarOrdenGrafico(o.id);
+        const i = _puestas.findIndex((x) => x.id === o.id);
+        if (i >= 0) _puestas.splice(i, 1);
+        hechas.push(o);
+      }
+    } catch (_) {}
+  }
+  return hechas;
+}
+
+let _repintarOrd = null;
+let _vigOrd = null;
+function arrancarVigilanteOrdenes() {
+  if (_vigOrd) return;
+  _vigOrd = setInterval(async () => {
+    try {
+      if (!leerOrdenesGuardadas().length) return;
+      const w = await import('./wallet.js?v=125');
+      const cuenta = (w.cuentaActual && w.cuentaActual()) || null;
+      if (!cuenta) return;
+      const hechas = await sincronizarOrdenes(cuenta);
+      if (hechas.length) {
+        hechas.forEach(avisarOrdenHecha);
+        if (_repintarOrd) { try { _repintarOrd(); } catch (_) {} }
+      }
+    } catch (_) {}
+  }, 12000);
+}
+
+/* Sonido característico: un doble "ding" ascendente, bien audible. */
+function sonarHecho() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    [660, 990].forEach((f, i) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const t0 = ac.currentTime + i * 0.14;
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(0.5, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t0); o.stop(t0 + 0.47);
+    });
+  } catch (_) {}
+}
+
+/* Ficha persistente: se queda hasta que el usuario toca la X (deja constancia). */
+function avisarOrdenHecha(o) {
+  sonarHecho();
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(`${o.par || ''} ${o.vender ? 'VENTA' : 'COMPRA'} completada`, {
+        body: `${o.cant} a ${fmt(o.precio)}`, icon: 'assets/img/aurex-192.png'
+      });
+    }
+  } catch (_) {}
+  const previas = document.querySelectorAll('.od-hecha').length;
+  const t = document.createElement('div');
+  t.className = 'od-toast od-hecha ' + (o.vender ? 'vender' : 'comprar');
+  t.style.bottom = (20 + previas * 70) + 'px';
+  t.innerHTML = `
+    <span class="od-t-ic">✔</span>
+    <div style="flex:1">
+      <b>${o.vender ? 'VENTA' : 'COMPRA'} completada</b>
+      <span>${esc(String(o.cant))} · ${esc(o.par || '')} a ${esc(fmt(o.precio))}</span>
+    </div>
+    <button class="od-t-x" aria-label="Cerrar" style="background:none;border:0;color:#8b95a1;font-size:16px;cursor:pointer;padding:0 4px">✕</button>`;
+  document.body.appendChild(t);
+  t.querySelector('.od-t-x').onclick = () => t.remove();
+}
+
 function arrancarVigilante() {
   if (_vigila) return;
   _vigila = setInterval(async () => {
