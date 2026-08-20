@@ -908,7 +908,7 @@ function render() {
         </div>
       </div>
     </div>
-    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><div class="mb-der"><span class="c-cupo" id="c-cupo"><b>—</b><span class="cupo-tx">bots activos</span></span><button class="c-cupo" id="c-ver-ord" type="button" title="Ver tus órdenes limit pendientes" style="cursor:pointer;border:0;font:inherit"><b id="c-ord-n">·</b><span class="cupo-tx">Mis órdenes</span></button><button class="btn-cerrar-todos" id="c-cerrar-todos" type="button" title="Cerrar todos tus bots"><span class="cerrar-largo">Cerrar todos</span><span class="cerrar-corto">Cerrar</span></button></div></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
+    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><div class="mb-der"><span class="c-cupo" id="c-cupo"><b>—</b><span class="cupo-tx">bots activos</span></span><button class="c-cupo" id="c-ver-ord" type="button" title="Ver tus órdenes limit pendientes"><span class="cupo-tx">Mis órdenes</span><b id="c-ord-n" style="display:none">0</b></button><button class="btn-cerrar-todos" id="c-cerrar-todos" type="button" title="Cerrar todos tus bots"><span class="cerrar-largo">Cerrar todos</span><span class="cerrar-corto">Cerrar</span></button></div></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
     ${footerHTML()}
   </div>`;
 
@@ -2447,13 +2447,21 @@ async function refrescarRejillas() {
     const irC = $('c-ir-crear');
     if (irC) irC.onclick = () => { const t = document.querySelector('#colmena-app .bot-tab'); if (t) { t.click(); t.scrollIntoView({ behavior: 'smooth', block: 'center' }); } };
     pintarCupo(cuenta);
-    /* Botón "Mis órdenes": SIEMPRE visible. Muestra cuántas órdenes limit
-       pendientes tienes y al tocarlo abre la ventana (con la lista o vacía). */
+    /* Botón "Mis órdenes": SIEMPRE visible, con el número REAL de órdenes
+       pendientes (leído del almacenamiento, sincronizado on-chain). */
     {
       const bOrd = $('c-ver-ord'), nOrd = $('c-ord-n');
       if (bOrd && nOrd) {
-        nOrd.textContent = _ordenes.length ? String(_ordenes.length) : '·';
         bOrd.onclick = () => abrirMisOrdenes(cuenta);
+        (async () => {
+          try {
+            const od = await import('./orden.js?v=126');
+            try { if (od.sincronizarOrdenes) await od.sincronizarOrdenes(cuenta); } catch (_) {}
+            const n = (od.ordenesPuestas ? od.ordenesPuestas() : []).filter((o) => o.modo !== 'aviso').length;
+            if (n > 0) { nOrd.textContent = String(n); nOrd.style.display = ''; }
+            else { nOrd.style.display = 'none'; }
+          } catch (_) {}
+        })();
       }
     }
     const bct = $('c-cerrar-todos');
