@@ -533,8 +533,8 @@ export function gestos(cv, dibujar, burbujas, guardarDib) {
     const paso = (cv.clientWidth - 64) / N.vista.ancho;
     const d = Math.round((e.clientX - ax) / Math.max(1, paso));
     if (d !== 0) {
-      const tope = Math.max(0, N.velas.length - N.vista.ancho);
-      const suelo = -Math.floor(N.vista.ancho * 0.45);   // respiro a la derecha
+      const tope = Math.max(0, N.velas.length - N.vista.ancho) + Math.floor(N.vista.ancho * 0.6);
+      const suelo = -Math.floor(N.vista.ancho * 0.6);   // respiro a ambos lados
       N.vista.desde = Math.max(suelo, Math.min(tope, N.vista.desde + d));
       ax = e.clientX; cambio = true;
     }
@@ -571,8 +571,8 @@ export function gestos(cv, dibujar, burbujas, guardarDib) {
       const paso = (cv.clientWidth - 64) / N.vista.ancho;
       const d = Math.round((e.touches[0].clientX - tx) / Math.max(1, paso));
       if (d !== 0) {
-        const tope = Math.max(0, N.velas.length - N.vista.ancho);
-        const suelo = -Math.floor(N.vista.ancho * 0.45);
+        const tope = Math.max(0, N.velas.length - N.vista.ancho) + Math.floor(N.vista.ancho * 0.6);
+        const suelo = -Math.floor(N.vista.ancho * 0.6);
         N.vista.desde = Math.max(suelo, Math.min(tope, N.vista.desde + d));
         tx = e.touches[0].clientX; refrescar();
       }
