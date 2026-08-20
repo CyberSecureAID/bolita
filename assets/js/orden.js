@@ -719,6 +719,10 @@ async function ponerOrdenReal({ cfg, precio, cant, vender, sl, alPaso }) {
       minOutVenta: 0n,
       estado: 1
     }];
+    /* El contrato exige ordenBase > 0 para modo 0 (aunque en una compra no se
+       usa). Le ponemos la base que esperas comprar, solo para pasar el requisito
+       de creación; no provoca ninguna compra ni cobro al crear la orden. */
+    conf.ordenBase = unidades(gb, cant / precio, decBase);
     conf.slippageBps = conf.slippageBps || 50;   // holgura para el swap, no para el disparo
 
     const necesita = unidades(gb, cant * 3, decQuote);
