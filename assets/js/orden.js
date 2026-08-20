@@ -701,16 +701,25 @@ async function ponerOrdenReal({ cfg, precio, cant, vender, sl, alPaso }) {
   } else {
     /* ── COMPRAR: una compra programada de una sola vez ── */
     paso(T('Preparando la orden con el precio real…'));
-    const conf = await gb.construirConfigCompraLimit({
+    const conf = await gb.construirConfigDCA({
       ...p,
       montoQuote: cant,
-      targetPrice: precio
+      intervalo: 60,
+      comprasMax: 1
     });
     conf.botId = Date.now();
     _ultimoBotId = conf.botId;
     _ultimoPar = { base: dirBase, quote: quote.address };
-    /* El nivel de compra ya lleva el precio objetivo dentro (minOutCompra):
-       el keeper solo entra cuando el precio BAJA a lo que pediste, no a mercado. */
+    /* CLAVE: el DCA (modo 3) compra por TIEMPO a mercado. Lo pasamos a modo 0
+       (grid) con UN nivel de compra a tu precio exacto (estado 1): así el keeper
+       solo entra cuando el precio BAJA a tu objetivo, nunca a mercado. */
+    conf.modo = 0;
+    conf.niveles = [{
+      minOutCompra: unidades(gb, cant / precio, decBase),
+      minOutVenta: 0n,
+      estado: 1
+    }];
+    conf.slippageBps = conf.slippageBps || 50;   // holgura para el swap, no para el disparo
 
     const necesita = unidades(gb, cant * 3, decQuote);
     const permiso = await gb.allowance(quote.address, cuenta);
