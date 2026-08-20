@@ -466,9 +466,9 @@ async function abrirHistorialMovil() {
   if (!document.getElementById('mh-css')) {
     const st = document.createElement('style'); st.id = 'mh-css';
     st.textContent = `
-    #mh-sheet{position:fixed;inset:0;z-index:9980;display:flex;flex-direction:column;justify-content:flex-end}
+    #mh-sheet{position:fixed;inset:0;z-index:10300;display:flex;flex-direction:column;justify-content:flex-end}
     #mh-sheet .mh-bg{position:absolute;inset:0;background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
-    #mh-sheet .mh-c{position:relative;background:linear-gradient(180deg,#12161c,#0b0e12);border-top-left-radius:20px;border-top-right-radius:20px;border-top:1px solid #2b3139;max-height:82vh;display:flex;flex-direction:column;animation:mhUp .22s ease both}
+    #mh-sheet .mh-c{position:relative;background:linear-gradient(180deg,#12161c,#0b0e12);border-top-left-radius:20px;border-top-right-radius:20px;border-top:1px solid #2b3139;max-height:88vh;display:flex;flex-direction:column;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));animation:mhUp .22s ease both}
     @keyframes mhUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
     #mh-sheet .mh-grip{width:38px;height:4px;border-radius:3px;background:#39424c;margin:10px auto 4px}
     #mh-sheet .mh-head{display:flex;align-items:center;justify-content:space-between;padding:6px 18px 10px}
