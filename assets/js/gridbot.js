@@ -647,14 +647,21 @@ export async function resumenK(clave) { return leeGB('resumen(bytes32)', [clave]
 export async function historialDe(usuario, desdeBloques = 60000, maxOps = 60) {
   let latest = 0; try { latest = await lector().getBlockNumber(); } catch {}
   // 1) Todos los eventos Ejecutado del usuario (sin filtrar por clave).
+  //    Algunos RPC públicos devuelven la consulta VACÍA aunque sí hay datos;
+  //    por eso probamos varios y nos quedamos con el que SÍ traiga operaciones.
   let logs = [], ok = false;
   const rangos = [desdeBloques, 20000, 6000];
-  for (let i = 0; i < RPCS.length && !ok; i++) {
+  for (let i = 0; i < RPCS.length; i++) {
     const cc = new ethers.Contract(GRIDBOT, ABI, provRPC(i));
     for (const r of rangos) {
       const desde = latest > r ? latest - r : 0;
-      try { logs = await cc.queryFilter(cc.filters.Ejecutado(usuario), desde, latest || 'latest'); ok = true; break; } catch (_) {}
+      try {
+        const res = await cc.queryFilter(cc.filters.Ejecutado(usuario), desde, latest || 'latest');
+        ok = true;
+        if (res && res.length) { logs = res; break; }   // datos: nos quedamos con estos
+      } catch (_) {}
     }
+    if (logs.length) break;                              // ya tenemos operaciones
   }
   if (!ok) return { error: 'sin-historial', ops: [] };
   if (!logs.length) return { error: null, ops: [] };
