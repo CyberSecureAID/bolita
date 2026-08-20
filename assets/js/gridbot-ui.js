@@ -908,7 +908,7 @@ function render() {
         </div>
       </div>
     </div>
-    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><div class="mb-der"><span class="c-cupo" id="c-cupo"><b>—</b><span class="cupo-tx">bots activos</span></span><button class="btn-cerrar-todos" id="c-cerrar-todos" type="button" title="Cerrar todos tus bots"><span class="cerrar-largo">Cerrar todos</span><span class="cerrar-corto">Cerrar</span></button></div></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
+    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><div class="mb-der"><span class="c-cupo" id="c-cupo"><b>—</b><span class="cupo-tx">bots activos</span></span><button class="c-cupo" id="c-ver-ord" type="button" title="Ver tus órdenes limit" style="cursor:pointer;display:none;border:0;font:inherit"><b id="c-ord-n">0</b><span class="cupo-tx">órdenes</span></button><button class="btn-cerrar-todos" id="c-cerrar-todos" type="button" title="Cerrar todos tus bots"><span class="cerrar-largo">Cerrar todos</span><span class="cerrar-corto">Cerrar</span></button></div></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
     ${footerHTML()}
   </div>`;
 
@@ -2345,8 +2345,8 @@ async function refrescarRejillas() {
     if (_sinLeer > 0 && cards.length > 0) {
       cards.push(`<div class="sinleer">No pudimos leer ${_sinLeer} bot${_sinLeer > 1 ? 's' : ''} ahora mismo. La red va lenta; se mostrarán al refrescar.</div>`);
     }
-    const _cabSec = (t, n) => `<div style="display:flex;align-items:center;gap:8px;margin:18px 4px 10px;font:800 13px var(--display,system-ui);color:var(--gold,#E8B84B);letter-spacing:.4px;text-transform:uppercase">${t}<span style="font-weight:700;color:var(--ink-3,#8b95a1);background:rgba(255,255,255,.06);border-radius:20px;padding:1px 9px;font-size:11px">${n}</span></div>`;
-    const _secOrd = _ordenes.length ? _cabSec('Tus órdenes', _ordenes.length) + _ordenes.join('') : '';
+    const _cabSec = (t, n, id) => `<div ${id ? `id="${id}"` : ''} style="display:flex;align-items:center;gap:8px;margin:18px 4px 10px;font:800 13px var(--display,system-ui);color:var(--gold,#E8B84B);letter-spacing:.4px;text-transform:uppercase;scroll-margin-top:80px">${t}<span style="font-weight:700;color:var(--ink-3,#8b95a1);background:rgba(255,255,255,.06);border-radius:20px;padding:1px 9px;font-size:11px">${n}</span></div>`;
+    const _secOrd = _ordenes.length ? _cabSec('Tus órdenes', _ordenes.length, 'sec-ordenes') + _ordenes.join('') : '';
     const _secBot = cards.length ? _cabSec('Tus bots', cards.length - (_sinLeer > 0 ? 1 : 0)) + cards.join('') : '';
     cont.innerHTML = (_ordenes.length || cards.length) ? (_secOrd + _secBot)
       : `<div class="vacio-ok">
@@ -2359,6 +2359,16 @@ async function refrescarRejillas() {
     const irC = $('c-ir-crear');
     if (irC) irC.onclick = () => { const t = document.querySelector('#colmena-app .bot-tab'); if (t) { t.click(); t.scrollIntoView({ behavior: 'smooth', block: 'center' }); } };
     pintarCupo(cuenta);
+    /* Botón "órdenes" junto al contador de bots: muestra cuántas órdenes limit
+       tienes y al tocarlo salta a su sección. */
+    {
+      const bOrd = $('c-ver-ord'), nOrd = $('c-ord-n');
+      if (bOrd && nOrd) {
+        nOrd.textContent = String(_ordenes.length);
+        bOrd.style.display = _ordenes.length ? '' : 'none';
+        bOrd.onclick = () => { const s = $('sec-ordenes'); if (s) s.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+      }
+    }
     const bct = $('c-cerrar-todos');
     if (bct) bct.onclick = () => cerrarTodosLosBots(cuenta);
     enganchar(cuenta);
