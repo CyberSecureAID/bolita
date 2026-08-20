@@ -95,6 +95,11 @@ function lector() {
   return _rpc;
 }
 
+/** Precio de gas actual de la red (wei). Para estimar el coste real por operación. */
+export async function precioGasWei() {
+  try { const fd = await lector().getFeeData(); return fd.gasPrice || 0n; } catch (_) { return 0n; }
+}
+
 /** Proveedor inyectado (MetaMask u otro). */
 function inyectado() {
   if (typeof window !== 'undefined' && window.ethereum) return window.ethereum;

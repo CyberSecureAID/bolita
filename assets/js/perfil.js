@@ -502,13 +502,26 @@ async function cargarDatos(cuenta) {
         : 'Recarga gas para que tus bots sigan operando';
     };
 
-    /* Primero se intenta con el consumo real del usuario. */
-    if (_gasReal.gastado > 0 && _gasReal.ops > 0) {
-      pintarCoste(_gasReal.gastado / _gasReal.ops, 'según tu consumo real');
-    } else {
-      // Estimación de red: 150.000 gas a 1 gwei en BNB Chain
-      pintarCoste(0.00015, 'estimado para BNB Chain');
-    }
+    /* Coste por operación ESTABLE y honesto: se calcula con el precio de gas
+       REAL de la red ahora mismo × el consumo típico de una operación (~400k
+       gas). Así no salta de miles a decenas según abran/cierren bots, y refleja
+       lo que de verdad cuesta operar en este momento. El consumo real del
+       usuario (si existe y es sensato) se usa como afinado. */
+    const GAS_POR_OP = 400000;   // unidades de gas típicas de una compra/venta
+    gb.precioGasWei().then((gwei) => {
+      let bnbOp = 0, fuente = 'estimado para BNB Chain';
+      if (gwei > 0n) {
+        bnbOp = Number(gb.fmtBNB(gwei * BigInt(GAS_POR_OP)));
+        fuente = 'según el gas de la red ahora';
+      }
+      // Afinado con el consumo real, solo si cae en un rango sensato.
+      if (_gasReal.gastado > 0 && _gasReal.ops > 0) {
+        const real = _gasReal.gastado / _gasReal.ops;
+        if (real >= 0.000005 && real <= 0.002) { bnbOp = real; fuente = 'según tu consumo real'; }
+      }
+      if (!(bnbOp > 0)) bnbOp = 0.00002;   // último recurso
+      pintarCoste(bnbOp, fuente);
+    }).catch(() => pintarCoste(0.00002, 'estimado para BNB Chain'));
   }).catch(() => {});
 
   // 2) Bots: todo en paralelo (antes iba uno detrás de otro).
