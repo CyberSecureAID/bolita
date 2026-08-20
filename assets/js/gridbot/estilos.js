@@ -607,7 +607,7 @@ export function inyectarEstilo(tipoNum) {
     border:1px solid rgba(232,184,75,.6);box-shadow:0 2px 0 rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.14);
     transition:transform .1s ease,box-shadow .15s ease,filter .15s ease}
   #colmena-app #c-ver-ord .cupo-tx{color:var(--gold);font-weight:700}
-  #colmena-app #c-ver-ord:hover{filter:brightness(1.12);box-shadow:0 4px 10px rgba(232,184,75,.28),inset 0 1px 0 rgba(255,255,255,.18)}
+  #colmena-app #c-ver-ord:hover{filter:brightness(1.06);box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.14)}
   #colmena-app #c-ver-ord:active{transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.1)}
   #colmena-app #c-ver-ord b{min-width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;
     background:linear-gradient(180deg,#f7db8d,#E8B84B 60%,#c79426);color:#3a2800;border-radius:9px;font-size:11px;font-weight:800;padding:0 5px;
