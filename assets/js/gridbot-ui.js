@@ -908,7 +908,7 @@ function render() {
         </div>
       </div>
     </div>
-    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><div class="mb-der"><span class="c-cupo" id="c-cupo"><b>—</b><span class="cupo-tx">bots activos</span></span><button class="c-cupo" id="c-ver-ord" type="button" title="Ver tus órdenes limit" style="cursor:pointer;display:none;border:0;font:inherit"><b id="c-ord-n">0</b><span class="cupo-tx">órdenes</span></button><button class="btn-cerrar-todos" id="c-cerrar-todos" type="button" title="Cerrar todos tus bots"><span class="cerrar-largo">Cerrar todos</span><span class="cerrar-corto">Cerrar</span></button></div></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
+    <div class="colmenas card"><div class="mb-cab"><h3>Mis bots</h3><div class="mb-der"><span class="c-cupo" id="c-cupo"><b>—</b><span class="cupo-tx">bots activos</span></span><button class="c-cupo" id="c-ver-ord" type="button" title="Ver tus órdenes limit pendientes" style="cursor:pointer;border:0;font:inherit"><b id="c-ord-n">·</b><span class="cupo-tx">Mis órdenes</span></button><button class="btn-cerrar-todos" id="c-cerrar-todos" type="button" title="Cerrar todos tus bots"><span class="cerrar-largo">Cerrar todos</span><span class="cerrar-corto">Cerrar</span></button></div></div><div id="c-rejillas"><div class="skel" style="height:120px;width:100%;border-radius:14px"></div></div></div>
     ${footerHTML()}
   </div>`;
 
@@ -2193,6 +2193,94 @@ async function arrancarTrail(clave, par, pmin, pmax, decB, decQ, cuenta) {
   st.timer = setInterval(muestrear, 6000);
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   VENTANA "MIS ÓRDENES" — órdenes limit puestas desde el gráfico.
+   Botón fijo en "Mis bots". Muestra la lista o un estado vacío bonito.
+   ═══════════════════════════════════════════════════════════════════ */
+async function abrirMisOrdenes(cuenta) {
+  document.getElementById('ord-modal')?.remove();
+  const d = document.createElement('div');
+  d.id = 'ord-modal';
+  d.innerHTML = `<div class="ord-bg"></div>
+    <div class="ord-c">
+      <div class="ord-head">
+        <div class="ord-tit"><span class="ord-dot"></span>Mis órdenes</div>
+        <button class="ord-x" id="ord-x" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="ord-sub">Órdenes limit que pusiste a mano desde el gráfico.</div>
+      <div class="ord-body" id="ord-body"><div class="ord-cargando">Cargando tus órdenes…</div></div>
+    </div>`;
+  document.body.appendChild(d);
+  if (!document.getElementById('ord-modal-css')) {
+    const s = document.createElement('style'); s.id = 'ord-modal-css';
+    s.textContent = `
+    #ord-modal{position:fixed;inset:0;z-index:9970;display:flex;align-items:center;justify-content:center;padding:16px}
+    #ord-modal .ord-bg{position:absolute;inset:0;background:rgba(3,5,8,.82);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+    #ord-modal .ord-c{position:relative;width:100%;max-width:460px;max-height:calc(100vh - 32px);overflow:hidden;display:flex;flex-direction:column;background:linear-gradient(180deg,#161b22,#0b0e12);border:1px solid var(--gold-soft,rgba(232,184,75,.35));border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,.55)}
+    #ord-modal .ord-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 4px}
+    #ord-modal .ord-tit{display:flex;align-items:center;gap:9px;font:800 18px var(--display,system-ui);color:var(--gold,#E8B84B)}
+    #ord-modal .ord-dot{width:8px;height:8px;border-radius:50%;background:#2ee86a;box-shadow:0 0 8px #2ee86a}
+    #ord-modal .ord-x{background:rgba(255,255,255,.06);border:0;color:#c7ced6;width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:14px}
+    #ord-modal .ord-x:hover{background:rgba(255,255,255,.12)}
+    #ord-modal .ord-sub{padding:0 20px 12px;font:400 12.5px var(--sans,system-ui);color:var(--ink-3,#8b95a1)}
+    #ord-modal .ord-body{overflow-y:auto;padding:4px 16px 18px}
+    #ord-modal .ord-cargando{padding:30px;text-align:center;color:var(--ink-3,#8b95a1);font:400 13px var(--sans,system-ui)}
+    #ord-modal .ord-row{display:flex;align-items:center;gap:12px;padding:13px 14px;margin:8px 0;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+    #ord-modal .ord-tag{flex:0 0 auto;font:800 11px var(--display,system-ui);letter-spacing:.4px;padding:5px 10px;border-radius:8px}
+    #ord-modal .ord-tag.v{background:rgba(246,70,93,.14);color:#ff6b7d;border:1px solid rgba(246,70,93,.4)}
+    #ord-modal .ord-tag.c{background:rgba(46,232,106,.14);color:#39e07a;border:1px solid rgba(46,232,106,.4)}
+    #ord-modal .ord-info{flex:1;min-width:0}
+    #ord-modal .ord-par{font:800 15px var(--display,system-ui);color:#eef2f6}
+    #ord-modal .ord-meta{font:400 12px ui-monospace,monospace;color:var(--ink-3,#8b95a1);margin-top:2px}
+    #ord-modal .ord-meta b{color:#dfe5ec;font-weight:700}
+    #ord-modal .ord-cancel{flex:0 0 auto;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#c7ced6;font:700 12px var(--sans,system-ui);padding:8px 12px;border-radius:9px;cursor:pointer}
+    #ord-modal .ord-cancel:hover{background:rgba(246,70,93,.14);border-color:rgba(246,70,93,.4);color:#ff6b7d}
+    #ord-modal .ord-vacio{text-align:center;padding:36px 20px}
+    #ord-modal .ord-vacio-ic{width:52px;height:52px;margin:0 auto 14px;border-radius:14px;background:rgba(232,184,75,.1);display:flex;align-items:center;justify-content:center;color:var(--gold,#E8B84B)}
+    #ord-modal .ord-vacio-t{font:800 16px var(--display,system-ui);color:#eef2f6}
+    #ord-modal .ord-vacio-d{font:400 13px var(--sans,system-ui);color:var(--ink-3,#8b95a1);margin-top:6px;line-height:1.5}`;
+    document.head.appendChild(s);
+  }
+  const cerrar = () => d.remove();
+  d.querySelector('.ord-bg').onclick = cerrar;
+  d.querySelector('#ord-x').onclick = cerrar;
+
+  const body = d.querySelector('#ord-body');
+  let od;
+  try { od = await import('./orden.js?v=126'); } catch (_) { body.innerHTML = `<div class="ord-vacio"><div class="ord-vacio-t">No se pudo cargar</div></div>`; return; }
+  try { if (od.sincronizarOrdenes) await od.sincronizarOrdenes(cuenta); } catch (_) {}
+  const lista = (od.ordenesPuestas ? od.ordenesPuestas() : []).filter((o) => o.modo !== 'aviso');
+
+  const vacio = `<div class="ord-vacio">
+      <div class="ord-vacio-ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div>
+      <div class="ord-vacio-t">No tienes órdenes pendientes</div>
+      <div class="ord-vacio-d">Pon una orden con clic derecho en cualquier gráfica y aparecerá aquí, esperando su precio.</div>
+    </div>`;
+  if (!lista.length) { body.innerHTML = vacio; return; }
+
+  body.innerHTML = lista.map((o) => {
+    const vender = !!o.vender;
+    const cant = o.cant != null ? o.cant : '';
+    return `<div class="ord-row" data-id="${o.id}">
+      <span class="ord-tag ${vender ? 'v' : 'c'}">${vender ? 'VENTA' : 'COMPRA'}</span>
+      <div class="ord-info">
+        <div class="ord-par">${o.par || o.simbolo || ''}</div>
+        <div class="ord-meta">Precio <b>${precioFmt(Number(o.precio))}</b>${cant !== '' ? ` · Cantidad <b>${cant}</b>` : ''}</div>
+      </div>
+      <button class="ord-cancel" data-cancel="${o.id}">Cancelar</button>
+    </div>`;
+  }).join('');
+
+  body.querySelectorAll('[data-cancel]').forEach((b) => {
+    b.onclick = () => {
+      b.disabled = true; b.textContent = '…';
+      try { if (od.cancelar) od.cancelar(b.dataset.cancel); } catch (_) {}
+      const row = b.closest('.ord-row'); if (row) row.remove();
+      if (!body.querySelector('.ord-row')) body.innerHTML = vacio;
+    };
+  });
+}
+
 function tarjetaMinima(clave, par, err, R) {
   const pair = (R && R.base) ? `${simboloDe(R.base)}/${simboloDe(R.quote)}` : ((par && par.base) ? `${par.simBase}/${par.simQuote}` : '');
   const estado = R ? (R.activa ? 'activo' : 'inactivo') : 'sin resumen';
@@ -2359,14 +2447,13 @@ async function refrescarRejillas() {
     const irC = $('c-ir-crear');
     if (irC) irC.onclick = () => { const t = document.querySelector('#colmena-app .bot-tab'); if (t) { t.click(); t.scrollIntoView({ behavior: 'smooth', block: 'center' }); } };
     pintarCupo(cuenta);
-    /* Botón "órdenes" junto al contador de bots: muestra cuántas órdenes limit
-       tienes y al tocarlo salta a su sección. */
+    /* Botón "Mis órdenes": SIEMPRE visible. Muestra cuántas órdenes limit
+       pendientes tienes y al tocarlo abre la ventana (con la lista o vacía). */
     {
       const bOrd = $('c-ver-ord'), nOrd = $('c-ord-n');
       if (bOrd && nOrd) {
-        nOrd.textContent = String(_ordenes.length);
-        bOrd.style.display = _ordenes.length ? '' : 'none';
-        bOrd.onclick = () => { const s = $('sec-ordenes'); if (s) s.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+        nOrd.textContent = _ordenes.length ? String(_ordenes.length) : '·';
+        bOrd.onclick = () => abrirMisOrdenes(cuenta);
       }
     }
     const bct = $('c-cerrar-todos');
