@@ -2247,7 +2247,7 @@ async function abrirMisOrdenes(cuenta) {
 
   const body = d.querySelector('#ord-body');
   let od;
-  try { od = await import('./orden.js?v=126'); } catch (_) { body.innerHTML = `<div class="ord-vacio"><div class="ord-vacio-t">No se pudo cargar</div></div>`; return; }
+  try { od = await import('./orden.js?v=125'); } catch (_) { body.innerHTML = `<div class="ord-vacio"><div class="ord-vacio-t">No se pudo cargar</div></div>`; return; }
   try { if (od.sincronizarOrdenes) await od.sincronizarOrdenes(cuenta); } catch (_) {}
   const lista = (od.ordenesPuestas ? od.ordenesPuestas() : []).filter((o) => o.modo !== 'aviso');
 
@@ -2309,7 +2309,7 @@ function wireMinCancel(cont) {
 
 async function refrescarRejillas() {
   const cuenta = wallet.cuentaActual(); const cont = $('c-rejillas'); if (!cuenta || !cont) return;
-  try { const _o = await import('./orden.js?v=126'); if (_o.sincronizarOrdenes) await _o.sincronizarOrdenes(cuenta); } catch (_) {}
+  try { const _o = await import('./orden.js?v=125'); if (_o.sincronizarOrdenes) await _o.sincronizarOrdenes(cuenta); } catch (_) {}
   pararTrails();
   try {
     const claves = await gb.misRejillas(cuenta);
@@ -2455,7 +2455,7 @@ async function refrescarRejillas() {
         bOrd.onclick = () => abrirMisOrdenes(cuenta);
         (async () => {
           try {
-            const od = await import('./orden.js?v=126');
+            const od = await import('./orden.js?v=125');
             try { if (od.sincronizarOrdenes) await od.sincronizarOrdenes(cuenta); } catch (_) {}
             const n = (od.ordenesPuestas ? od.ordenesPuestas() : []).filter((o) => o.modo !== 'aviso').length;
             if (n > 0) { nOrd.textContent = String(n); nOrd.style.display = ''; }

@@ -1391,12 +1391,8 @@ export async function abrirMuros() {
 
   /* ONBOARDING: la primera vez que se abre el radar, se muestra el tutorial
      solo (una sola vez por navegador). */
-  try {
-    if (!localStorage.getItem('mu_onboard_v1')) {
-      localStorage.setItem('mu_onboard_v1', '1');
-      setTimeout(() => { if ($('mu-cv')) ayuda(); }, 900);
-    }
-  } catch (_) {}
+  /* La tarjeta de ayuda ya NO se abre sola al entrar: el usuario la abre cuando
+     quiera con el botón de ayuda. */
 
   d.querySelectorAll('[data-tf]').forEach((b) => b.onclick = () => {
     M.tf = b.dataset.tf;
@@ -1916,7 +1912,7 @@ function dibujar() {
   }
   if (esp) esp.style.display = 'none';
 
-  const mDer = 88, mAba = 22;
+  const mDer = 66, mAba = 22;
   const x1 = W - mDer, y1 = H - mAba;
   const xVelas = x1;             // las velas llegan HASTA el eje de precios (sin banda muerta)
 
@@ -3111,7 +3107,7 @@ async function ponerLogos() {
 const PASOS_MU = [
   {
     t: 'Qué es Heat Pools',
-    d: 'Heat Pools es una herramienta de <b>alto rendimiento</b> que revela <b>dónde se concentra el volumen de negociación</b> en los niveles más exactos del mercado. Analiza los datos en <b>tiempo real</b> —precio, niveles de negociación y liquidez— y los pinta como un <b>mapa de calor</b> sobre las zonas donde el dinero de verdad se ha estado acumulando.',
+    d: 'Heat Pools es una herramienta de <b>alto rendimiento</b> que revela <b>dónde se concentra el volumen de negociación</b> en los niveles más exactos del mercado. Analiza los datos en <b>tiempo real</b> (precio, niveles de negociación y liquidez) y los pinta como un <b>mapa de calor</b> sobre las zonas donde el dinero de verdad se ha estado acumulando.',
     x: 'Es la primera herramienta de su tipo en la plataforma: te muestra de un vistazo dónde está el interés real del mercado.'
   },
   {
@@ -3752,9 +3748,9 @@ function estilos() {
     box-shadow:0 3px 0 #8f6a1a}
   #mu-val-box .mv-copy:active{transform:translateY(2px);box-shadow:0 1px 0 #8f6a1a}
 
-  #mu-ayuda-box{position:fixed;inset:0;z-index:9770;display:flex;align-items:center;justify-content:center;padding:16px}
+  #mu-ayuda-box{position:fixed;inset:0;z-index:10300;display:flex;align-items:center;justify-content:center;padding:16px}
   #mu-ayuda-box .mu-bg{position:absolute;inset:0;background:rgba(3,5,8,.93)}
-  #mu-ayuda-box .mua-c{position:relative;width:100%;max-width:560px;max-height:calc(100vh - 32px);
+  #mu-ayuda-box .mua-c{position:relative;width:100%;max-width:560px;max-height:88vh;
     overflow-y:auto;background:linear-gradient(180deg,#161b22,#0b0e12);
     border:1px solid var(--gold-soft,#C9A84B);border-radius:20px;padding:24px 20px}
   #mu-ayuda-box .mua-x{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:10px;
@@ -3863,7 +3859,7 @@ function estilos() {
     #mu-overlay .mu-cuerpo{flex-direction:column}
     #mu-overlay .mu-tfs{display:none}          /* la fila se reemplaza por el chip */
     #mu-overlay .mu-tfchip{display:inline-flex}
-    #mu-overlay .mu-mtabs{display:flex}
+    #mu-overlay .mu-mtabs{display:none}   /* fuera: Heat Pools va directo al gráfico */
     /* La barra ya NO desborda. El "Precio ahora" se oculta (ya está grande en
        la gráfica). */
     /* La barra ya NO desborda ni se amontona. En móvil, la fila de acciones

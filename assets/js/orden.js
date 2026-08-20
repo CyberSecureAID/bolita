@@ -128,8 +128,14 @@ leerOrdenesGuardadas().forEach((o) => {
 });
 
 export function ordenesPuestas() {
+  // Se lee SIEMPRE del almacenamiento (no de la lista en memoria): así el
+  // contador y la ventana muestran el número real aunque otro módulo haya
+  // guardado órdenes en otra instancia. Antes mostraba siempre "1" por eso.
+  const guardadas = leerOrdenesGuardadas();
+  const idsG = new Set(guardadas.map((x) => x.id));
+  const enMemoria = _puestas.filter((x) => x.modo !== 'aviso' && !idsG.has(x.id));
   const alertas = leerAvisos().map((a) => ({ ...a, modo: 'aviso' }));
-  return [..._puestas.filter((x) => x.modo !== 'aviso'), ...alertas];
+  return [...guardadas.filter((x) => x.modo !== 'aviso'), ...enMemoria, ...alertas];
 }
 
 /** Cancela una alerta o una orden real por su identificador. */

@@ -97,15 +97,15 @@ const PARES = [
   { id: 'TIA',   s: 'TIAUSDT',   n: 'Celestia',  cg: 'celestia' }
 ];
 const TFS = [
-  { id: '5m',  n: '5 minutos' },
-  { id: '15m', n: '15 minutos' },
-  { id: '30m', n: '30 minutos' },
-  { id: '1h',  n: '1 hora' },
-  { id: '2h',  n: '2 horas' },
-  { id: '4h',  n: '4 horas' },
-  { id: '12h', n: '12 horas' },
-  { id: '1d',  n: '1 día' },
-  { id: '1w',  n: '1 semana' }
+  { id: '5m',  n: '5m' },
+  { id: '15m', n: '15m' },
+  { id: '30m', n: '30m' },
+  { id: '1h',  n: '1H' },
+  { id: '2h',  n: '2H' },
+  { id: '4h',  n: '4H' },
+  { id: '12h', n: '12H' },
+  { id: '1d',  n: '1D' },
+  { id: '1w',  n: '1S' }
 ];
 
 let _od = null;              // módulo de órdenes
@@ -1129,7 +1129,7 @@ function dibujar() {
     }).catch(() => {});
   }
 
-  const mDer = 62, mAba = 20;
+  const mDer = 56, mAba = 20;
   const x1 = W - mDer;                 // donde empieza la escala
   /* Las velas al 78%: el perfil de la derecha se ha quitado (estaba
      invertido y no aportaba), así que el gráfico recupera ese sitio.
@@ -1891,7 +1891,7 @@ function engancharGestos(cv) {
      los dibujos es lo que hace que se peguen al gráfico. */
   const aDatos = (px, py) => {
     const W = cv.clientWidth || 900, H = cv.clientHeight || 500;
-    const x1 = W - 62, y1 = H - 20;
+    const x1 = W - 56, y1 = H - 20;
     const paso = (x1 * 0.70) / V.ancho;
     const i = Math.max(0, Math.min(V.mapa.velas.length - 1,
       Math.round(V.desde + px / Math.max(0.5, paso))));
